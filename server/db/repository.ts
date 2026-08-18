@@ -1,0 +1,895 @@
+import { randomUUID } from "node:crypto";
+import type { RehearsalDatabase } from "./database.js";
+import type {
+  LanguageCode,
+  LearningItem,
+  LearningItemInput,
+  ReviewBatch,
+  ReviewBatchKind,
+  ReviewCandidate,
+  SearchResult,
+} from "../types.js";
+import {
+  cardFromStoredState,
+  defaultSchedulerSettings,
+  normalizeSchedulerSettings,
+  previewReview,
+  scheduleReview,
+  storedStateFromCard,
+  type ReviewRating,
+  type SchedulerSettings,
+  type StoredReviewState,
+} from "../services/scheduler.js";
+
+type ItemRow = {
+  id: number;
+  public_id: string;
+  language_code: LanguageCode;
+  kind: LearningItem["kind"];
+  cue: string;
+  target: string;
+  accepted_answers: string;
+  note: string;
+  source: string;
+  status: LearningItem["status"];
+  preference: LearningItem["preference"];
+  naturalness: number;
+  commonness: number;
+  register: LearningItem["register"];
+  tags: string;
+  focus_terms: string;
+  frequency_band: LearningItem["frequencyBand"];
+  currency: LearningItem["currency"];
+  persona_fit: number;
+  relevance_checked_at: string | null;
+  practice_enabled: number;
+  embedding?: Buffer | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ReviewBatchRow = {
+  public_id: string;
+  language_code: LanguageCode;
+  kind: ReviewBatchKind;
+  title: string;
+  source_text: string;
+  candidates: string;
+  status: ReviewBatch["status"];
+  source_thread_public_id: string | null;
+  created_at: string;
+  updated_at: string;
+  committed_at: string | null;
+};
+
+type ReviewStateRow = {
+  due_at: string;
+  stability: number;
+  difficulty: number;
+  elapsed_days: number;
+  scheduled_days: number;
+  learning_steps: number;
+  repetitions: number;
+  lapses: number;
+  state: number;
+  last_review: string | null;
+};
+
+type DueItemRow = ItemRow & {
+  review_due_at: string | null;
+  review_stability: number | null;
+  review_difficulty: number | null;
+  review_elapsed_days: number | null;
+  review_scheduled_days: number | null;
+  review_learning_steps: number | null;
+  review_repetitions: number | null;
+  review_lapses: number | null;
+  review_state: number | null;
+  review_last_review: string | null;
+};
+
+const parseArray = (value: string): string[] => {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+};
+
+const mapItem = (row: ItemRow): LearningItem => ({
+  id: row.id,
+  publicId: row.public_id,
+  language: row.language_code,
+  kind: row.kind,
+  cue: row.cue,
+  target: row.target,
+  acceptedAnswers: parseArray(row.accepted_answers),
+  note: row.note,
+  source: row.source,
+  status: row.status,
+  preference: row.preference,
+  naturalness: row.naturalness,
+  commonness: row.commonness,
+  register: row.register,
+  tags: parseArray(row.tags),
+  focusTerms: parseArray(row.focus_terms),
+  frequencyBand: row.frequency_band,
+  currency: row.currency,
+  personaFit: row.persona_fit,
+  relevanceCheckedAt: row.relevance_checked_at,
+  practiceEnabled: Boolean(row.practice_enabled),
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapReviewBatch = (row: ReviewBatchRow): ReviewBatch => ({
+  publicId: row.public_id,
+  language: row.language_code,
+  kind: row.kind,
+  title: row.title,
+  sourceText: row.source_text,
+  candidates: JSON.parse(row.candidates) as ReviewCandidate[],
+  status: row.status,
+  sourceThreadPublicId: row.source_thread_public_id,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  committedAt: row.committed_at,
+});
+
+const mapReviewState = (row: ReviewStateRow | undefined): StoredReviewState | undefined =>
+  row ? {
+    dueAt: row.due_at,
+    stability: row.stability,
+    difficulty: row.difficulty,
+    elapsedDays: row.elapsed_days,
+    scheduledDays: row.scheduled_days,
+    learningSteps: row.learning_steps,
+    repetitions: row.repetitions,
+    lapses: row.lapses,
+    state: row.state,
+    lastReview: row.last_review,
+  } : undefined;
+
+const mapJoinedReviewState = (row: DueItemRow): StoredReviewState | undefined =>
+  row.review_due_at === null ? undefined : {
+    dueAt: row.review_due_at,
+    stability: row.review_stability || 0,
+    difficulty: row.review_difficulty || 0,
+    elapsedDays: row.review_elapsed_days || 0,
+    scheduledDays: row.review_scheduled_days || 0,
+    learningSteps: row.review_learning_steps || 0,
+    repetitions: row.review_repetitions || 0,
+    lapses: row.review_lapses || 0,
+    state: row.review_state || 0,
+    lastReview: row.review_last_review,
+  };
+
+const vectorToBuffer = (vector: number[]) => {
+  const buffer = Buffer.allocUnsafe(vector.length * 4);
+  vector.forEach((value, index) => buffer.writeFloatLE(value, index * 4));
+  return buffer;
+};
+
+const cosineSimilarity = (left: number[], right: Buffer) => {
+  if (right.byteLength !== left.length * 4) return 0;
+  let dot = 0;
+  let leftLength = 0;
+  let rightLength = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    const rightValue = right.readFloatLE(index * 4);
+    dot += left[index] * rightValue;
+    leftLength += left[index] ** 2;
+    rightLength += rightValue ** 2;
+  }
+  if (!leftLength || !rightLength) return 0;
+  return dot / Math.sqrt(leftLength * rightLength);
+};
+
+const makeFtsQuery = (query: string) =>
+  (query.match(/[\p{L}\p{N}]+/gu) || [])
+    .slice(0, 10)
+    .map((token) => `"${token.replaceAll('"', '""')}"*`)
+    .join(" OR ");
+
+const makeThreadTitle = (message: string) => {
+  const lines = message.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const source = lines.length >= 5 ? lines[0] : lines.join(" ");
+  const clean = source.replace(/^[-*\d.)\s]+/, "").replace(/\s+/g, " ").trim();
+  if (!clean) return "New conversation";
+  const words = clean.split(" ").slice(0, 8).join(" ");
+  const title = words.length > 52 ? `${words.slice(0, 49).trimEnd()}…` : words;
+  return clean.length > title.length && !title.endsWith("…") ? `${title}…` : title;
+};
+
+export class RehearsalRepository {
+  constructor(private readonly db: RehearsalDatabase) {}
+
+  getSchedulerSettings() {
+    const row = this.db.prepare("SELECT value FROM app_settings WHERE key = 'scheduler'").get() as
+      | { value: string }
+      | undefined;
+    if (!row) return defaultSchedulerSettings;
+    try {
+      return normalizeSchedulerSettings(JSON.parse(row.value));
+    } catch {
+      return defaultSchedulerSettings;
+    }
+  }
+
+  updateSchedulerSettings(input: SchedulerSettings) {
+    const previous = this.getSchedulerSettings();
+    const settings = normalizeSchedulerSettings(input);
+    this.db.prepare(
+      `INSERT INTO app_settings(key, value) VALUES ('scheduler', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+    ).run(JSON.stringify(settings));
+    this.logChange("user", "update", "app_settings", "scheduler", previous, settings);
+    return settings;
+  }
+
+  listItems(language: LanguageCode, limit = 100) {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM items
+         WHERE language_code = ?
+         ORDER BY CASE status WHEN 'learning' THEN 0 WHEN 'new' THEN 1 ELSE 2 END,
+                  updated_at DESC
+         LIMIT ?`,
+      )
+      .all(language, limit) as ItemRow[];
+    return rows.map(mapItem);
+  }
+
+  getItem(publicId: string) {
+    const row = this.db.prepare("SELECT * FROM items WHERE public_id = ?").get(publicId) as
+      | ItemRow
+      | undefined;
+    return row ? mapItem(row) : null;
+  }
+
+  saveItem(input: LearningItemInput, actor: "user" | "llm" | "system" = "user") {
+    const publicId = input.publicId || randomUUID();
+    const existing = this.getItem(publicId);
+    this.db
+      .prepare(
+        `INSERT INTO items(
+           public_id, language_code, kind, cue, target, accepted_answers, note,
+           source, status, preference, naturalness, commonness, register, tags,
+           focus_terms, frequency_band, currency, persona_fit, relevance_checked_at, practice_enabled
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(public_id) DO UPDATE SET
+           language_code = excluded.language_code,
+           kind = excluded.kind,
+           cue = excluded.cue,
+           target = excluded.target,
+           accepted_answers = excluded.accepted_answers,
+           note = excluded.note,
+           source = excluded.source,
+           status = excluded.status,
+           preference = excluded.preference,
+           naturalness = excluded.naturalness,
+           commonness = excluded.commonness,
+           register = excluded.register,
+           tags = excluded.tags,
+           focus_terms = excluded.focus_terms,
+           frequency_band = excluded.frequency_band,
+           currency = excluded.currency,
+           persona_fit = excluded.persona_fit,
+           relevance_checked_at = excluded.relevance_checked_at,
+           practice_enabled = excluded.practice_enabled,
+           updated_at = CURRENT_TIMESTAMP`,
+      )
+      .run(
+        publicId,
+        input.language,
+        input.kind || "phrase",
+        input.cue.trim(),
+        input.target.trim(),
+        JSON.stringify(input.acceptedAnswers || []),
+        input.note?.trim() || "",
+        input.source?.trim() || "",
+        input.status || "new",
+        input.preference || "neutral",
+        input.naturalness || 5,
+        input.commonness || 5,
+        input.register || "neutral",
+        JSON.stringify(input.tags || []),
+        JSON.stringify(input.focusTerms || []),
+        input.frequencyBand || "common",
+        input.currency || "current",
+        input.personaFit || 5,
+        input.relevanceCheckedAt || null,
+        input.practiceEnabled === false ? 0 : 1,
+      );
+    const saved = this.getItem(publicId)!;
+    this.logChange(actor, existing ? "update" : "create", "item", publicId, existing, saved);
+    return saved;
+  }
+
+  updateItemPreference(publicId: string, preference: LearningItem["preference"]) {
+    const existing = this.getItem(publicId);
+    if (!existing) return null;
+    this.db
+      .prepare("UPDATE items SET preference = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?")
+      .run(preference, publicId);
+    const updated = this.getItem(publicId)!;
+    this.logChange("user", "update", "item", publicId, existing, updated);
+    return updated;
+  }
+
+  updateItem(publicId: string, input: Partial<Pick<LearningItemInput,
+    "target" | "cue" | "note" | "tags" | "preference" | "frequencyBand" | "practiceEnabled"
+  >>) {
+    const existing = this.getItem(publicId);
+    if (!existing) return null;
+    const updated = this.saveItem({
+      ...existing,
+      publicId,
+      target: input.target ?? existing.target,
+      cue: input.cue ?? existing.cue,
+      note: input.note ?? existing.note,
+      tags: input.tags ?? existing.tags,
+      preference: input.preference ?? existing.preference,
+      frequencyBand: input.frequencyBand ?? existing.frequencyBand,
+      practiceEnabled: input.practiceEnabled ?? existing.practiceEnabled,
+    });
+    return updated;
+  }
+
+  deleteItem(publicId: string) {
+    const existing = this.getItem(publicId);
+    if (!existing) return false;
+    this.logChange("user", "delete", "item", publicId, existing, null);
+    this.db.prepare("DELETE FROM items WHERE public_id = ?").run(publicId);
+    return true;
+  }
+
+  createReviewBatch(input: {
+    language: LanguageCode;
+    kind: ReviewBatchKind;
+    title: string;
+    sourceText?: string;
+    candidates: ReviewCandidate[];
+    sourceThreadPublicId?: string;
+  }) {
+    const publicId = randomUUID();
+    this.db.prepare(
+      `INSERT INTO review_batches(
+         public_id, language_code, kind, title, source_text, candidates, source_thread_public_id
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      publicId,
+      input.language,
+      input.kind,
+      input.title.trim(),
+      input.sourceText || "",
+      JSON.stringify(input.candidates),
+      input.sourceThreadPublicId || null,
+    );
+    const batch = this.getReviewBatch(publicId)!;
+    this.logChange("llm", "create", "review_batch", publicId, null, {
+      kind: batch.kind,
+      candidates: batch.candidates.length,
+    });
+    return batch;
+  }
+
+  getReviewBatch(publicId: string) {
+    const row = this.db.prepare("SELECT * FROM review_batches WHERE public_id = ?").get(publicId) as
+      | ReviewBatchRow
+      | undefined;
+    return row ? mapReviewBatch(row) : null;
+  }
+
+  replaceReviewCandidate(batchPublicId: string, candidateId: string, candidate: ReviewCandidate) {
+    const batch = this.getReviewBatch(batchPublicId);
+    if (!batch || batch.status !== "draft") return null;
+    const candidates = batch.candidates.map((current) => current.id === candidateId ? candidate : current);
+    if (!batch.candidates.some((current) => current.id === candidateId)) return null;
+    this.db.prepare(
+      "UPDATE review_batches SET candidates = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?",
+    ).run(JSON.stringify(candidates), batchPublicId);
+    return this.getReviewBatch(batchPublicId);
+  }
+
+  commitReviewBatch(
+    batchPublicId: string,
+    selected: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
+  ) {
+    const batch = this.getReviewBatch(batchPublicId);
+    if (!batch) return null;
+    if (batch.status === "committed") return { batch, items: [] as LearningItem[] };
+    const available = new Map(batch.candidates.map((candidate) => [candidate.id, candidate]));
+    const selectedCandidates = selected.map((edited) => {
+      const original = available.get(edited.id);
+      if (!original) throw new Error("UNKNOWN_REVIEW_CANDIDATE");
+      return {
+        ...original,
+        target: edited.target.trim(),
+        cue: edited.cue.trim(),
+        note: edited.note.trim(),
+        category: edited.category.trim(),
+      };
+    });
+    if (selectedCandidates.some((candidate) => !candidate.target || !candidate.cue)) {
+      throw new Error("EMPTY_REVIEW_CANDIDATE");
+    }
+    const items: LearningItem[] = [];
+    const transaction = this.db.transaction(() => {
+      for (const candidate of selectedCandidates) {
+        items.push(this.saveItem({
+          language: batch.language,
+          kind: batch.kind === "text_import" ? "story_line" : batch.kind === "chat_review" ? "correction" : "phrase",
+          cue: candidate.cue,
+          target: candidate.target,
+          note: candidate.note,
+          source: batch.title,
+          tags: candidate.category ? [candidate.category] : [],
+          focusTerms: candidate.focusTerms,
+          naturalness: candidate.naturalness,
+          commonness: candidate.commonness,
+          frequencyBand: candidate.frequencyBand,
+          currency: candidate.currency,
+          personaFit: candidate.personaFit,
+          relevanceCheckedAt: candidate.currency === "uncertain" ? null : new Date().toISOString(),
+          register: "casual",
+        }, "user"));
+      }
+      this.db.prepare(
+        `UPDATE review_batches SET status = 'committed', committed_at = CURRENT_TIMESTAMP,
+         updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
+      ).run(batchPublicId);
+    });
+    transaction();
+    return { batch: this.getReviewBatch(batchPublicId)!, items };
+  }
+
+  saveSource(input: {
+    publicId?: string;
+    language: LanguageCode;
+    title: string;
+    rawText: string;
+    kind?: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    const publicId = input.publicId || randomUUID();
+    this.db
+      .prepare(
+        `INSERT INTO sources(public_id, language_code, title, kind, raw_text, metadata)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(public_id) DO UPDATE SET
+           language_code = excluded.language_code,
+           title = excluded.title,
+           kind = excluded.kind,
+           raw_text = excluded.raw_text,
+           metadata = excluded.metadata`,
+      )
+      .run(
+        publicId,
+        input.language,
+        input.title.trim(),
+        input.kind || "text",
+        input.rawText,
+        JSON.stringify(input.metadata || {}),
+      );
+    this.logChange(input.publicId ? "system" : "user", "create", "source", publicId, null, {
+      language: input.language,
+      title: input.title,
+      characters: input.rawText.length,
+    });
+    return { publicId };
+  }
+
+  search(query: string, language: LanguageCode, embedding?: number[], limit = 20): SearchResult[] {
+    const keywordScores = new Map<string, number>();
+    const itemById = new Map<string, LearningItem>();
+    const ftsQuery = makeFtsQuery(query);
+
+    if (ftsQuery) {
+      const keywordRows = this.db
+        .prepare(
+          `SELECT i.*, bm25(items_fts, 4.0, 1.5, 0.8, 0.3) AS keyword_rank
+           FROM items_fts
+           JOIN items i ON i.id = items_fts.rowid
+           WHERE items_fts MATCH ? AND i.language_code = ?
+           ORDER BY keyword_rank
+           LIMIT 50`,
+        )
+        .all(ftsQuery, language) as Array<ItemRow & { keyword_rank: number }>;
+      keywordRows.forEach((row, index) => {
+        const item = mapItem(row);
+        itemById.set(item.publicId, item);
+        keywordScores.set(item.publicId, Math.max(0.2, 1 - index / 55));
+      });
+    }
+
+    const semanticScores = new Map<string, number>();
+    if (embedding?.length) {
+      const semanticRows = this.db
+        .prepare(
+          `SELECT * FROM items
+           WHERE language_code = ? AND embedding IS NOT NULL`,
+        )
+        .all(language) as ItemRow[];
+      semanticRows
+        .map((row) => ({ row, score: cosineSimilarity(embedding, row.embedding!) }))
+        .filter(({ score }) => score > 0.1)
+        .sort((left, right) => right.score - left.score)
+        .slice(0, 50)
+        .forEach(({ row, score }) => {
+          const item = mapItem(row);
+          itemById.set(item.publicId, item);
+          semanticScores.set(item.publicId, score);
+        });
+    }
+
+    if (!itemById.size) {
+      const like = `%${query.trim().toLocaleLowerCase()}%`;
+      const rows = this.db
+        .prepare(
+          `SELECT * FROM items
+           WHERE language_code = ?
+             AND (lower(target) LIKE ? OR lower(cue) LIKE ? OR lower(note) LIKE ?)
+           ORDER BY naturalness DESC, commonness DESC
+           LIMIT ?`,
+        )
+        .all(language, like, like, like, limit) as ItemRow[];
+      rows.forEach((row, index) => {
+        const item = mapItem(row);
+        itemById.set(item.publicId, item);
+        keywordScores.set(item.publicId, Math.max(0.2, 1 - index / (limit + 2)));
+      });
+    }
+
+    return [...itemById.values()]
+      .map((item) => {
+        const keyword = keywordScores.get(item.publicId) || 0;
+        const semantic = semanticScores.get(item.publicId) || 0;
+        const quality = (item.naturalness + item.commonness) / 10;
+        const score = (keyword * 0.55 + semantic * 0.4 + quality * 0.05);
+        return {
+          ...item,
+          score: Number(score.toFixed(4)),
+          match: keyword && semantic ? "hybrid" : semantic ? "semantic" : "keyword",
+        } as SearchResult;
+      })
+      .sort((left, right) => right.score - left.score)
+      .slice(0, limit);
+  }
+
+  itemsMissingEmbeddings(limit = 100) {
+    return (this.db
+      .prepare("SELECT * FROM items WHERE embedding IS NULL ORDER BY id LIMIT ?")
+      .all(limit) as ItemRow[]).map(mapItem);
+  }
+
+  updateEmbedding(publicId: string, vector: number[], model: string) {
+    this.db
+      .prepare(
+        `UPDATE items SET embedding = ?, embedding_model = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE public_id = ?`,
+      )
+      .run(vectorToBuffer(vector), model, publicId);
+  }
+
+  recordAttempt(input: {
+    itemPublicId: string;
+    mode: string;
+    answer: string;
+    score: number;
+    verdict: string;
+    feedback: Record<string, unknown>;
+    rating?: ReviewRating;
+    reviewedAt?: Date;
+  }) {
+    const item = this.db.prepare("SELECT id, preference FROM items WHERE public_id = ?").get(input.itemPublicId) as
+      | { id: number; preference: LearningItem["preference"] }
+      | undefined;
+    if (!item) throw new Error("Item not found");
+    const publicId = randomUUID();
+    const reviewedAt = input.reviewedAt || new Date();
+    const schedulerSettings = this.getSchedulerSettings();
+    let schedule = null;
+    const transaction = this.db.transaction(() => {
+      this.db
+        .prepare(
+          `INSERT INTO attempts(public_id, item_id, mode, answer, score, verdict, feedback)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          publicId,
+          item.id,
+          input.mode,
+          input.answer,
+          input.score,
+          input.verdict,
+          JSON.stringify(input.feedback),
+        );
+      if (input.mode === "recall" && input.rating) {
+        const currentRow = this.db
+          .prepare("SELECT * FROM review_state WHERE item_id = ?")
+          .get(item.id) as ReviewStateRow | undefined;
+        const currentCard = cardFromStoredState(mapReviewState(currentRow), reviewedAt);
+        const result = scheduleReview(currentCard, input.rating, reviewedAt, item.preference, schedulerSettings);
+        const next = storedStateFromCard(result.card);
+        this.db
+          .prepare(
+            `INSERT INTO review_state(
+               item_id, due_at, repetitions, lapses, last_score, state, stability,
+               difficulty, elapsed_days, scheduled_days, learning_steps, last_review
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(item_id) DO UPDATE SET
+               due_at = excluded.due_at,
+               repetitions = excluded.repetitions,
+               lapses = excluded.lapses,
+               last_score = excluded.last_score,
+               state = excluded.state,
+               stability = excluded.stability,
+               difficulty = excluded.difficulty,
+               elapsed_days = excluded.elapsed_days,
+               scheduled_days = excluded.scheduled_days,
+               learning_steps = excluded.learning_steps,
+               last_review = excluded.last_review,
+               updated_at = CURRENT_TIMESTAMP`,
+          )
+          .run(
+            item.id,
+            next.dueAt,
+            next.repetitions,
+            next.lapses,
+            input.score,
+            next.state,
+            next.stability,
+            next.difficulty,
+            next.elapsedDays,
+            next.scheduledDays,
+            next.learningSteps,
+            next.lastReview,
+          );
+        schedule = previewReview(result.card, result.card.due, item.preference, schedulerSettings);
+      }
+    });
+    transaction();
+    return { publicId, schedule };
+  }
+
+  countAttemptsSince(language: LanguageCode, since: string, mode = "recall") {
+    const result = this.db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM attempts a
+         JOIN items i ON i.id = a.item_id
+         WHERE i.language_code = ? AND a.mode = ? AND datetime(a.created_at) >= datetime(?)`,
+      )
+      .get(language, mode, since) as { count: number };
+    return result.count;
+  }
+
+  countActivitySince(language: LanguageCode, since: string) {
+    const rows = this.db.prepare(
+      `SELECT a.mode, COUNT(*) AS count FROM attempts a
+       JOIN items i ON i.id = a.item_id
+       WHERE i.language_code = ? AND datetime(a.created_at) >= datetime(?)
+       GROUP BY a.mode`,
+    ).all(language, since) as Array<{ mode: string; count: number }>;
+    const counts = { recall: 0, shadow: 0, pattern: 0 };
+    for (const row of rows) {
+      if (row.mode in counts) counts[row.mode as keyof typeof counts] = row.count;
+    }
+    return counts;
+  }
+
+  listDueItems(language: LanguageCode, limit = 12, now = new Date(), newLimit = 10) {
+    const schedulerSettings = this.getSchedulerSettings();
+    const select = `SELECT i.*,
+                r.due_at AS review_due_at,
+                r.stability AS review_stability,
+                r.difficulty AS review_difficulty,
+                r.elapsed_days AS review_elapsed_days,
+                r.scheduled_days AS review_scheduled_days,
+                r.learning_steps AS review_learning_steps,
+                r.repetitions AS review_repetitions,
+                r.lapses AS review_lapses,
+                r.state AS review_state,
+                r.last_review AS review_last_review
+         FROM items i LEFT JOIN review_state r ON r.item_id = i.id`;
+    const scheduled = this.db.prepare(
+      `${select}
+       WHERE i.language_code = ? AND i.practice_enabled = 1
+         AND r.due_at IS NOT NULL AND datetime(r.due_at) <= datetime(?)
+       ORDER BY CASE COALESCE(r.state, 0) WHEN 1 THEN 0 WHEN 3 THEN 0 WHEN 2 THEN 1 ELSE 2 END,
+                  CASE i.preference WHEN 'like' THEN 0 WHEN 'neutral' THEN 1 ELSE 2 END,
+                  COALESCE(r.due_at, '1970-01-01')
+       LIMIT ?`,
+    ).all(language, now.toISOString(), limit) as DueItemRow[];
+    const remaining = Math.max(0, limit - scheduled.length);
+    const freshLimit = Math.min(remaining, Math.max(0, newLimit));
+    const fresh = freshLimit ? this.db.prepare(
+      `${select}
+       WHERE i.language_code = ? AND i.practice_enabled = 1 AND r.due_at IS NULL
+       ORDER BY CASE i.preference WHEN 'like' THEN 0 WHEN 'neutral' THEN 1 ELSE 2 END,
+                i.commonness DESC, i.persona_fit DESC, i.created_at
+       LIMIT ?`,
+    ).all(language, freshLimit) as DueItemRow[] : [];
+    const rows = [...scheduled, ...fresh];
+    return rows.map((row) => ({
+      ...mapItem(row),
+      schedule: previewReview(
+        cardFromStoredState(mapJoinedReviewState(row), now),
+        now,
+        row.preference,
+        schedulerSettings,
+      ),
+    }));
+  }
+
+  getOrCreateThread(publicId: string | undefined, language: LanguageCode) {
+    if (publicId) {
+      const found = this.db
+        .prepare("SELECT id, public_id FROM chat_threads WHERE public_id = ?")
+        .get(publicId) as { id: number; public_id: string } | undefined;
+      if (found) return { id: found.id, publicId: found.public_id };
+    }
+    const nextPublicId = randomUUID();
+    const result = this.db
+      .prepare("INSERT INTO chat_threads(public_id, language_code) VALUES (?, ?)")
+      .run(nextPublicId, language);
+    return { id: Number(result.lastInsertRowid), publicId: nextPublicId };
+  }
+
+  getThread(publicId: string) {
+    return this.db.prepare(
+      "SELECT id, public_id, language_code, title, created_at, updated_at FROM chat_threads WHERE public_id = ?",
+    ).get(publicId) as {
+      id: number;
+      public_id: string;
+      language_code: LanguageCode;
+      title: string;
+      created_at: string;
+      updated_at: string;
+    } | undefined;
+  }
+
+  ensureThreadTitle(threadId: number, message: string) {
+    const row = this.db.prepare("SELECT title FROM chat_threads WHERE id = ?").get(threadId) as
+      | { title: string }
+      | undefined;
+    if (!row || row.title !== "Tutor chat") return row?.title || "New conversation";
+    const title = makeThreadTitle(message);
+    this.db.prepare("UPDATE chat_threads SET title = ? WHERE id = ?").run(title, threadId);
+    return title;
+  }
+
+  listThreads(language: LanguageCode, limit = 50) {
+    const rows = this.db.prepare(
+      `SELECT t.id, t.public_id, t.title, t.created_at, t.updated_at,
+              COUNT(m.id) AS message_count,
+              (SELECT first_message.content FROM chat_messages first_message
+               WHERE first_message.thread_id = t.id AND first_message.role = 'user'
+               ORDER BY first_message.id LIMIT 1) AS first_message
+       FROM chat_threads t
+       LEFT JOIN chat_messages m ON m.thread_id = t.id AND m.role IN ('user', 'assistant')
+       WHERE t.language_code = ?
+       GROUP BY t.id
+       HAVING COUNT(m.id) > 0
+       ORDER BY datetime(t.updated_at) DESC, t.id DESC
+       LIMIT ?`,
+    ).all(language, limit) as Array<{
+      id: number;
+      public_id: string;
+      title: string;
+      created_at: string;
+      updated_at: string;
+      message_count: number;
+      first_message: string | null;
+    }>;
+
+    return rows.map((row) => {
+      const title = row.title === "Tutor chat" && row.first_message
+        ? this.ensureThreadTitle(row.id, row.first_message)
+        : row.title;
+      return {
+        publicId: row.public_id,
+        title,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        messageCount: row.message_count,
+      };
+    });
+  }
+
+  addMessage(threadId: number, role: "user" | "assistant" | "tool", content: string, metadata = {}) {
+    this.db
+      .prepare("INSERT INTO chat_messages(thread_id, role, content, metadata) VALUES (?, ?, ?, ?)")
+      .run(threadId, role, content, JSON.stringify(metadata));
+    this.db.prepare("UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(threadId);
+  }
+
+  getMessages(threadId: number, limit = 30) {
+    return (this.db
+      .prepare(
+        `SELECT role, content FROM (
+         SELECT id, role, content FROM chat_messages
+           WHERE thread_id = ? AND role IN ('user', 'assistant') ORDER BY id DESC LIMIT ?
+         ) ORDER BY id`,
+      )
+      .all(threadId, limit) as Array<{ role: "user" | "assistant"; content: string }>);
+  }
+
+  createIsland(input: {
+    language: LanguageCode;
+    title: string;
+    description?: string;
+    itemPublicIds?: string[];
+  }, actor: "user" | "llm" = "user") {
+    const publicId = randomUUID();
+    const transaction = this.db.transaction(() => {
+      const result = this.db
+        .prepare(
+          "INSERT INTO islands(public_id, language_code, title, description) VALUES (?, ?, ?, ?)",
+        )
+        .run(publicId, input.language, input.title, input.description || "");
+      const islandId = Number(result.lastInsertRowid);
+      const add = this.db.prepare(
+        `INSERT OR IGNORE INTO island_items(island_id, item_id, position)
+         SELECT ?, id, ? FROM items WHERE public_id = ?`,
+      );
+      (input.itemPublicIds || []).forEach((itemId, index) => add.run(islandId, index, itemId));
+    });
+    transaction();
+    this.logChange(actor, "create", "island", publicId, null, input);
+    return { publicId, ...input };
+  }
+
+  stats() {
+    const items = this.db.prepare("SELECT language_code, COUNT(*) AS count FROM items GROUP BY language_code").all();
+    const sources = this.db.prepare("SELECT COUNT(*) AS count FROM sources").get() as { count: number };
+    const attempts = this.db.prepare("SELECT COUNT(*) AS count FROM attempts").get() as { count: number };
+    return { items, sources: sources.count, attempts: attempts.count };
+  }
+
+  getCachedAudio(cacheKey: string) {
+    return this.db
+      .prepare("SELECT format, audio FROM audio_cache WHERE cache_key = ?")
+      .get(cacheKey) as { format: string; audio: Buffer } | undefined;
+  }
+
+  saveCachedAudio(input: {
+    cacheKey: string;
+    model: string;
+    voice: string;
+    format: string;
+    audio: Buffer;
+  }) {
+    this.db
+      .prepare(
+        `INSERT INTO audio_cache(cache_key, model, voice, format, audio)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(cache_key) DO UPDATE SET audio = excluded.audio, created_at = CURRENT_TIMESTAMP`,
+      )
+      .run(input.cacheKey, input.model, input.voice, input.format, input.audio);
+  }
+
+  private logChange(
+    actor: "user" | "llm" | "system",
+    action: string,
+    targetType: string,
+    targetId: string,
+    before: unknown,
+    after: unknown,
+  ) {
+    this.db
+      .prepare(
+        `INSERT INTO change_events(actor, action, target_type, target_id, before_state, after_state)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        actor,
+        action,
+        targetType,
+        targetId,
+        before == null ? null : JSON.stringify(before),
+        after == null ? null : JSON.stringify(after),
+      );
+  }
+}

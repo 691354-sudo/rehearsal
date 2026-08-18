@@ -1,0 +1,1 @@
+30 4 * * * root cd /opt/apps/rehearsal && /usr/bin/docker compose -f compose.production.yml exec -T app npm run models:check >> /var/log/rehearsal-model-check.log 2>&1

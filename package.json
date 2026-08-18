@@ -1,0 +1,48 @@
+{
+  "name": "language-rehearsal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c magenta,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "node --import tsx --watch server/index.ts",
+    "dev:web": "vite --host 127.0.0.1",
+    "start": "node --import tsx server/index.ts",
+    "build": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "preview": "vite preview",
+    "db:seed": "node --import tsx server/db/seed.ts",
+    "db:embed": "node --import tsx server/db/embed.ts",
+    "models:check": "node --import tsx scripts/check-openai-models.ts",
+    "db:backup": "node --import tsx scripts/db-backup.ts",
+    "db:restore": "node --import tsx scripts/db-restore.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/static": "^10.1.3",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/manrope": "latest",
+    "better-sqlite3": "^13.0.3",
+    "concurrently": "^10.0.5",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.12.0",
+    "lucide-react": "latest",
+    "openai": "^7.4.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "ts-fsrs": "^5.4.1",
+    "tsx": "^4.23.12",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.2.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}

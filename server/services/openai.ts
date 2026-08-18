@@ -1,0 +1,354 @@
+import { createHash, randomUUID } from "node:crypto";
+import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
+import { z } from "zod";
+import { config, openAIConfigured } from "../config.js";
+import type { RehearsalRepository } from "../db/repository.js";
+import { getModelRouting } from "../model-routing.js";
+import type { LanguageCode, LearningItem, ReviewBatchKind, ReviewCandidate } from "../types.js";
+
+const evaluationSchema = z.object({
+  score: z.number().min(0).max(1),
+  verdict: z.enum(["exact", "close", "retry"]),
+  meaningPreserved: z.boolean(),
+  naturalAnswer: z.string(),
+  correctedAnswer: z.string(),
+  summaryRu: z.string(),
+  mistakes: z.array(
+    z.object({
+      original: z.string(),
+      correction: z.string(),
+      explanationRu: z.string(),
+      type: z.enum(["grammar", "collocation", "word_choice", "missing_word", "spelling", "style"]),
+    }),
+  ),
+});
+
+const generatedCandidateSchema = z.object({
+  target: z.string(),
+  cue: z.string(),
+  note: z.string(),
+  category: z.string(),
+  focusTerms: z.array(z.string()),
+  pattern: z.string(),
+  disposition: z.enum(["active", "recognition", "skip"]),
+  frequencyBand: z.enum(["core", "common", "specific", "rare"]),
+  currency: z.enum(["current", "contextual", "dated", "uncertain"]),
+  personaFit: z.number().int().min(1).max(5),
+  naturalness: z.number().int().min(1).max(5),
+  commonness: z.number().int().min(1).max(5),
+});
+
+const generatedMaterialSchema = z.object({
+  items: z.array(generatedCandidateSchema),
+});
+
+const currencyCheckSchema = z.object({
+  items: z.array(z.object({
+    id: z.string(),
+    frequencyBand: z.enum(["core", "common", "specific", "rare"]),
+    currency: z.enum(["current", "contextual", "dated"]),
+  })),
+});
+
+export type AttemptEvaluation = z.infer<typeof evaluationSchema>;
+
+const targetLanguageName = (language: LanguageCode) => language === "en" ? "English" : "Latvian";
+
+const materialInstructions = (language: LanguageCode, task: string) => `
+You prepare optional learning cards for one Russian-speaking adult born in 1992 who is learning ${targetLanguageName(language)}.
+${task}
+
+Content policy:
+- Match his actual direct, casual, thoughtful speaking style. Prefer neutral adult conversational language and useful collocations.
+- Current means natural in 2026. Avoid dated, bookish, corporate, overly formal, or forced Gen-Z wording.
+- Never create isolated word-definition cards. Put a focus word inside a complete useful sentence.
+- target must contain only the complete target-language sentence. Never prefix it with the focus term, a label, a dash, or a definition.
+- cue must be a complete natural Russian sentence with the same meaning as target. Never return a dictionary definition or several glosses separated by punctuation.
+- focusTerms is the only field for the exact word or phrase being trained.
+- category is a real-life topic such as relationships, travel, work, or life in Riga; never use grammatical labels such as phrasal verb.
+- Prefer one strong personal anchor over many generic examples. Use Riga, travel, nature, relationships, health, work, and everyday life only when they genuinely fit.
+- Russian cues must carry the same natural meaning, not word-for-word translation.
+- Keep every target sentence speakable and worth active recall. Pattern drills vary one meaningful slot while preserving the structure.
+- Mark rare or dated input as recognition or skip instead of forcing it into active vocabulary.
+- Do not claim anything was saved. These are proposals requiring the user's approval.
+
+Metadata:
+- frequencyBand: core, common, specific, or rare.
+- currency: current, contextual, dated, or uncertain.
+- personaFit: 1-5 for this specific adult speaker.
+- disposition: active, recognition, or skip.
+- pattern must be a short reusable frame, or an empty string.
+`;
+
+const toCandidate = (item: z.infer<typeof generatedCandidateSchema>): ReviewCandidate => ({
+  ...item,
+  id: randomUUID(),
+  focusTerms: item.focusTerms.slice(0, 8),
+  pattern: item.pattern || undefined,
+});
+
+const normalize = (value: string) =>
+  value
+    .toLocaleLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/[^\p{L}\p{N}'\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const levenshtein = (left: string, right: string) => {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      current[rightIndex] = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1),
+      );
+    }
+    previous.splice(0, previous.length, ...current);
+  }
+  return previous[right.length];
+};
+
+const localEvaluation = (item: LearningItem, answer: string): AttemptEvaluation => {
+  const candidates = [item.target, ...item.acceptedAnswers];
+  const normalizedAnswer = normalize(answer);
+  const best = candidates
+    .map((candidate) => {
+      const normalizedCandidate = normalize(candidate);
+      const distance = levenshtein(normalizedAnswer, normalizedCandidate);
+      const score = 1 - distance / Math.max(normalizedAnswer.length, normalizedCandidate.length, 1);
+      return { candidate, score };
+    })
+    .sort((left, right) => right.score - left.score)[0];
+  const score = Math.max(0, Math.min(1, best.score));
+  const verdict = score >= 0.98 ? "exact" : score >= 0.72 ? "close" : "retry";
+  return {
+    score,
+    verdict,
+    meaningPreserved: score >= 0.62,
+    naturalAnswer: item.target,
+    correctedAnswer: item.target,
+    summaryRu:
+      verdict === "exact"
+        ? "Точно. Фраза воспроизведена естественно."
+        : verdict === "close"
+          ? "Смысл понятен. Сравни свой вариант с естественной формулировкой."
+          : "Попробуй ещё раз и опирайся на готовую конструкцию целиком.",
+    mistakes: [],
+  };
+};
+
+export class OpenAIService {
+  private readonly client = openAIConfigured
+    ? new OpenAI({ apiKey: config.openaiApiKey })
+    : null;
+
+  constructor(private readonly repository: RehearsalRepository) {}
+
+  get configured() {
+    return Boolean(this.client);
+  }
+
+  async embed(text: string) {
+    if (!this.client) return null;
+    const response = await this.client.embeddings.create({
+      model: config.embeddingModel,
+      input: text.replace(/\s+/g, " ").trim(),
+      encoding_format: "float",
+      dimensions: config.embeddingDimensions,
+    });
+    return response.data[0]?.embedding || null;
+  }
+
+  evaluate(item: LearningItem, answer: string) {
+    return { evaluation: localEvaluation(item, answer), mode: "local" as const };
+  }
+
+  private async verifyUncertainCandidates(candidates: ReviewCandidate[], language: LanguageCode) {
+    if (!this.client) return candidates;
+    const uncertain = candidates.filter((candidate) => candidate.currency === "uncertain").slice(0, 8);
+    if (!uncertain.length) return candidates;
+    const response = await this.client.responses.parse({
+      model: getModelRouting().utility,
+      reasoning: { effort: "low" },
+      tools: [{ type: "web_search", search_context_size: "low" }],
+      instructions:
+        `Verify whether these ${targetLanguageName(language)} expressions are current and naturally used by adults in 2026. ` +
+        "Use web search only for this linguistic currency check. Classify frequency conservatively. " +
+        "Current means normal adult usage, not merely attested, historical, or forced youth slang. Return every supplied id.",
+      input: JSON.stringify(uncertain.map(({ id, target, focusTerms }) => ({ id, target, focusTerms }))),
+      text: { format: zodTextFormat(currencyCheckSchema, "currency_check") },
+    });
+    const checks = new Map((response.output_parsed?.items || []).map((item) => [item.id, item]));
+    return candidates.map((candidate) => {
+      const check = checks.get(candidate.id);
+      return check ? { ...candidate, currency: check.currency, frequencyBand: check.frequencyBand } : candidate;
+    });
+  }
+
+  async speech(input: {
+    text: string;
+    language: LanguageCode | "ru";
+    voice?: string;
+    speed?: number;
+  }) {
+    if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
+    const voice = input.voice || config.ttsVoice;
+    const speed = Math.max(0.5, Math.min(1.5, input.speed || 1));
+    const cacheKey = createHash("sha256")
+      .update([config.ttsModel, voice, speed, input.language, input.text].join("\0"))
+      .digest("hex");
+    const cached = this.repository.getCachedAudio(cacheKey);
+    if (cached) return { ...cached, cached: true };
+    const languageName = input.language === "lv" ? "Latvian" : input.language === "ru" ? "Russian" : "English";
+    const response = await this.client.audio.speech.create({
+      model: config.ttsModel,
+      voice,
+      input: input.text,
+      instructions: `Speak clear, natural ${languageName} for language shadowing. Keep a conversational rhythm and neutral emotion. Speed: ${speed}x.`,
+      response_format: "mp3",
+    });
+    const audio = Buffer.from(await response.arrayBuffer());
+    this.repository.saveCachedAudio({
+      cacheKey,
+      model: config.ttsModel,
+      voice,
+      format: "mp3",
+      audio,
+    });
+    return { format: "mp3", audio, cached: false };
+  }
+
+  private async prepareBatch(input: {
+    language: LanguageCode;
+    kind: ReviewBatchKind;
+    title: string;
+    sourceText: string;
+    task: string;
+    sourceThreadPublicId?: string;
+  }) {
+    if (!this.client) {
+      const batch = this.repository.createReviewBatch({
+        language: input.language,
+        kind: input.kind,
+        title: input.title,
+        sourceText: input.sourceText,
+        candidates: [],
+        sourceThreadPublicId: input.sourceThreadPublicId,
+      });
+      return { batch, mode: "stored" as const };
+    }
+    const response = await this.client.responses.parse({
+      model: getModelRouting().balanced,
+      reasoning: { effort: "low" },
+      instructions: materialInstructions(input.language, input.task),
+      input: JSON.stringify({
+        targetLanguage: targetLanguageName(input.language),
+        title: input.title,
+        material: input.sourceText.slice(0, 50_000),
+      }),
+      text: { format: zodTextFormat(generatedMaterialSchema, "learning_candidates") },
+    });
+    if (!response.output_parsed) throw new Error("The tutor did not return prepared material");
+    const candidates = await this.verifyUncertainCandidates(
+      response.output_parsed.items.slice(0, 100).map(toCandidate),
+      input.language,
+    );
+    const batch = this.repository.createReviewBatch({
+      language: input.language,
+      kind: input.kind,
+      title: input.title,
+      sourceText: input.sourceText,
+      candidates,
+      sourceThreadPublicId: input.sourceThreadPublicId,
+    });
+    return { batch, mode: "openai" as const };
+  }
+
+  prepareImportedMaterial(input: { language: LanguageCode; title: string; text: string }) {
+    return this.prepareBatch({
+      language: input.language,
+      kind: "text_import",
+      title: input.title,
+      sourceText: input.text,
+      task:
+        "Turn the selected text into at most 20 high-value cards for shadowing and recall. " +
+        "Preserve good original wording, skip repetitions and contextless lines, and keep connected lines when a short paragraph is more useful than one sentence.",
+    });
+  }
+
+  prepareVocabBatch(input: { language: LanguageCode; title: string; text: string; sourceThreadPublicId?: string }) {
+    return this.prepareBatch({
+      language: input.language,
+      kind: "vocab",
+      title: input.title,
+      sourceText: input.text,
+      sourceThreadPublicId: input.sourceThreadPublicId,
+      task:
+        "Triage up to 100 pasted vocabulary entries. Deduplicate inflections and near-duplicates. " +
+        "For each useful active term, create exactly one natural personalized anchor sentence. " +
+        "Keep less useful but still current terms as recognition. Mark outdated, bookish, or irrelevant entries as skip. " +
+        "Return no more than one candidate per distinct input term or phrase.",
+    });
+  }
+
+  reviewConversation(input: {
+    language: LanguageCode;
+    threadPublicId: string;
+    messages: Array<{ role: "user" | "assistant"; content: string }>;
+  }) {
+    return this.prepareBatch({
+      language: input.language,
+      kind: "chat_review",
+      title: "Tutor conversation review",
+      sourceThreadPublicId: input.threadPublicId,
+      sourceText: input.messages.map((message) => `${message.role}: ${message.content}`).join("\n\n"),
+      task:
+        "Review the complete conversation after it has ended. Extract only the student's meaningful recurring mistakes, " +
+        "high-value phrases he was trying to say, and a few reusable patterns. Do not nitpick every sentence. " +
+        "Correct collocations and sentence structure first. Return at most 20 proposals.",
+    });
+  }
+
+  generatePatternDrill(input: { language: LanguageCode; item: LearningItem }) {
+    return this.prepareBatch({
+      language: input.language,
+      kind: "pattern_drill",
+      title: `Pattern: ${input.item.target}`,
+      sourceText: JSON.stringify({ target: input.item.target, cue: input.item.cue, note: input.item.note }),
+      task:
+        "Create 6 practical substitution-drill variants from this base card. Change one meaningful slot at a time, " +
+        "keep the same reusable grammar/collocation frame, and avoid trivial synonym lists.",
+    });
+  }
+
+  async regenerateCandidate(input: {
+    batchPublicId: string;
+    candidateId: string;
+    instruction: "another" | "different_context";
+  }) {
+    const batch = this.repository.getReviewBatch(input.batchPublicId);
+    const original = batch?.candidates.find((candidate) => candidate.id === input.candidateId);
+    if (!batch || !original) return null;
+    if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
+    const response = await this.client.responses.parse({
+      model: getModelRouting().balanced,
+      reasoning: { effort: "low" },
+      instructions: materialInstructions(
+        batch.language,
+        input.instruction === "different_context"
+          ? "Replace the candidate with one natural example using the same focus term in a clearly different relevant context. Return exactly one item."
+          : "Replace the candidate with a better natural personal version that keeps the intended focus and meaning. Return exactly one item.",
+      ),
+      input: JSON.stringify({ batchTitle: batch.title, original }),
+      text: { format: zodTextFormat(generatedMaterialSchema, "replacement_candidate") },
+    });
+    const generated = response.output_parsed?.items[0];
+    if (!generated) throw new Error("The tutor did not return a replacement");
+    const replacement = { ...toCandidate(generated), id: original.id };
+    return this.repository.replaceReviewCandidate(batch.publicId, original.id, replacement);
+  }
+}

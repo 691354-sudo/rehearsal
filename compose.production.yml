@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        VITE_BASE_PATH: /rehearsal/
+    restart: unless-stopped
+    env_file:
+      - .env
+      - .env.elevenlabs
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 8787
+      DATABASE_PATH: /data/rehearsal.sqlite
+      BACKUP_DIR: /backups
+      OPENAI_MODEL_ROUTING_PATH: /data/model-routing.json
+    ports:
+      - "127.0.0.1:8788:8787"
+    volumes:
+      - ./data:/data
+      - ./backups:/backups
