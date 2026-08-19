@@ -228,11 +228,6 @@
   padding: 0 7px;
 }
 
-.topic-item-actions button[aria-label^="Move"] {
-  width: 34px;
-  padding: 0;
-}
-
 .topic-item-actions .topic-remove {
   color: var(--script-tertiary);
 }

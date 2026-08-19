@@ -3,6 +3,7 @@ import type { RehearsalDatabase } from "../database.js";
 import type {
   LanguageCode,
   LearningItem,
+  ReviewBatch,
   ReviewBatchKind,
   ReviewCandidate,
 } from "../../types.js";
@@ -79,15 +80,12 @@ export class ReviewsRepository {
     return updated;
   }
 
-  commit(
-    batchPublicId: string,
+  private selectedCandidates(
+    batch: ReviewBatch,
     selected: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
   ) {
-    const batch = this.get(batchPublicId);
-    if (!batch) return null;
-    if (batch.status === "committed") return { batch, items: [] as LearningItem[] };
     const available = new Map(batch.candidates.map((candidate) => [candidate.id, candidate]));
-    const selectedCandidates = selected.map((edited) => {
+    const candidates = selected.map((edited) => {
       const original = available.get(edited.id);
       if (!original) throw new Error("UNKNOWN_REVIEW_CANDIDATE");
       return {
@@ -98,37 +96,92 @@ export class ReviewsRepository {
         category: edited.category.trim(),
       };
     });
-    if (selectedCandidates.some((candidate) => !candidate.target || !candidate.cue)) {
+    if (candidates.some((candidate) => !candidate.target || !candidate.cue)) {
       throw new Error("EMPTY_REVIEW_CANDIDATE");
     }
+    return candidates;
+  }
+
+  private saveCandidate(batch: ReviewBatch, candidate: ReviewCandidate) {
+    const item = this.items.save({
+      language: batch.language,
+      kind: batch.kind === "text_import"
+        ? "story_line"
+        : batch.kind === "chat_review" ? "correction" : "phrase",
+      cue: candidate.cue,
+      target: candidate.target,
+      note: candidate.note,
+      source: batch.title,
+      tags: [...new Set([candidate.pattern, ...candidate.focusTerms].filter(Boolean))] as string[],
+      focusTerms: candidate.focusTerms,
+      naturalness: candidate.naturalness,
+      commonness: candidate.commonness,
+      frequencyBand: candidate.frequencyBand,
+      currency: candidate.currency,
+      personaFit: candidate.personaFit,
+      relevanceCheckedAt: candidate.currency === "uncertain" ? null : new Date().toISOString(),
+      register: "casual",
+    }, "user");
+    if (candidate.category) {
+      const topic = this.library.ensureIsland(batch.language, candidate.category, "llm");
+      this.library.addIslandItem(topic.publicId, item.publicId);
+    }
+    return item;
+  }
+
+  resolveCaptureRevision(
+    batchPublicId: string,
+    accepted: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
+    revisedCandidates: ReviewCandidate[],
+  ) {
+    const batch = this.get(batchPublicId);
+    if (!batch || batch.kind !== "capture" || batch.status !== "draft") return null;
+    const acceptedCandidates = this.selectedCandidates(batch, accepted);
+    const acceptedIds = new Set(acceptedCandidates.map((candidate) => candidate.id));
+    if (revisedCandidates.some((candidate) => acceptedIds.has(candidate.id))) {
+      throw new Error("DUPLICATE_REVIEW_RESOLUTION");
+    }
+    const committedItems: LearningItem[] = [];
+    const transaction = this.db.transaction(() => {
+      for (const candidate of acceptedCandidates) committedItems.push(this.saveCandidate(batch, candidate));
+      if (revisedCandidates.length) {
+        this.db.prepare(
+          "UPDATE review_batches SET candidates = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?",
+        ).run(JSON.stringify(revisedCandidates), batchPublicId);
+      } else {
+        this.db.prepare(
+          `UPDATE review_batches SET candidates = '[]', status = 'committed', committed_at = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
+        ).run(batchPublicId);
+        this.db.prepare(
+          `UPDATE capture_notes SET status = 'processed', audio = NULL,
+           processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+           WHERE review_batch_id = (SELECT id FROM review_batches WHERE public_id = ?)`,
+        ).run(batchPublicId);
+      }
+    });
+    transaction();
+    const updated = this.get(batchPublicId)!;
+    logChange(this.db, "user", "revise", "review_batch", batchPublicId, batch, {
+      accepted: committedItems.length,
+      remaining: revisedCandidates.length,
+    });
+    return { batch: updated, items: committedItems };
+  }
+
+  commit(
+    batchPublicId: string,
+    selected: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
+  ) {
+    const batch = this.get(batchPublicId);
+    if (!batch) return null;
+    if (batch.status === "committed") return { batch, items: [] as LearningItem[] };
+    const selectedCandidates = this.selectedCandidates(batch, selected);
 
     const committedItems: LearningItem[] = [];
     const transaction = this.db.transaction(() => {
       for (const candidate of selectedCandidates) {
-        const item = this.items.save({
-          language: batch.language,
-          kind: batch.kind === "text_import"
-            ? "story_line"
-            : batch.kind === "chat_review" ? "correction" : "phrase",
-          cue: candidate.cue,
-          target: candidate.target,
-          note: candidate.note,
-          source: batch.title,
-          tags: [...new Set([candidate.pattern, ...candidate.focusTerms].filter(Boolean))] as string[],
-          focusTerms: candidate.focusTerms,
-          naturalness: candidate.naturalness,
-          commonness: candidate.commonness,
-          frequencyBand: candidate.frequencyBand,
-          currency: candidate.currency,
-          personaFit: candidate.personaFit,
-          relevanceCheckedAt: candidate.currency === "uncertain" ? null : new Date().toISOString(),
-          register: "casual",
-        }, "user");
-        committedItems.push(item);
-        if (candidate.category) {
-          const topic = this.library.ensureIsland(batch.language, candidate.category, "llm");
-          this.library.addIslandItem(topic.publicId, item.publicId);
-        }
+        committedItems.push(this.saveCandidate(batch, candidate));
       }
       this.db.prepare(
         `UPDATE review_batches SET status = 'committed', committed_at = CURRENT_TIMESTAMP,

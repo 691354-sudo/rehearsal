@@ -104,6 +104,22 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     return batch ? { batch } : reply.code(404).send({ error: "REVIEW_BATCH_NOT_FOUND" });
   });
 
+  app.post("/api/review-batches/:batchId/resolve-capture", async (request, reply) => {
+    const { openai } = dependencies.forRequest(request);
+    const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
+    const body = z.object({
+      accepted: z.array(reviewCandidateSelectionSchema).max(100),
+      revisions: z.array(reviewCandidateSelectionSchema.extend({
+        feedback: z.string().trim().min(1).max(1_000),
+      })).max(100),
+    }).refine(({ accepted, revisions }) => {
+      const acceptedIds = new Set(accepted.map((candidate) => candidate.id));
+      return revisions.every((candidate) => !acceptedIds.has(candidate.id));
+    }, "A candidate cannot be accepted and revised together").parse(request.body);
+    const result = await openai.resolveCaptureReview({ batchPublicId: params.batchId, ...body });
+    return result ? { ...result, added: result.items.length } : reply.code(404).send({ error: "REVIEW_BATCH_NOT_FOUND" });
+  });
+
   app.post("/api/review-batches/:batchId/candidates/:candidateId/regenerate", async (request, reply) => {
     const { openai } = dependencies.forRequest(request);
     const params = z.object({ batchId: z.string().uuid(), candidateId: z.string().uuid() }).parse(request.params);

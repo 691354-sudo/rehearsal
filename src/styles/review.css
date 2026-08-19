@@ -282,10 +282,31 @@
 }
 
 .simple-review-fields > input:focus,
-.simple-review-meta input:focus {
+.simple-review-meta input:focus,
+.simple-review-comment:focus {
   background: var(--script-surface);
   border-color: var(--cue-light);
   outline: 0;
+}
+
+.simple-review-comment {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 58px;
+  margin-top: 5px;
+  padding: 8px 10px;
+  color: var(--script-ink);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  resize: vertical;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 7px;
+}
+
+.simple-review-comment::placeholder {
+  color: var(--script-tertiary);
 }
 
 .simple-review-meta {

@@ -118,8 +118,7 @@
   }
 
   .simple-mobile-menu > button,
-  .simple-mobile-menu > label,
-  .simple-mobile-menu-status {
+  .simple-mobile-menu > label {
     display: flex;
     gap: 9px;
     align-items: center;
@@ -142,10 +141,6 @@
     font: inherit;
     background: transparent;
     border: 0;
-  }
-
-  .simple-mobile-menu-status {
-    border-bottom: 1px solid var(--script-rule);
   }
 
   .simple-update-prompt {

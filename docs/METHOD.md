@@ -28,13 +28,13 @@ The core production cycle is `Capture → Review → Library → Listen & Repeat
 
 Tutor has a Notebook for thoughts Roman would genuinely want to express. A note can be typed directly in Russian or recorded freely and transcribed by OpenAI. Typed and transcribed notes enter the same ready queue, may be edited, and may accumulate across days.
 
-`Prepare cards` takes the oldest ready notes within a 50,000-character window, removes repetition, separates ideas, and proposes up to 100 complete, natural utterances with one primary Topic. Active proposals are included by default. Roman can give package-level feedback such as “5 is too formal” or “7 means something else”; the model rebuilds the proposal package before anything is saved.
+`Prepare cards` takes the oldest ready notes within a 50,000-character window, removes repetition, separates ideas, and proposes up to 100 complete, natural utterances with one primary Topic. Active proposals are included by default. Each proposal has its own optional comment. Pressing the review action saves selected proposals whose comments are empty and asks the model to replace only the commented proposals. The replacements remain in the same Review for another decision; a failed request preserves every comment and saves nothing from that request.
 
 The source audio is temporary: it is deleted as soon as transcription succeeds. A failed transcription retains the audio only for Retry or Delete.
 
 ### Recall
 
-Recall opens on the complete current FSRS due queue. The compact Topic and count controls are optional adjustments, not a required setup step: the selected Russian prompts are visible immediately below them, and Roman may start the default finite session without making a choice. Roman may narrow the queue to one Topic, choose 10, 20, 50, or all matching cards, or explicitly switch to Library practice. The active session presents one card at a time.
+Recall opens on the complete current FSRS due queue. The compact Topic and count controls are optional adjustments, not a required setup step: the selected Russian prompts are visible immediately below them, and Roman may start without making a choice. Roman may narrow the queue to one Topic, choose 10, 20, 50, or all matching cards, or explicitly switch to Library practice. On desktop, every visible prompt has its own written-answer field and the list reveals more cards in small batches. Focus mode remains available when Roman wants one finite session. On phones, Recall keeps the one-card focused session because a list of simultaneous text fields is not touch-efficient.
 
 The card shows a natural Russian cue. Roman types the complete target-language version and presses Enter. Comparison is local and immediate. For English, checking also plays the natural answer so Roman can repeat it aloud; this automatic playback is enabled by default and may be disabled in Settings. The same card shows his answer, the natural answer, their differences, and a manual Play action; an FSRS grade then schedules it. A second Enter accepts the selected grade and advances.
 

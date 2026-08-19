@@ -58,8 +58,9 @@ When this milestone is implemented, it should include:
 
 ## Product layout
 
-- Practice contains only `Recall` and `Listen & Repeat`. Both present one active
-  card at a time and keep session controls reachable by touch.
+- Practice contains only `Recall` and `Listen & Repeat`. On mobile, both present
+  one active card at a time and keep session controls reachable by touch; the
+  desktop Recall list may expose written-answer fields without changing this path.
 - Recall defaults to `Due today`; custom Library practice remains an explicit
   secondary choice.
 - Notebook gives typed Russian capture and voice capture equal prominence.

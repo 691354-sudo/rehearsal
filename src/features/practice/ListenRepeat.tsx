@@ -163,7 +163,7 @@ export function ListenRepeat(props: {
       </button>
     </section>
     <PracticeQueuePreview items={candidates} language={props.language} mode="listen" onEdit={props.onEdit}
-      onPlay={(item) => { void props.onPlay(item.target, props.playback); }} scope={scope} />
+      onPlay={(item) => props.onPlay(item.target, props.playback)} scope={scope} />
   </div>;
 
   if (phase === "complete") return <section className="recall-complete" aria-label="Listening complete">

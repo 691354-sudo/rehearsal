@@ -704,6 +704,91 @@ describe("Rehearsal API", () => {
     await app.close();
   });
 
+  it("saves approved capture cards and keeps commented cards in review", async () => {
+    const first = repository.createTextCaptureNote({ language: "en", transcript: "Я хочу заказать кофе." });
+    const second = repository.createTextCaptureNote({ language: "en", transcript: "Я хочу попросить овсяное молоко." });
+    const firstId = "9ad9bdcb-8309-43cd-8e75-92ed741bb541";
+    const secondId = "9ad9bdcb-8309-43cd-8e75-92ed741bb542";
+    const openai = new OpenAIService(repository);
+    vi.spyOn(openai, "prepareCaptureBatch").mockImplementation(async ({ language }) => ({
+      mode: "openai" as const,
+      batch: repository.createReviewBatch({
+        language,
+        kind: "capture",
+        title: "Capture Reality",
+        candidates: [{
+          id: firstId,
+          target: "I'd like a coffee.",
+          cue: "Я хочу заказать кофе.",
+          note: "",
+          category: "café",
+          focusTerms: ["I'd like"],
+          disposition: "active",
+          frequencyBand: "core",
+          currency: "current",
+          personaFit: 5,
+          naturalness: 5,
+          commonness: 5,
+        }, {
+          id: secondId,
+          target: "Could I get oat milk?",
+          cue: "Можно мне овсяное молоко?",
+          note: "",
+          category: "café",
+          focusTerms: ["Could I get"],
+          disposition: "active",
+          frequencyBand: "core",
+          currency: "current",
+          personaFit: 5,
+          naturalness: 5,
+          commonness: 5,
+        }],
+      }),
+    }));
+    vi.spyOn(openai, "resolveCaptureReview").mockImplementation(async ({ batchPublicId, accepted, revisions }) => {
+      const batch = repository.getReviewBatch(batchPublicId)!;
+      const revised = revisions.map((revision) => ({
+        ...batch.candidates.find((candidate) => candidate.id === revision.id)!,
+        target: "Could I have oat milk instead?",
+      }));
+      return repository.reviews.resolveCaptureRevision(batchPublicId, accepted, revised);
+    });
+    const app = await buildApp(repository, { openai });
+    const prepared = await app.inject({ method: "POST", url: "/api/captures/process", payload: { language: "en" } });
+    const batchId = prepared.json().batch.publicId as string;
+    const [approved, commented] = prepared.json().batch.candidates;
+
+    const partial = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batchId}/resolve-capture`,
+      payload: {
+        accepted: [{ id: approved.id, target: approved.target, cue: approved.cue, note: approved.note, category: approved.category }],
+        revisions: [{ id: commented.id, target: commented.target, cue: commented.cue, note: commented.note,
+          category: commented.category, feedback: "Скажи, что овсяное молоко нужно вместо обычного." }],
+      },
+    });
+    expect(partial.statusCode).toBe(200);
+    expect(partial.json()).toMatchObject({ added: 1, batch: { status: "draft" } });
+    expect(partial.json().batch.candidates).toHaveLength(1);
+    expect(partial.json().batch.candidates[0]).toMatchObject({ id: secondId, target: "Could I have oat milk instead?" });
+    expect(repository.listItems("en", 500).map((item) => item.target)).toContain("I'd like a coffee.");
+    expect(repository.listCaptureNotes("en", true).filter((note) => [first.publicId, second.publicId].includes(note.publicId))
+      .every((note) => note.status === "batched")).toBe(true);
+
+    const revised = partial.json().batch.candidates[0];
+    const final = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batchId}/resolve-capture`,
+      payload: { accepted: [{ id: revised.id, target: revised.target, cue: revised.cue, note: revised.note, category: revised.category }], revisions: [] },
+    });
+    expect(final.statusCode).toBe(200);
+    expect(final.json()).toMatchObject({ added: 1, batch: { status: "committed", candidates: [] } });
+    expect(repository.listCaptureNotes("en", true).filter((note) => [first.publicId, second.publicId].includes(note.publicId))
+      .every((note) => note.status === "processed")).toBe(true);
+    expect(repository.listItems("en", 500).map((item) => item.target)).toContain("Could I have oat milk instead?");
+    await app.close();
+  });
+
   it("completes the personal sentence loop from Notebook through Learned and reactivation", async () => {
     const openai = new OpenAIService(repository);
     vi.spyOn(openai, "transcribe").mockResolvedValue("Я хочу спросить, можем ли мы заниматься на этом тренажёре вместе.");
