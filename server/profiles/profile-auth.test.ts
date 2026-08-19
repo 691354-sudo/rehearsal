@@ -10,7 +10,7 @@ import { RehearsalRepository } from "../db/repository.js";
 import { seedDatabase } from "../db/seed.js";
 import { ProfileManager, type ProfileId } from "./manager.js";
 
-const pins = { roman: "123456", oliver: "654321" };
+const pins = { roman: "1234", oliver: "5678" };
 const sessionSecret = "test-session-secret-with-more-than-thirty-two-bytes";
 
 type LoginSession = { cookie: string; csrfToken: string };
@@ -117,7 +117,10 @@ describe("profile authentication and database isolation", () => {
     const anonymous = await app.inject({ method: "GET", url: "/api/items?language=en" });
     expect(anonymous.statusCode).toBe(401);
 
-    const invalid = await login(app, "roman", "999999");
+    const tooShort = await login(app, "roman", "999");
+    expect(tooShort.response.statusCode).toBe(400);
+
+    const invalid = await login(app, "roman", "9999");
     expect(invalid.response.statusCode).toBe(401);
 
     const authenticated = await login(app, "roman");
@@ -200,10 +203,10 @@ describe("profile authentication and database isolation", () => {
 
   it("limits failed attempts per IP and profile and preserves existing profile databases", async () => {
     for (let attempt = 0; attempt < 10; attempt += 1) {
-      expect((await login(app, "roman", "999999")).response.statusCode).toBe(401);
+      expect((await login(app, "roman", "9999")).response.statusCode).toBe(401);
     }
-    expect((await login(app, "roman", "999999")).response.statusCode).toBe(429);
-    expect((await login(app, "oliver", "999999")).response.statusCode).toBe(401);
+    expect((await login(app, "roman", "9999")).response.statusCode).toBe(429);
+    expect((await login(app, "oliver", "9999")).response.statusCode).toBe(401);
 
     manager.get("oliver").repository.items.update("en-drawn-to", { target: "Persistent Oliver edit." });
     await app.close();

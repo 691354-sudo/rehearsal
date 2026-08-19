@@ -83,7 +83,7 @@ export const registerProfileAuth = (
     reply.header("Cache-Control", "no-store");
     const body = z.object({
       profileId: z.enum(["roman", "oliver"]),
-      pin: z.string().regex(/^\d{6,12}$/),
+      pin: z.string().regex(/^\d{4,12}$/),
     }).parse(request.body);
     const key = `${request.ip}:${body.profileId}`;
     const rate = limiter.blocked(key);

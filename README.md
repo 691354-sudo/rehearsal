@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Before the first start, create an untracked `.env` from `.env.example` and set distinct 6–12 digit development PINs plus a random `SESSION_SECRET` of at least 32 bytes.
+Before the first start, create an untracked `.env` from `.env.example` and set distinct 4–12 digit development PINs plus a random `SESSION_SECRET` of at least 32 bytes.
 
 - Web: `http://127.0.0.1:4173/`
 - API health: `http://127.0.0.1:8787/health`

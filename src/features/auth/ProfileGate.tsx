@@ -42,7 +42,7 @@ export function ProfileGate() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!/^\d{6,12}$/.test(pin) || submitting) return;
+    if (!/^\d{4,12}$/.test(pin) || submitting) return;
     setSubmitting(true);
     setError("");
     try {
@@ -94,11 +94,11 @@ export function ProfileGate() {
       <form onSubmit={submit}>
         <label htmlFor="profile-pin">PIN</label>
         <div className="profile-pin"><LockKeyhole size={18} /><input autoComplete="current-password" autoFocus
-          id="profile-pin" inputMode="numeric" maxLength={12} minLength={6} onChange={(event) => {
+          id="profile-pin" inputMode="numeric" maxLength={12} minLength={4} onChange={(event) => {
             setPin(event.target.value.replace(/\D/g, "")); setError("");
-          }} pattern="[0-9]{6,12}" placeholder="6–12 digits" type="password" value={pin} /></div>
+          }} pattern="[0-9]{4,12}" placeholder="4–12 digits" type="password" value={pin} /></div>
         {error ? <p className="profile-error" role="alert">{error}</p> : null}
-        <button className="profile-submit" disabled={!/^\d{6,12}$/.test(pin) || submitting} type="submit">
+        <button className="profile-submit" disabled={!/^\d{4,12}$/.test(pin) || submitting} type="submit">
           {submitting ? <LoaderCircle className="simple-spin" size={17} /> : null}Continue as {profiles.find((candidate) => candidate.id === selected)?.name || "profile"}
         </button>
       </form>
