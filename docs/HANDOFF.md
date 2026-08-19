@@ -6,7 +6,7 @@ This file contains only current state and follow-up work. Every new session star
 
 - The active `DesignLab.tsx` UI includes Practice, Tutor, Library, Settings, Capture Reality, Topics, and Saturation. The older prototype remains at `#legacy` until the modularization PR removes it.
 - The API currently opens one SQLite database at `.data/rehearsal.sqlite` locally and `/opt/apps/rehearsal/data/rehearsal.sqlite` in production.
-- Production is healthy at `https://7662n.cc/rehearsal/` and still uses a directly managed application directory rather than release artifacts.
+- The GitHub deployment workflow uses immutable release directories. It is operational only after all deployment secrets are configured and the first manual run is verified.
 - Deterministic tests and the production build pass without paid API calls.
 
 ## Main code map
@@ -59,7 +59,7 @@ Before a release, verify the actual browser flow at desktop and mobile widths. F
 
 ## Next coordinated work
 
-1. Replace direct production updates with GitHub release-directory deployment.
+1. Configure the deployment secrets and verify the first release-directory deployment.
 2. Split the active UI, API routes, and repositories into feature/domain modules and remove `#legacy` without losing Capture, Topics, or Saturation.
 3. Add PIN-authenticated Roman and Oliver profiles with isolated SQLite databases.
 

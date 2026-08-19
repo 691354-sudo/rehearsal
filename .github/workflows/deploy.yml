@@ -1,0 +1,74 @@
+name: Deploy production
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rehearsal-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || 'main' }}
+          fetch-depth: 1
+
+      - id: release
+        name: Resolve exact release commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/rehearsal_deploy
+          chmod 600 ~/.ssh/rehearsal_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Package exact commit
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: git archive --format=tar.gz --output="/tmp/rehearsal-${RELEASE_SHA}.tar.gz" "$RELEASE_SHA"
+
+      - name: Upload release
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          scp -i ~/.ssh/rehearsal_deploy \
+            "/tmp/rehearsal-${RELEASE_SHA}.tar.gz" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/rehearsal-${RELEASE_SHA}.tar.gz"
+          ssh -i ~/.ssh/rehearsal_deploy "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "install -d -m 755 '/opt/apps/rehearsal/releases/${RELEASE_SHA}' && tar -xzf '/tmp/rehearsal-${RELEASE_SHA}.tar.gz' -C '/opt/apps/rehearsal/releases/${RELEASE_SHA}' && rm '/tmp/rehearsal-${RELEASE_SHA}.tar.gz'"
+
+      - name: Deploy and verify
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          printf -v remote_command \
+            "DEPLOY_SHA=%q PRODUCTION_URL=%q bash %q" \
+            "$RELEASE_SHA" "$PRODUCTION_URL" "/opt/apps/rehearsal/releases/${RELEASE_SHA}/scripts/deploy-release.sh"
+          ssh -i ~/.ssh/rehearsal_deploy "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "$remote_command"
