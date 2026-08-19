@@ -12,22 +12,21 @@ Rehearsal is maintained by Roman (`@691354-sudo`) and Oliver (`@oliverhujever`).
 3. Keep one task and one author on the branch. Use a separate worktree when another task already has local changes.
 4. Commit only files that belong to the task and push the branch to GitHub.
 5. Open a pull request and complete the checklist. CI must pass without paid API calls.
-6. The developer who did not author the change reviews it. The author resolves comments and merge conflicts.
-7. Squash merge into `main`, then delete the branch.
+6. Squash merge after CI, then delete the branch. A second-person review is optional and is requested only for high-risk work or when Roman asks for it.
 
-Do not push directly to `main`. The private repository's current GitHub plan does not enforce branch protection, so this is a team rule. If the repository moves to a plan that supports protection, require a pull request, the CI check, and one approval for `main`.
+Do not push directly to `main`. The private repository's current GitHub plan does not enforce branch protection, so this is a team rule. If the repository moves to a plan that supports protection, require a pull request and CI; approval may remain optional for this two-person project.
 
 ## Avoiding conflicts
 
-- Announce the task before starting and include the affected domains in the PR description.
+- Keep task announcements and PR descriptions concise.
 - Do not work together in the same branch or local worktree.
 - Prefer small, reviewable PRs and merge dependent work in order.
 - Rebase or merge the latest `origin/main` before final review when the base has moved.
 - The branch author owns conflict resolution. Never discard the other developer's uncommitted changes.
 
-## Review standard
+## Optional review standard
 
-Reviewers check:
+When review is requested, reviewers check:
 
 - the requested behavior and product invariants;
 - database migrations, recovery, and profile isolation when data changes;

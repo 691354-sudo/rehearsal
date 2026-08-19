@@ -8,7 +8,7 @@ export function ProfileGate() {
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [selected, setSelected] = useState<ProfileId>("roman");
-  const [pin, setPin] = useState("");
+  const [pin, setPin] = useState(import.meta.env.DEV ? import.meta.env.VITE_CODEX_PROFILE_PIN || "" : "");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");

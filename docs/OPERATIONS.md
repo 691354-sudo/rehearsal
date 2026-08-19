@@ -14,9 +14,9 @@ This document is the canonical source for production deployment, data paths, bac
 
 nginx terminates HTTPS and removes the `/rehearsal/` prefix before proxying to the loopback API binding. Card Drill streams the existing per-card speech responses, so the production image has no FFmpeg dependency.
 
-The application root is not a Git checkout. GitHub Actions uploads the exact reviewed commit to `/opt/apps/rehearsal/releases/<sha>` and points `/opt/apps/rehearsal/current` at the last healthy release. It never replaces or uploads the server's `data`, `backups`, `.env`, or `.env.elevenlabs` paths.
+The application root is not a Git checkout. GitHub Actions uploads the exact CI-checked commit to `/opt/apps/rehearsal/releases/<sha>` and points `/opt/apps/rehearsal/current` at the last healthy release. It never replaces or uploads the server's `data`, `backups`, `.env`, or `.env.elevenlabs` paths.
 
-Deployment runs only after the `CI` workflow succeeds for a push to `main`. A maintainer may manually redeploy the current `main` commit from the `Deploy production` workflow. Deployments are serialized and the server retains the five most recent releases.
+Deployment runs only after the `CI` workflow succeeds for a push to `main`. An automatic run skips Markdown-only commits because they do not change the application; a manual run always deploys the exact current `main`. Deployments are serialized and the server retains the five most recent releases.
 
 Required repository secrets:
 

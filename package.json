@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n api,web -c magenta,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:codex": "bash scripts/dev-codex.sh",
     "dev:api": "node --import tsx --watch server/index.ts",
     "dev:web": "vite --host 127.0.0.1",
     "start": "node --import tsx server/index.ts",

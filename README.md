@@ -9,6 +9,8 @@ npm install
 npm run dev
 ```
 
+For isolated Codex browser testing, create the ignored `.env.codex.local` once and run `npm run dev:codex`. The Roman login is pre-filled, paid APIs are disabled, and test data stays under `.data/codex-browser`.
+
 Before the first start, create an untracked `.env` from `.env.example` and set distinct 4–12 digit development PINs plus a random `SESSION_SECRET` of at least 32 bytes.
 
 - Web: `http://127.0.0.1:4173/`
@@ -95,4 +97,4 @@ Start with [AGENTS.md](AGENTS.md). Product rules live in [docs/METHOD.md](docs/M
 
 ## Production
 
-The private deployment runs at `https://7662n.cc/rehearsal/`. Production changes must follow a reviewed GitHub merge; runtime data and credentials remain outside application releases. See [docs/OPERATIONS.md](docs/OPERATIONS.md).
+The private deployment runs at `https://7662n.cc/rehearsal/`. Production changes must follow a CI-checked GitHub merge; runtime data and credentials remain outside application releases. See [docs/OPERATIONS.md](docs/OPERATIONS.md).
