@@ -6,8 +6,8 @@ services:
         VITE_BASE_PATH: /rehearsal/
     restart: unless-stopped
     env_file:
-      - .env
-      - .env.elevenlabs
+      - /opt/apps/rehearsal/.env
+      - /opt/apps/rehearsal/.env.elevenlabs
     environment:
       API_HOST: 0.0.0.0
       API_PORT: 8787
@@ -17,5 +17,5 @@ services:
     ports:
       - "127.0.0.1:8788:8787"
     volumes:
-      - ./data:/data
-      - ./backups:/backups
+      - /opt/apps/rehearsal/data:/data
+      - /opt/apps/rehearsal/backups:/backups

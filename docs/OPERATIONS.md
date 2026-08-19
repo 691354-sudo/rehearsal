@@ -14,7 +14,17 @@ This document is the canonical source for production deployment, data paths, bac
 
 nginx terminates HTTPS and removes the `/rehearsal/` prefix before proxying to the loopback API binding. The production image includes FFmpeg for Saturation assembly.
 
-The application root is not a Git checkout. Until the release workflow is enabled, production updates remain a controlled manual operation after a reviewed merge. The target workflow uploads reviewed commits as release artifacts; it must never replace or upload the server's `data`, `backups`, `.env`, or `.env.elevenlabs` paths.
+The application root is not a Git checkout. GitHub Actions uploads the exact reviewed commit to `/opt/apps/rehearsal/releases/<sha>` and points `/opt/apps/rehearsal/current` at the last healthy release. It never replaces or uploads the server's `data`, `backups`, `.env`, or `.env.elevenlabs` paths.
+
+Deployment runs only after the `CI` workflow succeeds for a push to `main`. A maintainer may manually redeploy the current `main` commit from the `Deploy production` workflow. Deployments are serialized and the server retains the five most recent releases.
+
+Required repository secrets:
+
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_SSH_KEY`
+- `DEPLOY_KNOWN_HOSTS`
+- `PRODUCTION_URL` (the application base URL, currently `https://7662n.cc/rehearsal/`)
 
 `deploy/rehearsal-backup.cron` creates a consistent SQLite backup nightly and removes backups older than 30 days. `deploy/rehearsal-model-check.cron` runs daily, while the model checker's timestamp guard permits a live provider check only once every 14 days.
 
@@ -32,7 +42,7 @@ Stop the API before restore. Restore validates the candidate with SQLite `quick_
 
 ## Production verification
 
-Every manual or automated release must create a database backup before replacing the running container, then verify:
+Every release builds the new image, creates a database backup with that image, replaces the container, and then verifies:
 
 ```bash
 curl -fsS http://127.0.0.1:8788/health
@@ -47,4 +57,6 @@ Also confirm that SQLite `quick_check` succeeds, foreign-key checks are empty, a
 
 ## Recovery
 
-If a release fails its health checks, restore the previous application release without replacing persistent data. Restore a database only when application rollback is insufficient, and always preserve a pre-restore safety copy.
+If either health check fails, the deployment script starts the previous release again without replacing persistent data. Restore a database only when application rollback is insufficient, and always preserve a pre-restore safety copy.
+
+The first release treats the existing `/opt/apps/rehearsal` directory as the rollback target. After the first successful deployment, `current` is the canonical compose path for cron and operator commands.
