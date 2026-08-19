@@ -432,7 +432,20 @@
   .simple-row-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
-    max-width: 88px;
+    max-width: min(100%, 260px);
+  }
+
+  .simple-phrase-row {
+    grid-template-columns: 1fr;
+  }
+
+  .simple-row-actions {
+    justify-content: flex-start;
+  }
+
+  .simple-library-heading-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }
 

@@ -21,25 +21,27 @@ export function RecallSession(props: {
   items: LearningItem[];
   language: Language;
   listeningAvailable: boolean;
+  manualReviewItemId: string | null;
   selectedTopicItems: Set<string> | null;
   topics: IslandSummary[];
   topicId: string;
   onAnswer: (itemId: string, value: string) => void;
   onCheck: (itemId: string) => void;
   onListenMode: () => void;
+  onManualReviewStarted: () => void;
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
   onTopic: (topicId: string) => void;
 }) {
   const [state, dispatch] = useReducer(recallSessionReducer, initialRecallSession);
-  const [count, setCount] = useState("20");
-  const [scope, setScope] = useState<"due" | "custom">("due");
+  const [count, setCount] = useState(props.manualReviewItemId ? "all" : "20");
+  const [scope, setScope] = useState<"due" | "custom">(props.manualReviewItemId ? "custom" : "due");
   const inputRef = useRef<HTMLInputElement>(null);
   const dueSet = useMemo(() => new Set(props.dueItemIds), [props.dueItemIds]);
   const candidates = useMemo(() => props.items.filter((item) =>
-    item.practiceEnabled !== false &&
-    (scope === "custom" || dueSet.has(item.publicId)) &&
+    (!props.manualReviewItemId || item.publicId === props.manualReviewItemId) &&
+    (scope === "custom" || (item.practiceEnabled !== false && dueSet.has(item.publicId))) &&
     (!props.selectedTopicItems || props.selectedTopicItems.has(item.publicId))),
-  [dueSet, props.items, props.selectedTopicItems, scope]);
+  [dueSet, props.items, props.manualReviewItemId, props.selectedTopicItems, scope]);
   const sessionItems = count === "all" ? candidates : candidates.slice(0, Number(count));
   const current = props.items.find((item) => item.publicId === state.queue[0]);
   const attempt = current ? props.attempts[current.publicId] || { answer: "" } : { answer: "" };
@@ -69,21 +71,21 @@ export function RecallSession(props: {
   };
 
   if (state.phase === "setup") return <section className="recall-setup" aria-label="Recall setup">
-    <div className="recall-setup-fields">
+    {props.manualReviewItemId ? <p className="recall-manual-label">Manual review · stays Learned</p> : <div className="recall-setup-fields">
       <label><span>Topic</span><select onChange={(event) => props.onTopic(event.target.value)} value={props.topicId}>
         <option value="">All Topics</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}
       </select></label>
       <label><span>Cards</span><select onChange={(event) => setCount(event.target.value)} value={count}>
         <option value="10">10</option><option value="20">20</option><option value="50">50</option><option value="all">All {scope === "due" ? "due" : "matching"}</option>
       </select></label>
-    </div>
+    </div>}
     <button className="simple-primary recall-start" disabled={!sessionItems.length}
-      onClick={() => dispatch({ type: "start", itemIds: sessionItems.map((item) => item.publicId) })} type="button">
+      onClick={() => { dispatch({ type: "start", itemIds: sessionItems.map((item) => item.publicId) }); props.onManualReviewStarted(); }} type="button">
       Start {sessionItems.length ? `${sessionItems.length} cards` : "Recall"}<ChevronRight size={16} />
     </button>
-    <button className="recall-custom" onClick={() => setScope((currentScope) => currentScope === "due" ? "custom" : "due")} type="button">
+    {!props.manualReviewItemId ? <button className="recall-custom" onClick={() => setScope((currentScope) => currentScope === "due" ? "custom" : "due")} type="button">
       {scope === "due" ? "Custom practice" : "Use Due today"}
-    </button>
+    </button> : null}
     {!sessionItems.length ? <p className="recall-empty">{scope === "due" ? "Nothing due." : "No matching cards."}</p> : null}
   </section>;
 

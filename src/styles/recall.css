@@ -344,3 +344,9 @@
     display: grid;
   }
 }
+.recall-manual-label {
+  margin: 0;
+  color: var(--script-tertiary);
+  font-size: 13px;
+  text-align: center;
+}

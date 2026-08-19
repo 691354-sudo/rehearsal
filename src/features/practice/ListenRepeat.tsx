@@ -21,6 +21,7 @@ export function ListenRepeat(props: {
   onPause: () => void;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
   onPlayback: (playback: PlaybackPreferences) => void;
+  onPracticeEnabled: (itemId: string, practiceEnabled: boolean) => Promise<boolean>;
   onResume: () => void;
   onStop: () => void;
   playback: PlaybackPreferences;
@@ -38,6 +39,7 @@ export function ListenRepeat(props: {
   const [showRussian, setShowRussian] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [learnedInSession, setLearnedInSession] = useState<Set<string>>(new Set());
   const runRef = useRef(0);
   const pausedRef = useRef(false);
   const actionsRef = useRef<Record<"play" | "pause" | "previous" | "next" | "stop", () => void>>({
@@ -149,7 +151,12 @@ export function ListenRepeat(props: {
   </section>;
 
   return <section className="listen-player" aria-label="Listen and Repeat player">
-    <header><span>{index + 1} / {queue.length}</span>{note ? <small>{note}</small> : null}</header>
+    <header><span>{index + 1} / {queue.length}</span><div>{note ? <small>{note}</small> : null}
+      {current && current.practiceEnabled && !learnedInSession.has(current.publicId) ? <button onClick={async () => {
+        if (await props.onPracticeEnabled(current.publicId, false)) {
+          setLearnedInSession((ids) => new Set(ids).add(current.publicId)); setNote("Moved to Learned");
+        }
+      }} type="button">Move to Learned</button> : null}</div></header>
     <article><p>{current?.target}</p>{showRussian ? <span>{current?.cue}</span> : null}
       <button className="listen-russian" onClick={() => setShowRussian((shown) => !shown)} type="button">{showRussian ? "Hide Russian" : "Show Russian"}</button></article>
     <div className="listen-controls">

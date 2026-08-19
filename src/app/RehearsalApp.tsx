@@ -45,6 +45,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   );
   const [mode, setMode] = useState<Mode>("recall");
   const [attempts, setAttempts] = useState<Record<string, AttemptDraft>>({});
+  const [manualReviewItemId, setManualReviewItemId] = useState<string | null>(null);
   const [items, setItems] = useState<LearningItem[]>([]);
   const [dueItemIds, setDueItemIds] = useState<string[]>([]);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>({ recall: 0, shadow: 0, pattern: 0 });
@@ -233,6 +234,21 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       setDailyProgress((progress) => ({ ...progress, shadow: progress.shadow + 1 }));
     } catch { setApiOnline(false); }
   };
+  const updatePracticeEnabled = async (itemId: string, practiceEnabled: boolean) => {
+    try {
+      const response = await apiFetch(`/api/items/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ practiceEnabled }),
+      });
+      if (!response.ok) throw new Error("Card update failed");
+      setItems((current) => current.map((item) => item.publicId === itemId ? { ...item, practiceEnabled } : item));
+      if (practiceEnabled) void loadItems(language);
+      else setDueItemIds((current) => current.filter((dueId) => dueId !== itemId));
+      setApiOnline(true);
+      return true;
+    } catch { setApiOnline(false); return false; }
+  };
   const stopPlayback = useCallback(() => {
     audioSequenceRef.current += 1;
     audioCancelRef.current?.();
@@ -384,15 +400,20 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     /> : null}
     {route === "practice" && <PracticePage attempts={attempts} key={language}
       dueItemIds={dueItemIds} items={items} language={language} mode={mode} dailyProgress={dailyProgress}
-      elevenLabs={elevenLabsConfig}
+      elevenLabs={elevenLabsConfig} manualReviewItemId={manualReviewItemId}
       onAnswer={setAnswer} onCheck={checkAnswer} onListened={commitListening}
+      onManualReviewStarted={() => setManualReviewItemId(null)}
       onMode={(next) => { setMode(next); resetAttempts(); }} onRecallReview={commitRecall}
+      onPracticeEnabled={updatePracticeEnabled}
       onPausePlayback={pausePlayback} onPlay={playTarget} onPlayback={updatePlayback}
       onResumePlayback={resumePlayback} onStopPlayback={stopPlayback}
       playback={playback} voices={voices} />}
     {route === "tutor" && <TutorPage language={language} profileId={profile.id}
       onLibrary={() => setRoute("library")}
       onListen={() => { setMode("shadow"); setRoute("practice"); void loadItems(language); }} />}
-    {route === "library" && <LibraryPage language={language} onAvailability={setApiOnline} onPlay={(text) => void playTarget(text)} />}
+    {route === "library" && <LibraryPage language={language} onAvailability={setApiOnline}
+      onListen={() => { setMode("shadow"); setRoute("practice"); void loadItems(language); }}
+      onPlay={(text) => void playTarget(text)} onPracticeEnabled={updatePracticeEnabled}
+      onReview={(itemId) => { setManualReviewItemId(itemId); setMode("recall"); setRoute("practice"); }} />}
   </div>;
 }

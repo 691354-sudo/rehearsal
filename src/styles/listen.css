@@ -73,6 +73,22 @@
   border-bottom: 1px solid var(--script-rule);
 }
 
+.listen-player > header > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.listen-player > header button {
+  min-height: 32px;
+  padding: 0 8px;
+  color: var(--script-support);
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--script-rule);
+  border-radius: 6px;
+}
+
 .listen-player > article {
   display: grid;
   min-height: 250px;

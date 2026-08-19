@@ -153,13 +153,28 @@ describe("Rehearsal API", () => {
     expect(learnedInventory.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to"))
       .toMatchObject({ practiceEnabled: false, schedule: { state: "review" } });
 
+    const manualReview = await app.inject({
+      method: "POST",
+      url: "/api/attempts/evaluate",
+      payload: {
+        itemId: "en-drawn-to",
+        answer: "I've always been drawn to places near the ocean.",
+        mode: "recall",
+        rating: "good",
+      },
+    });
+    expect(manualReview.statusCode).toBe(200);
+    expect(repository.getItem("en-drawn-to")?.practiceEnabled).toBe(false);
+    expect(repository.listDueItems("en", 100, new Date("2030-01-01T00:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(false);
+
     const reactivated = await app.inject({
       method: "PATCH",
       url: "/api/items/en-drawn-to",
       payload: { practiceEnabled: true },
     });
     expect(reactivated.json().item.practiceEnabled).toBe(true);
-    expect(repository.listDueItems("en", 100, new Date("2026-08-27T12:00:00.000Z"))
+    expect(repository.listDueItems("en", 100, new Date("2030-01-01T00:00:00.000Z"))
       .some((item) => item.publicId === "en-drawn-to")).toBe(true);
     await app.close();
   });
@@ -396,6 +411,78 @@ describe("Rehearsal API", () => {
       frequencyBand: "common",
       currency: "current",
       focusTerms: ["bounce back"],
+    });
+    await app.close();
+  });
+
+  it("keeps a dismissed pattern drill out of Library and commits only selected variants", async () => {
+    const before = repository.listItems("en", 500).length;
+    const openai = new OpenAIService(repository);
+    vi.spyOn(openai, "generatePatternDrill").mockImplementation(async ({ language }) => ({
+      mode: "openai" as const,
+      batch: repository.createReviewBatch({
+        language,
+        kind: "pattern_drill",
+        title: "Pattern: I've always been drawn to…",
+        candidates: [
+          {
+            id: "9ad9bdcb-8309-43cd-8e75-92ed741bb521",
+            target: "I've always been drawn to quiet coastal towns.",
+            cue: "Меня всегда тянуло к тихим приморским городам.",
+            note: "Keep the pattern; change the meaningful slot.",
+            category: "travel",
+            focusTerms: ["be drawn to"],
+            disposition: "active",
+            frequencyBand: "common",
+            currency: "current",
+            personaFit: 5,
+            naturalness: 5,
+            commonness: 5,
+          },
+          {
+            id: "9ad9bdcb-8309-43cd-8e75-92ed741bb522",
+            target: "I've always been drawn to people who speak their mind.",
+            cue: "Меня всегда тянуло к людям, которые говорят прямо.",
+            note: "Keep the pattern; change the meaningful slot.",
+            category: "relationships",
+            focusTerms: ["be drawn to"],
+            disposition: "active",
+            frequencyBand: "common",
+            currency: "current",
+            personaFit: 5,
+            naturalness: 5,
+            commonness: 5,
+          },
+        ],
+      }),
+    }));
+    const app = await buildApp(repository, { openai });
+
+    const prepared = await app.inject({ method: "POST", url: "/api/items/en-drawn-to/pattern-drill" });
+    expect(prepared.statusCode).toBe(201);
+    const batch = prepared.json().batch;
+    expect(batch.kind).toBe("pattern_drill");
+    expect(repository.listItems("en", 500)).toHaveLength(before);
+
+    const selected = batch.candidates[1];
+    const committed = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batch.publicId}/commit`,
+      payload: { candidates: [{
+        id: selected.id,
+        target: selected.target,
+        cue: selected.cue,
+        note: selected.note,
+        category: selected.category,
+      }] },
+    });
+    expect(committed.statusCode).toBe(200);
+    expect(committed.json().added).toBe(1);
+    const after = repository.listItems("en", 500);
+    expect(after).toHaveLength(before + 1);
+    expect(after.some((item) => item.target === batch.candidates[0].target)).toBe(false);
+    expect(after.find((item) => item.target === selected.target)).toMatchObject({
+      tags: ["be drawn to"],
     });
     await app.close();
   });
