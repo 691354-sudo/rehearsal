@@ -1,3 +1,19 @@
+html,
+body,
+#root {
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f5f4f8;
+}
+
+@media (prefers-color-scheme: dark) {
+  body { background: #090a0d; }
+}
+
 .simple-app {
   --stage-canvas: #f5f4f8;
   --script-surface: #ffffff;
@@ -197,34 +213,30 @@
 }
 
 .simple-language {
+  position: relative;
   gap: 8px;
   min-height: 40px;
   padding: 0 10px;
+  cursor: pointer;
   font-size: 13px;
   font-weight: 550;
 }
 
 .simple-language select {
-  max-width: 90px;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
   padding: 0;
-  color: var(--script-support);
-  font: inherit;
-  background: transparent;
+  cursor: pointer;
+  opacity: 0;
   border: 0;
   outline: 0;
-  appearance: none;
 }
 
-.simple-api-state {
-  width: 8px;
-  height: 8px;
-  margin: 0 2px;
-  background: var(--rehearsal-note);
-  border-radius: 50%;
-}
-
-.simple-api-state.is-online {
-  background: var(--learned);
+.simple-language strong {
+  color: var(--script-support);
+  font: inherit;
 }
 
 .simple-ai-label {

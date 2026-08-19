@@ -103,11 +103,13 @@ export function RecallSession(props: {
       </>}
       <button className="simple-primary recall-start" disabled={!sessionItems.length}
         onClick={() => { dispatch({ type: "start", itemIds: sessionItems.map((item) => item.publicId) }); props.onManualReviewStarted(); }} type="button">
-        Start {sessionItems.length ? `${sessionItems.length} cards` : "Recall"}<ChevronRight size={16} />
+        <span className="recall-start-desktop">Focus mode</span><span className="recall-start-mobile">Start {sessionItems.length ? `${sessionItems.length} cards` : "Recall"}</span><ChevronRight size={16} />
       </button>
     </section>
-    <PracticeQueuePreview items={sessionItems} language={props.language} mode="recall" onEdit={props.onEdit}
-      onPlay={(item) => { void props.onPlay(item.target, props.playback); }} scope={scope} />
+    <PracticeQueuePreview attempts={props.attempts} items={sessionItems} language={props.language} mode="recall"
+      onAnswer={props.onAnswer} onCheck={props.onCheck} onEdit={props.onEdit}
+      onPlay={(item) => props.onPlay(item.target, props.playback)} onRecallReview={props.onRecallReview}
+      playAfterRecall={props.playback.playAfterRecall} scope={scope} />
   </div>;
 
   if (state.phase === "complete" || !current) return <section className="recall-complete" aria-label="Recall complete">

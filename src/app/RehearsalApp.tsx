@@ -374,11 +374,11 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       </nav>
       <div className="simple-header-actions">
         <label className="simple-language"><span>{languageCopy[language].short}</span>
-          <select onChange={(event) => setLanguage(event.target.value as Language)} value={language}>
+          <strong>{languageCopy[language].label}</strong><ChevronDown size={15} />
+          <select aria-label="Language" onChange={(event) => setLanguage(event.target.value as Language)} value={language}>
             <option value="en">English</option><option value="lv">Latviešu</option>
-          </select><ChevronDown size={15} />
+          </select>
         </label>
-        <span className={`simple-api-state ${apiOnline ? "is-online" : ""}`} title={apiOnline ? "Backend online" : "Backend unavailable"} />
         <button className="simple-profile-button" onClick={onSwitchProfile} title="Switch profile" type="button">
           <UserRound size={16} /><span>{profile.name}</span>
         </button>
@@ -396,7 +396,6 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
         <div className="simple-mobile-menu">
           <label><span>Language</span><select onChange={(event) => { setLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
             <option value="en">English</option><option value="lv">Latviešu</option></select></label>
-          <div className="simple-mobile-menu-status"><span className={`simple-api-state ${apiOnline ? "is-online" : ""}`} />{apiOnline ? "Available" : "Unavailable"}</div>
           <button onClick={() => { setMobileMenuOpen(false); onSwitchProfile(); }} type="button"><UserRound size={17} />{profile.name}</button>
           <button onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")} type="button">
             {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}{theme === "dark" ? "Light theme" : "Dark theme"}</button>

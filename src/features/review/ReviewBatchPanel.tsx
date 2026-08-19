@@ -38,8 +38,7 @@ export function ReviewBatchPanel(props: {
   const [page, setPage] = useState(0);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState<string | null>(null);
-  const [revising, setRevising] = useState(false);
-  const [feedback, setFeedback] = useState("");
+  const [comments, setComments] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
   const candidateSignature = props.batch.candidates
     .map((candidate) => `${candidate.id}:${candidate.disposition || "active"}`)
@@ -58,6 +57,8 @@ export function ReviewBatchPanel(props: {
     setPage(0);
   }, [candidateSignature, props.batch.kind, props.batch.publicId]);
 
+  useEffect(() => setComments({}), [props.batch.publicId]);
+
   const update = (id: string, patch: Partial<ReviewCandidate>) => props.onBatch({
     ...props.batch,
     candidates: props.batch.candidates.map((candidate) => candidate.id === id ? { ...candidate, ...patch } : candidate),
@@ -66,6 +67,13 @@ export function ReviewBatchPanel(props: {
     const next = new Set(current);
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
+  });
+  const candidateSelection = (candidate: ReviewCandidate) => ({
+    id: candidate.id,
+    target: candidate.target,
+    cue: candidate.cue,
+    note: candidate.note,
+    category: candidate.category,
   });
   const regenerate = async (candidateId: string, instruction: "another" | "different_context") => {
     setRegenerating(candidateId); setNotice("");
@@ -83,10 +91,7 @@ export function ReviewBatchPanel(props: {
     if (!selected.size || saving) return;
     setSaving(true); setNotice("");
     try {
-      const candidates = props.batch.candidates.filter((candidate) => selected.has(candidate.id)).map((candidate) => ({
-        id: candidate.id, target: candidate.target, cue: candidate.cue,
-        note: candidate.note, category: candidate.category,
-      }));
+      const candidates = props.batch.candidates.filter((candidate) => selected.has(candidate.id)).map(candidateSelection);
       const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/commit`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidates }),
       });
@@ -97,25 +102,46 @@ export function ReviewBatchPanel(props: {
     } catch { setNotice("Nothing was saved. Try again."); }
     finally { setSaving(false); }
   };
-  const revise = async () => {
-    const nextFeedback = feedback.trim();
-    if (!nextFeedback || revising) return;
-    setRevising(true); setNotice("");
+  const resolveCapture = async () => {
+    if (!selected.size || saving) return;
+    const candidates = props.batch.candidates.filter((candidate) => selected.has(candidate.id));
+    const accepted = candidates.filter((candidate) => !comments[candidate.id]?.trim()).map(candidateSelection);
+    const revisions = candidates.filter((candidate) => comments[candidate.id]?.trim()).map((candidate) => ({
+      ...candidateSelection(candidate),
+      feedback: comments[candidate.id].trim(),
+    }));
+    setSaving(true); setNotice("");
     try {
-      const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/revise`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ feedback: nextFeedback }),
+      const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/resolve-capture`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accepted, revisions }),
       });
-      if (!response.ok) throw new Error("Revision failed");
-      const data = await response.json() as { batch: ReviewBatch };
-      props.onBatch(data.batch); setFeedback(""); setNotice("Package rebuilt from your feedback.");
-    } catch { setNotice("Couldn’t revise the package. Your feedback is still here."); }
-    finally { setRevising(false); }
+      if (!response.ok) throw new Error("Review failed");
+      const data = await response.json() as { batch: ReviewBatch; added: number };
+      props.onBatch(data.batch);
+      setComments({});
+      setPage(0);
+      setSelected(new Set(data.batch.candidates
+        .filter((candidate) => (candidate.disposition || "active") === "active")
+        .map((candidate) => candidate.id)));
+      if (data.batch.status === "committed") {
+        setNotice(`${data.added} added to Library.`);
+        props.onCommitted?.(data.added);
+      } else {
+        setNotice(`${data.added} added · ${data.batch.candidates.length} revised ${data.batch.candidates.length === 1 ? "card" : "cards"} ready.`);
+      }
+    } catch { setNotice("Nothing was saved. Your comments are still here."); }
+    finally { setSaving(false); }
   };
+
+  const commentedCount = [...selected].filter((id) => comments[id]?.trim()).length;
+  const acceptedCount = selected.size - commentedCount;
 
   return <section className="simple-review-batch">
     <header><div><strong>{props.batch.title}</strong><span>{props.batch.kind === "pattern_drill"
       ? "The pattern stays fixed; the meaningful slot changes."
-      : `${props.batch.candidates.length} proposals · nothing saved yet`}</span></div>
+      : props.batch.kind === "capture"
+        ? `${props.batch.candidates.length} proposals · review before saving`
+        : `${props.batch.candidates.length} proposals · nothing saved yet`}</span></div>
       <div className="simple-review-header-actions">{pages > 1 ? <nav aria-label="Candidate pages"><button disabled={page === 0} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={15} /></button>
         <span>{page + 1} / {pages}</span><button disabled={page >= pages - 1} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={15} /></button></nav> : null}
         {props.onDismiss ? <button aria-label="Close review" onClick={props.onDismiss} type="button"><X size={16} /></button> : null}</div>
@@ -133,23 +159,26 @@ export function ReviewBatchPanel(props: {
           <input aria-label="Russian cue" className="is-cue" onChange={(event) => update(candidate.id, { cue: event.target.value })} value={candidate.cue} />
           <div className="simple-review-meta"><input aria-label="Category" onChange={(event) => update(candidate.id, { category: event.target.value })} value={candidate.category} />
             <span>{candidate.disposition || "active"}</span><span>{candidate.frequencyBand}</span><span>{candidate.currency}</span></div>
+          {props.batch.kind === "capture" ? <textarea aria-label={`Comment for card ${page * pageSize + visibleIndex + 1}`}
+            className="simple-review-comment" onChange={(event) => {
+              const value = event.target.value;
+              setComments((current) => ({ ...current, [candidate.id]: value }));
+              if (value.trim()) setSelected((current) => new Set(current).add(candidate.id));
+            }} placeholder="What should change? Leave empty if this card is OK." rows={2}
+            value={comments[candidate.id] || ""} /> : null}
         </div>
-        <div className="simple-review-actions">
+        {props.batch.kind !== "capture" ? <div className="simple-review-actions">
           <button disabled={regenerating === candidate.id} onClick={() => void regenerate(candidate.id, "another")} type="button">
             {regenerating === candidate.id ? <LoaderCircle className="simple-spin" size={13} /> : <RefreshCw size={13} />}Another</button>
           <button disabled={regenerating === candidate.id} onClick={() => void regenerate(candidate.id, "different_context")} type="button">New context</button>
-        </div>
+        </div> : null}
       </article>)}
     </div>
-    {props.batch.kind === "capture" && props.batch.status === "draft" ? <div className="simple-review-feedback">
-      <label htmlFor={`capture-feedback-${props.batch.publicId}`}>Revise the whole package</label>
-      <textarea id={`capture-feedback-${props.batch.publicId}`} onChange={(event) => setFeedback(event.target.value)}
-        placeholder="Например: 5 слишком формальная, 7 означает другое, 9 удали" rows={3} value={feedback} />
-      <button disabled={!feedback.trim() || revising} onClick={() => void revise()} type="button">
-        {revising ? <LoaderCircle className="simple-spin" size={14} /> : <RefreshCw size={14} />}Revise package
-      </button>
-    </div> : null}
-    <footer><span>{notice}</span><button className="simple-primary" disabled={!selected.size || saving || props.batch.status === "committed"} onClick={() => void commit()} type="button">
-      {saving ? <LoaderCircle className="simple-spin" size={15} /> : <Check size={15} />}{props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture" ? `Add to Library${selected.size ? ` (${selected.size})` : ""}` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
+    <footer><span>{notice}</span><button className="simple-primary" disabled={!selected.size || saving || props.batch.status === "committed"}
+      onClick={() => void (props.batch.kind === "capture" ? resolveCapture() : commit())} type="button">
+      {saving ? <LoaderCircle className="simple-spin" size={15} /> : commentedCount ? <RefreshCw size={15} /> : <Check size={15} />}
+      {props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture"
+        ? commentedCount ? `Revise ${commentedCount} · Add ${acceptedCount}` : `Add to Library${selected.size ? ` (${selected.size})` : ""}`
+        : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
   </section>;
 }

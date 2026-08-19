@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, LoaderCircle, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { LoaderCircle, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { apiFetch } from "../../shared/api";
 import type { Language, LearningItem } from "../../shared/contracts";
 
@@ -83,13 +83,6 @@ export function TopicsManager({ language, onClose }: { language: Language; onClo
     else setNotice("Topic could not be deleted.");
     setSaving(false);
   };
-  const reorder = (index: number, direction: -1 | 1) => {
-    if (!topic) return;
-    const next = [...topic.items]; const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
-    void update({ itemIds: next.map((item) => item.publicId) });
-  };
   const moveToTopic = async (item: LearningItem, targetId: string) => {
     if (!topic || !targetId || saving) return;
     const destination = topics.find((candidate) => candidate.publicId === targetId);
@@ -138,12 +131,10 @@ export function TopicsManager({ language, onClose }: { language: Language; onClo
           : <div><span>Selected Topic</span><h3>{topic.title}</h3><small>{topic.items.length} {topic.items.length === 1 ? "card" : "cards"}</small></div>}
             {!renaming ? <div><button onClick={() => setRenaming(true)} type="button"><Pencil size={14} />Rename</button>
               <button aria-label="Delete Topic" className="topic-delete" disabled={saving} onClick={() => void remove()} title="Delete Topic" type="button"><Trash2 size={14} /></button></div> : null}</div>
-          <div className="topic-items">{topic.items.length ? topic.items.map((item, index) => <article key={item.publicId}><div><strong>{item.target}</strong><span>{item.cue}</span></div>
+          <div className="topic-items">{topic.items.length ? topic.items.map((item) => <article key={item.publicId}><div><strong>{item.target}</strong><span>{item.cue}</span></div>
             <div className="topic-item-actions"><select aria-label={`Move ${item.target} to another Topic`} disabled={saving || topics.length < 2}
               onChange={(event) => { const targetId = event.target.value; event.target.value = ""; void moveToTopic(item, targetId); }} defaultValue="">
                 <option value="">Move to…</option>{topics.filter((candidate) => candidate.publicId !== topic.publicId).map((candidate) => <option key={candidate.publicId} value={candidate.publicId}>{candidate.title}</option>)}</select>
-              <button aria-label="Move up" disabled={saving || index === 0} onClick={() => reorder(index, -1)} title="Move up" type="button"><ArrowUp size={14} /></button>
-              <button aria-label="Move down" disabled={saving || index === topic.items.length - 1} onClick={() => reorder(index, 1)} title="Move down" type="button"><ArrowDown size={14} /></button>
               <button className="topic-remove" disabled={saving} onClick={() => void update({ itemIds: topic.items.filter((candidate) => candidate.publicId !== item.publicId).map((candidate) => candidate.publicId) })} type="button"><X size={14} />Remove</button></div></article>)
             : <p className="topic-items-empty">No cards in this Topic.</p>}</div>
           <label className="topic-add-item"><span>Add a Library card to {topic.title}</span><div><select aria-label="Add card to Topic" disabled={!availableItems.length} onChange={(event) => setAddItemId(event.target.value)} value={addItemId}>

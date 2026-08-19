@@ -110,10 +110,10 @@ export function LibraryPage({ language, onAvailability, onListen, onPlay, onPrac
 
   return <main className="simple-main"><header className="simple-page-heading"><div><h1>Library</h1><p>{items.length} cards</p></div>
     <div className="simple-library-heading-actions"><button onClick={() => setShowTopics((shown) => !shown)} type="button">Manage topics</button>
-      <button onClick={() => setShowImport((shown) => !shown)} type="button">Import text</button></div></header>
+      {!showTopics ? <button onClick={() => setShowImport((shown) => !shown)} type="button">Import text</button> : null}</div></header>
     {loadError ? <div className="simple-unavailable" role="alert"><span>Library unavailable.</span><button onClick={() => void load()} type="button"><RefreshCw size={14} />Retry</button></div> : null}
-    {showTopics ? <div className="simple-library-secondary"><TopicsManager language={language} onClose={() => { setShowTopics(false); void loadTopics(); }} /></div> : null}
-    {showImport ? <section className="simple-import-card simple-library-secondary">
+    {showTopics ? <div className="simple-library-secondary"><TopicsManager language={language} onClose={() => { setShowTopics(false); void loadTopics(); }} /></div> : <>
+      {showImport ? <section className="simple-import-card simple-library-secondary">
       <div className="simple-section-heading"><FilePlus2 size={19} /><div><strong>Import text or transcript</strong></div></div>
       <input onChange={(event) => setTitle(event.target.value)} placeholder="Title or source" value={title} />
       <label className="simple-file-button"><Upload size={16} />Upload .txt<input accept=".txt,text/plain" onChange={async (event) => {
@@ -151,8 +151,9 @@ export function LibraryPage({ language, onAvailability, onListen, onPlay, onPrac
         </article>)}
       </div>
     </section>
-    {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => setEditingItem(null)}
+      {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => setEditingItem(null)}
       onSaved={(item) => { setItems((current) => current.map((candidate) => candidate.publicId === item.publicId
         ? { ...candidate, ...item, schedule: candidate.schedule } : candidate)); setEditingItem(null); }} /> : null}
+    </>}
   </main>;
 }

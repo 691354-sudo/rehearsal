@@ -257,6 +257,7 @@
 }
 
 .simple-composer textarea {
+  box-sizing: border-box;
   width: 100%;
   max-height: 180px;
   resize: vertical;
