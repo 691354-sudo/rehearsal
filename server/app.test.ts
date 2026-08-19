@@ -699,6 +699,131 @@ describe("Rehearsal API", () => {
     await app.close();
   });
 
+  it("completes the personal sentence loop from Notebook through Learned and reactivation", async () => {
+    const openai = new OpenAIService(repository);
+    vi.spyOn(openai, "transcribe").mockResolvedValue("Я хочу спросить, можем ли мы заниматься на этом тренажёре вместе.");
+    const prepareCaptureBatch = vi.spyOn(openai, "prepareCaptureBatch").mockImplementation(async ({ language }) => ({
+      mode: "openai" as const,
+      batch: repository.createReviewBatch({
+        language,
+        kind: "capture",
+        title: "Capture Reality",
+        candidates: [{
+          id: "9ad9bdcb-8309-43cd-8e75-92ed741bb531",
+          target: "Could we share this machine?",
+          cue: "Мы можем вместе заниматься на этом тренажёре?",
+          note: "At the gym",
+          category: "gym",
+          pattern: "Could we…?",
+          focusTerms: ["share this machine"],
+          disposition: "active",
+          frequencyBand: "core",
+          currency: "current",
+          personaFit: 5,
+          naturalness: 5,
+          commonness: 5,
+        }],
+      }),
+    }));
+    const app = await buildApp(repository, { openai });
+
+    const typed = await app.inject({
+      method: "POST",
+      url: "/api/captures/text",
+      payload: { language: "en", transcript: "Здесь занято?" },
+    });
+    expect(typed.statusCode).toBe(201);
+    const boundary = "----rehearsal-loop-voice";
+    const voice = await app.inject({
+      method: "POST",
+      url: "/api/captures?language=en",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+      payload: Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="gym.webm"\r\n` +
+        "Content-Type: audio/webm\r\n\r\nvoice-note\r\n" +
+        `--${boundary}--\r\n`,
+      ),
+    });
+    expect(voice.statusCode).toBe(201);
+
+    const prepared = await app.inject({ method: "POST", url: "/api/captures/process", payload: { language: "en" } });
+    expect(prepared.statusCode).toBe(201);
+    expect(prepareCaptureBatch.mock.calls[0][0].notes.map((note) => note.transcript)).toEqual([
+      "Здесь занято?",
+      "Я хочу спросить, можем ли мы заниматься на этом тренажёре вместе.",
+    ]);
+    const candidate = prepared.json().batch.candidates[0];
+    const committed = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${prepared.json().batch.publicId}/commit`,
+      payload: { candidates: [{
+        id: candidate.id,
+        target: candidate.target,
+        cue: candidate.cue,
+        note: candidate.note,
+        category: candidate.category,
+      }] },
+    });
+    expect(committed.statusCode).toBe(200);
+    const itemId = committed.json().items[0].publicId as string;
+
+    const topics = await app.inject({ method: "GET", url: "/api/islands?language=en" });
+    const gym = topics.json().islands.find((topic: { title: string }) => topic.title === "gym");
+    const gymDetail = await app.inject({ method: "GET", url: `/api/islands/${gym.publicId}` });
+    expect(gymDetail.json().island.items.map((item: { publicId: string }) => item.publicId)).toContain(itemId);
+
+    const listened = await app.inject({
+      method: "POST",
+      url: "/api/reviews",
+      payload: { itemId, mode: "shadow", rating: "good" },
+    });
+    expect(listened.json().review.schedule).toBeNull();
+    const afterListening = await app.inject({
+      method: "GET",
+      url: "/api/items?language=en&limit=500&includeSchedule=true",
+    });
+    expect(afterListening.json().items.find((item: { publicId: string }) => item.publicId === itemId).schedule).toBeUndefined();
+
+    const recalled = await app.inject({
+      method: "POST",
+      url: "/api/attempts/evaluate",
+      payload: { itemId, answer: "Could we share this machine?", mode: "recall", rating: "good" },
+    });
+    expect(recalled.statusCode).toBe(200);
+    expect(recalled.json().attempt.schedule.dueAt).toBeTruthy();
+    db.prepare("UPDATE review_state SET due_at = '2000-01-01T00:00:00.000Z' WHERE item_id = (SELECT id FROM items WHERE public_id = ?)")
+      .run(itemId);
+
+    const learned = await app.inject({
+      method: "PATCH",
+      url: `/api/items/${itemId}`,
+      payload: { practiceEnabled: false },
+    });
+    expect(learned.json().item.practiceEnabled).toBe(false);
+    const dueWhileLearned = await app.inject({ method: "GET", url: "/api/practice/due?language=en&limit=100" });
+    expect(dueWhileLearned.json().items.some((item: { publicId: string }) => item.publicId === itemId)).toBe(false);
+
+    const manualReview = await app.inject({
+      method: "POST",
+      url: "/api/attempts/evaluate",
+      payload: { itemId, answer: "Could we share this machine?", mode: "recall", rating: "easy" },
+    });
+    expect(manualReview.statusCode).toBe(200);
+    expect(repository.getItem(itemId)?.practiceEnabled).toBe(false);
+    db.prepare("UPDATE review_state SET due_at = '2000-01-01T00:00:00.000Z' WHERE item_id = (SELECT id FROM items WHERE public_id = ?)")
+      .run(itemId);
+
+    const reactivated = await app.inject({
+      method: "PATCH",
+      url: `/api/items/${itemId}`,
+      payload: { practiceEnabled: true },
+    });
+    expect(reactivated.json().item.practiceEnabled).toBe(true);
+    const dueAfterReactivation = await app.inject({ method: "GET", url: "/api/practice/due?language=en&limit=100" });
+    expect(dueAfterReactivation.json().items.some((item: { publicId: string }) => item.publicId === itemId)).toBe(true);
+    await app.close();
+  });
+
   it("backfills normalized Topics idempotently and preserves creation order", () => {
     const first = repository.saveItem({ language: "en", cue: "Первый", target: "First.", tags: [" My Topic "] });
     const second = repository.saveItem({ language: "en", cue: "Второй", target: "Second.", tags: ["my   topic"] });
