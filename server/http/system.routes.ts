@@ -1,13 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { config, elevenLabsConfigured, openAIConfigured } from "../config.js";
-import { getModelRouting } from "../model-routing.js";
 import type { HttpDependencies } from "./dependencies.js";
 import { elevenLabsModelOptions, schedulerSettingsSchema, voiceOptions } from "./schemas.js";
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
 
 export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   app.get("/health", async () => {
-    const routing = getModelRouting();
     return {
       ok: true,
       database: "sqlite",
@@ -15,11 +13,9 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
       elevenLabsConfigured,
       models: openAIConfigured
         ? {
-            tutor: routing.tutor,
-            balanced: routing.balanced,
-            utility: routing.utility,
-            routingSource: routing.source,
-            routingCheckedAt: routing.checkedAt,
+            tutor: config.tutorModel,
+            balanced: config.balancedModel,
+            utility: config.utilityModel,
             embeddings: config.embeddingModel,
             tts: config.ttsModel,
             voice: config.ttsVoice,
@@ -40,7 +36,7 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
             configured: openAIConfigured,
             defaultVoice: config.ttsVoice,
             voices: voiceOptions,
-            recommendedVoices: ["marin", "cedar"],
+            recommendedVoices: ["onyx"],
           },
           elevenlabs: {
             configured: elevenLabsConfigured,

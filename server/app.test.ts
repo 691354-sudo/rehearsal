@@ -271,7 +271,10 @@ describe("Rehearsal API", () => {
     const config = await app.inject({ method: "GET", url: "/api/config" });
     expect(config.statusCode).toBe(200);
     expect(config.json().scheduler).toMatchObject({ algorithm: "FSRS-6", ...settings });
-    expect(config.json().tts.providers.openai.voices).toContain("marin");
+    expect(config.json().tts.providers.openai).toMatchObject({
+      defaultVoice: "onyx",
+      recommendedVoices: ["onyx"],
+    });
     expect(config.json().tts.providers.elevenlabs.voice).toEqual({
       id: "1YGgSmpRGVzkcaI7zhbX",
       name: "Christopher",

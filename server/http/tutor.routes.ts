@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { HttpDependencies } from "./dependencies.js";
+import { aiLimits } from "../services/ai-limits.js";
 import { languageSchema, reviewCandidateSelectionSchema } from "./schemas.js";
 
 export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
@@ -43,7 +44,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const { tutor } = dependencies.forRequest(request);
     const body = z.object({
       language: languageSchema,
-      message: z.string().trim().min(1).max(30_000),
+      message: z.string().trim().min(1).max(aiLimits.tutorMessageCharacters),
       threadId: z.string().uuid().optional(),
     }).parse(request.body);
     return tutor.chat({ language: body.language, message: body.message, threadPublicId: body.threadId });
@@ -61,7 +62,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const body = z.object({
       language: languageSchema,
       title: z.string().trim().min(1).max(300).default("Vocabulary review"),
-      text: z.string().trim().min(1).max(100_000),
+      text: z.string().trim().min(1).max(aiLimits.sourceCharacters),
       threadId: z.string().uuid().optional(),
     }).parse(request.body);
     const thread = repository.tutor.getOrCreateThread(body.threadId, body.language);

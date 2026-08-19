@@ -110,14 +110,21 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
         scheduler?: SchedulerSettings & { algorithm: string };
         tts?: {
           providers?: {
-            openai?: { voices?: string[] };
+            openai?: { defaultVoice?: string; voices?: string[] };
             elevenlabs?: ElevenLabsConfig;
           };
         };
       };
       setApiOnline(true); setOpenaiConfigured(data.openaiConfigured);
       if (data.scheduler) setSchedulerSettings(data.scheduler);
-      if (data.tts?.providers?.openai?.voices?.length) setVoices(data.tts.providers.openai.voices);
+      if (data.tts?.providers?.openai?.voices?.length) {
+        const openAiVoices = data.tts.providers.openai.voices;
+        const defaultVoice = data.tts.providers.openai.defaultVoice || openAiVoices[0];
+        setVoices(openAiVoices);
+        setPlayback((current) => openAiVoices.includes(current.voice)
+          ? current
+          : { ...current, voice: defaultVoice });
+      }
       if (data.tts?.providers?.elevenlabs) {
         setElevenLabsConfig(data.tts.providers.elevenlabs);
         if (data.tts.providers.elevenlabs.configured) {

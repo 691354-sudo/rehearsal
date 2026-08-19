@@ -11,7 +11,7 @@ export const defaultPlayback: PlaybackPreferences = {
   speed: 1,
   pauseMs: 1500,
   playAfterRecall: true,
-  voice: "marin",
+  voice: "onyx",
   elevenlabs: {
     modelId: "eleven_multilingual_v2",
     stability: 0.45,
@@ -43,8 +43,7 @@ export const defaultSchedulerSettings: SchedulerSettings = {
 };
 
 export const defaultVoices = [
-  "alloy", "ash", "ballad", "coral", "echo", "fable", "nova",
-  "onyx", "sage", "shimmer", "verse", "marin", "cedar",
+  "alloy", "echo", "fable", "nova", "onyx", "shimmer",
 ];
 
 export const languageCopy = {

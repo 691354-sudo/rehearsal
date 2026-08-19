@@ -4,6 +4,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const databasePath = path.resolve(root, process.env.DATABASE_PATH || ".data/rehearsal.sqlite");
+const openAiTtsVoices = ["alloy", "echo", "fable", "nova", "onyx", "shimmer"] as const;
 
 const numberFromEnv = (value: string | undefined, fallback: number) => {
   const parsed = Number(value);
@@ -19,6 +20,11 @@ const secretFromEnv = (name: string) => {
   const filePath = process.env[`${name}_FILE`]?.trim();
   if (filePath) return fs.readFileSync(filePath, "utf8").trim();
   return process.env[name]?.trim() || "";
+};
+
+const openAiTtsVoiceFromEnv = () => {
+  const configured = process.env.OPENAI_TTS_VOICE?.trim();
+  return openAiTtsVoices.find((voice) => voice === configured) || "onyx";
 };
 
 export const config = {
@@ -39,14 +45,11 @@ export const config = {
   tutorModel: process.env.OPENAI_TUTOR_MODEL || process.env.OPENAI_CHAT_MODEL || "gpt-5.6-sol",
   utilityModel: process.env.OPENAI_UTILITY_MODEL || "gpt-5.6-luna",
   balancedModel: process.env.OPENAI_BALANCED_MODEL || "gpt-5.6-terra",
-  modelAutoUpdate: booleanFromEnv(process.env.OPENAI_MODEL_AUTO_UPDATE, true),
-  modelCheckIntervalDays: numberFromEnv(process.env.OPENAI_MODEL_CHECK_INTERVAL_DAYS, 14),
-  modelRoutingPath: path.resolve(root, process.env.OPENAI_MODEL_ROUTING_PATH || ".data/model-routing.json"),
   embeddingModel: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
   embeddingDimensions: numberFromEnv(process.env.OPENAI_EMBEDDING_DIMENSIONS, 512),
   transcriptionModel: process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-transcribe",
-  ttsModel: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
-  ttsVoice: process.env.OPENAI_TTS_VOICE || "marin",
+  ttsModel: process.env.OPENAI_TTS_MODEL || "tts-1-hd",
+  ttsVoice: openAiTtsVoiceFromEnv(),
   elevenLabsApiKey: process.env.ELEVENLABS_API_KEY?.trim() || "",
   elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID || "1YGgSmpRGVzkcaI7zhbX",
   elevenLabsVoiceName: process.env.ELEVENLABS_VOICE_NAME || "Christopher",

@@ -178,7 +178,7 @@ export function GlobalSettings(props: {
 
           {props.playback.provider === "openai" ? <label className="simple-openai-voice-choice"><span>Voice</span>
             <select onChange={(event) => applyPlayback({ ...props.playback, voice: event.target.value })} value={props.playback.voice}>
-              {props.voices.map((voice) => <option key={voice} value={voice}>{capitalize(voice)}{["marin", "cedar"].includes(voice) ? " · recommended" : ""}</option>)}
+              {props.voices.map((voice) => <option key={voice} value={voice}>{capitalize(voice)}{voice === "onyx" ? " · recommended" : ""}</option>)}
             </select>
           </label> : <>
             <div className="simple-elevenlabs-voice">

@@ -2,6 +2,7 @@ import type { FastifyRequest } from "fastify";
 import { RehearsalRepository } from "../db/repository.js";
 import { ProfileManager, type ProfileId } from "../profiles/manager.js";
 import { ElevenLabsService } from "../services/elevenlabs.js";
+import { genericLearnerPersona, learnerPersonaForProfile } from "../services/learner-persona.js";
 import { OpenAIService } from "../services/openai.js";
 import { TutorService } from "../services/tutor.js";
 
@@ -31,7 +32,8 @@ const makeContext = (
   overrides: ServiceOverrides = {},
 ): HttpContext => {
   repository.library.runTopicBackfillMigration();
-  const openai = overrides.openai || new OpenAIService(repository);
+  const learner = profileId ? learnerPersonaForProfile(profileId) : genericLearnerPersona;
+  const openai = overrides.openai || new OpenAIService(repository, learner);
   const elevenlabs = overrides.elevenlabs || new ElevenLabsService(repository);
   return {
     profileId,
