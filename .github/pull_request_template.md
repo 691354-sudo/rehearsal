@@ -17,5 +17,5 @@
 ## Coordination
 
 - [ ] This branch has one author and one task
-- [ ] The other maintainer has reviewed the change
 - [ ] Dependent pull requests are linked and will be merged in order
+- [ ] Any requested or risk-driven review is complete

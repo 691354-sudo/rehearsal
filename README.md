@@ -1,100 +1,63 @@
 # Rehearsal
 
-A private, practice-first AI tutor for English and Latvian. Its main loop is `Capture → Topic → Drill → Recall`: Russian voice notes become reviewed personal cards, Topics help filter them, Drill speaks the visible cards in order, and Recall schedules the individual cards with FSRS. Roman and Oliver use fixed PIN profiles with separate practice data, libraries, Tutor histories, settings, and backups.
+Private English and Latvian practice for Roman and Oliver. Each fixed PIN profile has its own SQLite database, Library, Tutor history, settings, review schedule, audio cache, and backups.
 
-## Run locally
+The main loop is `Capture → Review → Library → Listen & Repeat → Recall → Learned`. Russian notes become reviewed target-language cards; FSRS schedules recall, while Listen & Repeat handles spoken English practice.
+
+## Local development
+
+Requires Node 24.
 
 ```bash
 npm install
+cp .env.example .env
 npm run dev
 ```
 
-For isolated Codex browser testing, create the ignored `.env.codex.local` once and run `npm run dev:codex`. The Roman login is pre-filled, paid APIs are disabled, and test data stays under `.data/codex-browser`.
-
-Before the first start, create an untracked `.env` from `.env.example` and set distinct 4–12 digit development PINs plus a random `SESSION_SECRET` of at least 32 bytes.
+Set different local profile PINs and a random `SESSION_SECRET` in the untracked `.env` before the first start.
 
 - Web: `http://127.0.0.1:4173/`
 - API health: `http://127.0.0.1:8787/health`
-- The approved interface is the only runtime UI; Practice, Tutor, Library, Settings, and shared contracts are feature modules.
+- Isolated Codex browser environment: `npm run dev:codex`
 
-The browser uses the current Vite base path for API calls by default. Set `VITE_API_BASE=https://example.test/rehearsal` at build time only when the web client and API need different origins.
+The installed PWA and API use the same origin and deployment base path. OpenAI and ElevenLabs are optional: Recall comparison and FTS search stay local, while audio falls back to browser speech.
 
-The app works without an OpenAI key: recall uses local comparison, search uses FTS5, and audio falls back to the browser voice. The database and imported sources still persist.
+## AI and speech
 
-## Connect OpenAI
+Server-side defaults are deliberately pinned by workload:
 
-Open `.env` and set:
+- `gpt-5.6-sol` — Tutor conversation;
+- `gpt-5.6-terra` — material generation and review;
+- `gpt-5.6-luna` — small utility tasks;
+- `text-embedding-3-small` — semantic search;
+- `gpt-transcribe` — Russian voice-note transcription;
+- `tts-1-hd` with `onyx` — OpenAI speech fallback;
+- ElevenLabs — primary high-quality English voice when configured.
 
-```dotenv
-OPENAI_API_KEY=your_key_here
-```
+Model changes are manual. After deliberately changing model environment variables, run `npm run models:check`; the command makes small canary requests but never rewrites application configuration.
 
-Then restart `npm run dev`. The key is read only by the API process and is never shipped to browser JavaScript.
+All LLM material remains a draft until the user confirms it. Prompt sources, Tutor history, individual messages, and model output have server-side size limits. API keys never reach browser JavaScript.
 
-Configured OpenAI capabilities:
-
-- instant local comparison for routine recall, without an LLM round trip;
-- Responses API read tools for scoped library search; generated content is draft-only until selected;
-- `gpt-5.6-sol` for the natural Tutor conversation;
-- `gpt-5.6-luna` for high-volume utility work and currentness checks;
-- `gpt-5.6-terra` for contextual generation, categorization, and full-chat review;
-- `text-embedding-3-small` for semantic search (512 dimensions by default);
-- `gpt-4o-mini-tts` for English, Latvian, and Russian audio;
-- `gpt-transcribe` for server-side Russian Capture Reality transcription;
-- server-side MP3 cache to avoid paying twice for identical speech.
-
-## Connect ElevenLabs
-
-Set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in the server-side `.env` (or in `.env.elevenlabs` for the production Compose deployment), then restart the API. The browser receives only voice metadata; the API key never leaves the server.
-
-Settings → Voice verifies the configured voice against ElevenLabs and shows its real name and labels. `Quality` uses `eleven_multilingual_v2`; `Fast` uses the lower-cost `eleven_flash_v2_5`. Global Voice and Playback values are the defaults used by Cards, and inline Cards tuning updates that same saved preference. ElevenLabs supports voice speed from `0.7×` to `1.2×`, so every playback control and the API enforce that range when this provider is selected.
-
-Every generated card MP3 is stored in the persistent SQLite `audio_cache`. The cache identity includes provider, exact text, language, voice ID, model, speed, stability, similarity, style, and speaker boost. An identical request returns `X-Audio-Cache: HIT` and does not call ElevenLabs. Concurrent identical misses are coalesced into one paid API request. A changed phrase or voice setting intentionally creates new audio. Drill plays these cached card files one by one and never builds a combined track.
-
-## Brave on iPhone acceptance
-
-Drill uses one persistent browser audio element but gives every card its own MP3. Before relying on it for a walk, record the device versions and run this physical check:
-
-1. Open Practice, choose all Library cards or the due queue, optionally filter several Topics, and press `Start drill`.
-2. Lock the iPhone and leave Brave in the background.
-3. Confirm playback changes from one card file to the next and continues through pauses for at least 10 minutes.
-4. Confirm Play/Pause works on the lock screen.
-5. Confirm stopping and restarting resumes a fresh top-to-bottom pass. Upcoming uncached cards require a network connection.
-
-Record the result as `iOS: ____ · Brave: ____ · card transitions: pass/fail · lock controls: pass/fail · date: ____`. This physical pocket test cannot be automated by the desktop test suite.
-
-Models and voice are environment variables, so they can be changed without touching code. TTS audio is identified in the API as AI-generated, and Preview reports whether ElevenLabs generated a new file or played an existing server cache entry.
-
-The workload router is refreshed every 14 days. It lists the models available to
-the configured API account, selects the newest Sol/Terra/Luna IDs, verifies each
-with a small canary request, and atomically writes `.data/model-routing.json`.
-The running API reads that file at request time, so a successful refresh does not
-need a rebuild. A failed check leaves the last working routing untouched.
+## Data and checks
 
 ```bash
-npm run models:check -- --force
-```
-
-## Profile data
-
-Each profile uses an isolated SQLite database with WAL and FTS5 at `.data/profiles/roman.sqlite` or `.data/profiles/oliver.sqlite`. On first rollout, an existing `.data/rehearsal.sqlite` is archived and copied completely to both profiles. The operation is idempotent and never replaces a profile database that already exists.
-
-```bash
-npm run db:seed -- --profile roman
 npm run db:backup
 CONFIRM_RESTORE=1 npm run db:restore -- --profile roman /absolute/path/to/backup.sqlite
+OPENAI_API_KEY= ELEVENLABS_API_KEY= npm test
+npm run build
+npm run check:architecture
 ```
 
-Restore always names one profile, validates the candidate with SQLite `quick_check`, and creates a safety copy of only that profile's current database before replacing it. Stop the API before restoring. The canonical backup, restore, migration, and production procedures live in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+Once the profile registry exists, a missing Roman or Oliver database stops startup and requires restoring that named profile. It is never silently recreated or copied from legacy data. Schema changes run once and are recorded in `schema_migrations`.
 
-To generate embeddings after adding a key:
+## Canonical documentation
 
-```bash
-npm run db:embed -- --profile roman
-```
+- [AGENTS.md](AGENTS.md) — starting point and repository rules
+- [docs/METHOD.md](docs/METHOD.md) — product and learning behavior
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — code and data boundaries
+- [docs/MOBILE_APP_DIRECTION.md](docs/MOBILE_APP_DIRECTION.md) — installed PWA and phone constraints
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — branch, PR, and merge workflow
+- [docs/OPERATIONS.md](docs/OPERATIONS.md) — production, backups, restore, and recovery
+- [docs/HANDOFF.md](docs/HANDOFF.md) — current short-lived status
 
-Start with [AGENTS.md](AGENTS.md). Product rules live in [docs/METHOD.md](docs/METHOD.md), code boundaries in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), collaboration in [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md), mobile constraints in [docs/MOBILE_APP_DIRECTION.md](docs/MOBILE_APP_DIRECTION.md), and production procedures in [docs/OPERATIONS.md](docs/OPERATIONS.md).
-
-## Production
-
-The private deployment runs at `https://7662n.cc/rehearsal/`. Production changes must follow a CI-checked GitHub merge; runtime data and credentials remain outside application releases. See [docs/OPERATIONS.md](docs/OPERATIONS.md).
+Production runs at `https://7662n.cc/rehearsal/` and receives only CI-checked commits merged through GitHub.

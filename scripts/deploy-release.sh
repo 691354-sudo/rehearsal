@@ -85,6 +85,9 @@ curl -fsS "${PRODUCTION_URL%/}/health" >/dev/null
 ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}.next"
 mv -Tf "${CURRENT_LINK}.next" "${CURRENT_LINK}"
 
+# Model changes are deliberate release decisions now; remove the retired auto-refresh job.
+rm -f /etc/cron.d/rehearsal-model-check
+
 mapfile -t old_releases < <(
   find "${RELEASES_DIR}" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
     | sort -rn \
