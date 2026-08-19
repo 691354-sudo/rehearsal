@@ -19,9 +19,9 @@ The server remains the source of truth in every delivery target. A service worke
 
 ## Client modules
 
-`src/features/auth` owns the profile gate and session bootstrap. `src/app` composes navigation, language, theme, audio, and feature pages after authentication. Product behavior belongs to `src/features/<domain>`: Practice and Card Drill, Tutor and Capture, Library and Topics, Settings, and Review. `src/shared` contains client configuration and adapters used by more than one feature; feature-specific code must not be moved there for convenience. API shapes shared with the server live in the root `contracts` module.
+`src/features/auth` owns the profile gate and session bootstrap. `src/app` composes navigation, language, theme, audio, and feature pages after authentication. Product behavior belongs to `src/features/<domain>`: Practice and Listen & Repeat, Tutor and Capture, Library and Topics, Settings, and Review. `src/shared` contains client configuration and adapters used by more than one feature; feature-specific code must not be moved there for convenience. API shapes shared with the server live in the root `contracts` module.
 
-The browser keeps no session credential in `localStorage`. The signed session and CSRF cookies are server-managed, while the matching CSRF token stays in memory. Language, theme, playback and Card Drill settings, and Tutor thread selection use keys namespaced by the authenticated profile.
+The browser keeps no session credential in `localStorage`. The signed session and CSRF cookies are server-managed, while the matching CSRF token stays in memory. Language, theme, playback settings, and Tutor thread selection use keys namespaced by the authenticated profile. Runtime Library and Practice data is never replaced with client seed content when the API is unavailable.
 
 Styles follow the same ownership boundaries under `src/styles`. `base.css` owns tokens and global controls, domain files own their screens and local responsive states, and `responsive.css` contains cross-domain viewport adjustments. The removed prototype is not a runtime route or architectural fallback.
 
@@ -41,9 +41,11 @@ Related tables store original sources, review batches, capture notes, practice a
 
 `review_batches` is the safety boundary for all LLM-created material. Chat review, vocabulary, imported text, pattern drills, and Capture Reality store candidates as a draft. A user-confirmed commit validates candidate IDs and writes the selected cards in one SQLite transaction.
 
-`capture_notes` stores one Russian voice-note transcript and, only while needed, its uploaded audio BLOB and MIME type. Notes move through `transcribing`, `ready`, `batched`, `processed`, or `failed`. Successful transcription clears the BLOB immediately. Capture commit creates all confirmed cards and marks every source note processed in the same transaction. Review-batch migration rebuilds the SQLite `kind` constraint without discarding existing rows.
+`capture_notes` stores one Russian thought. A typed note is created directly as `ready`; a voice note stores its transcript and, only while needed, its uploaded audio BLOB and MIME type. Notes move through `transcribing`, `ready`, `batched`, `processed`, or `failed`. Successful transcription clears the BLOB immediately. Capture commit creates all confirmed cards and marks every source note processed in the same transaction. Review-batch migration rebuilds the SQLite `kind` constraint without discarding existing rows.
 
 `islands` and `island_items` implement user-facing Topics. Membership is many-to-many and may be ordered for Library management. Topic CRUD updates only membership and metadata; deleting an island cascades through `island_items` but never through `items` or `review_state`. Capture commit creates or reuses a Topic from the confirmed category inside the same transaction as the cards.
+
+Practice and Library use `islands` membership as the only source of Topic filtering. Item tags remain searchable metadata for patterns, source, and linguistic form, but `tags[0]` does not define a Topic. `practice_enabled = 0` is the reversible Learned state: due queries exclude it while Library inventory and review history retain it.
 
 The one-time `topics_backfill_v1` migration turns each normalized first tag into a Topic, preserving card creation order and every original tag. Normalization ignores case and repeated whitespace. The migration is internally idempotent and records completion in `app_settings`, so a Topic intentionally deleted later is not recreated on restart.
 
@@ -67,7 +69,7 @@ There is no arbitrary SQL tool and no mutation tool in ordinary chat. `Finish & 
 
 Routine answer comparison is deterministic and local, so pressing Enter feels immediate. OpenAI handles contextual generation and conversation analysis rather than sitting in the hot recall path.
 
-Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MIME type through `MediaRecorder.isTypeSupported` and uploads multipart audio to Fastify. The server enforces the 25 MB limit and sends completed recordings to `OPENAI_TRANSCRIBE_MODEL` (`gpt-transcribe` by default). Browser dictation is never used.
+Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MIME type through `MediaRecorder.isTypeSupported` and uploads multipart audio to Fastify. The server enforces the 25 MB limit and sends completed recordings to `OPENAI_TRANSCRIBE_MODEL` (`gpt-transcribe` by default). `POST /api/captures/text` creates an equivalent ready note without transcription. Browser dictation is never used.
 
 ## Audio
 
@@ -75,13 +77,15 @@ Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MI
 
 `GET /api/audio/elevenlabs/status` verifies that the configured voice ID is reachable and returns safe voice metadata without exposing the API key. The result is held in memory for ten minutes and can be explicitly refreshed from Settings. ElevenLabs speed is validated against its provider range of `0.7–1.2×`; Multilingual v2 omits the unsupported `language_code` field, while Flash v2.5 receives it.
 
-Practice loads the complete language inventory from `/api/items` and the scheduler queue from `/api/practice/due`. The due IDs are a selectable scope and sorting signal rather than an implicit restriction, so every Library card remains available without changing FSRS behavior.
+Practice loads the language inventory from `/api/items?includeSchedule=true` and the current scheduler queue from `/api/practice/due`. Recall defaults to a finite session created from due items. FSRS remains the source of future due dates; the client queue only brings `Again` and `Hard` cards back during the current session. All non-Learned Library cards remain available for explicit custom practice.
 
-Drill is a client-side sequence over the visible Practice cards. The browser stores manual card order, selected scope, sorting, Topic filters, and loop marks per language. Global Settings and the inline Cards panel edit the same `rehearsal:playback` preference. Its speed is normalized for the selected provider before persistence or playback, so an invalid ElevenLabs value cannot trigger an unintended fallback. A single persistent `<audio>` element requests one card at a time through `/api/audio/speech`, repeats it according to playback preferences, waits for the configured pause, and advances. After the first pass, only loop-marked cards continue.
+Listen & Repeat is a client-side sequence over an explicitly selected Topic and count. Global Settings and inline player controls edit the same `rehearsal:playback` preference. Its speed is normalized for the selected provider before persistence or playback, so an invalid ElevenLabs value cannot trigger an unintended fallback. A single persistent `<audio>` element requests one card at a time through `/api/audio/speech`, repeats it according to playback preferences, waits for the configured pause, and advances. Browser speech is the usable whole-session fallback when AI speech is unavailable.
 
 Topic APIs are `GET /api/islands`, `GET /api/islands/:id`, `POST /api/islands`, `PATCH /api/islands/:id`, and `DELETE /api/islands/:id`. A patch may rename a Topic or replace its ordered membership atomically.
 
-The server stores only individual provider MP3 responses; it does not assemble continuous tracks and has no FFmpeg runtime dependency. Drill updates Media Session metadata for the current card and registers Play, Pause, and Stop handlers when the browser exposes that API.
+The server stores only individual provider MP3 responses; it does not assemble continuous tracks and has no FFmpeg runtime dependency. Listen & Repeat updates Media Session metadata for the current card and registers Play, Pause, Previous, Next, and Stop handlers when the browser exposes that API.
+
+An installable PWA may precache only the versioned application shell and static build assets. `/api`, `/health`, private learning data, and generated audio are network-only. Loading the cached shell without the API produces an explicit unavailable state rather than cached or synthetic learning data.
 
 ## Backup and rollback
 

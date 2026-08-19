@@ -8,7 +8,7 @@ Rehearsal builds automatic spoken English and Latvian around one student's real 
 
 The visible unit is always a card. A card can hold a focus word in context, one sentence, a connected language island, or a short paragraph. These are different lengths of material, not separate product systems.
 
-A Topic is a collection of cards around one part of Roman's real life. “Language island” remains the learning-method term; the product calls the collection a Topic. One card may appear in more than one Topic. Topics are optional Drill filters; deleting a Topic never deletes its cards.
+A Topic is a collection of cards around one part of Roman's real life. “Language island” remains the learning-method term; the product calls the collection a Topic. One card may appear in more than one Topic. Topics filter Practice and Library; deleting a Topic never deletes its cards. A Topic always describes a real-life context such as work, cafés, the gym, or relationships. Linguistic forms such as conditionals and phrasal verbs are patterns or tags, not Topics.
 
 Good material is:
 
@@ -22,11 +22,11 @@ Every generated candidate records a frequency band (`core`, `common`, `specific`
 
 ## Daily loop
 
-The core production cycle is `Capture → Topic → Drill → Recall`: capture real Russian thoughts, approve natural target-language cards, optionally group or filter them by Topic, hear and shadow the visible Cards queue while walking, then retrieve cards from memory.
+The core production cycle is `Capture → Review → Library → Listen & Repeat → Recall → Learned`: capture real Russian thoughts, approve natural target-language cards, hear and shadow selected cards while walking, then retrieve the due cards from memory in writing. FSRS controls future due dates; a small client session queue controls only what returns during the current Recall session.
 
 ### Capture Reality
 
-Tutor has a voice Notebook for thoughts Roman would genuinely want to express. He records freely in Russian, then corrects the OpenAI transcript instead of composing target-language examples one at a time. Notes may accumulate across days.
+Tutor has a Notebook for thoughts Roman would genuinely want to express. A note can be typed directly in Russian or recorded freely and transcribed by OpenAI. Typed and transcribed notes enter the same ready queue, may be edited, and may accumulate across days.
 
 `Prepare cards` takes the oldest ready notes within a 50,000-character window, removes repetition, separates ideas, and proposes up to 100 complete, natural utterances with one primary Topic. Active proposals are included by default. Roman can give package-level feedback such as “5 is too formal” or “7 means something else”; the model rebuilds the proposal package before anything is saved.
 
@@ -34,19 +34,23 @@ The source audio is temporary: it is deleted as soon as transcription succeeds. 
 
 ### Recall
 
-The card shows a natural Russian cue. Roman types the target-language version and presses Enter. Comparison is local and immediate. The same card shows the natural answer and differences; an FSRS grade then schedules it.
+Recall opens on the current FSRS due queue. Roman may narrow it to one Topic and choose 10, 20, 50, or all due cards. Starting creates a finite session that presents one card at a time.
 
-Recall is the main memory metric. The daily target is 100 completed recall attempts. Shadowing, audio plays, and pattern generation never inflate this number.
+The card shows a natural Russian cue. Roman types the complete target-language version and presses Enter. Comparison is local and immediate. The same card shows his answer, the natural answer, and their differences; an FSRS grade then schedules it. A second Enter accepts the selected grade and advances.
 
-### Shadowing
+Within the current session, `Again` returns the card after one other card and `Hard` returns it after several others. `Good` and `Easy` complete it for the session. These positions provide immediate reinforcement and do not replace the server's FSRS due date. A failed grade request keeps the answer, comparison, and selected grade available for retry.
 
-The target-language card is played with a chosen voice, speed, repetition count, and pause. Roman repeats aloud and controls when to move on. Shadowing activity is counted separately and does not alter the FSRS recall schedule.
+Recall is the main memory metric, but Rehearsal has no universal daily quota or streak. The Practice heading shows quiet factual counts such as due now, recalled today, and listened today.
 
-### Drill
+### Listen & Repeat
 
-Drill lives directly above the Cards feed. Practice can show every card in Library or only the current FSRS due queue, then filter by several Topics and frequency. The visible result may be kept in manual order or sorted due-first, new-first, or alphabetically. Drill reads that visible target-language queue from top to bottom using the selected voice, speed, pause, and repetition count. Roman may manually change card order and mark a subset to continue looping after the first complete pass. The Russian cue is never spoken.
+Listen & Repeat is the second and only other Practice mode. Roman chooses a Topic and 10, 20, 50, or all available cards, then starts one continuous target-language queue. The player exposes Play/Pause, Previous, Replay, Next, Stop, and Russian reveal. The chosen voice, natural-speed default, repetition count, and pause apply to the whole queue. The Russian cue is never spoken.
 
-Every card is requested and played as a separate MP3 through one persistent browser audio element. Individual files are cached on the server, so the same text and voice settings do not spend provider credits twice. Global Voice and Playback settings are the default and single source of truth for Cards; inline tuning updates the same device preference. Provider-specific limits are enforced before playback, including ElevenLabs `0.7–1.2×`. Drill order, scope, sorting, Topic filters, and loop marks are device preferences. Drill never adds Recall attempts or changes FSRS.
+Every card is requested and played as a separate MP3 through one persistent browser audio element. Individual files are cached on the server, so the same text and voice settings do not spend provider credits twice. Global Voice and Playback settings are the single source of truth. Provider-specific limits are enforced before playback, including ElevenLabs `0.7–1.2×`. If the selected AI provider is unavailable, the complete queue may use browser speech instead. Listening activity never changes FSRS.
+
+### Learned
+
+`Learned` is an explicit, reversible user decision rather than an automatic FSRS state. Moving a card to Learned disables it for the daily due queue without deleting the card or its review history. Learned cards remain in Library and may be played or reviewed manually. Returning one to learning preserves its schedule and makes it eligible for the due queue again.
 
 ### Conversation
 
@@ -67,7 +71,7 @@ For a list of up to roughly 100 words or phrases:
 3. Each useful active entry gets one strong personal anchor sentence with a complete Russian cue.
 4. Results appear in pages of eight. Roman can request another version or a different context.
 5. Only selected cards enter Library.
-6. The daily new-card limit (10 by default) limits the FSRS `Due now` queue; the explicit `All Library cards` scope remains available for Drill and manual practice.
+6. The daily new-card limit (10 by default) limits the FSRS `Due now` queue; all Library cards remain available for custom Recall and Listen & Repeat.
 
 ## Pattern drills
 
@@ -76,6 +80,8 @@ A Library card can generate a short substitution drill. Variants change one mean
 ## Scheduling
 
 Recall uses `ts-fsrs` (FSRS-6) with short learning and relearning steps. Like, neutral, and dislike preferences modify retention targets and maximum intervals. The default caps are deliberately short for active speech: 60, 180, and 365 days rather than multi-year flashcard horizons. Scheduled reviews are never hidden by the daily new-card cap.
+
+The server database is the only source of learning content, schedules, and Learned state. If it is unavailable, the client shows a recoverable unavailable state and never substitutes demo cards for personal data. Typed Recall answers, Tutor drafts, recordings, edits, and review actions remain recoverable after a failed request.
 
 ## Model routing
 
