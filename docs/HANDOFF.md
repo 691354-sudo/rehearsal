@@ -7,7 +7,8 @@ This file contains only current state and follow-up work. Every new session star
 - The active UI is split into `src/app`, domain modules under `src/features`, shared contracts/config, and bounded style files. Practice, Tutor, Library, Settings, Capture Reality, Topics, and Card Drill are preserved; the legacy route and prototype source are removed.
 - The API routes and SQLite repositories are split into domain modules. Roman and Oliver authenticate with fixed PIN profiles and receive separate SQLite databases selected exclusively from a signed server session.
 - The first profile-aware start archives and copies the legacy database to both profiles, verifies SQLite integrity and table counters, and never overwrites an existing profile database.
-- The GitHub deployment workflow uses immutable release directories. It is operational only after all deployment secrets are configured and the first manual run is verified.
+- The GitHub deployment workflow uses immutable release directories. Repository secrets are configured, the first automatic rollout succeeded, and a manual same-commit rerun verified the recovery path and created separate Roman and Oliver backups.
+- Production runs the profile-aware release with healthy Roman and Oliver databases. The legacy database and its pre-profile archives remain available for rollback.
 - Deterministic tests and the production build pass without paid API calls.
 
 ## Main code map
@@ -63,7 +64,7 @@ The API tests cover edit, preference, deletion, SQLite restart persistence, lega
 
 ## Next coordinated work
 
-1. Configure the deployment secrets and verify the first release-directory deployment.
-2. Perform the production profile migration and keep the archived legacy database until Roman and Oliver both complete acceptance checks.
+1. Roman and Oliver complete the production acceptance pass for Practice, Tutor, Library, profile switching, desktop, and mobile widths.
+2. Keep the archived legacy database until both users complete that acceptance pass.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branch order and [OPERATIONS.md](OPERATIONS.md) for production safety.
