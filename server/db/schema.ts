@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS review_batches (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   public_id TEXT NOT NULL UNIQUE,
   language_code TEXT NOT NULL REFERENCES languages(code),
-  kind TEXT NOT NULL CHECK (kind IN ('chat_review', 'vocab', 'text_import', 'pattern_drill')),
+  kind TEXT NOT NULL CHECK (kind IN ('chat_review', 'vocab', 'text_import', 'pattern_drill', 'capture')),
   title TEXT NOT NULL,
   source_text TEXT NOT NULL DEFAULT '',
   candidates TEXT NOT NULL DEFAULT '[]',
@@ -163,6 +163,24 @@ CREATE TABLE IF NOT EXISTS review_batches (
 );
 
 CREATE INDEX IF NOT EXISTS idx_review_batches_status ON review_batches(status, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS capture_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  public_id TEXT NOT NULL UNIQUE,
+  language_code TEXT NOT NULL REFERENCES languages(code),
+  transcript TEXT NOT NULL DEFAULT '',
+  audio BLOB,
+  audio_mime TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL CHECK (status IN ('transcribing', 'ready', 'batched', 'processed', 'failed')),
+  error TEXT NOT NULL DEFAULT '',
+  review_batch_id INTEGER REFERENCES review_batches(id) ON DELETE SET NULL,
+  processed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_capture_notes_language_status
+ON capture_notes(language_code, status, created_at);
 
 CREATE TABLE IF NOT EXISTS change_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -192,4 +210,24 @@ CREATE TABLE IF NOT EXISTS audio_cache (
   audio BLOB NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS saturation_tracks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  public_id TEXT NOT NULL UNIQUE,
+  config_hash TEXT NOT NULL UNIQUE,
+  language_code TEXT NOT NULL REFERENCES languages(code),
+  topic_key TEXT NOT NULL,
+  topic_title TEXT NOT NULL,
+  snapshot TEXT NOT NULL,
+  settings TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('building', 'ready', 'failed')),
+  cache_key TEXT NOT NULL,
+  duration_seconds REAL,
+  error TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_saturation_tracks_language_topic
+ON saturation_tracks(language_code, topic_key, updated_at DESC);
 `;

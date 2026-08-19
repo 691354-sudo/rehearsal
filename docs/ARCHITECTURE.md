@@ -9,13 +9,27 @@
 
 The Vite dev server proxies `/api` and `/health`. A production build can be served by the Fastify process from `dist`.
 
+Client requests go through one base-path helper. It uses Vite's deployment base by default and supports an explicit `VITE_API_BASE` for a future installed PWA or shell without duplicating endpoint logic.
+
+## Delivery targets
+
+The primary phone target is the existing HTTPS client installed as an iPhone Home Screen PWA with standalone display. App Store distribution and a native rewrite are not required. Client features must remain compatible with a later Capacitor shell, primarily by keeping the API base configurable and isolating browser capability checks from product logic.
+
+The server remains the source of truth in every delivery target. A service worker may cache a versioned application shell and explicitly selected offline assets, but must not blindly cache API mutations, private learning data, or generated audio. See `docs/MOBILE_APP_DIRECTION.md` for interaction constraints and the phone verification gate.
+
 ## Learning data
 
 `items` is the central table. Every entry belongs to exactly one target language and keeps the Russian recall cue, target sentence, accepted alternatives, notes, source, status, quality ratings, tags, and optional embedding.
 
-Related tables store original sources, review batches, practice attempts, scheduling state, tutor chats, cached speech, and change events. English and Latvian queries are always filtered before data is returned to the tutor.
+Related tables store original sources, review batches, capture notes, practice attempts, scheduling state, tutor chats, cached speech, and change events. English and Latvian queries are always filtered before data is returned to the tutor.
 
-`review_batches` is the safety boundary for all LLM-created material. Chat review, vocabulary, imported text, and pattern drills store candidates as a draft. A user-confirmed commit validates candidate IDs and writes the selected cards in one SQLite transaction.
+`review_batches` is the safety boundary for all LLM-created material. Chat review, vocabulary, imported text, pattern drills, and Capture Reality store candidates as a draft. A user-confirmed commit validates candidate IDs and writes the selected cards in one SQLite transaction.
+
+`capture_notes` stores one Russian voice-note transcript and, only while needed, its uploaded audio BLOB and MIME type. Notes move through `transcribing`, `ready`, `batched`, `processed`, or `failed`. Successful transcription clears the BLOB immediately. Capture commit creates all confirmed cards and marks every source note processed in the same transaction. Review-batch migration rebuilds the SQLite `kind` constraint without discarding existing rows.
+
+`islands` and `island_items` implement user-facing Topics. Membership is many-to-many and `island_items.position` is authoritative for Saturation order. Topic CRUD updates only membership and metadata; deleting an island cascades through `island_items` but never through `items` or `review_state`. Capture commit creates or reuses a Topic from the confirmed category inside the same transaction as the cards.
+
+The one-time `topics_backfill_v1` migration turns each normalized first tag into a Topic, preserving card creation order and every original tag. Normalization ignores case and repeated whitespace. The migration is internally idempotent and records completion in `app_settings`, so a Topic intentionally deleted later is not recreated on restart.
 
 ## Search
 
@@ -37,9 +51,19 @@ There is no arbitrary SQL tool and no mutation tool in ordinary chat. `Finish & 
 
 Routine answer comparison is deterministic and local, so pressing Enter feels immediate. OpenAI handles contextual generation and conversation analysis rather than sitting in the hot recall path.
 
+Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MIME type through `MediaRecorder.isTypeSupported` and uploads multipart audio to Fastify. The server enforces the 25 MB limit and sends completed recordings to `OPENAI_TRANSCRIBE_MODEL` (`gpt-transcribe` by default). Browser dictation is never used.
+
 ## Audio
 
-`/api/audio/speech` calls OpenAI TTS and caches the MP3 by a hash of model, voice, speed, language, and text. The response includes `X-AI-Generated-Audio: true`. The browser speech engine is the offline fallback.
+`/api/audio/speech` calls OpenAI or ElevenLabs TTS and stores the MP3 in the SQLite `audio_cache`. ElevenLabs cache identity includes normalized text, language, voice ID, model, speed, stability, similarity, style, and speaker boost; identical concurrent cache misses share one provider request. Cache entries survive API restarts. Responses include `X-AI-Generated-Audio: true` and `X-Audio-Cache: HIT|MISS`. The browser speech engine is the offline fallback.
+
+`GET /api/audio/elevenlabs/status` verifies that the configured voice ID is reachable and returns safe voice metadata without exposing the API key. The result is held in memory for ten minutes and can be explicitly refreshed from Settings. ElevenLabs speed is validated against its provider range of `0.7–1.2×`; Multilingual v2 omits the unsupported `language_code` field, while Flash v2.5 receives it.
+
+Saturation snapshots the enabled cards under one `islandId`, in `island_items.position` order, and hashes their IDs, order, target text, provider, voice, speed, pause, and repetitions. `saturation_tracks` records `building`, `ready`, or `failed`; a matching ready hash reuses its MP3, while a failed or interrupted build can be requested again safely. Individual sentence TTS comes from the existing cache.
+
+Topic APIs are `GET /api/islands`, `GET /api/islands/:id`, `POST /api/islands`, `PATCH /api/islands/:id`, and `DELETE /api/islands/:id`. A patch may rename a Topic or replace its ordered membership atomically.
+
+FFmpeg normalizes every phrase, inserts exact silence, and emits one continuous MP3. The final audio is stored in `audio_cache`, served with immutable caching and byte-range support, and fetched completely by the client before Play. A persistent `<audio>` element receives Media Session metadata when available. `Open in player` points directly to the same MP3 when embedded background playback is unreliable.
 
 ## Backup and rollback
 

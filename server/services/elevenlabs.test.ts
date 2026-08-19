@@ -56,6 +56,77 @@ describe("ElevenLabsService", () => {
         speed: 1.05,
       },
     });
+    expect(JSON.parse(String(options.body))).not.toHaveProperty("language_code");
+  });
+
+  it("coalesces concurrent identical requests into one paid generation", async () => {
+    let resolveRequest!: (response: Response) => void;
+    const request = vi.fn().mockReturnValue(new Promise<Response>((resolve) => { resolveRequest = resolve; }));
+    vi.stubGlobal("fetch", request);
+    const service = new ElevenLabsService(repository, "test-key");
+    const input = { text: "One paid request.", language: "en" as const, speed: 1 };
+
+    const firstRequest = service.speech(input);
+    const concurrentRequest = service.speech(input);
+    expect(request).toHaveBeenCalledTimes(1);
+    resolveRequest(new Response(new Uint8Array([4, 5, 6]), { status: 200 }));
+
+    const [first, concurrent] = await Promise.all([firstRequest, concurrentRequest]);
+    expect(first.cached).toBe(false);
+    expect(concurrent.cached).toBe(true);
+    expect(concurrent.audio).toEqual(first.audio);
+  });
+
+  it("reuses cached audio after the database is reopened", async () => {
+    const request = vi.fn().mockResolvedValue(new Response(new Uint8Array([7, 8, 9]), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    const input = { text: "Persistent cache.", language: "en" as const };
+    await new ElevenLabsService(repository, "test-key").speech(input);
+
+    db.close();
+    db = openDatabase(path.join(tempDir, "test.sqlite"));
+    repository = new RehearsalRepository(db);
+    const cached = await new ElevenLabsService(repository, "test-key").speech(input);
+
+    expect(cached.cached).toBe(true);
+    expect(cached.audio).toEqual(Buffer.from([7, 8, 9]));
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks and caches configured voice metadata without exposing the key", async () => {
+    const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      voice_id: "voice-id",
+      name: "Christopher - Tender, Kind and Steady",
+      category: "professional",
+      description: "Kind, casual conversation.",
+      labels: { accent: "american", use_case: "conversational" },
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", request);
+    const service = new ElevenLabsService(repository, "test-key");
+
+    const first = await service.voiceStatus();
+    const second = await service.voiceStatus();
+
+    expect(first).toMatchObject({
+      configured: true,
+      reachable: true,
+      voice: { name: "Christopher - Tender, Kind and Steady", category: "professional" },
+    });
+    expect(second).toEqual(first);
+    expect(request).toHaveBeenCalledTimes(1);
+    const options = request.mock.calls[0][1] as RequestInit;
+    expect(options.headers).toMatchObject({ "xi-api-key": "test-key" });
+  });
+
+  it("clamps ElevenLabs speed to its documented API range", async () => {
+    const request = vi.fn().mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    const service = new ElevenLabsService(repository, "test-key");
+
+    await service.speech({ text: "Not too fast.", language: "en", speed: 1.5 });
+
+    const options = request.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(options.body)).voice_settings.speed).toBe(1.2);
   });
 
   it("preserves ElevenLabs plan errors for the API response", async () => {

@@ -1,12 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "./database.js";
 import type {
+  CaptureNote,
+  Island,
+  IslandSummary,
   LanguageCode,
   LearningItem,
   LearningItemInput,
   ReviewBatch,
   ReviewBatchKind,
   ReviewCandidate,
+  SaturationSettings,
+  SaturationSnapshotItem,
+  SaturationTrack,
   SearchResult,
 } from "../types.js";
 import {
@@ -60,6 +66,45 @@ type ReviewBatchRow = {
   created_at: string;
   updated_at: string;
   committed_at: string | null;
+};
+
+type CaptureNoteRow = {
+  public_id: string;
+  language_code: LanguageCode;
+  transcript: string;
+  audio_mime: string;
+  status: CaptureNote["status"];
+  error: string;
+  review_batch_public_id: string | null;
+  created_at: string;
+  updated_at: string;
+  processed_at: string | null;
+};
+
+type SaturationTrackRow = {
+  public_id: string;
+  config_hash: string;
+  language_code: LanguageCode;
+  topic_key: string;
+  topic_title: string;
+  snapshot: string;
+  settings: string;
+  status: SaturationTrack["status"];
+  cache_key: string;
+  duration_seconds: number | null;
+  error: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type IslandRow = {
+  public_id: string;
+  language_code: LanguageCode;
+  title: string;
+  description: string;
+  item_count: number;
+  created_at: string;
+  updated_at: string;
 };
 
 type ReviewStateRow = {
@@ -135,6 +180,47 @@ const mapReviewBatch = (row: ReviewBatchRow): ReviewBatch => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   committedAt: row.committed_at,
+});
+
+const mapCaptureNote = (row: CaptureNoteRow): CaptureNote => ({
+  publicId: row.public_id,
+  language: row.language_code,
+  transcript: row.transcript,
+  audioMime: row.audio_mime,
+  status: row.status,
+  error: row.error,
+  reviewBatchPublicId: row.review_batch_public_id,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  processedAt: row.processed_at,
+});
+
+const mapSaturationTrack = (row: SaturationTrackRow): SaturationTrack => ({
+  publicId: row.public_id,
+  configHash: row.config_hash,
+  language: row.language_code,
+  islandId: row.topic_key,
+  topicTitle: row.topic_title,
+  snapshot: JSON.parse(row.snapshot) as SaturationSnapshotItem[],
+  settings: JSON.parse(row.settings) as SaturationSettings,
+  status: row.status,
+  cacheKey: row.cache_key,
+  durationSeconds: row.duration_seconds,
+  error: row.error,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const normalizeTopicKey = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+
+const mapIslandSummary = (row: IslandRow): IslandSummary => ({
+  publicId: row.public_id,
+  language: row.language_code,
+  title: row.title,
+  description: row.description,
+  itemCount: row.item_count,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
 });
 
 const mapReviewState = (row: ReviewStateRow | undefined): StoredReviewState | undefined =>
@@ -345,6 +431,166 @@ export class RehearsalRepository {
     return true;
   }
 
+  createCaptureNote(input: { language: LanguageCode; audio: Buffer; audioMime: string }) {
+    const publicId = randomUUID();
+    this.db.prepare(
+      `INSERT INTO capture_notes(public_id, language_code, audio, audio_mime, status)
+       VALUES (?, ?, ?, ?, 'transcribing')`,
+    ).run(publicId, input.language, input.audio, input.audioMime);
+    const note = this.getCaptureNote(publicId)!;
+    this.logChange("user", "create", "capture_note", publicId, null, {
+      language: input.language,
+      audioMime: input.audioMime,
+      audioBytes: input.audio.byteLength,
+    });
+    return note;
+  }
+
+  getCaptureNote(publicId: string) {
+    const row = this.db.prepare(
+      `SELECT n.public_id, n.language_code, n.transcript, n.audio_mime, n.status,
+              n.error, b.public_id AS review_batch_public_id, n.created_at,
+              n.updated_at, n.processed_at
+       FROM capture_notes n
+       LEFT JOIN review_batches b ON b.id = n.review_batch_id
+       WHERE n.public_id = ?`,
+    ).get(publicId) as CaptureNoteRow | undefined;
+    return row ? mapCaptureNote(row) : null;
+  }
+
+  getCaptureAudio(publicId: string) {
+    return this.db.prepare(
+      "SELECT audio, audio_mime FROM capture_notes WHERE public_id = ?",
+    ).get(publicId) as { audio: Buffer | null; audio_mime: string } | undefined;
+  }
+
+  listCaptureNotes(language: LanguageCode, includeProcessed = false) {
+    const rows = this.db.prepare(
+      `SELECT n.public_id, n.language_code, n.transcript, n.audio_mime, n.status,
+              n.error, b.public_id AS review_batch_public_id, n.created_at,
+              n.updated_at, n.processed_at
+       FROM capture_notes n
+       LEFT JOIN review_batches b ON b.id = n.review_batch_id
+       WHERE n.language_code = ? ${includeProcessed ? "" : "AND n.status != 'processed'"}
+       ORDER BY n.created_at DESC, n.id DESC`,
+    ).all(language) as CaptureNoteRow[];
+    return rows.map(mapCaptureNote);
+  }
+
+  completeCaptureTranscription(publicId: string, transcript: string) {
+    const previous = this.getCaptureNote(publicId);
+    if (!previous) return null;
+    this.db.prepare(
+      `UPDATE capture_notes
+       SET transcript = ?, audio = NULL, status = 'ready', error = '', updated_at = CURRENT_TIMESTAMP
+       WHERE public_id = ?`,
+    ).run(transcript.trim(), publicId);
+    const updated = this.getCaptureNote(publicId)!;
+    this.logChange("system", "transcribe", "capture_note", publicId, previous, updated);
+    return updated;
+  }
+
+  failCaptureTranscription(publicId: string, error: string) {
+    const previous = this.getCaptureNote(publicId);
+    if (!previous) return null;
+    this.db.prepare(
+      `UPDATE capture_notes
+       SET status = 'failed', error = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE public_id = ?`,
+    ).run(error.slice(0, 500), publicId);
+    const updated = this.getCaptureNote(publicId)!;
+    this.logChange("system", "transcription_failed", "capture_note", publicId, previous, updated);
+    return updated;
+  }
+
+  markCaptureTranscribing(publicId: string) {
+    const previous = this.getCaptureNote(publicId);
+    if (!previous || previous.status !== "failed") return null;
+    const audio = this.getCaptureAudio(publicId)?.audio;
+    if (!audio?.byteLength) return null;
+    this.db.prepare(
+      `UPDATE capture_notes SET status = 'transcribing', error = '', updated_at = CURRENT_TIMESTAMP
+       WHERE public_id = ?`,
+    ).run(publicId);
+    return this.getCaptureNote(publicId);
+  }
+
+  updateCaptureTranscript(publicId: string, transcript: string) {
+    const previous = this.getCaptureNote(publicId);
+    if (!previous || previous.status !== "ready") return null;
+    this.db.prepare(
+      "UPDATE capture_notes SET transcript = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?",
+    ).run(transcript.trim(), publicId);
+    const updated = this.getCaptureNote(publicId)!;
+    this.logChange("user", "update", "capture_note", publicId, previous, updated);
+    return updated;
+  }
+
+  deleteCaptureNote(publicId: string) {
+    const previous = this.getCaptureNote(publicId);
+    if (!previous || previous.status === "batched") return false;
+    this.db.prepare("DELETE FROM capture_notes WHERE public_id = ?").run(publicId);
+    this.logChange("user", "delete", "capture_note", publicId, previous, null);
+    return true;
+  }
+
+  selectReadyCaptureNotes(language: LanguageCode, maxCharacters = 50_000) {
+    const rows = this.db.prepare(
+      `SELECT n.public_id, n.language_code, n.transcript, n.audio_mime, n.status,
+              n.error, b.public_id AS review_batch_public_id, n.created_at,
+              n.updated_at, n.processed_at
+       FROM capture_notes n
+       LEFT JOIN review_batches b ON b.id = n.review_batch_id
+       WHERE n.language_code = ? AND n.status = 'ready'
+       ORDER BY n.id ASC`,
+    ).all(language) as CaptureNoteRow[];
+    const notes = rows.map(mapCaptureNote);
+    const selected: CaptureNote[] = [];
+    let length = 0;
+    for (const note of notes) {
+      const addition = note.transcript.length + (selected.length ? 2 : 0);
+      if (selected.length && length + addition > maxCharacters) break;
+      if (!selected.length && addition > maxCharacters) continue;
+      selected.push(note);
+      length += addition;
+    }
+    return { notes: selected, remaining: Math.max(0, notes.length - selected.length) };
+  }
+
+  getActiveCaptureBatch(language: LanguageCode) {
+    const row = this.db.prepare(
+      `SELECT DISTINCT b.*
+       FROM capture_notes n
+       JOIN review_batches b ON b.id = n.review_batch_id
+       WHERE n.language_code = ? AND n.status = 'batched' AND b.status = 'draft'
+       ORDER BY b.updated_at DESC LIMIT 1`,
+    ).get(language) as ReviewBatchRow | undefined;
+    return row ? mapReviewBatch(row) : null;
+  }
+
+  attachCaptureNotesToBatch(notePublicIds: string[], batchPublicId: string) {
+    if (!notePublicIds.length) return false;
+    const placeholders = notePublicIds.map(() => "?").join(", ");
+    const transaction = this.db.transaction(() => {
+      const batch = this.db.prepare(
+        "SELECT id, language_code, kind FROM review_batches WHERE public_id = ? AND status = 'draft'",
+      ).get(batchPublicId) as { id: number; language_code: LanguageCode; kind: ReviewBatchKind } | undefined;
+      if (!batch || batch.kind !== "capture") throw new Error("CAPTURE_BATCH_NOT_FOUND");
+      const rows = this.db.prepare(
+        `SELECT public_id, language_code, status FROM capture_notes WHERE public_id IN (${placeholders})`,
+      ).all(...notePublicIds) as Array<{ public_id: string; language_code: LanguageCode; status: string }>;
+      if (rows.length !== notePublicIds.length || rows.some((row) =>
+        row.language_code !== batch.language_code || row.status !== "ready"
+      )) throw new Error("CAPTURE_NOTES_CHANGED");
+      this.db.prepare(
+        `UPDATE capture_notes SET status = 'batched', review_batch_id = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE public_id IN (${placeholders})`,
+      ).run(batch.id, ...notePublicIds);
+    });
+    transaction();
+    return true;
+  }
+
   createReviewBatch(input: {
     language: LanguageCode;
     kind: ReviewBatchKind;
@@ -393,6 +639,20 @@ export class RehearsalRepository {
     return this.getReviewBatch(batchPublicId);
   }
 
+  replaceReviewCandidates(batchPublicId: string, candidates: ReviewCandidate[], feedback: string) {
+    const batch = this.getReviewBatch(batchPublicId);
+    if (!batch || batch.status !== "draft") return null;
+    this.db.prepare(
+      "UPDATE review_batches SET candidates = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?",
+    ).run(JSON.stringify(candidates), batchPublicId);
+    const updated = this.getReviewBatch(batchPublicId)!;
+    this.logChange("user", "revise", "review_batch", batchPublicId, batch, {
+      ...updated,
+      feedback: feedback.trim(),
+    });
+    return updated;
+  }
+
   commitReviewBatch(
     batchPublicId: string,
     selected: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
@@ -418,7 +678,7 @@ export class RehearsalRepository {
     const items: LearningItem[] = [];
     const transaction = this.db.transaction(() => {
       for (const candidate of selectedCandidates) {
-        items.push(this.saveItem({
+        const item = this.saveItem({
           language: batch.language,
           kind: batch.kind === "text_import" ? "story_line" : batch.kind === "chat_review" ? "correction" : "phrase",
           cue: candidate.cue,
@@ -434,12 +694,25 @@ export class RehearsalRepository {
           personaFit: candidate.personaFit,
           relevanceCheckedAt: candidate.currency === "uncertain" ? null : new Date().toISOString(),
           register: "casual",
-        }, "user"));
+        }, "user");
+        items.push(item);
+        if (batch.kind === "capture" && candidate.category) {
+          const topic = this.ensureIsland(batch.language, candidate.category, "llm");
+          this.addIslandItem(topic.publicId, item.publicId);
+        }
       }
       this.db.prepare(
         `UPDATE review_batches SET status = 'committed', committed_at = CURRENT_TIMESTAMP,
          updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
       ).run(batchPublicId);
+      if (batch.kind === "capture") {
+        this.db.prepare(
+          `UPDATE capture_notes
+           SET status = 'processed', audio = NULL, processed_at = CURRENT_TIMESTAMP,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE review_batch_id = (SELECT id FROM review_batches WHERE public_id = ?)`,
+        ).run(batchPublicId);
+      }
     });
     transaction();
     return { batch: this.getReviewBatch(batchPublicId)!, items };
@@ -821,7 +1094,8 @@ export class RehearsalRepository {
     title: string;
     description?: string;
     itemPublicIds?: string[];
-  }, actor: "user" | "llm" = "user") {
+  }, actor: "user" | "llm" | "system" = "user") {
+    if (this.findIslandByTitle(input.language, input.title)) throw new Error("TOPIC_TITLE_EXISTS");
     const publicId = randomUUID();
     const transaction = this.db.transaction(() => {
       const result = this.db
@@ -832,13 +1106,238 @@ export class RehearsalRepository {
       const islandId = Number(result.lastInsertRowid);
       const add = this.db.prepare(
         `INSERT OR IGNORE INTO island_items(island_id, item_id, position)
-         SELECT ?, id, ? FROM items WHERE public_id = ?`,
+         VALUES (?, ?, ?)`,
       );
-      (input.itemPublicIds || []).forEach((itemId, index) => add.run(islandId, index, itemId));
+      (input.itemPublicIds || []).forEach((itemPublicId, index) => {
+        const item = this.db.prepare("SELECT id FROM items WHERE public_id = ? AND language_code = ?")
+          .get(itemPublicId, input.language) as { id: number } | undefined;
+        if (!item) throw new Error("TOPIC_ITEM_NOT_FOUND");
+        add.run(islandId, item.id, index);
+      });
     });
     transaction();
     this.logChange(actor, "create", "island", publicId, null, input);
-    return { publicId, ...input };
+    return this.getIsland(publicId)!;
+  }
+
+  listIslands(language: LanguageCode) {
+    const rows = this.db.prepare(
+      `SELECT i.public_id, i.language_code, i.title, i.description, i.created_at, i.updated_at,
+              COUNT(ii.item_id) AS item_count
+       FROM islands i
+       LEFT JOIN island_items ii ON ii.island_id = i.id
+       WHERE i.language_code = ?
+       GROUP BY i.id
+       ORDER BY i.title COLLATE NOCASE, i.id`,
+    ).all(language) as IslandRow[];
+    return rows.map(mapIslandSummary);
+  }
+
+  getIsland(publicId: string): Island | null {
+    const row = this.db.prepare(
+      `SELECT i.public_id, i.language_code, i.title, i.description, i.created_at, i.updated_at,
+              COUNT(ii.item_id) AS item_count
+       FROM islands i LEFT JOIN island_items ii ON ii.island_id = i.id
+       WHERE i.public_id = ? GROUP BY i.id`,
+    ).get(publicId) as IslandRow | undefined;
+    if (!row) return null;
+    const items = (this.db.prepare(
+      `SELECT items.* FROM island_items
+       JOIN islands ON islands.id = island_items.island_id
+       JOIN items ON items.id = island_items.item_id
+       WHERE islands.public_id = ?
+       ORDER BY island_items.position, island_items.rowid`,
+    ).all(publicId) as ItemRow[]).map(mapItem);
+    return { ...mapIslandSummary(row), items };
+  }
+
+  findIslandByTitle(language: LanguageCode, title: string) {
+    const normalized = normalizeTopicKey(title);
+    return this.listIslands(language).find((island) => normalizeTopicKey(island.title) === normalized) || null;
+  }
+
+  ensureIsland(language: LanguageCode, title: string, actor: "llm" | "system" = "system") {
+    return this.findIslandByTitle(language, title) || this.createIsland({ language, title: title.trim() }, actor);
+  }
+
+  addIslandItem(islandPublicId: string, itemPublicId: string) {
+    const island = this.db.prepare("SELECT id, language_code FROM islands WHERE public_id = ?")
+      .get(islandPublicId) as { id: number; language_code: LanguageCode } | undefined;
+    if (!island) throw new Error("TOPIC_NOT_FOUND");
+    const item = this.db.prepare("SELECT id FROM items WHERE public_id = ? AND language_code = ?")
+      .get(itemPublicId, island.language_code) as { id: number } | undefined;
+    if (!item) throw new Error("TOPIC_ITEM_NOT_FOUND");
+    const position = (this.db.prepare("SELECT COALESCE(MAX(position), -1) + 1 AS position FROM island_items WHERE island_id = ?")
+      .get(island.id) as { position: number }).position;
+    this.db.prepare("INSERT OR IGNORE INTO island_items(island_id, item_id, position) VALUES (?, ?, ?)")
+      .run(island.id, item.id, position);
+    this.db.prepare("UPDATE islands SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(island.id);
+  }
+
+  updateIsland(publicId: string, input: { title?: string; description?: string; itemPublicIds?: string[] }) {
+    const before = this.getIsland(publicId);
+    if (!before) return null;
+    const nextTitle = input.title?.trim() || before.title;
+    const duplicate = this.findIslandByTitle(before.language, nextTitle);
+    if (duplicate && duplicate.publicId !== publicId) throw new Error("TOPIC_TITLE_EXISTS");
+    const transaction = this.db.transaction(() => {
+      this.db.prepare(
+        `UPDATE islands SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
+      ).run(nextTitle, input.description?.trim() ?? before.description, publicId);
+      if (input.itemPublicIds) {
+        const islandRow = this.db.prepare("SELECT id FROM islands WHERE public_id = ?").get(publicId) as { id: number };
+        const resolved = input.itemPublicIds.map((itemPublicId) => {
+          const item = this.db.prepare("SELECT id FROM items WHERE public_id = ? AND language_code = ?")
+            .get(itemPublicId, before.language) as { id: number } | undefined;
+          if (!item) throw new Error("TOPIC_ITEM_NOT_FOUND");
+          return item.id;
+        });
+        if (new Set(resolved).size !== resolved.length) throw new Error("TOPIC_ITEM_DUPLICATE");
+        this.db.prepare("DELETE FROM island_items WHERE island_id = ?").run(islandRow.id);
+        const add = this.db.prepare("INSERT INTO island_items(island_id, item_id, position) VALUES (?, ?, ?)");
+        resolved.forEach((itemId, position) => add.run(islandRow.id, itemId, position));
+      }
+    });
+    transaction();
+    const updated = this.getIsland(publicId)!;
+    this.logChange("user", "update", "island", publicId, before, updated);
+    return updated;
+  }
+
+  deleteIsland(publicId: string) {
+    const before = this.getIsland(publicId);
+    if (!before) return false;
+    this.db.prepare("DELETE FROM islands WHERE public_id = ?").run(publicId);
+    this.logChange("user", "delete", "island", publicId, before, null);
+    return true;
+  }
+
+  backfillTopicsFromTags(language?: LanguageCode) {
+    const languages = language ? [language] : ["en", "lv"] as const;
+    let created = 0; let attached = 0;
+    const transaction = this.db.transaction(() => {
+      for (const languageCode of languages) {
+        const rows = this.db.prepare(
+          "SELECT public_id, tags FROM items WHERE language_code = ? ORDER BY created_at, id",
+        ).all(languageCode) as Array<{ public_id: string; tags: string }>;
+        for (const row of rows) {
+          const title = parseArray(row.tags)[0]?.trim();
+          if (!title) continue;
+          let island = this.findIslandByTitle(languageCode, title);
+          if (!island) { island = this.createIsland({ language: languageCode, title }, "system"); created += 1; }
+          const beforeCount = this.getIsland(island.publicId)!.itemCount;
+          this.addIslandItem(island.publicId, row.public_id);
+          if (this.getIsland(island.publicId)!.itemCount > beforeCount) attached += 1;
+        }
+      }
+    });
+    transaction();
+    return { created, attached };
+  }
+
+  runTopicBackfillMigration() {
+    const applied = this.db.prepare("SELECT value FROM app_settings WHERE key = 'topics_backfill_v1'").get() as
+      | { value: string }
+      | undefined;
+    if (applied?.value === "done") return { created: 0, attached: 0, applied: false };
+    const result = this.backfillTopicsFromTags();
+    this.db.prepare(
+      `INSERT INTO app_settings(key, value) VALUES ('topics_backfill_v1', 'done')
+       ON CONFLICT(key) DO UPDATE SET value = 'done', updated_at = CURRENT_TIMESTAMP`,
+    ).run();
+    return { ...result, applied: true };
+  }
+
+  listSaturationTopics(language: LanguageCode) {
+    const rows = this.db.prepare(
+      `SELECT islands.public_id AS island_id, islands.title, COUNT(items.id) AS count
+       FROM islands
+       JOIN island_items ON island_items.island_id = islands.id
+       JOIN items ON items.id = island_items.item_id AND items.practice_enabled = 1
+       WHERE islands.language_code = ?
+       GROUP BY islands.id HAVING COUNT(items.id) > 0
+       ORDER BY islands.title COLLATE NOCASE, islands.id`,
+    ).all(language) as Array<{ island_id: string; title: string; count: number }>;
+    return rows.map((row) => ({ islandId: row.island_id, title: row.title, count: row.count }));
+  }
+
+  getSaturationTopicItems(language: LanguageCode, islandId: string): SaturationSnapshotItem[] {
+    const rows = this.db.prepare(
+      `SELECT items.public_id, items.target FROM islands
+       JOIN island_items ON island_items.island_id = islands.id
+       JOIN items ON items.id = island_items.item_id
+       WHERE islands.public_id = ? AND islands.language_code = ? AND items.practice_enabled = 1
+       ORDER BY island_items.position, island_items.rowid`,
+    ).all(islandId, language) as Array<{ public_id: string; target: string }>;
+    return rows.map((row) => ({ publicId: row.public_id, target: row.target }));
+  }
+
+  getSaturationTrack(publicId: string) {
+    const row = this.db.prepare("SELECT * FROM saturation_tracks WHERE public_id = ?")
+      .get(publicId) as SaturationTrackRow | undefined;
+    return row ? mapSaturationTrack(row) : null;
+  }
+
+  getSaturationTrackByHash(configHash: string) {
+    const row = this.db.prepare("SELECT * FROM saturation_tracks WHERE config_hash = ?")
+      .get(configHash) as SaturationTrackRow | undefined;
+    return row ? mapSaturationTrack(row) : null;
+  }
+
+  createOrRetrySaturationTrack(input: {
+    configHash: string;
+    language: LanguageCode;
+    islandId: string;
+    topicTitle: string;
+    snapshot: SaturationSnapshotItem[];
+    settings: SaturationSettings;
+    cacheKey: string;
+  }) {
+    const existing = this.getSaturationTrackByHash(input.configHash);
+    if (existing) {
+      if (existing.status === "failed") {
+        this.db.prepare(
+          `UPDATE saturation_tracks SET status = 'building', error = '', duration_seconds = NULL,
+           snapshot = ?, settings = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
+        ).run(JSON.stringify(input.snapshot), JSON.stringify(input.settings), existing.publicId);
+        return { track: this.getSaturationTrack(existing.publicId)!, shouldBuild: true };
+      }
+      return { track: existing, shouldBuild: false };
+    }
+    const publicId = randomUUID();
+    this.db.prepare(
+      `INSERT INTO saturation_tracks(
+         public_id, config_hash, language_code, topic_key, topic_title, snapshot,
+         settings, status, cache_key
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'building', ?)`,
+    ).run(
+      publicId, input.configHash, input.language, input.islandId, input.topicTitle,
+      JSON.stringify(input.snapshot), JSON.stringify(input.settings), input.cacheKey,
+    );
+    return { track: this.getSaturationTrack(publicId)!, shouldBuild: true };
+  }
+
+  completeSaturationTrack(publicId: string, durationSeconds: number) {
+    this.db.prepare(
+      `UPDATE saturation_tracks SET status = 'ready', duration_seconds = ?, error = '',
+       updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
+    ).run(durationSeconds, publicId);
+    return this.getSaturationTrack(publicId);
+  }
+
+  failSaturationTrack(publicId: string, error: string) {
+    this.db.prepare(
+      `UPDATE saturation_tracks SET status = 'failed', error = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE public_id = ?`,
+    ).run(error.slice(0, 2_000), publicId);
+    return this.getSaturationTrack(publicId);
+  }
+
+  recoverInterruptedSaturationTracks() {
+    return this.db.prepare(
+      `UPDATE saturation_tracks SET status = 'failed', error = 'BUILD_INTERRUPTED',
+       updated_at = CURRENT_TIMESTAMP WHERE status = 'building'`,
+    ).run().changes;
   }
 
   stats() {

@@ -152,6 +152,20 @@ export class OpenAIService {
     return Boolean(this.client);
   }
 
+  async transcribe(input: { audio: Buffer; audioMime: string; filename: string }) {
+    if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
+    const file = new File([new Uint8Array(input.audio)], input.filename, { type: input.audioMime });
+    const transcription = await this.client.audio.transcriptions.create({
+      file,
+      model: config.transcriptionModel,
+      languages: ["ru"],
+      prompt: "Личная голосовая заметка на русском языке о том, что говорящий хотел бы уметь сказать.",
+    });
+    const text = transcription.text.trim();
+    if (!text) throw new Error("EMPTY_TRANSCRIPTION");
+    return text;
+  }
+
   async embed(text: string) {
     if (!this.client) return null;
     const response = await this.client.embeddings.create({
@@ -293,6 +307,57 @@ export class OpenAIService {
         "Keep less useful but still current terms as recognition. Mark outdated, bookish, or irrelevant entries as skip. " +
         "Return no more than one candidate per distinct input term or phrase.",
     });
+  }
+
+  prepareCaptureBatch(input: {
+    language: LanguageCode;
+    notes: Array<{ publicId: string; transcript: string }>;
+  }) {
+    if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
+    const sourceText = input.notes
+      .map((note, index) => `[${index + 1} · ${note.publicId}]\n${note.transcript}`)
+      .join("\n\n");
+    return this.prepareBatch({
+      language: input.language,
+      kind: "capture",
+      title: "Capture Reality",
+      sourceText,
+      task:
+        "Turn these Russian personal voice-note transcripts into at most 100 high-value speaking cards. " +
+        "Merge repeated intentions, ignore filler and recording artifacts, and split distinct useful thoughts. " +
+        "Translate intended meaning rather than wording. Prefer direct casual or neutral adult speech, never corporate or bookish phrasing. " +
+        "Each active item must be a complete sentence Roman would realistically say. Use one real-life topic in category.",
+    });
+  }
+
+  async reviseReviewBatch(input: { batchPublicId: string; feedback: string }) {
+    const batch = this.repository.getReviewBatch(input.batchPublicId);
+    if (!batch || batch.status !== "draft") return null;
+    if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
+    const response = await this.client.responses.parse({
+      model: getModelRouting().balanced,
+      reasoning: { effort: "low" },
+      instructions: materialInstructions(
+        batch.language,
+        "Revise the complete proposal batch using the user's Russian feedback. " +
+          "Numbers in the feedback refer to the current one-based candidate order. " +
+          "Keep good candidates, rewrite the requested ones, remove rejected ones, and do not add unrelated material. " +
+          "Return the complete revised batch, not only changed items.",
+      ),
+      input: JSON.stringify({
+        title: batch.title,
+        source: batch.sourceText,
+        currentCandidates: batch.candidates.map((candidate, index) => ({ number: index + 1, ...candidate })),
+        feedback: input.feedback.trim(),
+      }),
+      text: { format: zodTextFormat(generatedMaterialSchema, "revised_learning_candidates") },
+    });
+    if (!response.output_parsed) throw new Error("The tutor did not return revised material");
+    const candidates = await this.verifyUncertainCandidates(
+      response.output_parsed.items.slice(0, 100).map(toCandidate),
+      batch.language,
+    );
+    return this.repository.replaceReviewCandidates(batch.publicId, candidates, input.feedback);
   }
 
   reviewConversation(input: {
