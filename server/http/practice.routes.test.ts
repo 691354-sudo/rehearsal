@@ -1,0 +1,230 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { buildApp } from "../app.js";
+import { createApiTestContext, type ApiTestContext } from "../testing/api-test-context.js";
+
+describe("practice and library API", () => {
+  let context: ApiTestContext;
+
+  beforeEach(() => { context = createApiTestContext(); });
+  afterEach(() => { context.close(); });
+
+  it("seeds both languages and finds phrases with FTS", () => {
+    expect(context.repository.items.list("en", 500).length).toBeGreaterThan(40);
+    expect(context.repository.items.list("lv", 500).length).toBeGreaterThan(10);
+    expect(context.repository.items.search("follow through", "en")[0]?.target.toLocaleLowerCase())
+      .toMatch(/follow(?:ing)? through/);
+  });
+
+  it("records recall and shadowing while changing only the recall schedule", async () => {
+    const app = await buildApp(context.repository);
+    const recall = await app.inject({
+      method: "POST",
+      url: "/api/attempts/evaluate",
+      payload: {
+        itemId: "en-drawn-to",
+        answer: "I've always been drawn to places near the ocean.",
+        mode: "recall",
+        rating: "easy",
+      },
+    });
+    expect(recall.statusCode).toBe(200);
+    expect(recall.json()).toMatchObject({ mode: "local", evaluation: { verdict: "exact" } });
+    expect(recall.json().attempt.schedule).toMatchObject({ state: "review" });
+
+    const shadow = await app.inject({
+      method: "POST",
+      url: "/api/reviews",
+      payload: { itemId: "en-drawn-to", mode: "shadow", rating: "hard" },
+    });
+    expect(shadow.statusCode).toBe(200);
+    expect(shadow.json().review.schedule).toBeNull();
+
+    const progress = await app.inject({
+      method: "GET",
+      url: "/api/practice/progress?language=en&since=2000-01-01T00:00:00.000Z",
+    });
+    expect(progress.json()).toMatchObject({ completed: 1, recall: 1, shadow: 1, pattern: 0 });
+    await app.close();
+  });
+
+  it("keeps Learned cards out of the due queue without deleting their schedule", async () => {
+    context.repository.practice.recordAttempt({
+      itemPublicId: "en-drawn-to",
+      mode: "recall",
+      answer: "I've always been drawn to places near the ocean.",
+      score: 1,
+      verdict: "easy",
+      feedback: {},
+      rating: "easy",
+      reviewedAt: new Date("2026-08-18T12:00:00.000Z"),
+    });
+    expect(context.repository.practice.listDue("en", 100, new Date("2026-08-19T12:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(false);
+    expect(context.repository.practice.listDue("en", 100, new Date("2026-08-27T12:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(true);
+
+    const app = await buildApp(context.repository);
+    const learned = await app.inject({
+      method: "PATCH",
+      url: "/api/items/en-drawn-to",
+      payload: { practiceEnabled: false },
+    });
+    expect(learned.json().item.practiceEnabled).toBe(false);
+    expect(context.repository.practice.listDue("en", 100, new Date("2030-01-01T00:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(false);
+    const inventory = await app.inject({
+      method: "GET",
+      url: "/api/items?language=en&limit=500&includeSchedule=true",
+    });
+    expect(inventory.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to"))
+      .toMatchObject({ practiceEnabled: false, schedule: { state: "review" } });
+
+    await app.inject({
+      method: "POST",
+      url: "/api/attempts/evaluate",
+      payload: {
+        itemId: "en-drawn-to",
+        answer: "I've always been drawn to places near the ocean.",
+        mode: "recall",
+        rating: "good",
+      },
+    });
+    expect(context.repository.items.get("en-drawn-to")?.practiceEnabled).toBe(false);
+    const reactivated = await app.inject({
+      method: "PATCH",
+      url: "/api/items/en-drawn-to",
+      payload: { practiceEnabled: true },
+    });
+    expect(reactivated.json().item.practiceEnabled).toBe(true);
+    expect(context.repository.practice.listDue("en", 100, new Date("2030-01-01T00:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(true);
+    await app.close();
+  });
+
+  it("persists edits, preferences, and deletion across database restarts", async () => {
+    let app = await buildApp(context.repository);
+    const updated = await app.inject({
+      method: "PATCH",
+      url: "/api/items/en-drawn-to",
+      payload: {
+        cue: "Обновлённая подсказка.",
+        target: "This updated phrase survives a restart.",
+        note: "Edited from the practice card",
+        tags: ["persistence"],
+        frequencyBand: "core",
+        preference: "like",
+      },
+    });
+    expect(updated.statusCode).toBe(200);
+    await app.close();
+    context.reopen();
+    expect(context.repository.items.get("en-drawn-to")).toMatchObject({
+      cue: "Обновлённая подсказка.",
+      target: "This updated phrase survives a restart.",
+      tags: ["persistence"],
+      preference: "like",
+    });
+
+    app = await buildApp(context.repository);
+    expect((await app.inject({ method: "DELETE", url: "/api/items/en-drawn-to" })).statusCode).toBe(204);
+    await app.close();
+    context.reopen();
+    expect(context.repository.items.get("en-drawn-to")).toBeNull();
+  });
+
+  it("persists safe FSRS settings and rejects unsafe values", async () => {
+    const app = await buildApp(context.repository);
+    const settings = {
+      presets: {
+        like: { requestRetention: 0.94, maximumInterval: 45 },
+        neutral: { requestRetention: 0.91, maximumInterval: 150 },
+        dislike: { requestRetention: 0.86, maximumInterval: 320 },
+      },
+      learningSteps: ["2m", "12m"],
+      relearningSteps: ["2m", "12m"],
+      fuzz: false,
+      newItemsPerDay: 12,
+    };
+    expect((await app.inject({
+      method: "PATCH", url: "/api/settings/scheduler", payload: settings,
+    })).json().scheduler).toEqual(settings);
+    expect((await app.inject({ method: "GET", url: "/api/config" })).json().scheduler)
+      .toMatchObject({ algorithm: "FSRS-6", ...settings });
+
+    const unsafe = await app.inject({
+      method: "PATCH",
+      url: "/api/settings/scheduler",
+      payload: {
+        ...settings,
+        presets: { ...settings.presets, like: { requestRetention: 0.99, maximumInterval: 60 } },
+        learningSteps: ["1 minute"],
+      },
+    });
+    expect(unsafe.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("keeps Topic membership independent, ordered, and non-destructive", async () => {
+    const first = context.repository.items.save({ language: "en", cue: "А", target: "A.", tags: [" My Topic "] });
+    const second = context.repository.items.save({ language: "en", cue: "Б", target: "B.", tags: ["my   topic"] });
+    context.repository.library.backfillTopicsFromTags("en");
+    context.repository.library.backfillTopicsFromTags("en");
+    const backfilled = context.repository.library.listIslands("en")
+      .filter((island) => island.title.toLocaleLowerCase().includes("my topic"));
+    expect(backfilled).toHaveLength(1);
+    expect(context.repository.library.getIsland(backfilled[0].publicId)?.items.map((item) => item.publicId))
+      .toEqual([first.publicId, second.publicId]);
+
+    const app = await buildApp(context.repository);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/islands",
+      payload: { language: "en", title: "Manual topic", itemIds: [second.publicId, first.publicId] },
+    });
+    const islandId = created.json().island.publicId as string;
+    const detail = await app.inject({ method: "GET", url: `/api/islands/${islandId}` });
+    expect(detail.json().island.items.map((item: { publicId: string }) => item.publicId))
+      .toEqual([second.publicId, first.publicId]);
+    expect((await app.inject({
+      method: "PATCH", url: `/api/islands/${islandId}`, payload: { title: "Renamed topic", itemIds: [first.publicId] },
+    })).json().island).toMatchObject({ title: "Renamed topic", itemCount: 1 });
+    expect((await app.inject({ method: "DELETE", url: `/api/islands/${islandId}` })).statusCode).toBe(204);
+    expect(context.repository.items.get(first.publicId)).not.toBeNull();
+    expect(context.repository.items.get(second.publicId)).not.toBeNull();
+    await app.close();
+  });
+
+  it("prioritizes liked cards in the due queue", async () => {
+    const app = await buildApp(context.repository);
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/items/en-drawn-to/preference",
+      payload: { preference: "like" },
+    });
+    expect(response.json().item.preference).toBe("like");
+    expect(context.repository.practice.listDue("en", 100)[0]?.publicId).toBe("en-drawn-to");
+    await app.close();
+  });
+
+  it("does not recreate a deleted backfilled Topic after restart", async () => {
+    context.repository.items.save({
+      language: "en",
+      cue: "Удалить тему",
+      target: "Delete the topic.",
+      tags: ["Temporary tag topic"],
+    });
+    const app = await buildApp(context.repository);
+    const topic = context.repository.library.findIslandByTitle("en", "Temporary tag topic")!;
+    expect((await app.inject({ method: "DELETE", url: `/api/islands/${topic.publicId}` })).statusCode).toBe(204);
+    await app.close();
+    context.reopen();
+    const restarted = await buildApp(context.repository);
+    expect(context.repository.library.findIslandByTitle("en", "Temporary tag topic")).toBeNull();
+    await restarted.close();
+  });
+
+  it("caps fresh cards without hiding scheduled reviews", () => {
+    expect(context.repository.practice.listDue("en", 100, new Date(), 3)
+      .filter((item) => item.schedule.state === "new")).toHaveLength(3);
+  });
+});
