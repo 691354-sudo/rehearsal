@@ -67,8 +67,14 @@ describe("database migrations", () => {
     expect(item.preference).toBe("neutral");
     expect(item.frequency_band).toBe("common");
     expect(item.practice_enabled).toBe(1);
+    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(4);
 
     migrated.close();
+    const reopened = openDatabase(databasePath);
+    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(4);
+    expect(reopened.pragma("foreign_keys", { simple: true })).toBe(1);
+
+    reopened.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -144,6 +150,40 @@ describe("database migrations", () => {
     ).get()).toBeUndefined();
 
     migrated.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("rolls back a failed table rebuild instead of leaving partial migration state", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rehearsal-failed-migration-"));
+    const databasePath = path.join(tempDir, "legacy.sqlite");
+    const legacy = new Database(databasePath);
+    legacy.exec(`
+      CREATE TABLE languages(code TEXT PRIMARY KEY, name TEXT NOT NULL, locale TEXT NOT NULL);
+      CREATE TABLE review_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        public_id TEXT NOT NULL UNIQUE,
+        language_code TEXT NOT NULL REFERENCES languages(code),
+        kind TEXT NOT NULL CHECK (kind IN ('chat_review', 'vocab')),
+        title TEXT NOT NULL,
+        source_text TEXT NOT NULL DEFAULT '',
+        candidates TEXT NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'draft',
+        source_thread_public_id TEXT,
+        committed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE review_batches_next(id INTEGER PRIMARY KEY);
+    `);
+    legacy.close();
+
+    expect(() => openDatabase(databasePath)).toThrow();
+    const inspected = new Database(databasePath);
+    expect(inspected.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'review_batches'").get())
+      .toBeTruthy();
+    expect(inspected.prepare("SELECT id FROM schema_migrations WHERE id = ?").get("001-review-batches-capture"))
+      .toBeUndefined();
+    inspected.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 });

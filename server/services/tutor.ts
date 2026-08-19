@@ -2,8 +2,9 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { config } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
-import { getModelRouting } from "../model-routing.js";
 import type { LanguageCode } from "../types.js";
+import { aiLimits, recentMessagesWithinBudget } from "./ai-limits.js";
+import type { LearnerPersona } from "./learner-persona.js";
 import type { OpenAIService } from "./openai.js";
 
 const searchArguments = z.object({ query: z.string().min(1), limit: z.number().int().min(1).max(20) });
@@ -39,21 +40,22 @@ const tools: OpenAI.Responses.Tool[] = [
   },
 ];
 
-const tutorInstructions = (language: LanguageCode) => `
-You are Roman's personal ${language === "en" ? "English" : "Latvian"} tutor inside his private learning system.
+export const tutorInstructions = (learner: LearnerPersona, language: LanguageCode) => `
+You are ${learner.name}'s personal ${language === "en" ? "English" : "Latvian"} tutor inside a private learning system.
+${learner.context}
 
-Your job is to help him speak naturally and automatically, not to teach theory for its own sake.
+Your job is to help the learner speak naturally and automatically, not to teach theory for its own sake.
 - Chat as comfortably and intelligently as a normal ChatGPT conversation.
-- Match his casual, direct speaking style. Prefer common native-like wording, phrasal verbs, and reusable sentence patterns.
-- Correct collocations and sentence structure first; those are his current bottlenecks.
-- Explain briefly in Russian unless he asks for immersion.
-- Build language islands: connected lines, short monologues, questions, and answers about his real life.
+- Match the learner's known speaking style without inventing personal details. Prefer common native-like wording, phrasal verbs, and reusable sentence patterns.
+- Correct collocations and sentence structure first.
+- Explain briefly in Russian unless the learner asks for immersion.
+- Build language islands: connected lines, short monologues, questions, and answers grounded in the conversation.
 - Offer different natural ways to express one thought and different contexts for one phrase.
-- Search his library when prior phrases or mistakes are relevant.
-- Never save phrases, corrections, or islands during normal conversation. Nothing enters the library without Roman selecting it in Finish & review.
+- Search the learner's library when prior phrases or mistakes are relevant.
+- Never save phrases, corrections, or islands during normal conversation. Nothing enters the library without ${learner.name} selecting it in Finish & review.
 - Use read-only tools for database facts. Never invent a database result or imply that you changed the library.
-- Do not interrupt the flow to correct every sentence unless Roman explicitly asks for live correction. Keep useful observations for the end-of-chat review.
-- Keep the initial answer concise, then deepen when Roman wants it.
+- Do not interrupt the flow to correct every sentence unless the learner explicitly asks for live correction. Keep useful observations for the end-of-chat review.
+- Keep the initial answer concise, then deepen when the learner wants it.
 `;
 
 type TutorRepositories = Pick<RehearsalRepository, "items" | "practice" | "tutor">;
@@ -80,8 +82,11 @@ export class TutorService {
       return { threadId: thread.publicId, content, mode: "setup" as const, toolCalls: [] };
     }
 
-    const history = this.repository.tutor.getMessages(thread.id, 30);
-    const model = getModelRouting().tutor;
+    const history = recentMessagesWithinBudget(
+      this.repository.tutor.getMessages(thread.id, 30),
+      aiLimits.tutorHistoryCharacters,
+    );
+    const model = config.tutorModel;
     const modelInput: OpenAI.Responses.ResponseInput = history.map((message) => ({
       role: message.role,
       content: message.content,
@@ -91,10 +96,11 @@ export class TutorService {
     let response = await this.client.responses.create({
       model,
       reasoning: { effort: "low" },
-      instructions: tutorInstructions(input.language),
+      instructions: tutorInstructions(this.openaiService.learner, input.language),
       input: modelInput,
       tools,
       parallel_tool_calls: false,
+      max_output_tokens: aiLimits.tutorOutputTokens,
     });
 
     for (let round = 0; round < 4; round += 1) {
@@ -114,10 +120,11 @@ export class TutorService {
       response = await this.client.responses.create({
         model,
         reasoning: { effort: "low" },
-        instructions: tutorInstructions(input.language),
+        instructions: tutorInstructions(this.openaiService.learner, input.language),
         input: modelInput,
         tools,
         parallel_tool_calls: false,
+        max_output_tokens: aiLimits.tutorOutputTokens,
       });
     }
 

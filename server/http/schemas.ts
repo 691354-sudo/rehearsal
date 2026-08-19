@@ -5,8 +5,7 @@ import type { SchedulerSettings } from "../services/scheduler.js";
 export const languageSchema = z.enum(["en", "lv"]);
 
 export const voiceOptions = [
-  "alloy", "ash", "ballad", "coral", "echo", "fable", "nova",
-  "onyx", "sage", "shimmer", "verse", "marin", "cedar",
+  "alloy", "echo", "fable", "nova", "onyx", "shimmer",
 ] as const;
 
 export const elevenLabsModelOptions = ["eleven_multilingual_v2", "eleven_flash_v2_5"] as const;

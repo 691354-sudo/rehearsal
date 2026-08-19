@@ -7,21 +7,21 @@
 - Two isolated SQLite databases in `.data/profiles/roman.sqlite` and `.data/profiles/oliver.sqlite`, both using WAL and FTS5.
 - OpenAI is optional at startup. The API reports capability state via `/health` and `/api/config`.
 
-The Vite dev server proxies `/api` and `/health`. A production build can be served by the Fastify process from `dist`.
-
-Client requests go through one base-path helper. It uses Vite's deployment base by default and supports an explicit `VITE_API_BASE` for a future installed PWA or shell without duplicating endpoint logic.
+The Vite dev server proxies `/api` and `/health`. In production, Fastify serves `dist`; the installed PWA and API therefore share one origin and the same Vite deployment base path. Client requests go through one base-path helper, and separate client/API origins are not supported.
 
 ## Delivery targets
 
-The primary phone target is the existing HTTPS client installed as an iPhone Home Screen PWA with standalone display. App Store distribution and a native rewrite are not required. Client features must remain compatible with a later Capacitor shell, primarily by keeping the API base configurable and isolating browser capability checks from product logic.
+The primary phone target is the existing HTTPS client installed as an iPhone Home Screen PWA with standalone display. App Store distribution, a native rewrite, and a separate desktop or iPhone shell are not current targets.
 
-The server remains the source of truth in every delivery target. A service worker may cache a versioned application shell and explicitly selected offline assets, but must not blindly cache API mutations, private learning data, or generated audio. See `docs/MOBILE_APP_DIRECTION.md` for interaction constraints and the phone verification gate.
+The server remains the source of truth. The service worker precaches only the versioned application shell and static build assets; it does not cache API mutations, private learning data, or generated audio. See `docs/MOBILE_APP_DIRECTION.md` for interaction constraints and the phone verification gate.
 
 ## Client modules
 
-`src/features/auth` owns the profile gate and session bootstrap. `src/app` composes navigation, language, theme, audio, and feature pages after authentication. Product behavior belongs to `src/features/<domain>`: Practice and Listen & Repeat, Tutor and Capture, Library and Topics, Settings, and Review. `src/shared` contains client configuration and adapters used by more than one feature; feature-specific code must not be moved there for convenience. API shapes shared with the server live in the root `contracts` module.
+`src/features/auth` owns the profile gate and session bootstrap. `src/app` composes navigation, language, theme, and feature pages after authentication. `src/features/practice/useLearningData.ts` owns loading and mutation of learning data; `src/features/audio/usePlaybackController.ts` owns speech playback and provider fallback. Product behavior belongs to `src/features/<domain>`: Practice and Listen & Repeat, Tutor and Capture, Library and Topics, Settings, and Review. `src/shared` contains client configuration and adapters used by more than one feature; feature-specific code must not be moved there for convenience. API shapes shared with the server live in the root `contracts` module.
 
-The browser keeps no session credential in `localStorage`. The signed session and CSRF cookies are server-managed, while the matching CSRF token stays in memory. Language, theme, playback settings, and Tutor thread selection use keys namespaced by the authenticated profile. Runtime Library and Practice data is never replaced with client seed content when the API is unavailable.
+The browser keeps no session credential in `localStorage`. The signed session and CSRF cookies are server-managed, while the matching CSRF token stays in memory. Language, theme, playback settings, and Tutor thread selection use keys namespaced by the authenticated profile. Runtime Library and Practice data is never replaced with client seed content when the API is unavailable; already loaded cards remain visible with an explicit retry state.
+
+IndexedDB stores at most one unsent Capture recording per profile and language. The Blob is written before upload and removed only after the server confirms success or the user explicitly deletes it. Private learning data, API responses, generated audio, and credentials are not placed in offline storage.
 
 Styles follow the same ownership boundaries under `src/styles`. `base.css` owns tokens and global controls, domain files own their screens and local responsive states, and `responsive.css` contains cross-domain viewport adjustments. The removed prototype is not a runtime route or architectural fallback.
 
@@ -29,7 +29,7 @@ Styles follow the same ownership boundaries under `src/styles`. `base.css` owns 
 
 `server/app.ts` is only the Fastify composition root. Request parsing and responses are grouped by domain in `server/http`; SQL and business state never live in route modules. Persistence is split into `items`, `practice`, `reviews`, `tutor`, `library`, `capture`, `audio`, and `system` repositories under `server/db/repositories`. Services receive only the repository capabilities they use.
 
-`server/profiles` owns the fixed Roman/Oliver registry and database lifecycle. A verified signed cookie binds every non-auth `/api` request to one profile context; the server then selects that profile's repository. Client input can never select a database path. `server/auth` owns PIN verification, login throttling, cookie sessions, logout, and CSRF enforcement.
+`server/profiles` owns the fixed Roman/Oliver registry and database lifecycle. A verified signed cookie binds every non-auth `/api` request to one profile context; the server then selects that profile's repository. Client input can never select a database path. Once the registry exists, a missing profile database fails startup with a restore instruction; it is never silently recreated or copied. A first-ever initialization creates both databases as one set before publishing the registry. `server/auth` owns PIN verification, login throttling, cookie sessions, logout, and CSRF enforcement.
 
 Active `.ts` and `.tsx` files are limited to 450 lines and CSS files to 800 lines. `npm run check:architecture` enforces the boundary in CI. Generated-data exceptions require an explicit, documented allowlist entry; there are currently no exceptions.
 
@@ -38,6 +38,8 @@ Active `.ts` and `.tsx` files are limited to 450 lines and CSS files to 800 line
 Each profile database has the same schema and no cross-profile tables. `items` is the central table. Every entry belongs to exactly one target language and keeps the Russian recall cue, target sentence, accepted alternatives, notes, source, status, quality ratings, tags, and optional embedding.
 
 Related tables store original sources, review batches, capture notes, practice attempts, scheduling state, tutor chats, cached speech, and change events. English and Latvian queries are always filtered before data is returned to the tutor.
+
+`schema_migrations` records ordered, one-time SQLite structure changes. Every pending migration runs in a transaction, checks foreign-key integrity, and records its ID only after success. Startup closes the database and fails if schema initialization or migration fails. Domain backfills that are not schema changes retain their own explicit completion markers.
 
 `review_batches` is the safety boundary for all LLM-created material. Chat review, vocabulary, imported text, pattern drills, and Capture Reality store candidates as a draft. A user-confirmed commit validates candidate IDs and writes the selected cards in one SQLite transaction. Capture Review may resolve a draft incrementally through `/api/review-batches/:id/resolve-capture`: uncommented selected candidates commit in the request transaction, while the model replaces only candidates carrying per-card comments and keeps those replacements in the same draft. Source notes become `processed` only when no revised candidates remain.
 
@@ -69,11 +71,13 @@ There is no arbitrary SQL tool and no mutation tool in ordinary chat. `Finish & 
 
 Routine answer comparison is deterministic and local, so pressing Enter feels immediate. OpenAI handles contextual generation and conversation analysis rather than sitting in the hot recall path.
 
+Workload roles are pinned: Sol for Tutor conversation, Terra for material generation and review, and Luna for small utility tasks. Model changes are manual and may be canary-checked with `npm run models:check`; runtime configuration is never rewritten automatically. Roman receives the existing personal context, while Oliver receives only a neutral Russian-speaking-adult persona and an instruction not to invent personal facts. Source text, Tutor history, individual messages, and model output are bounded before provider calls.
+
 Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MIME type through `MediaRecorder.isTypeSupported` and uploads multipart audio to Fastify. The server enforces the 25 MB limit and sends completed recordings to `OPENAI_TRANSCRIBE_MODEL` (`gpt-transcribe` by default). `POST /api/captures/text` creates an equivalent ready note without transcription. Browser dictation is never used.
 
 ## Audio
 
-`/api/audio/speech` calls OpenAI or ElevenLabs TTS and stores the MP3 in the SQLite `audio_cache`. ElevenLabs cache identity includes normalized text, language, voice ID, model, speed, stability, similarity, style, and speaker boost; identical concurrent cache misses share one provider request. Cache entries survive API restarts. Responses include `X-AI-Generated-Audio: true` and `X-Audio-Cache: HIT|MISS`. The browser speech engine is the offline fallback.
+`/api/audio/speech` calls OpenAI `tts-1-hd` with a compatible legacy voice or ElevenLabs TTS and stores the MP3 in the SQLite `audio_cache`. ElevenLabs cache identity includes normalized text, language, voice ID, model, speed, stability, similarity, style, and speaker boost; identical concurrent cache misses share one provider request. Cache entries survive API restarts. Responses include `X-AI-Generated-Audio: true` and `X-Audio-Cache: HIT|MISS`. The browser speech engine is the offline fallback.
 
 `GET /api/audio/elevenlabs/status` verifies that the configured voice ID is reachable and returns safe voice metadata without exposing the API key. The result is held in memory for ten minutes and can be explicitly refreshed from Settings. ElevenLabs speed is validated against its provider range of `0.7–1.2×`; Multilingual v2 omits the unsupported `language_code` field, while Flash v2.5 receives it.
 
@@ -89,7 +93,7 @@ Tutor history uses `GET /api/chat/threads`, `GET /api/chat/:threadId/messages`, 
 
 The server stores only individual provider MP3 responses; it does not assemble continuous tracks and has no FFmpeg runtime dependency. Listen & Repeat updates Media Session metadata for the current card and registers Play, Pause, Previous, Next, and Stop handlers when the browser exposes that API.
 
-An installable PWA may precache only the versioned application shell and static build assets. `/api`, `/health`, private learning data, and generated audio are network-only. Loading the cached shell without the API produces an explicit unavailable state rather than cached or synthetic learning data.
+The installed PWA precaches only the versioned application shell and static build assets. `/api`, `/health`, private learning data, and generated audio are network-only. Loading the cached shell without the API produces an explicit unavailable state rather than cached or synthetic learning data.
 
 ## Backup and rollback
 

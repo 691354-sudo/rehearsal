@@ -1,18 +1,20 @@
 import type OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
+import { config } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
-import { getModelRouting } from "../model-routing.js";
 import type { LanguageCode, ReviewCandidate } from "../types.js";
+import { aiLimits, assertAiSourceWithinBudget } from "./ai-limits.js";
+import type { LearnerPersona } from "./learner-persona.js";
 import { generatedCandidateSchema, materialInstructions, toCandidate } from "./material-generation.js";
 
 const commentedRevisionSchema = z.object({
-  items: z.array(generatedCandidateSchema.extend({ candidateId: z.string().uuid() })),
+  items: z.array(generatedCandidateSchema.extend({ candidateId: z.string().uuid() })).max(100),
 });
 
 type CandidateSelection = Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">;
 
-export async function resolveCaptureReview({ client, input, repository, verifyCandidates }: {
+export async function resolveCaptureReview({ client, input, repository, learner, verifyCandidates }: {
   client: OpenAI | null;
   input: {
     batchPublicId: string;
@@ -20,6 +22,7 @@ export async function resolveCaptureReview({ client, input, repository, verifyCa
     revisions: Array<CandidateSelection & { feedback: string }>;
   };
   repository: Pick<RehearsalRepository, "reviews">;
+  learner: LearnerPersona;
   verifyCandidates: (candidates: ReviewCandidate[], language: LanguageCode) => Promise<ReviewCandidate[]>;
 }) {
   const batch = repository.reviews.get(input.batchPublicId);
@@ -42,16 +45,22 @@ export async function resolveCaptureReview({ client, input, repository, verifyCa
       feedback: edited.feedback.trim(),
     }));
     const response = await client.responses.parse({
-      model: getModelRouting().balanced,
+      model: config.balancedModel,
       reasoning: { effort: "low" },
       instructions: materialInstructions(
+        learner,
         batch.language,
         "Revise only the supplied candidates using each candidate's own Russian feedback. " +
           "Return exactly one replacement for every supplied candidateId, preserve that candidateId, " +
           "do not return accepted or unrelated cards, and keep the intended personal meaning.",
       ),
-      input: JSON.stringify({ title: batch.title, source: batch.sourceText, candidates: currentCandidates }),
+      input: JSON.stringify({
+        title: batch.title,
+        source: assertAiSourceWithinBudget(batch.sourceText),
+        candidates: currentCandidates,
+      }),
       text: { format: zodTextFormat(commentedRevisionSchema, "commented_candidate_revisions") },
+      max_output_tokens: aiLimits.batchOutputTokens,
     });
     const generated = response.output_parsed?.items || [];
     const expectedIds = new Set(input.revisions.map((candidate) => candidate.id));

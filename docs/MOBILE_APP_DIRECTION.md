@@ -7,10 +7,10 @@ should launch from its own icon in standalone mode without Safari chrome and fee
 complete when used only by touch. App Store distribution and a native iOS rewrite
 are not current goals.
 
-The first delivery path is a Progressive Web App served by the existing HTTPS
-deployment. Keep the React client compatible with a future Capacitor shell, but
-do not add native abstractions or plugins until a required capability cannot be
-delivered reliably as a Home Screen web app.
+The delivery path is the Progressive Web App served by the existing HTTPS
+deployment. The application shell and API share one origin and deployment base
+path. Do not add native wrappers or abstractions without a separately approved
+native-only requirement.
 
 ## Rules for future changes
 
@@ -27,24 +27,22 @@ delivered reliably as a Home Screen web app.
 - Use feature detection for browser capabilities. Audio playback, recording,
   file import, notifications, and clipboard access need explicit user actions,
   denied-permission states, and a useful fallback where practical.
-- Do not hardwire the client to a same-origin API. Keep the API base configurable
-  so the same build can run on the website, as an installed PWA, or later inside
-  a Capacitor shell without changing feature code.
+- Keep application and API requests on the same origin and current deployment
+  base path. Authentication cookies and CSRF protection depend on that boundary.
 - Treat the server database as the source of truth. Browser storage may hold UI
-  preferences and a bounded pending-action queue, but correctness must not depend
-  on storage being shared with Safari or surviving an iOS eviction.
+  preferences and one pending recording per profile and language, but correctness
+  must not depend on storage being shared with Safari or surviving an iOS eviction.
 - Network loss must be visible and recoverable. Never silently discard a typed
   answer, Tutor draft, recording, edit, or review action after a failed request.
 - Keep generated assets and routes compatible with a non-root deployment under
   `/rehearsal/`; manifest, icons, service worker scope, and start URL must work
   from that base path.
-- Avoid indiscriminate service-worker caching of API responses, private learning
-  data, or generated audio. Version the app shell and define an explicit update
-  and cache-retention policy before offline caching is added.
+- Never service-worker-cache API responses, private learning data, or generated
+  audio. Only the versioned application shell and static build assets are precached.
 
-## Installable PWA milestone
+## Current installable PWA
 
-When this milestone is implemented, it should include:
+The current build includes:
 
 - a web app manifest with a stable ID, scoped start URL, `display: standalone`,
   theme/background colors, and suitable iPhone icons;
@@ -55,6 +53,11 @@ When this milestone is implemented, it should include:
 - standalone-specific safe-area and navigation behavior;
 - a controlled update flow that does not leave old UI talking to an incompatible
   API after a deployment.
+
+Capture writes a completed recording Blob to IndexedDB before upload. The PWA
+restores it after relaunch and offers Retry or Delete; it removes the local copy
+only after the server confirms success. This is recovery for one pending recording,
+not a general offline queue or offline learning store.
 
 ## Product layout
 
@@ -82,6 +85,6 @@ updated deployment. Desktop keyboard regression checks still apply.
 
 - App Store submission, StoreKit, billing, or public multi-user distribution.
 - SwiftUI or React Native rewrites.
-- Capacitor packaging before a concrete native-only requirement appears.
+- Native wrapper packaging before a concrete native-only requirement appears.
 - Full offline learning packs or background synchronization unless separately
   scoped and designed.

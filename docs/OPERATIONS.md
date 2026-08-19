@@ -12,7 +12,7 @@ This document is the canonical source for production deployment, data paths, bac
 - Persistent data: `/opt/apps/rehearsal/data`
 - Backups: `/opt/apps/rehearsal/backups`
 
-nginx terminates HTTPS and removes the `/rehearsal/` prefix before proxying to the loopback API binding. Card Drill streams the existing per-card speech responses, so the production image has no FFmpeg dependency.
+nginx terminates HTTPS and removes the `/rehearsal/` prefix before proxying to the loopback API binding. Listen & Repeat streams the existing per-card speech responses, so the production image has no FFmpeg dependency. nginx allows multipart overhead above the API's 25 MiB recording limit.
 
 The application root is not a Git checkout. GitHub Actions uploads the exact CI-checked commit to `/opt/apps/rehearsal/releases/<sha>` and points `/opt/apps/rehearsal/current` at the last healthy release. It never replaces or uploads the server's `data`, `backups`, `.env`, or `.env.elevenlabs` paths.
 
@@ -42,7 +42,7 @@ Required repository secrets:
 - `ROMAN_PROFILE_PIN` and `OLIVER_PROFILE_PIN` (4–12 digits);
 - `SESSION_SECRET` (a random value of at least 32 bytes).
 
-`deploy/rehearsal-backup.cron` creates a consistent SQLite backup nightly and removes backups older than 30 days. `deploy/rehearsal-model-check.cron` runs daily, while the model checker's timestamp guard permits a live provider check only once every 14 days.
+`deploy/rehearsal-backup.cron` creates a consistent SQLite backup nightly and removes backups older than 30 days. Model availability is checked only by an operator running `npm run models:check` before a deliberate model configuration change. The deployment script removes the retired `/etc/cron.d/rehearsal-model-check` job after a healthy rollout.
 
 The workflow installs the three profile/session values as mode-`0600` files under `/opt/apps/rehearsal/secrets`; Compose mounts that directory read-only. Provider credentials remain in `/opt/apps/rehearsal/.env` and `.env.elevenlabs`.
 
@@ -57,7 +57,11 @@ Profile state lives only under the persistent data volume:
 - `/opt/apps/rehearsal/data/profiles/registry.json` (names, database paths, PIN salts and hashes);
 - `/opt/apps/rehearsal/data/profiles/migration.json` (private migration evidence).
 
-On the first profile-aware start, the application archives the existing `rehearsal.sqlite`, copies its complete contents into each missing profile database, runs `quick_check`, and compares counters for all user-data tables. Existing profile databases are never overwritten on a repeated start. Keep the legacy database and `legacy-before-profiles-*.sqlite` archive until both users complete acceptance checks.
+On the first profile-aware start, the application creates Roman and Oliver as one set. If a legacy `rehearsal.sqlite` exists, it is archived and copied completely to both databases, followed by `quick_check` and counter comparison. Without legacy data, both empty databases are created before the registry is published.
+
+After `registry.json` exists, a missing Roman or Oliver database is a recovery incident: startup fails and names the profile that must be restored. The application never silently creates an empty replacement or copies legacy data into a missing initialized profile. A missing registry alongside existing profile databases also fails closed.
+
+SQLite structure changes are ordered in `server/db/database.ts` and recorded once in `schema_migrations`. Each pending migration runs transactionally and checks foreign-key integrity before its marker is committed. A migration failure closes the database and fails startup; restore a verified backup or correct the migration rather than editing production tables manually.
 
 For local development, set different non-production PINs and a random session secret in an untracked `.env`, then start normally:
 
@@ -80,7 +84,7 @@ Stop the API before restore. Restore validates the candidate with SQLite `quick_
 
 ## Production verification
 
-Every release builds the new image, creates a database backup with that image, replaces the container, and then verifies:
+Every release builds the new image, creates separate Roman and Oliver database backups with that image, replaces the container, and then verifies:
 
 ```bash
 curl -fsS http://127.0.0.1:8788/health

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { aiLimits } from "../services/ai-limits.js";
 import type { HttpDependencies } from "./dependencies.js";
 import { itemBodySchema, languageSchema } from "./schemas.js";
 
@@ -82,7 +83,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     const body = z.object({
       language: languageSchema,
       title: z.string().trim().min(1).max(300),
-      text: z.string().trim().min(1).max(200_000),
+      text: z.string().trim().min(1).max(aiLimits.sourceCharacters),
     }).parse(request.body);
     const source = repository.library.saveSource({
       language: body.language,

@@ -82,6 +82,11 @@
     display: none;
   }
 
+  .simple-offline {
+    align-items: stretch;
+    padding: 10px 12px;
+  }
+
   .simple-mobile-menu-button {
     z-index: 34;
     display: grid;

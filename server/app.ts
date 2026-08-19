@@ -28,7 +28,7 @@ export const buildApp = async (
   options: AppOptions = {},
 ) => {
   const app = Fastify({
-    logger: true,
+    logger: process.env.NODE_ENV !== "test",
     bodyLimit: 2_000_000,
     trustProxy: config.trustedProxy,
   });

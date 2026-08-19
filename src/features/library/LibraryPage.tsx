@@ -17,7 +17,8 @@ import { apiFetch } from "../../shared/api";
 import type { Island, IslandSummary, Language, LearningItem } from "../../shared/contracts";
 import { filterLibraryItems, libraryStatusOf, type LibrarySort, type LibraryStatus } from "../../lib/libraryView";
 
-export function LibraryPage({ language, onAvailability, onListen, onPlay, onPracticeEnabled, onReview }: {
+export function LibraryPage({ cachedItems, language, onAvailability, onListen, onPlay, onPracticeEnabled, onReview }: {
+  cachedItems: LearningItem[];
   language: Language;
   onAvailability: (online: boolean) => void;
   onListen: () => void;
@@ -25,7 +26,7 @@ export function LibraryPage({ language, onAvailability, onListen, onPlay, onPrac
   onPracticeEnabled: (itemId: string, practiceEnabled: boolean) => Promise<boolean>;
   onReview: (itemId: string) => void;
 }) {
-  const [items, setItems] = useState<LearningItem[]>([]);
+  const [items, setItems] = useState<LearningItem[]>(() => cachedItems.filter((item) => item.language === language));
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<LibraryStatus>("all");
   const [sort, setSort] = useState<LibrarySort>("recent");
@@ -49,7 +50,7 @@ export function LibraryPage({ language, onAvailability, onListen, onPlay, onPrac
       if (!response.ok) throw new Error("Library unavailable");
       const data = await response.json() as { items: LearningItem[] };
       setItems(data.items || []); setLoadError(false); onAvailability(true);
-    } catch { setItems([]); setLoadError(true); onAvailability(false); }
+    } catch { setLoadError(true); onAvailability(false); }
   };
   const loadTopics = async () => {
     const response = await apiFetch(`/api/islands?language=${language}`);
@@ -59,6 +60,7 @@ export function LibraryPage({ language, onAvailability, onListen, onPlay, onPrac
   };
 
   useEffect(() => {
+    setItems(cachedItems.filter((item) => item.language === language));
     setStatus("all"); setTopic("all"); setTopicItemIds([]); setBatch(null); setAdded(false);
     void load(); void loadTopics().catch(() => { setTopics([]); setLoadError(true); onAvailability(false); });
   }, [language]);

@@ -19,7 +19,6 @@ services:
       SESSION_SECRET_FILE: /run/rehearsal-secrets/session_secret
       SESSION_COOKIE_SECURE: "true"
       TRUST_PROXY: 127.0.0.1
-      OPENAI_MODEL_ROUTING_PATH: /data/model-routing.json
     ports:
       - "127.0.0.1:8788:8787"
     volumes:

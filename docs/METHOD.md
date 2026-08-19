@@ -2,23 +2,25 @@
 
 ## Outcome
 
-Rehearsal builds automatic English and Latvian around one student's real life. Fluency is treated as a performance skill: useful language is prepared and recalled until delivery no longer requires conscious grammar calculation; supported English material is also heard and spoken aloud.
+Rehearsal builds automatic English and Latvian around each learner's real life. Fluency is treated as a performance skill: useful language is prepared and recalled until delivery no longer requires conscious grammar calculation; supported English material is also heard and spoken aloud.
 
 ## Content model
 
 The visible unit is always a card. A card can hold a focus word in context, one sentence, a connected language island, or a short paragraph. These are different lengths of material, not separate product systems.
 
-A Topic is a collection of cards around one part of Roman's real life. “Language island” remains the learning-method term; the product calls the collection a Topic. One card may appear in more than one Topic. Topics filter Practice and Library; deleting a Topic never deletes its cards. A Topic always describes a real-life context such as work, cafés, the gym, or relationships. Linguistic forms such as conditionals and phrasal verbs are patterns or tags, not Topics.
+A Topic is a collection of cards around one part of the active learner's real life. “Language island” remains the learning-method term; the product calls the collection a Topic. One card may appear in more than one Topic. Topics filter Practice and Library; deleting a Topic never deletes its cards. A Topic always describes a real-life context such as work, cafés, the gym, or relationships. Linguistic forms such as conditionals and phrasal verbs are patterns or tags, not Topics.
 
 Good material is:
 
-- something Roman would realistically say;
+- something the active learner would realistically say;
 - a complete, natural utterance rather than an isolated definition;
-- current adult language for a speaker born in 1992: casual or neutral, without bookish wording, stale idioms, or forced Gen-Z slang;
+- current adult language: casual or neutral, without bookish wording, stale idioms, or forced generational slang;
 - useful enough to recall and say aloud repeatedly;
 - tagged by real-life topic and frequency.
 
 Every generated candidate records a frequency band (`core`, `common`, `specific`, `rare`), currency (`current`, `contextual`, `dated`, `uncertain`), personal fit, naturalness, and commonness. Uncertain slang, idioms, and regional wording may be verified with a low-context web search before being proposed.
+
+Personalization is profile-specific. Roman keeps the established context: a Russian-speaking adult born in 1992 with direct, casual, thoughtful language and familiar life anchors when they genuinely fit. Oliver is configured only as a Russian-speaking adult; the model must not invent his age, interests, work, relationships, location, or lifestyle. Conversation facts supplied by either learner may be used within that conversation.
 
 ## Daily loop
 
@@ -26,17 +28,17 @@ The core production cycle is `Capture → Review → Library → Listen & Repeat
 
 ### Capture Reality
 
-Tutor has a Notebook for thoughts Roman would genuinely want to express. A note can be typed directly in Russian or recorded freely and transcribed by OpenAI. Typed and transcribed notes enter the same ready queue, may be edited, and may accumulate across days.
+Tutor has a Notebook for thoughts the active learner genuinely wants to express. A note can be typed directly in Russian or recorded freely and transcribed by OpenAI. Typed and transcribed notes enter the same ready queue, may be edited, and may accumulate across days.
 
 `Prepare cards` takes the oldest ready notes within a 50,000-character window, removes repetition, separates ideas, and proposes up to 100 complete, natural utterances with one primary Topic. Active proposals are included by default. Each proposal has its own optional comment. Pressing the review action saves selected proposals whose comments are empty and asks the model to replace only the commented proposals. The replacements remain in the same Review for another decision; a failed request preserves every comment and saves nothing from that request.
 
-The source audio is temporary: it is deleted as soon as transcription succeeds. A failed transcription retains the audio only for Retry or Delete.
+Before upload, the browser stores one pending recording per profile and language in IndexedDB. It survives a PWA restart and remains available for Retry or Delete. The browser copy is removed only after the server confirms the upload. Server-side source audio is temporary and is deleted as soon as transcription succeeds; a failed transcription retains it only for Retry or Delete.
 
 ### Recall
 
-Recall opens on the complete current FSRS due queue. The compact Topic and count controls are optional adjustments, not a required setup step: the selected Russian prompts are visible immediately below them, and Roman may start without making a choice. Roman may narrow the queue to one Topic, choose 10, 20, 50, or all matching cards, or explicitly switch to Library practice. On desktop, every visible prompt has its own written-answer field and the list reveals more cards in small batches. Focus mode remains available when Roman wants one finite session. On phones, Recall keeps the one-card focused session because a list of simultaneous text fields is not touch-efficient.
+Recall opens on the complete current FSRS due queue. The compact Topic and count controls are optional adjustments, not a required setup step: the selected Russian prompts are visible immediately below them, and the learner may start without making a choice. The queue may be narrowed to one Topic, 10, 20, 50, or all matching cards, or explicitly switched to Library practice. On desktop, every visible prompt has its own written-answer field and the list reveals more cards in small batches. Focus mode remains available for one finite session. On phones, Recall keeps the one-card focused session because a list of simultaneous text fields is not touch-efficient.
 
-The card shows a natural Russian cue. Roman types the complete target-language version and presses Enter. Comparison is local and immediate. For English, checking also plays the natural answer so Roman can repeat it aloud; this automatic playback is enabled by default and may be disabled in Settings. The same card shows his answer, the natural answer, their differences, and a manual Play action; an FSRS grade then schedules it. A second Enter accepts the selected grade and advances.
+The card shows a natural Russian cue. The learner types the complete target-language version and presses Enter. Comparison is local and immediate. For English, checking also plays the natural answer for spoken repetition; this automatic playback is enabled by default and may be disabled in Settings. The same card shows the submitted answer, the natural answer, their differences, and a manual Play action; an FSRS grade then schedules it. A second Enter accepts the selected grade and advances.
 
 Within the current session, `Again` returns the card after one other card and `Hard` returns it after several others. `Good` and `Easy` complete it for the session. These positions provide immediate reinforcement and do not replace the server's FSRS due date. A failed grade request keeps the answer, comparison, and selected grade available for retry.
 
@@ -44,7 +46,7 @@ Recall is the main memory metric, but Rehearsal has no universal daily quota or 
 
 ### Listen & Repeat
 
-Listen & Repeat is the second and only other Practice mode. It also opens on the complete current FSRS due queue and shows the selected cards immediately. Roman may play that default queue without configuring it, narrow it by Topic or count, or explicitly switch to all Library cards. The player exposes Play/Pause, Previous, Replay, Next, Stop, and Russian reveal. The saved voice, natural-speed default, repetition count, and pause apply to the whole queue. Playback changes apply automatically to the next card request; the Russian cue is never spoken.
+Listen & Repeat is the second and only other Practice mode. It also opens on the complete current FSRS due queue and shows the selected cards immediately. The learner may play that default queue without configuring it, narrow it by Topic or count, or explicitly switch to all Library cards. The player exposes Play/Pause, Previous, Replay, Next, Stop, and Russian reveal. The saved voice, natural-speed default, repetition count, and pause apply to the whole queue. Playback changes apply automatically to the next card request; the Russian cue is never spoken.
 
 Listen & Repeat is currently available for English only. Latvian stays written-only in Practice and Library until a voice provider is good enough for it; the product does not silently substitute an unsuitable Latvian voice.
 
@@ -60,7 +62,7 @@ Tutor behaves like a normal ChatGPT conversation or role-play. It does not inter
 
 ## Approval boundary
 
-LLM output never enters Library automatically. Tutor conversation review, pasted vocabulary, imported text, pattern drills, and Capture Reality all produce a review batch. Ordinary review candidates start unselected; Capture Reality selects active candidates by default so the notebook remains a batch workflow rather than a one-by-one import. Roman may edit, regenerate, change context, exclude, select, or revise a whole capture package. Only the final add action writes cards to Library, atomically.
+LLM output never enters Library automatically. Tutor conversation review, pasted vocabulary, imported text, pattern drills, and Capture Reality all produce a review batch. Ordinary review candidates start unselected; Capture Reality selects active candidates by default so the notebook remains a batch workflow rather than a one-by-one import. The learner may edit, regenerate, change context, exclude, select, or revise a whole capture package. Only the final add action writes cards to Library, atomically.
 
 Raw sources and rejected proposals may be retained for recovery and future analysis, but they are not practice material.
 
@@ -71,7 +73,7 @@ For a list of up to roughly 100 words or phrases:
 1. Paste or upload the list in Tutor.
 2. The system deduplicates and triages entries as active, recognition-only, or skip.
 3. Each useful active entry gets one strong personal anchor sentence with a complete Russian cue.
-4. Results appear in pages of eight. Roman can request another version or a different context.
+4. Results appear in pages of eight. The learner can request another version or a different context.
 5. Only selected cards enter Library.
 6. The daily new-card limit (10 by default) limits the FSRS `Due now` queue; all Library cards remain available for custom Recall and Listen & Repeat.
 
@@ -91,8 +93,8 @@ The server database is the only source of learning content, schedules, and Learn
 - Terra: conversation review, contextual generation, pattern drills, and other tasks requiring judgment.
 - Luna: high-volume utility work and currentness checks.
 
-Available model IDs are checked periodically. A failed refresh keeps the last known working routing.
+These role assignments are pinned. `npm run models:check` can manually verify the configured IDs with small canary requests before a deliberate model change; it never discovers, selects, or writes new runtime models. Prompt sources, Tutor history, individual messages, and output tokens have hard server-side budgets.
 
 ## Deferred on purpose
 
-Pronunciation scoring, App Store distribution, fully native mobile rewrites, offline packs, and multi-user accounts are not required for the first usable single-student version. The intended phone delivery is an installable Home Screen PWA in standalone mode; interaction and layout rules live in `docs/MOBILE_APP_DIRECTION.md`.
+Pronunciation scoring, App Store distribution, fully native mobile rewrites, offline packs, public account registration, and administration are not current requirements. The phone delivery is the installed Home Screen PWA in standalone mode; interaction and layout rules live in `docs/MOBILE_APP_DIRECTION.md`.

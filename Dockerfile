@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 
 WORKDIR /app
 RUN apt-get update \
@@ -12,7 +12,7 @@ ENV VITE_BASE_PATH=$VITE_BASE_PATH
 RUN npm run build
 RUN npm prune --omit=dev && npm cache clean --force
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production \

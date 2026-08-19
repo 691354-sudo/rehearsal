@@ -4,16 +4,16 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { config, openAIConfigured } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
-import { getModelRouting } from "../model-routing.js";
 import type { LanguageCode, LearningItem, ReviewBatchKind, ReviewCandidate } from "../types.js";
+import { aiLimits, assertAiSourceWithinBudget, conversationSourceWithinBudget } from "./ai-limits.js";
 import { resolveCaptureReview as resolveCaptureReviewService } from "./capture-review.js";
 import {
-  generatedCandidateSchema,
   generatedMaterialSchema,
   materialInstructions,
   targetLanguageName,
   toCandidate,
 } from "./material-generation.js";
+import { genericLearnerPersona, type LearnerPersona } from "./learner-persona.js";
 
 const evaluationSchema = z.object({
   score: z.number().min(0).max(1),
@@ -34,10 +34,10 @@ const evaluationSchema = z.object({
 
 const currencyCheckSchema = z.object({
   items: z.array(z.object({
-    id: z.string(),
+    id: z.string().uuid(),
     frequencyBand: z.enum(["core", "common", "specific", "rare"]),
     currency: z.enum(["current", "contextual", "dated"]),
-  })),
+  })).max(8),
 });
 
 export type AttemptEvaluation = z.infer<typeof evaluationSchema>;
@@ -102,7 +102,10 @@ export class OpenAIService {
     ? new OpenAI({ apiKey: config.openaiApiKey })
     : null;
 
-  constructor(private readonly repository: OpenAIRepositories) {}
+  constructor(
+    private readonly repository: OpenAIRepositories,
+    readonly learner: LearnerPersona = genericLearnerPersona,
+  ) {}
 
   get configured() {
     return Boolean(this.client);
@@ -142,15 +145,16 @@ export class OpenAIService {
     const uncertain = candidates.filter((candidate) => candidate.currency === "uncertain").slice(0, 8);
     if (!uncertain.length) return candidates;
     const response = await this.client.responses.parse({
-      model: getModelRouting().utility,
+      model: config.utilityModel,
       reasoning: { effort: "low" },
       tools: [{ type: "web_search", search_context_size: "low" }],
       instructions:
-        `Verify whether these ${targetLanguageName(language)} expressions are current and naturally used by adults in 2026. ` +
+        `Verify whether these ${targetLanguageName(language)} expressions are current and naturally used by adults in ${new Date().getFullYear()}. ` +
         "Use web search only for this linguistic currency check. Classify frequency conservatively. " +
         "Current means normal adult usage, not merely attested, historical, or forced youth slang. Return every supplied id.",
       input: JSON.stringify(uncertain.map(({ id, target, focusTerms }) => ({ id, target, focusTerms }))),
       text: { format: zodTextFormat(currencyCheckSchema, "currency_check") },
+      max_output_tokens: aiLimits.utilityOutputTokens,
     });
     const checks = new Map((response.output_parsed?.items || []).map((item) => [item.id, item]));
     return candidates.map((candidate) => {
@@ -173,12 +177,11 @@ export class OpenAIService {
       .digest("hex");
     const cached = this.repository.audio.get(cacheKey);
     if (cached) return { ...cached, cached: true };
-    const languageName = input.language === "lv" ? "Latvian" : input.language === "ru" ? "Russian" : "English";
     const response = await this.client.audio.speech.create({
       model: config.ttsModel,
       voice,
       input: input.text,
-      instructions: `Speak clear, natural ${languageName} for language shadowing. Keep a conversational rhythm and neutral emotion. Speed: ${speed}x.`,
+      speed,
       response_format: "mp3",
     });
     const audio = Buffer.from(await response.arrayBuffer());
@@ -212,15 +215,16 @@ export class OpenAIService {
       return { batch, mode: "stored" as const };
     }
     const response = await this.client.responses.parse({
-      model: getModelRouting().balanced,
+      model: config.balancedModel,
       reasoning: { effort: "low" },
-      instructions: materialInstructions(input.language, input.task),
+      instructions: materialInstructions(this.learner, input.language, input.task),
       input: JSON.stringify({
         targetLanguage: targetLanguageName(input.language),
         title: input.title,
-        material: input.sourceText.slice(0, 50_000),
+        material: assertAiSourceWithinBudget(input.sourceText),
       }),
       text: { format: zodTextFormat(generatedMaterialSchema, "learning_candidates") },
+      max_output_tokens: aiLimits.batchOutputTokens,
     });
     if (!response.output_parsed) throw new Error("The tutor did not return prepared material");
     const candidates = await this.verifyUncertainCandidates(
@@ -282,7 +286,7 @@ export class OpenAIService {
         "Turn these Russian personal voice-note transcripts into at most 100 high-value speaking cards. " +
         "Merge repeated intentions, ignore filler and recording artifacts, and split distinct useful thoughts. " +
         "Translate intended meaning rather than wording. Prefer direct casual or neutral adult speech, never corporate or bookish phrasing. " +
-        "Each active item must be a complete sentence Roman would realistically say. Use one real-life topic in category.",
+        `Each active item must be a complete sentence ${this.learner.name} would realistically say. Use one real-life topic in category.`,
     });
   }
 
@@ -291,9 +295,10 @@ export class OpenAIService {
     if (!batch || batch.status !== "draft") return null;
     if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
     const response = await this.client.responses.parse({
-      model: getModelRouting().balanced,
+      model: config.balancedModel,
       reasoning: { effort: "low" },
       instructions: materialInstructions(
+        this.learner,
         batch.language,
         "Revise the complete proposal batch using the user's Russian feedback. " +
           "Numbers in the feedback refer to the current one-based candidate order. " +
@@ -302,11 +307,12 @@ export class OpenAIService {
       ),
       input: JSON.stringify({
         title: batch.title,
-        source: batch.sourceText,
+        source: assertAiSourceWithinBudget(batch.sourceText),
         currentCandidates: batch.candidates.map((candidate, index) => ({ number: index + 1, ...candidate })),
         feedback: input.feedback.trim(),
       }),
       text: { format: zodTextFormat(generatedMaterialSchema, "revised_learning_candidates") },
+      max_output_tokens: aiLimits.batchOutputTokens,
     });
     if (!response.output_parsed) throw new Error("The tutor did not return revised material");
     const candidates = await this.verifyUncertainCandidates(
@@ -325,6 +331,7 @@ export class OpenAIService {
       client: this.client,
       input,
       repository: this.repository,
+      learner: this.learner,
       verifyCandidates: (candidates, language) => this.verifyUncertainCandidates(candidates, language),
     });
   }
@@ -339,10 +346,10 @@ export class OpenAIService {
       kind: "chat_review",
       title: "Tutor conversation review",
       sourceThreadPublicId: input.threadPublicId,
-      sourceText: input.messages.map((message) => `${message.role}: ${message.content}`).join("\n\n"),
+      sourceText: conversationSourceWithinBudget(input.messages),
       task:
-        "Review the complete conversation after it has ended. Extract only the student's meaningful recurring mistakes, " +
-        "high-value phrases he was trying to say, and a few reusable patterns. Do not nitpick every sentence. " +
+        "Review the available conversation after it has ended. Extract only the learner's meaningful recurring mistakes, " +
+        "high-value phrases they were trying to say, and a few reusable patterns. Do not nitpick every sentence. " +
         "Correct collocations and sentence structure first. Return at most 20 proposals.",
     });
   }
@@ -369,9 +376,10 @@ export class OpenAIService {
     if (!batch || !original) return null;
     if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
     const response = await this.client.responses.parse({
-      model: getModelRouting().balanced,
+      model: config.balancedModel,
       reasoning: { effort: "low" },
       instructions: materialInstructions(
+        this.learner,
         batch.language,
         input.instruction === "different_context"
           ? "Replace the candidate with one natural example using the same focus term in a clearly different relevant context. Return exactly one item."
@@ -379,6 +387,7 @@ export class OpenAIService {
       ),
       input: JSON.stringify({ batchTitle: batch.title, original }),
       text: { format: zodTextFormat(generatedMaterialSchema, "replacement_candidate") },
+      max_output_tokens: aiLimits.utilityOutputTokens,
     });
     const generated = response.output_parsed?.items[0];
     if (!generated) throw new Error("The tutor did not return a replacement");

@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, Mic, Plus, RefreshCw, Save, Square, Trash2, WandSparkles } from "lucide-react";
+import type { ProfileId } from "../../../contracts/api";
 import { apiFetch } from "../../shared/api";
 import type { Language } from "../../shared/contracts";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
+import {
+  deletePendingRecording,
+  loadPendingRecording,
+  type PendingRecording,
+  savePendingRecording,
+} from "./pendingRecordings";
 
 type CaptureStatus = "transcribing" | "ready" | "batched" | "processed" | "failed";
 type CaptureNote = {
@@ -24,14 +31,15 @@ const preferredMimeTypes = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"]
 const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 const friendlyError = (error: unknown) => {
   if (error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError")) {
-    return "Microphone access is blocked. Allow it in Brave settings and try again.";
+    return "Microphone access is blocked. Allow it in your browser or Home Screen app settings and try again.";
   }
   if (error instanceof Error) return error.message;
   return "Something went wrong. Nothing was added to Library.";
 };
 
-export function CaptureNotebook({ language, onLibrary, onListen }: {
+export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
   language: Language;
+  profileId: ProfileId;
   onLibrary: () => void;
   onListen: () => void;
 }) {
@@ -46,7 +54,7 @@ export function CaptureNotebook({ language, onLibrary, onListen }: {
   const [processing, setProcessing] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [remaining, setRemaining] = useState(0);
-  const [pendingAudio, setPendingAudio] = useState<Blob | null>(null);
+  const [pendingRecording, setPendingRecording] = useState<PendingRecording | null>(null);
   const [notice, setNotice] = useState("");
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -72,31 +80,45 @@ export function CaptureNotebook({ language, onLibrary, onListen }: {
   };
 
   useEffect(() => {
-    setNotes([]); setDrafts({}); setBatch(null); setNotice(""); setRemaining(0); setAdded(false);
-    void refresh().catch((error) => setNotice(friendlyError(error)));
+    let cancelled = false;
+    setNotes([]); setDrafts({}); setBatch(null); setPendingRecording(null);
+    setNotice(""); setRemaining(0); setAdded(false);
+    void Promise.allSettled([refresh(), loadPendingRecording(profileId, language)]).then((results) => {
+      if (cancelled) return;
+      const [remote, local] = results;
+      if (local.status === "fulfilled" && local.value) {
+        setPendingRecording(local.value);
+        setNotice("Recovered an unsent recording from this device.");
+      } else if (remote.status === "rejected") {
+        setNotice(friendlyError(remote.reason));
+      }
+    });
     return () => {
+      cancelled = true;
       stopTimers();
       const recorder = recorderRef.current;
       if (recorder && recorder.state !== "inactive") recorder.stop();
       recorderRef.current = null; releaseStream();
     };
-  }, [language]);
+  }, [language, profileId]);
 
-  const upload = async (blob: Blob) => {
+  const upload = async (blob: Blob, savedRecording?: PendingRecording) => {
     if (!blob.size) { setNotice("The recording was empty. Try again closer to the microphone."); return; }
     if (blob.size > maxBytes) { setNotice("The recording is larger than 25 MB. Record a shorter note."); return; }
-    setPendingAudio(blob);
-    setUploading(true); setNotice("Transcribing your Russian note with OpenAI…");
+    const extension = blob.type.includes("mp4") ? "m4a" : "webm";
     try {
-      const extension = blob.type.includes("mp4") ? "m4a" : "webm";
-      const form = new FormData(); form.append("audio", blob, `capture.${extension}`);
+      const recording = savedRecording || await savePendingRecording(profileId, language, blob, `capture.${extension}`);
+      setPendingRecording(recording);
+      setUploading(true); setNotice("Uploading and transcribing your Russian note…");
+      const form = new FormData(); form.append("audio", recording.blob, recording.filename);
       const response = await apiFetch(`/api/captures?language=${language}`, { method: "POST", body: form });
       if (!response.ok) {
         const body = await response.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error === "UNSUPPORTED_AUDIO_TYPE" ? "Brave produced an unsupported audio format." : "The recording could not be uploaded.");
+        throw new Error(body.error === "UNSUPPORTED_AUDIO_TYPE" ? "The browser produced an unsupported audio format." : "The recording could not be uploaded.");
       }
       const data = await response.json() as { note: CaptureNote; transcriptionFailed?: boolean };
-      setPendingAudio(null);
+      await deletePendingRecording(profileId, language);
+      setPendingRecording(null);
       setNotice(data.transcriptionFailed ? "Transcription failed. The audio is safe for Retry or Delete." : "Transcription ready. You can edit it below.");
       await refresh();
     } catch (error) { setNotice(friendlyError(error)); }
@@ -104,14 +126,14 @@ export function CaptureNotebook({ language, onLibrary, onListen }: {
   };
 
   const startRecording = async () => {
-    if (recording || uploading) return;
+    if (recording || uploading || pendingRecording) return;
     setNotice(""); setElapsed(0); chunksRef.current = [];
     try {
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-        throw new Error("Audio recording is not supported in this version of Brave.");
+        throw new Error("Audio recording is not supported in this browser.");
       }
       const mimeType = preferredMimeTypes.find((type) => MediaRecorder.isTypeSupported(type));
-      if (!mimeType) throw new Error("Brave does not expose a supported recording format on this iPhone.");
+      if (!mimeType) throw new Error("This browser does not expose a supported recording format.");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType });
       recorderRef.current = recorder; streamRef.current = stream;
@@ -194,15 +216,17 @@ export function CaptureNotebook({ language, onLibrary, onListen }: {
       <div><button className="simple-primary" disabled={!textDraft.trim() || addingText} onClick={() => void addText()} type="button">
         {addingText ? <LoaderCircle className="simple-spin" size={16} /> : <Plus size={16} />}Add note</button>
         <button aria-label={recording ? "Stop recording" : "Start recording"} className={`capture-record${recording ? " is-recording" : ""}`}
-          disabled={uploading} onClick={recording ? stopRecording : () => void startRecording()} type="button">
+          disabled={uploading || Boolean(pendingRecording)} onClick={recording ? stopRecording : () => void startRecording()} type="button">
           {recording ? <Square fill="currentColor" size={16} /> : uploading ? <LoaderCircle className="simple-spin" size={17} /> : <Mic size={17} />}
           <span>{recording ? formatDuration(elapsed) : uploading ? "Transcribing" : "Record"}</span>
         </button></div>
     </div>
     {notice ? <div aria-live="polite" className="capture-notice">{notice}</div> : null}
-    {pendingAudio && !uploading ? <div className="capture-pending-audio"><span>The recording is still on this screen and has not been uploaded.</span>
-      <div><button onClick={() => void upload(pendingAudio)} type="button"><RefreshCw size={14} />Retry upload</button>
-        <button onClick={() => { setPendingAudio(null); setNotice("Unsent recording deleted."); }} type="button"><Trash2 size={14} />Delete recording</button></div></div> : null}
+    {pendingRecording && !uploading ? <div className="capture-pending-audio"><span>This recording is saved on this device until the server accepts it.</span>
+      <div><button onClick={() => void upload(pendingRecording.blob, pendingRecording)} type="button"><RefreshCw size={14} />Retry upload</button>
+        <button onClick={() => void deletePendingRecording(profileId, language).then(() => {
+          setPendingRecording(null); setNotice("Unsent recording deleted from this device.");
+        }).catch((error) => setNotice(friendlyError(error)))} type="button"><Trash2 size={14} />Delete recording</button></div></div> : null}
 
     <div className="capture-list-heading"><div><h3>Notebook</h3><span>{notes.length} {notes.length === 1 ? "note" : "notes"}</span></div>
       <button className="simple-primary" disabled={!readyCount || processing || Boolean(batch)} onClick={() => void prepare()} type="button">
