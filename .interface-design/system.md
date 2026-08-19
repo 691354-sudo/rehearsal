@@ -52,10 +52,13 @@ Rehearsal is a pragmatic, practice-first personal language tool. It should feel 
 - In recall, every card exposes a compact target-language input. Focusing an input activates its card without navigating away.
 - Recall is a two-Enter loop: first Enter evaluates locally and shows an inline word diff; second Enter accepts the suggested memory grade, moves the card, and focuses the next phrase.
 - `Again`, `Hard`, `Good`, and `Easy` belong only to recall because they grade memory. The suggested grade is the focused default.
-- Each recall grade carries a quiet second-line interval preview. Reviewed cards leave the feed immediately and return only when FSRS marks them due.
+- Each recall grade carries a quiet second-line interval preview. Reviewed cards leave the `Due now` scope until FSRS marks them due again, but remain available under `All Library cards`.
 - In shadowing, listening and repetition are one mode. Playback rhythm lives in settings, not in separate mode tabs.
 - Shadowing has only playback, translation reveal, and a quiet next action; it does not ask for a memory grade.
 - Drill is an inline action above the Cards feed, never a separate page or mode tab. It reads the visible queue from top to bottom with one persistent player and one cached MP3 per card.
+- Drill and its expanded Playback controls share one bordered control surface; Playback is an inset subsection, not another peer card.
+- Cards render as one grouped list surface with quiet row dividers. A small `Cards · N shown from N in Library` heading separates content from session controls.
+- Practice defaults to the complete Library inventory. `Due now`, Topic, and frequency are explicit filters; manual, due-first, new-first, and A–Z are explicit sorts.
 - Topic selection is an optional multi-select filter. Manual card order and loop marks appear only when `Order` is active and persist per language on the device.
 - A Drill first plays the complete visible queue once, then continues only the loop-marked cards until stopped.
 - Inactive recall cards use a quiet `Show in EN/LV` action instead of explanatory hidden-answer copy.
@@ -67,7 +70,7 @@ Rehearsal is a pragmatic, practice-first personal language tool. It should feel 
 ## Global settings
 
 - The header gear opens one right-side settings panel; it is available from every route.
-- Voice, repetitions, speed, and pause are device preferences and update immediately.
+- Voice, repetitions, speed, and pause are one shared device preference: Global Settings defines the default and Cards edits the same values immediately.
 - Voice options use the muted violet selected state; Marin and Cedar carry quiet recommended labels.
 - FSRS retention, maximum interval, learning steps, relearning steps, and fuzz are saved explicitly to the database.
 - Scheduler settings use compact table rows and familiar units rather than explanatory cards.

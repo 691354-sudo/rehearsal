@@ -9,7 +9,14 @@ import "@fontsource-variable/inter";
 import { useSpeech } from "../hooks/useSpeech";
 import { evaluateAttempt } from "../lib/compare";
 import { apiPath } from "../lib/api";
-import { moveDrillItem, orderDrillItems, reconcileDrillOrder, type DrillDirection } from "../lib/drillQueue";
+import {
+  moveDrillItem, reconcileDrillOrder, sortPracticeItems,
+  type DrillDirection, type PracticeSort,
+} from "../lib/drillQueue";
+import {
+  clampPlaybackSpeed, defaultElevenLabsSpeedRange, speedRangeForProvider,
+  type PlaybackProvider,
+} from "../lib/playbackSettings";
 import {
   moveReviewRating,
   moveReviewedItem,
@@ -69,7 +76,7 @@ type ChatThread = {
   updatedAt: string;
   messageCount: number;
 };
-type TtsProvider = "openai" | "elevenlabs";
+type TtsProvider = PlaybackProvider;
 type ElevenLabsPreferences = {
   modelId: "eleven_multilingual_v2" | "eleven_flash_v2_5";
   stability: number;
@@ -119,7 +126,13 @@ type SchedulerSettings = {
 };
 type DailyProgress = { recall: number; shadow: number; pattern: number };
 type DrillStatus = "idle" | "loading" | "playing" | "paused" | "complete" | "error";
-type DrillPreferences = { order: string[]; loopIds: string[]; topics: string[] };
+type DrillPreferences = {
+  order: string[];
+  loopIds: string[];
+  topics: string[];
+  scope: "all" | "due";
+  sort: PracticeSort;
+};
 
 const defaultPlayback: PlaybackPreferences = {
   provider: "openai",
@@ -140,12 +153,11 @@ const defaultElevenLabsConfig: ElevenLabsConfig = {
   configured: false,
   voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
   models: ["eleven_multilingual_v2", "eleven_flash_v2_5"],
-  speedRange: { min: 0.7, max: 1.2 },
+  speedRange: defaultElevenLabsSpeedRange,
   defaults: { ...defaultPlayback.elevenlabs, speed: 1.05 },
   note: "Generated MP3 files are cached on this server.",
 };
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const humanizeLabel = (value: string) => value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 
 const defaultSchedulerSettings: SchedulerSettings = {
@@ -177,9 +189,12 @@ const loadDrillPreferences = (language: Language): DrillPreferences => {
       order: Array.isArray(saved.order) ? saved.order.map(String) : [],
       loopIds: Array.isArray(saved.loopIds) ? saved.loopIds.map(String) : [],
       topics: Array.isArray(saved.topics) ? saved.topics.map(String) : [],
+      scope: saved.scope === "due" ? "due" : "all",
+      sort: ["due-first", "new-first", "alphabetical"].includes(String(saved.sort))
+        ? saved.sort as PracticeSort : "manual",
     };
   } catch {
-    return { order: [], loopIds: [], topics: [] };
+    return { order: [], loopIds: [], topics: [], scope: "all", sort: "manual" };
   }
 };
 
@@ -208,6 +223,7 @@ export function DesignLab() {
   const [attempts, setAttempts] = useState<Record<string, AttemptDraft>>({});
   const [revealedItems, setRevealedItems] = useState<string[]>([]);
   const [items, setItems] = useState<LearningItem[]>(fallbackItems[language]);
+  const [dueItemIds, setDueItemIds] = useState<string[]>([]);
   const [activeItemId, setActiveItemId] = useState(fallbackItems[language][0].publicId);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>({ recall: 0, shadow: 0, pattern: 0 });
   const [playback, setPlayback] = useState<PlaybackPreferences>(() => {
@@ -217,7 +233,7 @@ export function DesignLab() {
         ...defaultPlayback,
         ...saved,
         elevenlabs: { ...defaultPlayback.elevenlabs, ...saved.elevenlabs },
-        speed: saved.provider === "elevenlabs" ? clamp(saved.speed ?? 1.05, 0.7, 1.2) : (saved.speed ?? 1),
+        speed: clampPlaybackSpeed(saved.provider === "elevenlabs" ? "elevenlabs" : "openai", saved.speed ?? 1),
       };
     } catch {
       return defaultPlayback;
@@ -236,6 +252,12 @@ export function DesignLab() {
   const { speak, stop } = useSpeech();
   const audioSequenceRef = useRef(0);
   const audioCancelRef = useRef<(() => void) | null>(null);
+  const updatePlayback = useCallback((next: PlaybackPreferences) => {
+    setPlayback({
+      ...next,
+      speed: clampPlaybackSpeed(next.provider, next.speed, elevenLabsConfig.speedRange),
+    });
+  }, [elevenLabsConfig.speedRange]);
 
   useEffect(() => {
     window.localStorage.setItem("rehearsal:theme", theme);
@@ -247,8 +269,13 @@ export function DesignLab() {
     window.localStorage.setItem("rehearsal:playback", JSON.stringify(playback));
   }, [playback]);
   useEffect(() => {
+    const speed = clampPlaybackSpeed(playback.provider, playback.speed, elevenLabsConfig.speedRange);
+    if (speed !== playback.speed) setPlayback((current) => ({ ...current, speed }));
+  }, [elevenLabsConfig.speedRange, playback.provider, playback.speed]);
+  useEffect(() => {
     window.localStorage.setItem("rehearsal:language", language);
-    setItems(fallbackItems[language]); setAttempts({}); setActiveItemId(fallbackItems[language][0].publicId); setRevealedItems([]);
+    setItems(fallbackItems[language]); setDueItemIds([]); setAttempts({});
+    setActiveItemId(fallbackItems[language][0].publicId); setRevealedItems([]);
     void loadItems(language);
   }, [language]);
   useEffect(() => {
@@ -300,15 +327,20 @@ export function DesignLab() {
   const loadItems = async (nextLanguage: Language) => {
     try {
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-      const [itemsResponse, progressResponse] = await Promise.all([
+      const [libraryResponse, dueResponse, progressResponse] = await Promise.all([
+        fetch(apiPath(`/api/items?language=${nextLanguage}&limit=500`)),
         fetch(apiPath(`/api/practice/due?language=${nextLanguage}&limit=50`)),
         fetch(apiPath(`/api/practice/progress?language=${nextLanguage}&since=${encodeURIComponent(startOfDay.toISOString())}`)),
       ]);
-      if (!itemsResponse.ok || !progressResponse.ok) throw new Error("API unavailable");
-      const data = await itemsResponse.json() as { items: LearningItem[] };
+      if (!libraryResponse.ok || !dueResponse.ok || !progressResponse.ok) throw new Error("API unavailable");
+      const library = await libraryResponse.json() as { items: LearningItem[] };
+      const due = await dueResponse.json() as { items: LearningItem[] };
       const progress = await progressResponse.json() as DailyProgress & { completed: number };
-      setItems(data.items);
-      setActiveItemId(data.items[0]?.publicId || "");
+      const dueById = new Map(due.items.map((item) => [item.publicId, item]));
+      const nextItems = library.items.map((item) => dueById.get(item.publicId) || item);
+      setItems(nextItems);
+      setDueItemIds(due.items.map((item) => item.publicId));
+      setActiveItemId(nextItems[0]?.publicId || "");
       setDailyProgress({ recall: progress.recall ?? progress.completed, shadow: progress.shadow ?? 0, pattern: progress.pattern ?? 0 });
       setApiOnline(true);
     } catch { setApiOnline(false); }
@@ -332,7 +364,8 @@ export function DesignLab() {
     });
   };
   const updatePracticeItem = (updated: LearningItem) => {
-    setItems((current) => current.map((candidate) => candidate.publicId === updated.publicId ? updated : candidate));
+    setItems((current) => current.map((candidate) => candidate.publicId === updated.publicId
+      ? { ...updated, schedule: candidate.schedule } : candidate));
   };
   const deletePracticeItem = (itemId: string) => {
     const nextItems = items.filter((candidate) => candidate.publicId !== itemId);
@@ -341,6 +374,7 @@ export function DesignLab() {
       const next = { ...current }; delete next[itemId]; return next;
     });
     setRevealedItems((current) => current.filter((publicId) => publicId !== itemId));
+    setDueItemIds((current) => current.filter((publicId) => publicId !== itemId));
     if (activeItemId === itemId) setActiveItemId(nextItems[0]?.publicId || "");
   };
   const setAnswer = (itemId: string, answer: string) => {
@@ -377,25 +411,26 @@ export function DesignLab() {
     const reviewedItem = items.find((candidate) => candidate.publicId === itemId);
     const attempt = attempts[itemId];
     if (!reviewedItem || !attempt?.evaluation) return;
-    const nextItems = items.filter((candidate) => candidate.publicId !== itemId);
-    setItems(nextItems);
-    setActiveItemId(nextItems[0]?.publicId || "");
+    const itemIndex = items.findIndex((candidate) => candidate.publicId === itemId);
+    const nextItem = items[itemIndex + 1] || items[0];
+    setActiveItemId(nextItem?.publicId === itemId ? "" : nextItem?.publicId || "");
     setDailyProgress((progress) => ({ ...progress, recall: progress.recall + 1 }));
     void fetch(apiPath("/api/attempts/evaluate"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId: reviewedItem.publicId, answer: attempt.answer, mode: "recall", rating }),
-    }).then((response) => {
+    }).then(async (response) => {
       if (!response.ok) throw new Error("Review failed");
+      const data = await response.json() as { attempt: { schedule?: LearningItem["schedule"] } };
       setApiOnline(true);
+      setDueItemIds((current) => current.filter((publicId) => publicId !== itemId));
+      setItems((current) => current.map((candidate) => candidate.publicId === itemId
+        ? { ...candidate, schedule: data.attempt.schedule || candidate.schedule } : candidate));
       setAttempts((current) => {
         const next = { ...current }; delete next[itemId]; return next;
       });
-      if (nextItems.length < 10) void loadItems(language);
     }).catch(() => {
       setApiOnline(false);
-      setItems((current) => current.some((candidate) => candidate.publicId === itemId)
-        ? current : [reviewedItem, ...current]);
       setActiveItemId(itemId);
       setDailyProgress((progress) => ({ ...progress, recall: Math.max(0, progress.recall - 1) }));
     });
@@ -529,7 +564,7 @@ export function DesignLab() {
     </header>
     {globalSettingsOpen ? <GlobalSettings
       onClose={() => setGlobalSettingsOpen(false)}
-      onPlayback={setPlayback}
+      onPlayback={updatePlayback}
       onPreview={() => playTarget("This is how your tutor will sound.", { repetitions: 1 }, true)}
       onSaveScheduler={saveSchedulerSettings}
       elevenLabs={elevenLabsConfig}
@@ -544,7 +579,7 @@ export function DesignLab() {
       onMode={(next) => { setMode(next); resetAttempts(); }} onRecallReview={commitRecall}
       onPreference={setPreference}
       onItemDeleted={deletePracticeItem} onItemUpdated={updatePracticeItem}
-      onPlayback={setPlayback} onPlay={(text) => void playTarget(text)} onShadowNext={advanceShadow}
+      dueItemIds={dueItemIds} onPlayback={updatePlayback} onPlay={(text) => void playTarget(text)} onShadowNext={advanceShadow}
       onStopPlayback={stopPlayback}
       onReveal={(publicId) => setRevealedItems((current) => current.includes(publicId)
         ? current.filter((id) => id !== publicId) : [...current, publicId])}
@@ -683,8 +718,7 @@ function GlobalSettings(props: {
   };
   const voiceDetails = [activeVoice.labels.accent, activeVoice.labels.use_case, activeVoice.labels.gender]
     .filter(Boolean).map(humanizeLabel).join(" · ") || "Configured ElevenLabs voice";
-  const speedRange = props.playback.provider === "elevenlabs"
-    ? props.elevenLabs.speedRange : { min: 0.5, max: 1.5 };
+  const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
 
   return <div className="simple-settings-overlay" onMouseDown={(event) => {
     if (event.target === event.currentTarget) props.onClose();
@@ -697,18 +731,12 @@ function GlobalSettings(props: {
 
       <div className="simple-settings-scroll">
         <section className="simple-settings-section">
-          <div className="simple-settings-section-title"><h3>Voice</h3><span>AI-generated</span></div>
+          <div className="simple-settings-section-title"><h3>Voice</h3><span>Default for Cards</span></div>
           <div className="simple-provider-switch" role="group" aria-label="Voice provider">
             {(["openai", "elevenlabs"] as TtsProvider[]).map((provider) => <button
               className={props.playback.provider === provider ? "is-active" : ""}
               key={provider}
-              onClick={() => props.onPlayback({
-                ...props.playback,
-                provider,
-                speed: provider === "elevenlabs"
-                  ? clamp(props.elevenLabs.defaults.speed, props.elevenLabs.speedRange.min, props.elevenLabs.speedRange.max)
-                  : props.playback.speed,
-              })}
+              onClick={() => props.onPlayback({ ...props.playback, provider })}
               type="button"
             >{provider === "openai" ? "OpenAI" : "ElevenLabs"}</button>)}
           </div>
@@ -769,7 +797,7 @@ function GlobalSettings(props: {
         </section>
 
         <section className="simple-settings-section">
-          <div className="simple-settings-section-title"><h3>Playback</h3><span>This device</span></div>
+          <div className="simple-settings-section-title"><h3>Playback</h3><span>Shared with Drill</span></div>
           <div className="simple-global-playback">
             <div className="simple-global-setting"><label>Repeats</label><div>
               {[1, 2, 3, 5].map((value) => <button className={props.playback.repetitions === value ? "is-active" : ""}
@@ -824,6 +852,7 @@ function GlobalSettings(props: {
 function PracticePage(props: {
   activeItemId: string;
   attempts: Record<string, AttemptDraft>;
+  dueItemIds: string[];
   items: LearningItem[];
   language: Language;
   mode: Mode;
@@ -852,6 +881,8 @@ function PracticePage(props: {
   const initialDrillPreferences = useMemo(() => loadDrillPreferences(props.language), [props.language]);
   const [topicFilters, setTopicFilters] = useState(initialDrillPreferences.topics);
   const [frequencyFilter, setFrequencyFilter] = useState("all");
+  const [practiceScope, setPracticeScope] = useState(initialDrillPreferences.scope);
+  const [practiceSort, setPracticeSort] = useState<PracticeSort>(initialDrillPreferences.sort);
   const [drillOrder, setDrillOrder] = useState(initialDrillPreferences.order);
   const [drillLoopIds, setDrillLoopIds] = useState(initialDrillPreferences.loopIds);
   const [arrangingDrill, setArrangingDrill] = useState(false);
@@ -863,20 +894,29 @@ function PracticePage(props: {
   const goal = 100;
   const progress = Math.min(100, (props.dailyProgress.recall / goal) * 100);
   const topics = useMemo(() => [...new Set(props.items.flatMap((item) => item.tags.slice(0, 1)))].filter(Boolean).sort(), [props.items]);
-  const orderedItems = useMemo(() => orderDrillItems(props.items, drillOrder), [drillOrder, props.items]);
+  const dueItemSet = useMemo(() => new Set(props.dueItemIds), [props.dueItemIds]);
+  const scopedItems = useMemo(() => practiceScope === "due"
+    ? props.items.filter((item) => dueItemSet.has(item.publicId)) : props.items,
+  [dueItemSet, practiceScope, props.items]);
+  const orderedItems = useMemo(() => sortPracticeItems(
+    scopedItems, drillOrder, practiceSort, props.dueItemIds,
+  ), [drillOrder, practiceSort, props.dueItemIds, scopedItems]);
   const visibleItems = useMemo(() => orderedItems.filter((item) =>
     (!topicFilters.length || topicFilters.includes(item.tags[0] || "")) &&
     (frequencyFilter === "all" || (item.frequencyBand || "common") === frequencyFilter)),
   [frequencyFilter, orderedItems, topicFilters]);
   const drillActive = ["loading", "playing", "paused"].includes(drillState.status);
+  const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
 
   useEffect(() => {
     window.localStorage.setItem(`rehearsal:drill:${props.language}`, JSON.stringify({
       order: reconcileDrillOrder(props.items.map((item) => item.publicId), drillOrder),
       loopIds: drillLoopIds,
       topics: topicFilters,
+      scope: practiceScope,
+      sort: practiceSort,
     } satisfies DrillPreferences));
-  }, [drillLoopIds, drillOrder, props.items, props.language, topicFilters]);
+  }, [drillLoopIds, drillOrder, practiceScope, practiceSort, props.items, props.language, topicFilters]);
 
   const updateDrillState = useCallback((status: DrillStatus, currentId: string) => {
     setDrillState((current) => current.status === status && current.currentId === currentId
@@ -923,43 +963,67 @@ function PracticePage(props: {
           <span className="simple-direction-track"><ArrowRight size={13} /></span>
           <span>{props.mode === "recall" ? targetCode : "RU"}</span>
         </button>
-        <div className="simple-filter-wrap"><button aria-expanded={filtersOpen} className="simple-filter-button" disabled={drillActive} onClick={() => setFiltersOpen((open) => !open)} type="button">
-          {!topicFilters.length ? "All topics" : topicFilters.length === 1 ? topicFilters[0] : `${topicFilters.length} topics`} <ChevronDown size={14} /></button>
-          {filtersOpen ? <div className="simple-filter-popover"><fieldset><legend>Topics</legend><div className="simple-topic-checks">
+        <div className="simple-filter-wrap"><button aria-expanded={filtersOpen}
+          aria-label={`Choose cards. ${visibleItems.length} of ${props.items.length} shown`}
+          className="simple-filter-button" disabled={drillActive} onClick={() => setFiltersOpen((open) => !open)} type="button">
+          {!topicFilters.length ? practiceScope === "all" ? "All cards" : `${props.dueItemIds.length} due`
+            : topicFilters.length === 1 ? topicFilters[0] : `${topicFilters.length} topics`} <ChevronDown size={14} /></button>
+          {filtersOpen ? <div className="simple-filter-popover">
+            <label>Cards<select onChange={(event) => setPracticeScope(event.target.value as "all" | "due")} value={practiceScope}>
+              <option value="all">All Library cards ({props.items.length})</option>
+              <option value="due">Due now ({props.dueItemIds.length})</option>
+            </select></label>
+            <label>Sort<select onChange={(event) => setPracticeSort(event.target.value as PracticeSort)} value={practiceSort}>
+              <option value="manual">Manual order</option><option value="due-first">Due first</option>
+              <option value="new-first">New first</option><option value="alphabetical">A–Z</option>
+            </select></label>
+            <fieldset><legend>Topics</legend><div className="simple-topic-checks">
             {topics.map((topic) => <label key={topic}><input checked={topicFilters.includes(topic)} onChange={() => toggleTopic(topic)} type="checkbox" /><span>{topic}</span></label>)}
           </div></fieldset>
             <label>Frequency<select onChange={(event) => setFrequencyFilter(event.target.value)} value={frequencyFilter}>
               <option value="all">Any frequency</option><option value="core">Core</option><option value="common">Common</option><option value="specific">Specific</option><option value="rare">Rare</option>
-            </select></label><button onClick={() => { setTopicFilters([]); setFrequencyFilter("all"); setFiltersOpen(false); }} type="button">Reset</button></div> : null}</div>
+            </select></label><button onClick={() => {
+              setPracticeScope("all"); setPracticeSort("manual"); setTopicFilters([]); setFrequencyFilter("all"); setFiltersOpen(false);
+            }} type="button">Reset</button></div> : null}</div>
         <button aria-label="Practice settings" className="simple-icon-button" onClick={() => setSettingsOpen((open) => !open)} type="button">
           <Settings2 size={17} />
         </button>
       </div>
     </header>
 
-    <DrillBar arranging={arrangingDrill} elevenLabsConfigured={props.elevenLabs.configured}
-      elevenLabsVoiceId={props.elevenLabs.voice.id} items={visibleItems} language={props.language}
-      loopIds={drillLoopIds} onArrange={() => setArrangingDrill((current) => !current)}
-      onBeforeStart={props.onStopPlayback} onSettings={() => setSettingsOpen((open) => !open)}
-      onState={updateDrillState} openaiConfigured={props.openaiConfigured} playback={props.playback} />
+    <section aria-label="Drill controls" className="simple-practice-controls">
+      <DrillBar arranging={arrangingDrill} elevenLabsConfigured={props.elevenLabs.configured}
+        elevenLabsVoiceId={props.elevenLabs.voice.id} items={visibleItems} language={props.language}
+        loopIds={drillLoopIds} onArrange={() => {
+          setPracticeSort("manual"); setArrangingDrill((current) => !current);
+        }}
+        onBeforeStart={props.onStopPlayback} onSettings={() => setSettingsOpen((open) => !open)}
+        onState={updateDrillState} openaiConfigured={props.openaiConfigured} playback={props.playback} />
 
-    {settingsOpen ? <section aria-label="Playback settings" className="simple-inline-settings">
-      <header><div><strong>Playback</strong><small>Shadowing rhythm for this device.</small></div>
+      {settingsOpen ? <section aria-label="Playback settings" className="simple-inline-settings">
+      <header><div><strong>Playback</strong><small>
+        {props.playback.provider === "elevenlabs" ? `ElevenLabs · ${props.elevenLabs.voice.name}` : `OpenAI · ${capitalize(props.playback.voice)}`}
+        {` · shared with Settings`}
+      </small></div>
         <button onClick={() => setSettingsOpen(false)} type="button">Done</button></header>
       <div className="simple-playback-options">
         <div className="simple-playback-setting"><span>Repeats</span><div>
           {[1, 2, 3, 5].map((value) => <button className={props.playback.repetitions === value ? "is-active" : ""}
             key={value} onClick={() => props.onPlayback({ ...props.playback, repetitions: value })} type="button">{value}×</button>)}
         </div></div>
-        <label className="simple-playback-setting simple-speed-setting"><span>Speed <strong>{props.playback.speed.toFixed(2)}×</strong></span>
-          <input aria-label="Playback speed" max="1.5" min="0.5" onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })}
+        <label className="simple-playback-setting simple-speed-setting"><span>Speed <strong>{props.playback.speed.toFixed(2)}× · {speedRange.min}–{speedRange.max}</strong></span>
+          <input aria-label="Playback speed" max={speedRange.max} min={speedRange.min} onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })}
             step="0.05" type="range" value={props.playback.speed} /></label>
         <div className="simple-playback-setting"><span>Pause</span><div>
           {[500, 1500, 3000].map((value) => <button className={props.playback.pauseMs === value ? "is-active" : ""}
             key={value} onClick={() => props.onPlayback({ ...props.playback, pauseMs: value })} type="button">{value / 1000}s</button>)}
         </div></div>
       </div>
-    </section> : null}
+      </section> : null}
+    </section>
+
+    <div className="simple-feed-heading"><div><strong>Cards</strong><span>{visibleItems.length} shown from {props.items.length} in Library</span></div>
+      <span>{practiceSort === "manual" ? "Manual order" : practiceSort === "due-first" ? "Due first" : practiceSort === "new-first" ? "New first" : "A–Z"}</span></div>
 
     <section className="simple-island-feed" aria-label="Practice feed">
       {!visibleItems.length ? <p className="simple-feed-empty">Nothing matches these filters.</p> : null}
