@@ -59,7 +59,9 @@ Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MI
 
 `GET /api/audio/elevenlabs/status` verifies that the configured voice ID is reachable and returns safe voice metadata without exposing the API key. The result is held in memory for ten minutes and can be explicitly refreshed from Settings. ElevenLabs speed is validated against its provider range of `0.7–1.2×`; Multilingual v2 omits the unsupported `language_code` field, while Flash v2.5 receives it.
 
-Drill is a client-side sequence over the visible Practice cards. The browser stores manual card order, selected Topic filters, and loop marks per language. A single persistent `<audio>` element requests one card at a time through `/api/audio/speech`, repeats it according to playback preferences, waits for the configured pause, and advances. After the first pass, only loop-marked cards continue.
+Practice loads the complete language inventory from `/api/items` and the scheduler queue from `/api/practice/due`. The due IDs are a selectable scope and sorting signal rather than an implicit restriction, so every Library card remains available without changing FSRS behavior.
+
+Drill is a client-side sequence over the visible Practice cards. The browser stores manual card order, selected scope, sorting, Topic filters, and loop marks per language. Global Settings and the inline Cards panel edit the same `rehearsal:playback` preference. Its speed is normalized for the selected provider before persistence or playback, so an invalid ElevenLabs value cannot trigger an unintended fallback. A single persistent `<audio>` element requests one card at a time through `/api/audio/speech`, repeats it according to playback preferences, waits for the configured pause, and advances. After the first pass, only loop-marked cards continue.
 
 Topic APIs are `GET /api/islands`, `GET /api/islands/:id`, `POST /api/islands`, `PATCH /api/islands/:id`, and `DELETE /api/islands/:id`. A patch may rename a Topic or replace its ordered membership atomically.
 

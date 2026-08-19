@@ -350,16 +350,24 @@
   align-items: center;
 }
 
+.simple-practice-controls {
+  margin-bottom: 22px;
+  overflow: hidden;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule-strong);
+  border-radius: 12px;
+}
+
 .simple-drill-bar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px 16px;
   align-items: center;
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  background: var(--script-surface);
-  border: 1px solid var(--script-rule);
-  border-radius: 9px;
+  margin: 0;
+  padding: 12px 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   transition: border-color 140ms ease, background 140ms ease;
 }
 
@@ -443,11 +451,12 @@
 }
 
 .simple-inline-settings {
-  margin-bottom: 12px;
-  padding: 14px;
-  background: var(--script-surface);
-  border: 1px solid var(--script-rule);
-  border-radius: 9px;
+  margin: 0;
+  padding: 12px 14px 14px;
+  background: var(--script-inset);
+  border: 0;
+  border-top: 1px solid var(--script-rule);
+  border-radius: 0;
 }
 
 .simple-inline-settings header {
@@ -536,18 +545,52 @@
   accent-color: var(--cue-light);
 }
 
+.simple-feed-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin: 0 2px 8px;
+}
+
+.simple-feed-heading > div {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+}
+
+.simple-feed-heading strong {
+  color: var(--script-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.simple-feed-heading span {
+  color: var(--script-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 .simple-island-feed {
   display: grid;
-  gap: 7px;
+  gap: 0;
+  overflow: hidden;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 12px;
 }
 
 .simple-island-card {
   position: relative;
-  padding: 12px 14px;
-  background: var(--script-surface);
-  border: 1px solid var(--script-rule);
-  border-radius: 9px;
+  padding: 14px 16px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--script-rule);
+  border-radius: 0;
   transition: background 140ms ease, border-color 140ms ease;
+}
+
+.simple-island-card:last-child {
+  border-bottom: 0;
 }
 
 .simple-island-card:hover {
@@ -555,9 +598,9 @@
 }
 
 .simple-island-card.is-current {
-  padding: 14px 15px;
-  background: var(--script-surface);
-  border-color: color-mix(in srgb, var(--cue-light) 64%, var(--script-rule));
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--cue-wash) 48%, var(--script-surface));
+  border-color: var(--script-rule);
 }
 
 .simple-island-card.is-drill-current {
@@ -568,10 +611,10 @@
 .simple-island-card.is-current::before,
 .simple-island-card.is-drill-current::before {
   position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: -1px;
-  width: 2px;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
   background: var(--cue-light);
   border-radius: 0 2px 2px 0;
   content: "";
@@ -2917,7 +2960,7 @@
   z-index: 12;
   display: grid;
   gap: 10px;
-  width: 220px;
+  width: 260px;
   padding: 12px;
   background: var(--script-surface);
   border: 1px solid var(--script-rule-strong);
@@ -4019,6 +4062,15 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     padding: 10px;
+  }
+
+  .simple-feed-heading {
+    align-items: flex-start;
+  }
+
+  .simple-feed-heading > div {
+    display: grid;
+    gap: 1px;
   }
 
   .simple-drill-primary > button.simple-primary {

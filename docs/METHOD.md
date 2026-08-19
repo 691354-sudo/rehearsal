@@ -44,9 +44,9 @@ The target-language card is played with a chosen voice, speed, repetition count,
 
 ### Drill
 
-Drill lives directly above the Cards feed. It reads the visible target-language cards from top to bottom using the selected voice, speed, pause, and repetition count. Roman may select several Topics, manually change card order, and mark a subset to continue looping after the first complete pass. The Russian cue is never spoken.
+Drill lives directly above the Cards feed. Practice can show every card in Library or only the current FSRS due queue, then filter by several Topics and frequency. The visible result may be kept in manual order or sorted due-first, new-first, or alphabetically. Drill reads that visible target-language queue from top to bottom using the selected voice, speed, pause, and repetition count. Roman may manually change card order and mark a subset to continue looping after the first complete pass. The Russian cue is never spoken.
 
-Every card is requested and played as a separate MP3 through one persistent browser audio element. Individual files are cached on the server, so the same text and voice settings do not spend provider credits twice. Drill order, Topic filters, and loop marks are device preferences. Drill never adds Recall attempts or changes FSRS.
+Every card is requested and played as a separate MP3 through one persistent browser audio element. Individual files are cached on the server, so the same text and voice settings do not spend provider credits twice. Global Voice and Playback settings are the default and single source of truth for Cards; inline tuning updates the same device preference. Provider-specific limits are enforced before playback, including ElevenLabs `0.7–1.2×`. Drill order, scope, sorting, Topic filters, and loop marks are device preferences. Drill never adds Recall attempts or changes FSRS.
 
 ### Conversation
 
@@ -67,7 +67,7 @@ For a list of up to roughly 100 words or phrases:
 3. Each useful active entry gets one strong personal anchor sentence with a complete Russian cue.
 4. Results appear in pages of eight. Roman can request another version or a different context.
 5. Only selected cards enter Library.
-6. The daily new-card limit (10 by default) prevents a large import from flooding Practice.
+6. The daily new-card limit (10 by default) limits the FSRS `Due now` queue; the explicit `All Library cards` scope remains available for Drill and manual practice.
 
 ## Pattern drills
 

@@ -43,7 +43,7 @@ Configured OpenAI capabilities:
 
 Set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in the server-side `.env` (or in `.env.elevenlabs` for the production Compose deployment), then restart the API. The browser receives only voice metadata; the API key never leaves the server.
 
-Settings → Voice verifies the configured voice against ElevenLabs and shows its real name and labels. `Quality` uses `eleven_multilingual_v2`; `Fast` uses the lower-cost `eleven_flash_v2_5`. ElevenLabs supports voice speed from `0.7×` to `1.2×`, so the UI and API enforce that range when this provider is selected.
+Settings → Voice verifies the configured voice against ElevenLabs and shows its real name and labels. `Quality` uses `eleven_multilingual_v2`; `Fast` uses the lower-cost `eleven_flash_v2_5`. Global Voice and Playback values are the defaults used by Cards, and inline Cards tuning updates that same saved preference. ElevenLabs supports voice speed from `0.7×` to `1.2×`, so every playback control and the API enforce that range when this provider is selected.
 
 Every generated card MP3 is stored in the persistent SQLite `audio_cache`. The cache identity includes provider, exact text, language, voice ID, model, speed, stability, similarity, style, and speaker boost. An identical request returns `X-Audio-Cache: HIT` and does not call ElevenLabs. Concurrent identical misses are coalesced into one paid API request. A changed phrase or voice setting intentionally creates new audio. Drill plays these cached card files one by one and never builds a combined track.
 
@@ -51,7 +51,7 @@ Every generated card MP3 is stored in the persistent SQLite `audio_cache`. The c
 
 Drill uses one persistent browser audio element but gives every card its own MP3. Before relying on it for a walk, record the device versions and run this physical check:
 
-1. Open Practice, optionally filter several Topics, and press `Start drill`.
+1. Open Practice, choose all Library cards or the due queue, optionally filter several Topics, and press `Start drill`.
 2. Lock the iPhone and leave Brave in the background.
 3. Confirm playback changes from one card file to the next and continues through pauses for at least 10 minutes.
 4. Confirm Play/Pause works on the lock screen.
