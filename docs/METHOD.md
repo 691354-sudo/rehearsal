@@ -34,7 +34,7 @@ The source audio is temporary: it is deleted as soon as transcription succeeds. 
 
 ### Recall
 
-Recall opens on the current FSRS due queue. Roman may narrow it to one Topic and choose 10, 20, 50, or all due cards. Starting creates a finite session that presents one card at a time.
+Recall opens on the complete current FSRS due queue. The compact Topic and count controls are optional adjustments, not a required setup step: the selected Russian prompts are visible immediately below them, and Roman may start the default finite session without making a choice. Roman may narrow the queue to one Topic, choose 10, 20, 50, or all matching cards, or explicitly switch to Library practice. The active session presents one card at a time.
 
 The card shows a natural Russian cue. Roman types the complete target-language version and presses Enter. Comparison is local and immediate. The same card shows his answer, the natural answer, and their differences; an FSRS grade then schedules it. A second Enter accepts the selected grade and advances.
 
@@ -44,7 +44,7 @@ Recall is the main memory metric, but Rehearsal has no universal daily quota or 
 
 ### Listen & Repeat
 
-Listen & Repeat is the second and only other Practice mode. Roman chooses a Topic and 10, 20, 50, or all available cards, then starts one continuous target-language queue. The player exposes Play/Pause, Previous, Replay, Next, Stop, and Russian reveal. The chosen voice, natural-speed default, repetition count, and pause apply to the whole queue. The Russian cue is never spoken.
+Listen & Repeat is the second and only other Practice mode. It also opens on the complete current FSRS due queue and shows the selected cards immediately. Roman may play that default queue without configuring it, narrow it by Topic or count, or explicitly switch to all Library cards. The player exposes Play/Pause, Previous, Replay, Next, Stop, and Russian reveal. The saved voice, natural-speed default, repetition count, and pause apply to the whole queue. Playback changes apply automatically to the next card request; the Russian cue is never spoken.
 
 Listen & Repeat is currently available for English only. Latvian stays written-only in Practice and Library until a voice provider is good enough for it; the product does not silently substitute an unsuitable Latvian voice.
 

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, SkipBack, SkipForward, Square } from "lucide-react";
-import { buildListenQueue } from "../../lib/listenQueue";
 import { speedRangeForProvider } from "../../lib/playbackSettings";
 import type {
   ElevenLabsConfig,
@@ -10,10 +9,13 @@ import type {
   PlaybackPreferences,
   PlaybackResult,
 } from "../../shared/contracts";
+import { PracticeQueuePreview } from "./PracticeQueuePreview";
+import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 
 type PlayerStatus = "playing" | "paused" | "error";
 
 export function ListenRepeat(props: {
+  dueItemIds: string[];
   elevenLabs: ElevenLabsConfig;
   items: LearningItem[];
   language: Language;
@@ -31,7 +33,8 @@ export function ListenRepeat(props: {
   onTopic: (topicId: string) => void;
   voices: string[];
 }) {
-  const [count, setCount] = useState("20");
+  const [count, setCount] = useState("all");
+  const [scope, setScope] = useState<PracticeScope>("due");
   const [queue, setQueue] = useState<LearningItem[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<"setup" | "player" | "complete">("setup");
@@ -42,6 +45,8 @@ export function ListenRepeat(props: {
   const [learnedInSession, setLearnedInSession] = useState<Set<string>>(new Set());
   const runRef = useRef(0);
   const pausedRef = useRef(false);
+  const playbackRef = useRef(props.playback);
+  playbackRef.current = props.playback;
   const actionsRef = useRef<Record<"play" | "pause" | "previous" | "next" | "stop", () => void>>({
     play: () => undefined,
     pause: () => undefined,
@@ -50,11 +55,13 @@ export function ListenRepeat(props: {
     stop: () => undefined,
   });
   const countValue = count === "all" ? "all" : Number(count);
-  const candidates = useMemo(() => buildListenQueue(
+  const candidates = useMemo(() => buildPracticeSelection(
     props.items,
+    props.dueItemIds,
     props.selectedTopicItems,
     countValue,
-  ), [countValue, props.items, props.selectedTopicItems]);
+    scope,
+  ), [countValue, props.dueItemIds, props.items, props.selectedTopicItems, scope]);
   const current = queue[index];
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
 
@@ -74,12 +81,13 @@ export function ListenRepeat(props: {
       });
     }
     try {
-      const result = await props.onPlay(item.target, props.playback);
+      const activePlayback = playbackRef.current;
+      const result = await props.onPlay(item.target, activePlayback);
       if (run !== runRef.current) return;
       setNote(result.provider === "browser" ? "Browser voice" : "");
       await props.onListened(item.publicId);
       if (run !== runRef.current) return;
-      let remainingPause = nextIndex + 1 < nextQueue.length ? props.playback.pauseMs : 0;
+      let remainingPause = nextIndex + 1 < nextQueue.length ? activePlayback.pauseMs : 0;
       while ((pausedRef.current || remainingPause > 0) && run === runRef.current) {
         const slice = pausedRef.current ? 80 : Math.min(80, remainingPause);
         await new Promise((resolve) => window.setTimeout(resolve, slice));
@@ -117,33 +125,44 @@ export function ListenRepeat(props: {
   }, []);
   useEffect(() => () => { runRef.current += 1; props.onStop(); }, [props.onStop]);
 
-  if (phase === "setup") return <section className="listen-setup" aria-label="Listen and Repeat setup">
-    <div className="listen-setup-grid">
-      <label><span>Topic</span><select onChange={(event) => props.onTopic(event.target.value)} value={props.topicId}>
-        <option value="">All Topics</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}
-      </select></label>
-      <label><span>Cards</span><select onChange={(event) => setCount(event.target.value)} value={count}>
-        <option value="10">10</option><option value="20">20</option><option value="50">50</option><option value="all">All</option>
-      </select></label>
-      <label><span>Voice</span><select aria-label="Voice" onChange={(event) => {
-        const [provider, voice] = event.target.value.split(":");
-        props.onPlayback({ ...props.playback, provider: provider as PlaybackPreferences["provider"], voice });
-      }} value={`${props.playback.provider}:${props.playback.voice}`}>
-        {props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>)}
-        {props.elevenLabs.configured && props.language === "en" ? <option value={`elevenlabs:${props.playback.voice}`}>ElevenLabs · {props.elevenLabs.voice.name}</option> : null}
-      </select></label>
-      <label><span>Speed · {props.playback.speed.toFixed(2)}×</span><input aria-label="Speed" max={speedRange.max} min={speedRange.min}
-        onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })} step="0.05" type="range" value={props.playback.speed} /></label>
-      <label><span>Repeats</span><select onChange={(event) => props.onPlayback({ ...props.playback, repetitions: Number(event.target.value) })} value={props.playback.repetitions}>
-        {[1, 2, 3, 5].map((value) => <option key={value} value={value}>{value}×</option>)}</select></label>
-      <label><span>Pause</span><select onChange={(event) => props.onPlayback({ ...props.playback, pauseMs: Number(event.target.value) })} value={props.playback.pauseMs}>
-        {[500, 1500, 3000].map((value) => <option key={value} value={value}>{value / 1000}s</option>)}</select></label>
-    </div>
-    <button className="simple-primary listen-start" disabled={!candidates.length} onClick={() => void playAt(0, candidates)} type="button">
-      <Play fill="currentColor" size={15} />Start {candidates.length} cards
-    </button>
-    {!candidates.length ? <p className="recall-empty">No matching cards.</p> : null}
-  </section>;
+  if (phase === "setup") return <div className="practice-ready-layout">
+    <section className="listen-setup" aria-label="Listen and Repeat setup">
+      <div className="practice-scope-switch" role="group" aria-label="Listening source">
+        <button aria-pressed={scope === "due"} onClick={() => setScope("due")} type="button">Due now</button>
+        <button aria-pressed={scope === "custom"} onClick={() => setScope("custom")} type="button">All Library</button>
+      </div>
+      <div className="listen-selection-grid">
+        <label><span>Topic</span><select onChange={(event) => props.onTopic(event.target.value)} value={props.topicId}>
+          <option value="">All Topics</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}
+        </select></label>
+        <label><span>Cards</span><select onChange={(event) => setCount(event.target.value)} value={count}>
+          <option value="all">All {scope === "due" ? "due" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+        </select></label>
+      </div>
+      <details className="listen-playback-options">
+        <summary><span>Playback</span><strong>{props.playback.provider === "elevenlabs" ? props.elevenLabs.voice.name : props.playback.voice} · {props.playback.speed.toFixed(2)}× · {props.playback.repetitions}× · {props.playback.pauseMs / 1000}s</strong></summary>
+        <div className="listen-setup-grid">
+          <label><span>Voice</span><select aria-label="Voice" onChange={(event) => {
+            const [provider, voice] = event.target.value.split(":");
+            props.onPlayback({ ...props.playback, provider: provider as PlaybackPreferences["provider"], voice });
+          }} value={`${props.playback.provider}:${props.playback.voice}`}>
+            {props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>)}
+            {props.elevenLabs.configured && props.language === "en" ? <option value={`elevenlabs:${props.playback.voice}`}>ElevenLabs · {props.elevenLabs.voice.name}</option> : null}
+          </select></label>
+          <label><span>Speed · {props.playback.speed.toFixed(2)}×</span><input aria-label="Speed" max={speedRange.max} min={speedRange.min}
+            onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })} step="0.05" type="range" value={props.playback.speed} /></label>
+          <label><span>Repeats</span><select onChange={(event) => props.onPlayback({ ...props.playback, repetitions: Number(event.target.value) })} value={props.playback.repetitions}>
+            {[1, 2, 3, 5].map((value) => <option key={value} value={value}>{value}×</option>)}</select></label>
+          <label><span>Pause</span><select onChange={(event) => props.onPlayback({ ...props.playback, pauseMs: Number(event.target.value) })} value={props.playback.pauseMs}>
+            {[500, 1500, 3000].map((value) => <option key={value} value={value}>{value / 1000}s</option>)}</select></label>
+        </div>
+      </details>
+      <button className="simple-primary listen-start" disabled={!candidates.length} onClick={() => void playAt(0, candidates)} type="button">
+        <Play fill="currentColor" size={15} />Play {candidates.length || "due"} cards
+      </button>
+    </section>
+    <PracticeQueuePreview items={candidates} mode="listen" scope={scope} />
+  </div>;
 
   if (phase === "complete") return <section className="recall-complete" aria-label="Listening complete">
     <span>Listening complete</span><strong>{queue.length} listened</strong>
