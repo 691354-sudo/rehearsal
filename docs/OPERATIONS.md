@@ -18,6 +18,20 @@ The application root is not a Git checkout. GitHub Actions uploads the exact CI-
 
 Deployment runs only after the `CI` workflow succeeds for a push to `main`. An automatic run skips Markdown-only commits because they do not change the application; a manual run always deploys the exact current `main`. Deployments are serialized and the server retains the five most recent releases.
 
+## Production delivery gate
+
+When Roman asks to ship, deploy, or put a change in production, the task is complete only after all applicable gates succeed:
+
+1. the ready pull request is green and the exact checked head is squash merged into `main` according to [CONTRIBUTING.md](CONTRIBUTING.md);
+2. the post-merge `CI` run for that `main` commit succeeds;
+3. the matching `Deploy production` workflow finishes successfully;
+4. `https://7662n.cc/rehearsal/health` succeeds from outside the server;
+5. the delivery report identifies the merged commit and the CI, deployment, and health-check results.
+
+Do not report a production request as complete after only pushing a branch, opening a pull request, passing branch CI, or merging. Follow the post-merge runs to their terminal state. If CI or deployment fails, inspect the workflow logs and fix the failure through a new pull request; do not bypass GitHub by editing or copying application files on the server. The deployment workflow's built-in rollback remains the first recovery path.
+
+For a Markdown-only commit, `Deploy production` is expected to be skipped because the runtime is unchanged. Confirm that the commit is present on `origin/main`, confirm successful post-merge CI, record the skipped deployment, and report that the existing runtime release remains active. Do not force a runtime deployment solely to publish documentation.
+
 Required repository secrets:
 
 - `DEPLOY_HOST`

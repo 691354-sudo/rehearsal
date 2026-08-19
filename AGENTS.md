@@ -29,8 +29,9 @@ This is a two-person hobby project. Prefer momentum over ceremony while keeping 
 - Give one short progress update, then work. Add another only at a meaningful milestone or when blocked.
 - For low-risk changes, run the narrowest useful local check once and let GitHub CI run the full suite once.
 - Do not repeat an unchanged test/build after a clean rebase or merge unless the tree changed or CI disagrees.
-- Open a ready PR, do not request a reviewer by default, and squash merge as soon as CI passes. Ask for review only when Roman explicitly requests it or the change is genuinely high-risk.
-- Auth, database migration, restore, and deployment changes still require focused tests and a real health check.
+- Follow the delivery contract in `docs/CONTRIBUTING.md`: open a ready PR and squash merge after CI unless Roman explicitly asks for a draft, PR-only delivery, or no merge. Do not leave routine completed work waiting in a draft or for an unrequested reviewer.
+- When Roman asks to ship or put a change in production, continue through the production delivery gate in `docs/OPERATIONS.md`. A pushed branch, open PR, or merge alone is not completion.
+- Auth, database migration, restore, and deployment changes still require focused tests and the operational checks defined in `docs/OPERATIONS.md`.
 
 ## Codex browser access
 
@@ -43,7 +44,7 @@ This is a two-person hobby project. Prefer momentum over ceremony while keeping 
 
 - Do not commit or push directly to `main`. Use `roman/<topic>`, `oliver/<topic>`, or `codex/<topic>`.
 - Keep one task and one author per branch. Do not share a working branch between Roman and Oliver.
-- Deliver source changes through a pull request and squash merge after CI; a second-person review is optional.
+- Deliver source changes through the completion contract in `docs/CONTRIBUTING.md`; a second-person review is not a default merge gate.
 - Do not edit production application files manually. Production receives CI-checked commits from GitHub only.
 - Never commit `.env`, PINs, API keys, SQLite databases, audio, backups, or profile registries.
 - Preserve product invariants and API behavior unless the task explicitly changes them.
