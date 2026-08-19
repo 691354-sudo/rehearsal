@@ -1,7 +1,5 @@
 import type {
   ElevenLabsConfig,
-  Language,
-  LearningItem,
   PlaybackPreferences,
   SchedulerSettings,
 } from "./contracts";
@@ -54,53 +52,6 @@ export const languageCopy = {
 } as const;
 
 export const apiPath = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\//, "")}`;
-
-export const fallbackItems: Record<Language, LearningItem[]> = {
-  en: [{
-    publicId: "en-drawn-to",
-    language: "en",
-    cue: "Меня всегда тянуло к местам рядом с океаном.",
-    target: "I've always been drawn to places near the ocean.",
-    note: "be drawn to — естественный способ сказать, что тебя к чему-то тянет",
-    source: "Date conversation",
-    kind: "phrase",
-    acceptedAnswers: [],
-    status: "learning",
-    preference: "neutral",
-    naturalness: 5,
-    commonness: 5,
-    register: "casual",
-    tags: ["island", "nature"],
-    focusTerms: [],
-    frequencyBand: "common",
-    currency: "current",
-    personaFit: 5,
-    relevanceCheckedAt: null,
-    practiceEnabled: true,
-  }],
-  lv: [{
-    publicId: "lv-learning",
-    language: "lv",
-    cue: "Я учу латышский язык.",
-    target: "Es mācos latviešu valodu.",
-    note: "",
-    source: "Latvian starter set",
-    kind: "phrase",
-    acceptedAnswers: [],
-    status: "learning",
-    preference: "neutral",
-    naturalness: 5,
-    commonness: 5,
-    register: "casual",
-    tags: ["basics"],
-    focusTerms: [],
-    frequencyBand: "common",
-    currency: "current",
-    personaFit: 5,
-    relevanceCheckedAt: null,
-    practiceEnabled: true,
-  }],
-};
 
 export const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 export const humanizeLabel = (value: string) => value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());

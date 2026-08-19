@@ -121,6 +121,9 @@ export class RehearsalRepository {
     return this.practice.countActivitySince(...args);
   }
   listDueItems(...args: Parameters<PracticeRepository["listDue"]>) { return this.practice.listDue(...args); }
+  listInventory(...args: Parameters<PracticeRepository["listInventory"]>) {
+    return this.practice.listInventory(...args);
+  }
   getOrCreateThread(...args: Parameters<TutorRepository["getOrCreateThread"]>) {
     return this.tutor.getOrCreateThread(...args);
   }

@@ -146,6 +146,41 @@ export class PracticeRepository {
     return counts;
   }
 
+  listInventory(language: LanguageCode, limit = 500, now = new Date()) {
+    const settings = this.getSettings();
+    const rows = this.db.prepare(
+      `SELECT i.*,
+              r.due_at AS review_due_at,
+              r.stability AS review_stability,
+              r.difficulty AS review_difficulty,
+              r.elapsed_days AS review_elapsed_days,
+              r.scheduled_days AS review_scheduled_days,
+              r.learning_steps AS review_learning_steps,
+              r.repetitions AS review_repetitions,
+              r.lapses AS review_lapses,
+              r.state AS review_state,
+              r.last_review AS review_last_review
+       FROM items i LEFT JOIN review_state r ON r.item_id = i.id
+       WHERE i.language_code = ?
+       ORDER BY i.updated_at DESC, i.id DESC
+       LIMIT ?`,
+    ).all(language, limit) as DueItemRow[];
+    return rows.map((row) => {
+      const item = mapItem(row);
+      const stored = mapJoinedReviewState(row);
+      if (!stored) return item;
+      return {
+        ...item,
+        schedule: previewReview(
+          cardFromStoredState(stored, now),
+          now,
+          row.preference,
+          settings,
+        ),
+      };
+    });
+  }
+
   listDue(language: LanguageCode, limit = 12, now = new Date(), newLimit = 10) {
     const schedulerSettings = this.getSettings();
     const select = `SELECT i.*,

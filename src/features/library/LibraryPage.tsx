@@ -3,6 +3,7 @@ import {
   FilePlus2,
   LoaderCircle,
   Pencil,
+  RefreshCw,
   Search,
   Sparkles,
   Trash2,
@@ -13,22 +14,47 @@ import {
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 import { TopicsManager } from "./TopicsManager";
 import { apiFetch } from "../../shared/api";
-import { fallbackItems } from "../../shared/config";
-import type { Language, LearningItem } from "../../shared/contracts";
+import type { Island, IslandSummary, Language, LearningItem } from "../../shared/contracts";
 
-export function LibraryPage({ language, onPlay }: { language: Language; onPlay: (text: string) => void }) {
+export function LibraryPage({ language, onAvailability, onPlay }: {
+  language: Language;
+  onAvailability: (online: boolean) => void;
+  onPlay: (text: string) => void;
+}) {
   const [items, setItems] = useState<LearningItem[]>([]); const [query, setQuery] = useState("");
   const [title, setTitle] = useState(""); const [text, setText] = useState("");
   const [topic, setTopic] = useState("all"); const [frequency, setFrequency] = useState("all");
+  const [topics, setTopics] = useState<IslandSummary[]>([]); const [topicItemIds, setTopicItemIds] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const [importing, setImporting] = useState(false); const [notice, setNotice] = useState("");
   const [batch, setBatch] = useState<ReviewBatch | null>(null); const [editing, setEditing] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({ target: "", cue: "", note: "", category: "", frequencyBand: "common" });
   const load = async () => {
-    const path = query.trim() ? `/api/search?q=${encodeURIComponent(query)}&language=${language}&limit=100` : `/api/items?language=${language}&limit=500`;
-    try { const response = await apiFetch(path); const data = await response.json() as { items: LearningItem[] }; setItems(data.items || []); }
-    catch { setItems(fallbackItems[language]); }
+    const path = query.trim() ? `/api/search?q=${encodeURIComponent(query)}&language=${language}&limit=100` : `/api/items?language=${language}&limit=500&includeSchedule=true`;
+    try {
+      const response = await apiFetch(path);
+      if (!response.ok) throw new Error("Library unavailable");
+      const data = await response.json() as { items: LearningItem[] };
+      setItems(data.items || []); setLoadError(false); onAvailability(true);
+    } catch { setItems([]); setLoadError(true); onAvailability(false); }
   };
   useEffect(() => { const timeout = window.setTimeout(() => void load(), query ? 250 : 0); return () => window.clearTimeout(timeout); }, [language, query]);
+  useEffect(() => {
+    setTopic("all"); setTopicItemIds([]);
+    void apiFetch(`/api/islands?language=${language}`).then(async (response) => {
+      if (!response.ok) throw new Error("Topics unavailable");
+      const data = await response.json() as { islands: IslandSummary[] };
+      setTopics(data.islands || []); onAvailability(true);
+    }).catch(() => { setTopics([]); setLoadError(true); onAvailability(false); });
+  }, [language, onAvailability]);
+  useEffect(() => {
+    if (topic === "all") { setTopicItemIds([]); return; }
+    void apiFetch(`/api/islands/${encodeURIComponent(topic)}`).then(async (response) => {
+      if (!response.ok) throw new Error("Topic unavailable");
+      const data = await response.json() as { island: Island };
+      setTopicItemIds(data.island.items.map((item) => item.publicId)); onAvailability(true);
+    }).catch(() => { setTopicItemIds([]); setLoadError(true); onAvailability(false); });
+  }, [onAvailability, topic]);
   const importText = async () => {
     if (!text.trim()) return; setImporting(true); setNotice(""); setBatch(null);
     try {
@@ -60,10 +86,11 @@ export function LibraryPage({ language, onPlay }: { language: Language; onPlay: 
       setBatch(data.batch); setNotice("Choose only the variants worth keeping.");
     } catch { setNotice("Couldn’t prepare pattern variants."); }
   };
-  const topics = useMemo(() => [...new Set(items.flatMap((item) => item.tags.slice(0, 1)))].filter(Boolean).sort(), [items]);
+  const topicItemSet = useMemo(() => new Set(topicItemIds), [topicItemIds]);
   const visibleItems = useMemo(() => items.filter((item) =>
-    (topic === "all" || item.tags.includes(topic)) && (frequency === "all" || (item.frequencyBand || "common") === frequency)), [frequency, items, topic]);
+    (topic === "all" || topicItemSet.has(item.publicId)) && (frequency === "all" || (item.frequencyBand || "common") === frequency)), [frequency, items, topic, topicItemSet]);
   return <main className="simple-main"><header className="simple-page-heading"><div><h1>Library</h1><p>Your approved cards and source material.</p></div></header>
+    {loadError ? <div className="simple-unavailable" role="alert"><span>Library unavailable.</span><button onClick={() => void load()} type="button"><RefreshCw size={14} />Retry</button></div> : null}
     {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onCommitted={() => void load()} /> : null}
     <TopicsManager language={language} />
     <div className="simple-library-layout"><section className="simple-import-card">
@@ -78,7 +105,7 @@ export function LibraryPage({ language, onPlay }: { language: Language; onPlay: 
       {notice && <p className="simple-import-notice">{notice}</p>}
     </section><section className="simple-library-panel">
       <div className="simple-library-tools"><label className="simple-search"><Search size={17} /><input onChange={(event) => setQuery(event.target.value)} placeholder="Find a phrase or thought" type="search" value={query} /></label>
-        <select aria-label="Filter by tag" onChange={(event) => setTopic(event.target.value)} value={topic}><option value="all">All tags</option>{topics.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+        <select aria-label="Filter by Topic" onChange={(event) => setTopic(event.target.value)} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title}</option>)}</select>
         <select aria-label="Filter by frequency" onChange={(event) => setFrequency(event.target.value)} value={frequency}><option value="all">Any frequency</option><option value="core">Core</option><option value="common">Common</option><option value="specific">Specific</option><option value="rare">Rare</option></select></div>
       <div className="simple-library-count">{visibleItems.length} cards</div><div className="simple-phrase-list">
         {visibleItems.map((row) => <article className="simple-phrase-row" key={row.publicId}>

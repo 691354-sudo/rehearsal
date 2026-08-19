@@ -1,6 +1,8 @@
 import type {
   ChatThread,
   DailyProgress,
+  Island,
+  IslandSummary,
   ItemPreference,
   LanguageCode,
   LearningItem,
@@ -11,6 +13,8 @@ import type { DiffToken } from "../types/practice";
 export type {
   ChatThread,
   DailyProgress,
+  Island,
+  IslandSummary,
   ItemPreference,
   LearningItem,
   SchedulerSettings,

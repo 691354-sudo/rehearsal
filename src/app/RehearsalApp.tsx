@@ -14,7 +14,6 @@ import {
   defaultPlayback,
   defaultSchedulerSettings,
   defaultVoices,
-  fallbackItems,
   languageCopy,
 } from "../shared/config";
 import { apiFetch } from "../shared/api";
@@ -48,9 +47,9 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   const [mode, setMode] = useState<Mode>("recall");
   const [attempts, setAttempts] = useState<Record<string, AttemptDraft>>({});
   const [revealedItems, setRevealedItems] = useState<string[]>([]);
-  const [items, setItems] = useState<LearningItem[]>(fallbackItems[language]);
+  const [items, setItems] = useState<LearningItem[]>([]);
   const [dueItemIds, setDueItemIds] = useState<string[]>([]);
-  const [activeItemId, setActiveItemId] = useState(fallbackItems[language][0].publicId);
+  const [activeItemId, setActiveItemId] = useState("");
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>({ recall: 0, shadow: 0, pattern: 0 });
   const [playback, setPlayback] = useState<PlaybackPreferences>(() => {
     try {
@@ -97,8 +96,8 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   }, [elevenLabsConfig.speedRange, playback.provider, playback.speed]);
   useEffect(() => {
     window.localStorage.setItem(storageKey("language"), language);
-    setItems(fallbackItems[language]); setDueItemIds([]); setAttempts({});
-    setActiveItemId(fallbackItems[language][0].publicId); setRevealedItems([]);
+    setItems([]); setDueItemIds([]); setAttempts({});
+    setActiveItemId(""); setRevealedItems([]);
     void loadItems(language);
   }, [language]);
   useEffect(() => {
@@ -151,7 +150,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     try {
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
       const [libraryResponse, dueResponse, progressResponse] = await Promise.all([
-        apiFetch(`/api/items?language=${nextLanguage}&limit=500`),
+        apiFetch(`/api/items?language=${nextLanguage}&limit=500&includeSchedule=true`),
         apiFetch(`/api/practice/due?language=${nextLanguage}&limit=50`),
         apiFetch(`/api/practice/progress?language=${nextLanguage}&since=${encodeURIComponent(startOfDay.toISOString())}`),
       ]);
@@ -411,6 +410,6 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
         ? current.filter((id) => id !== publicId) : [...current, publicId])}
       playback={playback} revealedItems={revealedItems} />}
     {route === "tutor" && <TutorPage language={language} profileId={profile.id} />}
-    {route === "library" && <LibraryPage language={language} onPlay={(text) => void playTarget(text)} />}
+    {route === "library" && <LibraryPage language={language} onAvailability={setApiOnline} onPlay={(text) => void playTarget(text)} />}
   </div>;
 }

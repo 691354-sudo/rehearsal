@@ -23,13 +23,10 @@ import {
   type PracticeSort,
 } from "../../lib/drillQueue";
 import { speedRangeForProvider } from "../../lib/playbackSettings";
-import {
-  moveReviewRating,
-  reviewRatings,
-  type ReviewRating,
-} from "../../lib/sessionQueue";
+import { moveReviewRating, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { DrillBar } from "./DrillBar";
 import { loadDrillPreferences, saveDrillPreferences } from "./drillPreferences";
+import { usePracticeTopics } from "./usePracticeTopics";
 import { apiFetch } from "../../shared/api";
 import { capitalize, languageCopy } from "../../shared/config";
 import type { ProfileId } from "../../../contracts/api";
@@ -89,7 +86,11 @@ export function PracticePage(props: {
   const targetLabel = languageCopy[props.language].label;
   const goal = 100;
   const progress = Math.min(100, (props.dailyProgress.recall / goal) * 100);
-  const topics = useMemo(() => [...new Set(props.items.flatMap((item) => item.tags.slice(0, 1)))].filter(Boolean).sort(), [props.items]);
+  const { selectedTopicItems, topicTitleByItem, topics } = usePracticeTopics(
+    props.language,
+    topicFilters,
+    setTopicFilters,
+  );
   const dueItemSet = useMemo(() => new Set(props.dueItemIds), [props.dueItemIds]);
   const scopedItems = useMemo(() => practiceScope === "due"
     ? props.items.filter((item) => dueItemSet.has(item.publicId)) : props.items,
@@ -98,9 +99,9 @@ export function PracticePage(props: {
     scopedItems, drillOrder, practiceSort, props.dueItemIds,
   ), [drillOrder, practiceSort, props.dueItemIds, scopedItems]);
   const visibleItems = useMemo(() => orderedItems.filter((item) =>
-    (!topicFilters.length || topicFilters.includes(item.tags[0] || "")) &&
+    (!selectedTopicItems || selectedTopicItems.has(item.publicId)) &&
     (frequencyFilter === "all" || (item.frequencyBand || "common") === frequencyFilter)),
-  [frequencyFilter, orderedItems, topicFilters]);
+  [frequencyFilter, orderedItems, selectedTopicItems]);
   const drillActive = ["loading", "playing", "paused"].includes(drillState.status);
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
 
@@ -163,7 +164,7 @@ export function PracticePage(props: {
           aria-label={`Choose cards. ${visibleItems.length} of ${props.items.length} shown`}
           className="simple-filter-button" disabled={drillActive} onClick={() => setFiltersOpen((open) => !open)} type="button">
           {!topicFilters.length ? practiceScope === "all" ? "All cards" : `${props.dueItemIds.length} due`
-            : topicFilters.length === 1 ? topicFilters[0] : `${topicFilters.length} topics`} <ChevronDown size={14} /></button>
+            : topicFilters.length === 1 ? topics.find((topic) => topic.publicId === topicFilters[0])?.title || "1 Topic" : `${topicFilters.length} Topics`} <ChevronDown size={14} /></button>
           {filtersOpen ? <div className="simple-filter-popover">
             <label>Cards<select onChange={(event) => setPracticeScope(event.target.value as "all" | "due")} value={practiceScope}>
               <option value="all">All Library cards ({props.items.length})</option>
@@ -174,7 +175,7 @@ export function PracticePage(props: {
               <option value="new-first">New first</option><option value="alphabetical">A–Z</option>
             </select></label>
             <fieldset><legend>Topics</legend><div className="simple-topic-checks">
-            {topics.map((topic) => <label key={topic}><input checked={topicFilters.includes(topic)} onChange={() => toggleTopic(topic)} type="checkbox" /><span>{topic}</span></label>)}
+            {topics.map((topic) => <label key={topic.publicId}><input checked={topicFilters.includes(topic.publicId)} onChange={() => toggleTopic(topic.publicId)} type="checkbox" /><span>{topic.title}</span></label>)}
           </div></fieldset>
             <label>Frequency<select onChange={(event) => setFrequencyFilter(event.target.value)} value={frequencyFilter}>
               <option value="all">Any frequency</option><option value="core">Core</option><option value="common">Common</option><option value="specific">Specific</option><option value="rare">Rare</option>
@@ -228,7 +229,7 @@ export function PracticePage(props: {
         const isRevealed = props.revealedItems.includes(feedItem.publicId);
         const attempt = props.attempts[feedItem.publicId] || { answer: "" };
         const grade = selectedRatings[feedItem.publicId] || "good";
-        const topic = feedItem.tags[0] || feedItem.source || "Personal";
+        const topic = topicTitleByItem.get(feedItem.publicId) || feedItem.source || "Personal";
         const isDrillCurrent = feedItem.publicId === drillState.currentId;
         const isLooped = drillLoopIds.includes(feedItem.publicId);
         const visibleIndex = visibleItems.findIndex((item) => item.publicId === feedItem.publicId);
@@ -437,7 +438,6 @@ const gradeTitle: Record<ReviewRating, string> = {
   good: "Recalled",
   easy: "Immediate recall",
 };
-
 const formatInterval = (seconds?: number) => {
   if (seconds === undefined) return "";
   if (seconds < 60) return "<1m";

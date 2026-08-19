@@ -369,6 +369,32 @@
   border-bottom: 1px solid var(--script-rule);
 }
 
+.simple-unavailable {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  color: var(--retry);
+  background: var(--script-surface);
+  border: 1px solid color-mix(in srgb, var(--retry) 28%, var(--script-rule));
+  border-radius: 8px;
+}
+
+.simple-unavailable button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+}
+
 .simple-phrase-list {
   max-height: calc(100vh - 280px);
   overflow-y: auto;

@@ -117,6 +117,67 @@ describe("Rehearsal API", () => {
       .some((item) => item.publicId === "en-drawn-to")).toBe(true);
   });
 
+  it("returns schedule inventory and preserves it while a card is Learned", async () => {
+    const reviewedAt = new Date("2026-08-18T12:00:00.000Z");
+    repository.recordAttempt({
+      itemPublicId: "en-drawn-to",
+      mode: "recall",
+      answer: "I've always been drawn to places near the ocean.",
+      score: 1,
+      verdict: "easy",
+      feedback: {},
+      rating: "easy",
+      reviewedAt,
+    });
+    const app = await buildApp(repository);
+    const inventory = await app.inject({
+      method: "GET",
+      url: "/api/items?language=en&limit=500&includeSchedule=true",
+    });
+    const scheduled = inventory.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to");
+    expect(scheduled.schedule).toMatchObject({ state: "review" });
+
+    const learned = await app.inject({
+      method: "PATCH",
+      url: "/api/items/en-drawn-to",
+      payload: { practiceEnabled: false },
+    });
+    expect(learned.json().item.practiceEnabled).toBe(false);
+    expect(repository.listDueItems("en", 100, new Date("2026-08-27T12:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(false);
+
+    const learnedInventory = await app.inject({
+      method: "GET",
+      url: "/api/items?language=en&limit=500&includeSchedule=true",
+    });
+    expect(learnedInventory.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to"))
+      .toMatchObject({ practiceEnabled: false, schedule: { state: "review" } });
+
+    const reactivated = await app.inject({
+      method: "PATCH",
+      url: "/api/items/en-drawn-to",
+      payload: { practiceEnabled: true },
+    });
+    expect(reactivated.json().item.practiceEnabled).toBe(true);
+    expect(repository.listDueItems("en", 100, new Date("2026-08-27T12:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(true);
+    await app.close();
+  });
+
+  it("keeps Topic membership independent from item tags", () => {
+    const item = repository.saveItem({
+      language: "en",
+      cue: "Здесь занято?",
+      target: "Is this taken?",
+      tags: ["question pattern"],
+    });
+    const topic = repository.createIsland({ language: "en", title: "Gym", itemPublicIds: [item.publicId] });
+    expect(repository.getIsland(topic.publicId)?.items[0]).toMatchObject({
+      publicId: item.publicId,
+      tags: ["question pattern"],
+    });
+  });
+
   it("updates item preference and prioritizes liked cards in the due queue", async () => {
     const app = await buildApp(repository);
     const response = await app.inject({
@@ -499,7 +560,8 @@ describe("Rehearsal API", () => {
     expect(repository.listCaptureNotes("en", true).filter((note) =>
       [first.publicId, second.publicId].includes(note.publicId)
     ).every((note) => note.status === "processed")).toBe(true);
-    expect(repository.listItems("en", 500).some((item) => item.target === "Could you give me a moment?")).toBe(true);
+    expect(repository.listItems("en", 500).find((item) => item.target === "Could you give me a moment?")?.tags)
+      .toEqual(["wait a moment"]);
     const captureTopic = repository.findIslandByTitle("en", "Client work");
     expect(captureTopic).not.toBeNull();
     expect(repository.getIsland(captureTopic!.publicId)?.items.map((item) => item.target))
