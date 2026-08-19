@@ -20,14 +20,16 @@ Read these files before changing product behavior:
 
 1. `docs/METHOD.md` — learning method and product rules.
 2. `docs/ARCHITECTURE.md` — data, LLM, search, audio, and safety boundaries.
-3. `.interface-design/system.md` — approved UI direction and tokens.
-4. `README.md` — local setup and production operations.
-5. This file — current handoff and verification checklist.
+3. `docs/MOBILE_APP_DIRECTION.md` — installable iPhone target and mobile constraints.
+4. `.interface-design/system.md` — approved UI direction and tokens.
+5. `README.md` — local setup and production operations.
+6. This file — current handoff and verification checklist.
 
 ## Product invariants
 
 - UI chrome is English; Russian is the recall cue, not interface copy.
-- Recall is keyboard-first: first Enter checks locally; Good is selected; arrow keys choose Again, Hard, Good, or Easy; the next Enter commits and focuses the next card.
+- Recall is keyboard-first on desktop: first Enter checks locally; Good is selected; arrow keys choose Again, Hard, Good, or Easy; the next Enter commits and focuses the next card.
+- Every core action also has a visible touch path. Phone use must never depend on Enter, arrow keys, hover, or a hardware keyboard.
 - Recall comparison must never wait for an LLM request.
 - Shadowing has no memory grades. Repetition, voice, speed, and pause are playback settings.
 - Thumbs up/down tune priority. Neither selected means Neutral.
@@ -35,6 +37,7 @@ Read these files before changing product behavior:
 - Tutor suggestions, imported vocabulary contexts, corrections, and pattern drills stay in a draft batch. Nothing enters Library without explicit user selection.
 - English and Latvian content, due queues, progress, and Tutor histories remain separate.
 - Content should be current, natural, adult casual language—not dated phrases or forced youth slang.
+- The intended phone target is an installable Home Screen PWA in standalone mode, not an App Store release. Preserve future Capacitor compatibility without speculative native work.
 
 ## Main code map
 
@@ -69,7 +72,7 @@ OPENAI_API_KEY=' ' ELEVENLABS_API_KEY=' ' npm test
 npm run build
 ```
 
-The API tests cover edit, preference, deletion, and SQLite restart persistence. Before a release, also verify the actual browser flow on desktop and mobile widths.
+The API tests cover edit, preference, deletion, and SQLite restart persistence. Before a release, also verify the actual browser flow on desktop and mobile widths. Once the installable PWA milestone starts, additionally verify a real iPhone in Safari and Home Screen standalone mode using the gate in `docs/MOBILE_APP_DIRECTION.md`.
 
 ## Database and recovery
 
@@ -106,9 +109,9 @@ Verify after the container restart that item/source/attempt counts are unchanged
 ## Current feature baseline
 
 - Practice feed with RU → target recall and target → RU shadowing.
-- Instant local answer diff and keyboard-only FSRS rating loop.
+- Instant local answer diff with a keyboard-efficient desktop and touch-complete phone FSRS rating loop.
 - Editable/deletable practice cards and persistent Like/Dislike priority.
-- Configurable OpenAI and ElevenLabs speech, including voice, speed, repetitions, and pauses.
+- Configurable OpenAI and ElevenLabs speech, including live voice verification, provider-safe speed ranges, repetitions, pauses, persistent MP3 caching, and concurrent-request deduplication.
 - Tutor sessions with history, language separation, uploads, vocabulary context generation, and `Finish & review`.
 - Library search, import, review-before-commit, editing, deletion, category/frequency metadata.
 - FSRS-6 scheduling, daily progress, backups, restore validation, and periodic model routing checks.

@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import Fastify from "fastify";
 import type { StepUnit } from "ts-fsrs";
 import { z } from "zod";
@@ -6,8 +7,9 @@ import { config, elevenLabsConfigured, openAIConfigured } from "./config.js";
 import type { RehearsalRepository } from "./db/repository.js";
 import type { LanguageCode } from "./types.js";
 import { OpenAIService } from "./services/openai.js";
-import { ElevenLabsError, ElevenLabsService } from "./services/elevenlabs.js";
+import { ElevenLabsError, ElevenLabsService, elevenLabsSpeedRange } from "./services/elevenlabs.js";
 import { TutorService } from "./services/tutor.js";
+import { SaturationService } from "./services/saturation.js";
 import { getModelRouting } from "./model-routing.js";
 import type { SchedulerSettings } from "./services/scheduler.js";
 
@@ -16,7 +18,40 @@ const voiceOptions = [
   "alloy", "ash", "ballad", "coral", "echo", "fable", "nova",
   "onyx", "sage", "shimmer", "verse", "marin", "cedar",
 ] as const;
+const captureMimeTypes = new Map([
+  ["audio/mp4", "m4a"],
+  ["audio/m4a", "m4a"],
+  ["audio/x-m4a", "m4a"],
+  ["video/mp4", "mp4"],
+  ["audio/webm", "webm"],
+  ["video/webm", "webm"],
+  ["audio/mpeg", "mp3"],
+  ["audio/mp3", "mp3"],
+  ["audio/wav", "wav"],
+  ["audio/x-wav", "wav"],
+]);
 const elevenLabsModelOptions = ["eleven_multilingual_v2", "eleven_flash_v2_5"] as const;
+const saturationSettingsSchema = z.object({
+  provider: z.enum(["openai", "elevenlabs"]),
+  voice: z.string().trim().min(1).max(100),
+  speed: z.number().min(0.5).max(1.5),
+  pauseSeconds: z.number().min(0.5).max(10),
+  repetitions: z.number().int().min(1).max(5),
+  modelId: z.enum(elevenLabsModelOptions).optional(),
+  stability: z.number().min(0).max(1).optional(),
+  similarityBoost: z.number().min(0).max(1).optional(),
+  style: z.number().min(0).max(1).optional(),
+  speakerBoost: z.boolean().optional(),
+}).superRefine((settings, context) => {
+  if (settings.provider === "elevenlabs"
+    && (settings.speed < elevenLabsSpeedRange.min || settings.speed > elevenLabsSpeedRange.max)) {
+    context.addIssue({
+      code: "custom",
+      path: ["speed"],
+      message: `ElevenLabs speed must be between ${elevenLabsSpeedRange.min} and ${elevenLabsSpeedRange.max}`,
+    });
+  }
+});
 const stepSchema = z.custom<StepUnit>(
   (value) => typeof value === "string" && /^\d+(?:\.\d+)?[mhd]$/.test(value),
   "Use a duration such as 1m, 2h, or 1d",
@@ -71,6 +106,27 @@ const toErrorResponse = (error: unknown) => {
       body: { error: "ELEVENLABS_NOT_CONFIGURED", message: "Add ELEVENLABS_API_KEY to .env and restart the API." },
     };
   }
+  if (error instanceof Error && error.message === "EMPTY_TRANSCRIPTION") {
+    return { statusCode: 422, body: { error: "EMPTY_TRANSCRIPTION", message: "No speech was detected." } };
+  }
+  if (error instanceof Error && error.message === "SATURATION_TOPIC_NOT_FOUND") {
+    return { statusCode: 404, body: { error: "SATURATION_TOPIC_NOT_FOUND" } };
+  }
+  if (error instanceof Error && error.message === "TOPIC_TITLE_EXISTS") {
+    return { statusCode: 409, body: { error: "TOPIC_TITLE_EXISTS" } };
+  }
+  if (error instanceof Error && ["TOPIC_ITEM_NOT_FOUND", "TOPIC_NOT_FOUND"].includes(error.message)) {
+    return { statusCode: 404, body: { error: error.message } };
+  }
+  if (error instanceof Error && error.message === "TOPIC_ITEM_DUPLICATE") {
+    return { statusCode: 400, body: { error: "TOPIC_ITEM_DUPLICATE" } };
+  }
+  const statusCode = typeof error === "object" && error && "statusCode" in error
+    ? Number((error as { statusCode?: number }).statusCode)
+    : 0;
+  if (statusCode === 413) {
+    return { statusCode: 413, body: { error: "AUDIO_TOO_LARGE", message: "Recordings must be 25 MB or smaller." } };
+  }
   if (error instanceof ElevenLabsError) {
     return {
       statusCode: error.statusCode,
@@ -83,11 +139,20 @@ const toErrorResponse = (error: unknown) => {
   };
 };
 
-export const buildApp = async (repository: RehearsalRepository) => {
+export const buildApp = async (
+  repository: RehearsalRepository,
+  overrides: { openai?: OpenAIService; elevenlabs?: ElevenLabsService; saturation?: SaturationService } = {},
+) => {
   const app = Fastify({ logger: true, bodyLimit: 2_000_000 });
-  const openai = new OpenAIService(repository);
-  const elevenlabs = new ElevenLabsService(repository);
+  repository.runTopicBackfillMigration();
+  const openai = overrides.openai || new OpenAIService(repository);
+  const elevenlabs = overrides.elevenlabs || new ElevenLabsService(repository);
+  const saturation = overrides.saturation || new SaturationService(repository, openai, elevenlabs);
   const tutor = new TutorService(repository, openai);
+
+  await app.register(multipart, {
+    limits: { files: 1, fileSize: 25 * 1024 * 1024, fields: 0 },
+  });
 
   await app.register(cors, {
     origin: [/^http:\/\/127\.0\.0\.1(?::\d+)?$/, /^http:\/\/localhost(?::\d+)?$/],
@@ -137,6 +202,7 @@ export const buildApp = async (repository: RehearsalRepository) => {
           configured: elevenLabsConfigured,
           voice: { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName },
           models: elevenLabsModelOptions,
+          speedRange: elevenLabsSpeedRange,
           defaults: {
             modelId: config.elevenLabsModel,
             stability: config.elevenLabsStability,
@@ -145,7 +211,7 @@ export const buildApp = async (repository: RehearsalRepository) => {
             speakerBoost: config.elevenLabsSpeakerBoost,
             speed: config.elevenLabsSpeed,
           },
-          note: "Library voices require a paid ElevenLabs API plan.",
+          note: "Generated MP3 files are cached on this server. Identical requests reuse the cached audio.",
         },
       },
     },
@@ -162,6 +228,11 @@ export const buildApp = async (repository: RehearsalRepository) => {
   app.patch("/api/settings/scheduler", async (request) => ({
     scheduler: repository.updateSchedulerSettings(schedulerSettingsSchema.parse(request.body)),
   }));
+
+  app.get("/api/audio/elevenlabs/status", async (request) => {
+    const query = z.object({ refresh: z.enum(["true", "false"]).default("false") }).parse(request.query);
+    return elevenlabs.voiceStatus(query.refresh === "true");
+  });
 
   app.get("/api/items", async (request) => {
     const query = z
@@ -316,6 +387,13 @@ export const buildApp = async (repository: RehearsalRepository) => {
         speed: z.number().min(0.5).max(1.5).optional(),
       })
       .parse(request.body);
+    if (body.provider === "elevenlabs" && body.speed !== undefined
+      && (body.speed < elevenLabsSpeedRange.min || body.speed > elevenLabsSpeedRange.max)) {
+      return reply.code(400).send({
+        error: "INVALID_ELEVENLABS_SPEED",
+        message: `ElevenLabs speed must be between ${elevenLabsSpeedRange.min} and ${elevenLabsSpeedRange.max}.`,
+      });
+    }
     const result = body.provider === "elevenlabs"
       ? await elevenlabs.speech(body)
       : await openai.speech(body);
@@ -324,6 +402,149 @@ export const buildApp = async (repository: RehearsalRepository) => {
       .header("X-Audio-Cache", result.cached ? "HIT" : "MISS")
       .type("audio/mpeg")
       .send(result.audio);
+  });
+
+  app.get("/api/saturation/topics", async (request) => {
+    const query = z.object({ language: languageSchema }).parse(request.query);
+    return { topics: repository.listSaturationTopics(query.language) };
+  });
+
+  app.post("/api/saturation/tracks", async (request, reply) => {
+    const body = z.object({
+      language: languageSchema,
+      islandId: z.string().uuid(),
+      settings: saturationSettingsSchema,
+    }).parse(request.body);
+    if (body.settings.provider === "openai" && !voiceOptions.includes(body.settings.voice as typeof voiceOptions[number])) {
+      return reply.code(400).send({ error: "INVALID_OPENAI_VOICE" });
+    }
+    const track = saturation.requestTrack(body);
+    return reply.code(track.status === "building" ? 202 : 200).send({ track });
+  });
+
+  app.get("/api/saturation/tracks/:trackId", async (request, reply) => {
+    const params = z.object({ trackId: z.string().uuid() }).parse(request.params);
+    const track = saturation.getTrack(params.trackId);
+    if (!track) return reply.code(404).send({ error: "SATURATION_TRACK_NOT_FOUND" });
+    return { track };
+  });
+
+  app.get("/api/saturation/tracks/:trackId/audio", async (request, reply) => {
+    const params = z.object({ trackId: z.string().uuid() }).parse(request.params);
+    const track = saturation.getTrack(params.trackId);
+    if (!track) return reply.code(404).send({ error: "SATURATION_TRACK_NOT_FOUND" });
+    if (track.status !== "ready") return reply.code(409).send({ error: "SATURATION_TRACK_NOT_READY", status: track.status });
+    const audio = saturation.getTrackAudio(params.trackId);
+    if (!audio) return reply.code(410).send({ error: "SATURATION_AUDIO_MISSING" });
+
+    const range = request.headers.range?.match(/^bytes=(\d*)-(\d*)$/);
+    reply.header("Accept-Ranges", "bytes").header("Cache-Control", "private, max-age=31536000, immutable").type("audio/mpeg");
+    if (!range) return reply.header("Content-Length", audio.byteLength).send(audio);
+    const start = range[1] ? Number(range[1]) : 0;
+    const end = range[2] ? Math.min(Number(range[2]), audio.byteLength - 1) : audio.byteLength - 1;
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || start >= audio.byteLength) {
+      return reply.code(416).header("Content-Range", `bytes */${audio.byteLength}`).send();
+    }
+    const chunk = audio.subarray(start, end + 1);
+    return reply.code(206)
+      .header("Content-Range", `bytes ${start}-${end}/${audio.byteLength}`)
+      .header("Content-Length", chunk.byteLength)
+      .send(chunk);
+  });
+
+  const transcribeCapture = async (publicId: string) => {
+    const stored = repository.getCaptureAudio(publicId);
+    if (!stored?.audio?.byteLength) throw new Error("CAPTURE_AUDIO_NOT_FOUND");
+    const extension = captureMimeTypes.get(stored.audio_mime);
+    if (!extension) throw new Error("UNSUPPORTED_AUDIO_TYPE");
+    const transcript = await openai.transcribe({
+      audio: stored.audio,
+      audioMime: stored.audio_mime,
+      filename: `capture-${publicId}.${extension}`,
+    });
+    return repository.completeCaptureTranscription(publicId, transcript)!;
+  };
+
+  app.get("/api/captures", async (request) => {
+    const query = z.object({
+      language: languageSchema,
+      includeProcessed: z.coerce.boolean().default(false),
+    }).parse(request.query);
+    return {
+      notes: repository.listCaptureNotes(query.language, query.includeProcessed),
+      activeBatch: repository.getActiveCaptureBatch(query.language),
+    };
+  });
+
+  app.post("/api/captures", async (request, reply) => {
+    const query = z.object({ language: languageSchema }).parse(request.query);
+    const upload = await request.file();
+    if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED" });
+    const mime = upload.mimetype.toLocaleLowerCase().split(";")[0];
+    if (!captureMimeTypes.has(mime)) {
+      await upload.toBuffer();
+      return reply.code(415).send({ error: "UNSUPPORTED_AUDIO_TYPE", mime });
+    }
+    const audio = await upload.toBuffer();
+    if (!audio.byteLength) return reply.code(422).send({ error: "EMPTY_AUDIO" });
+    const created = repository.createCaptureNote({ language: query.language, audio, audioMime: mime });
+    try {
+      const note = await transcribeCapture(created.publicId);
+      return reply.code(201).send({ note });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "TRANSCRIPTION_FAILED";
+      const note = repository.failCaptureTranscription(created.publicId, message)!;
+      return reply.code(201).send({ note, transcriptionFailed: true });
+    }
+  });
+
+  app.post("/api/captures/:captureId/retry", async (request, reply) => {
+    const params = z.object({ captureId: z.string().uuid() }).parse(request.params);
+    const note = repository.markCaptureTranscribing(params.captureId);
+    if (!note) return reply.code(409).send({ error: "CAPTURE_NOT_RETRYABLE" });
+    try {
+      return { note: await transcribeCapture(params.captureId) };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "TRANSCRIPTION_FAILED";
+      return { note: repository.failCaptureTranscription(params.captureId, message), transcriptionFailed: true };
+    }
+  });
+
+  app.patch("/api/captures/:captureId", async (request, reply) => {
+    const params = z.object({ captureId: z.string().uuid() }).parse(request.params);
+    const body = z.object({ transcript: z.string().trim().min(1).max(30_000) }).parse(request.body);
+    const note = repository.updateCaptureTranscript(params.captureId, body.transcript);
+    if (note) return { note };
+    if (!repository.getCaptureNote(params.captureId)) return reply.code(404).send({ error: "CAPTURE_NOT_FOUND" });
+    return reply.code(409).send({ error: "CAPTURE_NOT_EDITABLE" });
+  });
+
+  app.delete("/api/captures/:captureId", async (request, reply) => {
+    const params = z.object({ captureId: z.string().uuid() }).parse(request.params);
+    const note = repository.getCaptureNote(params.captureId);
+    if (!note) return reply.code(404).send({ error: "CAPTURE_NOT_FOUND" });
+    if (!repository.deleteCaptureNote(params.captureId)) {
+      return reply.code(409).send({ error: "CAPTURE_IN_REVIEW" });
+    }
+    return reply.code(204).send();
+  });
+
+  app.post("/api/captures/process", async (request, reply) => {
+    const body = z.object({ language: languageSchema }).parse(request.body);
+    const activeBatch = repository.getActiveCaptureBatch(body.language);
+    if (activeBatch) return { batch: activeBatch, existing: true, remaining: 0 };
+    const selection = repository.selectReadyCaptureNotes(body.language, 50_000);
+    if (!selection.notes.length) return reply.code(400).send({ error: "NO_READY_CAPTURES" });
+    const prepared = await openai.prepareCaptureBatch({ language: body.language, notes: selection.notes });
+    repository.attachCaptureNotesToBatch(selection.notes.map((note) => note.publicId), prepared.batch.publicId);
+    repository.saveSource({
+      language: body.language,
+      title: "Capture Reality",
+      rawText: selection.notes.map((note) => note.transcript).join("\n\n"),
+      kind: "capture_notebook",
+      metadata: { captureNoteIds: selection.notes.map((note) => note.publicId), batchId: prepared.batch.publicId },
+    });
+    return reply.code(201).send({ ...prepared, remaining: selection.remaining });
   });
 
   app.post("/api/import/text", async (request, reply) => {
@@ -427,6 +648,21 @@ export const buildApp = async (repository: RehearsalRepository) => {
     return { ...result, added: result.items.length };
   });
 
+  app.get("/api/review-batches/:batchId", async (request, reply) => {
+    const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
+    const batch = repository.getReviewBatch(params.batchId);
+    if (!batch) return reply.code(404).send({ error: "REVIEW_BATCH_NOT_FOUND" });
+    return { batch };
+  });
+
+  app.post("/api/review-batches/:batchId/revise", async (request, reply) => {
+    const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
+    const body = z.object({ feedback: z.string().trim().min(1).max(4_000) }).parse(request.body);
+    const batch = await openai.reviseReviewBatch({ batchPublicId: params.batchId, feedback: body.feedback });
+    if (!batch) return reply.code(404).send({ error: "REVIEW_BATCH_NOT_FOUND" });
+    return { batch };
+  });
+
   app.post("/api/review-batches/:batchId/candidates/:candidateId/regenerate", async (request, reply) => {
     const params = z.object({ batchId: z.string().uuid(), candidateId: z.string().uuid() }).parse(request.params);
     const body = z.object({ instruction: z.enum(["another", "different_context"]) }).parse(request.body);
@@ -447,13 +683,25 @@ export const buildApp = async (repository: RehearsalRepository) => {
     return reply.code(201).send(result);
   });
 
+  app.get("/api/islands", async (request) => {
+    const query = z.object({ language: languageSchema }).parse(request.query);
+    return { islands: repository.listIslands(query.language) };
+  });
+
+  app.get("/api/islands/:islandId", async (request, reply) => {
+    const params = z.object({ islandId: z.string().uuid() }).parse(request.params);
+    const island = repository.getIsland(params.islandId);
+    if (!island) return reply.code(404).send({ error: "TOPIC_NOT_FOUND" });
+    return { island };
+  });
+
   app.post("/api/islands", async (request, reply) => {
     const body = z
       .object({
         language: languageSchema,
         title: z.string().trim().min(1).max(200),
         description: z.string().trim().max(2_000).optional(),
-        itemIds: z.array(z.string()).max(100).default([]),
+        itemIds: z.array(z.string()).max(500).default([]),
       })
       .parse(request.body);
     return reply.code(201).send({
@@ -464,6 +712,28 @@ export const buildApp = async (repository: RehearsalRepository) => {
         itemPublicIds: body.itemIds,
       }),
     });
+  });
+
+  app.patch("/api/islands/:islandId", async (request, reply) => {
+    const params = z.object({ islandId: z.string().uuid() }).parse(request.params);
+    const body = z.object({
+      title: z.string().trim().min(1).max(200).optional(),
+      description: z.string().trim().max(2_000).optional(),
+      itemIds: z.array(z.string()).max(500).optional(),
+    }).refine((value) => value.title !== undefined || value.description !== undefined || value.itemIds !== undefined, {
+      message: "At least one Topic field is required",
+    }).parse(request.body);
+    const island = repository.updateIsland(params.islandId, {
+      title: body.title, description: body.description, itemPublicIds: body.itemIds,
+    });
+    if (!island) return reply.code(404).send({ error: "TOPIC_NOT_FOUND" });
+    return { island };
+  });
+
+  app.delete("/api/islands/:islandId", async (request, reply) => {
+    const params = z.object({ islandId: z.string().uuid() }).parse(request.params);
+    if (!repository.deleteIsland(params.islandId)) return reply.code(404).send({ error: "TOPIC_NOT_FOUND" });
+    return reply.code(204).send();
   });
 
   return app;

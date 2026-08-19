@@ -71,4 +71,45 @@ describe("database migrations", () => {
     migrated.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
+
+  it("expands legacy review batch kinds for Capture Reality without losing drafts", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rehearsal-capture-migration-"));
+    const databasePath = path.join(tempDir, "legacy.sqlite");
+    const legacy = new Database(databasePath);
+    legacy.exec(`
+      CREATE TABLE languages(code TEXT PRIMARY KEY, name TEXT NOT NULL, locale TEXT NOT NULL);
+      INSERT INTO languages VALUES ('en', 'English', 'en-US');
+      CREATE TABLE review_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        public_id TEXT NOT NULL UNIQUE,
+        language_code TEXT NOT NULL REFERENCES languages(code),
+        kind TEXT NOT NULL CHECK (kind IN ('chat_review', 'vocab', 'text_import', 'pattern_drill')),
+        title TEXT NOT NULL,
+        source_text TEXT NOT NULL DEFAULT '',
+        candidates TEXT NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'committed')),
+        source_thread_public_id TEXT,
+        committed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO review_batches(public_id, language_code, kind, title)
+      VALUES ('legacy-batch', 'en', 'vocab', 'Existing draft');
+    `);
+    legacy.close();
+
+    const migrated = openDatabase(databasePath);
+    expect(migrated.prepare("SELECT title FROM review_batches WHERE public_id = 'legacy-batch'").get())
+      .toEqual({ title: "Existing draft" });
+    expect(() => migrated.prepare(
+      "INSERT INTO review_batches(public_id, language_code, kind, title) VALUES (?, ?, ?, ?)",
+    ).run("capture-batch", "en", "capture", "Capture Reality")).not.toThrow();
+    const columns = migrated.prepare("PRAGMA table_info(capture_notes)").all() as Array<{ name: string }>;
+    expect(columns.map((column) => column.name)).toEqual(expect.arrayContaining([
+      "transcript", "audio", "status", "review_batch_id", "processed_at",
+    ]));
+
+    migrated.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
 });

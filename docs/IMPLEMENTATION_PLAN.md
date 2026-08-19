@@ -13,6 +13,7 @@ English and Latvian are isolated language spaces. Russian is a cue and explanati
 3. The tutor adapts to the student's actual voice, recurring errors, interests, and progress.
 4. LLM writes are draft-only; user-confirmed commits are scoped, validated, atomic, and audited.
 5. The local database is the source of truth; browser state is only a UI convenience.
+6. The phone experience is touch-complete and installable from the iPhone Home Screen without requiring App Store distribution.
 
 ## Delivery stages
 
@@ -65,6 +66,16 @@ Success: a new text becomes a shadowing session in a few deliberate steps.
 
 Success: opening Practice always produces a short, relevant session and explains why each item is present.
 
+### Stage 6 — installable iPhone experience ○
+
+- Web app manifest, standalone display mode, scoped start URL, and production icons.
+- Safe-area-aware touch UI that remains usable with the iPhone software keyboard.
+- Versioned application-shell caching with explicit offline and update states.
+- Recoverable network failures that preserve unsent user work.
+- Real-device verification in Safari and Home Screen standalone mode.
+
+Success: Rehearsal can be added to an iPhone Home Screen, launches without browser chrome, and supports the complete daily practice loop by touch. Server-only features fail clearly and recover after connectivity returns.
+
 ## Initial data model
 
 - `language_space`
@@ -84,7 +95,8 @@ The LLM never receives arbitrary database access. Normal Tutor tools are read-on
 
 - Pronunciation scoring.
 - Social features, leaderboards, and public courses.
-- Native mobile applications.
+- App Store distribution and fully native iOS rewrites.
+- Capacitor packaging until a concrete native-only capability requires it.
 - Multi-user billing and administration.
 - Cloud sync and multi-device authentication.
 - PostgreSQL migration until the single-user database actually outgrows SQLite.

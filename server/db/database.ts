@@ -4,6 +4,45 @@ import Database from "better-sqlite3";
 import { config } from "../config.js";
 import { schema } from "./schema.js";
 
+const migrateReviewBatches = (db: Database.Database) => {
+  const row = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'review_batches'",
+  ).get() as { sql: string } | undefined;
+  if (!row || row.sql.includes("'capture'")) return;
+
+  db.pragma("foreign_keys = OFF");
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE review_batches_next (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        public_id TEXT NOT NULL UNIQUE,
+        language_code TEXT NOT NULL REFERENCES languages(code),
+        kind TEXT NOT NULL CHECK (kind IN ('chat_review', 'vocab', 'text_import', 'pattern_drill', 'capture')),
+        title TEXT NOT NULL,
+        source_text TEXT NOT NULL DEFAULT '',
+        candidates TEXT NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'committed')),
+        source_thread_public_id TEXT,
+        committed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO review_batches_next(
+        id, public_id, language_code, kind, title, source_text, candidates, status,
+        source_thread_public_id, committed_at, created_at, updated_at
+      )
+      SELECT id, public_id, language_code, kind, title, source_text, candidates, status,
+        source_thread_public_id, committed_at, created_at, updated_at
+      FROM review_batches;
+      DROP TABLE review_batches;
+      ALTER TABLE review_batches_next RENAME TO review_batches;
+      CREATE INDEX idx_review_batches_status ON review_batches(status, updated_at DESC);
+    `);
+  });
+  migrate();
+  db.pragma("foreign_keys = ON");
+};
+
 const migrateReviewState = (db: Database.Database) => {
   const columns = new Set(
     (db.prepare("PRAGMA table_info(review_state)").all() as Array<{ name: string }>)
@@ -65,6 +104,7 @@ export const openDatabase = (databasePath = config.databasePath) => {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.pragma("busy_timeout = 5000");
+  migrateReviewBatches(db);
   db.exec(schema);
   migrateItems(db);
   migrateReviewState(db);

@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
-import { config, openAIConfigured } from "../config.js";
+import { config } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import { getModelRouting } from "../model-routing.js";
 import type { LanguageCode } from "../types.js";
@@ -57,12 +57,14 @@ Your job is to help him speak naturally and automatically, not to teach theory f
 `;
 
 export class TutorService {
-  private readonly client = openAIConfigured ? new OpenAI({ apiKey: config.openaiApiKey }) : null;
+  private readonly client: OpenAI | null;
 
   constructor(
     private readonly repository: RehearsalRepository,
     private readonly openaiService: OpenAIService,
-  ) {}
+  ) {
+    this.client = openaiService.configured ? new OpenAI({ apiKey: config.openaiApiKey }) : null;
+  }
 
   async chat(input: { language: LanguageCode; message: string; threadPublicId?: string }) {
     const thread = this.repository.getOrCreateThread(input.threadPublicId, input.language);

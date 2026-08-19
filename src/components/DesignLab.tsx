@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowRight, Check, ChevronDown, ChevronRight, FilePlus2, LoaderCircle,
-  Moon, PanelLeft, Pencil, Play, Plus, Search, Send, Settings2, Trash2,
+  Moon, PanelLeft, Pencil, Play, Plus, RefreshCw, Search, Send, Settings2, Trash2,
   Sparkles, Sun, ThumbsDown, ThumbsUp, Upload, Volume2, WandSparkles, X,
 } from "lucide-react";
 import "@fontsource-variable/inter";
 import { useSpeech } from "../hooks/useSpeech";
 import { evaluateAttempt } from "../lib/compare";
+import { apiPath } from "../lib/api";
 import {
   moveReviewRating,
   moveReviewedItem,
@@ -15,7 +16,10 @@ import {
   type ReviewRating,
 } from "../lib/sessionQueue";
 import type { DiffToken } from "../types/practice";
+import { CaptureNotebook } from "./CaptureNotebook";
 import { ReviewBatchPanel, type ReviewBatch } from "./ReviewBatchPanel";
+import { SaturationPanel } from "./SaturationPanel";
+import { TopicsManager } from "./TopicsManager";
 import "./design-lab.css";
 
 type Mode = "recall" | "shadow";
@@ -84,8 +88,26 @@ type ElevenLabsConfig = {
   configured: boolean;
   voice: { id: string; name: string };
   models: ElevenLabsPreferences["modelId"][];
+  speedRange: { min: number; max: number };
   defaults: ElevenLabsPreferences & { speed: number };
   note: string;
+};
+type ElevenLabsVoiceStatus = {
+  configured: boolean;
+  reachable: boolean;
+  checkedAt: string;
+  voice: {
+    id: string;
+    name: string;
+    category: string;
+    description: string;
+    labels: Record<string, string>;
+  };
+  error: string;
+};
+type PlaybackResult = {
+  provider: TtsProvider | "browser";
+  cache: "HIT" | "MISS" | null;
 };
 type SchedulerSettings = {
   presets: Record<ItemPreference, { requestRetention: number; maximumInterval: number }>;
@@ -115,9 +137,13 @@ const defaultElevenLabsConfig: ElevenLabsConfig = {
   configured: false,
   voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
   models: ["eleven_multilingual_v2", "eleven_flash_v2_5"],
+  speedRange: { min: 0.7, max: 1.2 },
   defaults: { ...defaultPlayback.elevenlabs, speed: 1.05 },
-  note: "Library voices require a paid ElevenLabs API plan.",
+  note: "Generated MP3 files are cached on this server.",
 };
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const humanizeLabel = (value: string) => value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 
 const defaultSchedulerSettings: SchedulerSettings = {
   presets: {
@@ -140,8 +166,6 @@ const languageCopy = {
   en: { short: "EN", label: "English", locale: "en-US" },
   lv: { short: "LV", label: "Latviešu", locale: "lv-LV" },
 } as const;
-
-const apiPath = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\//, "")}`;
 
 const fallbackItems: Record<Language, LearningItem[]> = {
   en: [{
@@ -177,6 +201,7 @@ export function DesignLab() {
         ...defaultPlayback,
         ...saved,
         elevenlabs: { ...defaultPlayback.elevenlabs, ...saved.elevenlabs },
+        speed: saved.provider === "elevenlabs" ? clamp(saved.speed ?? 1.05, 0.7, 1.2) : (saved.speed ?? 1),
       };
     } catch {
       return defaultPlayback;
@@ -222,7 +247,21 @@ export function DesignLab() {
       setApiOnline(true); setOpenaiConfigured(data.openaiConfigured);
       if (data.scheduler) setSchedulerSettings(data.scheduler);
       if (data.tts?.providers?.openai?.voices?.length) setVoices(data.tts.providers.openai.voices);
-      if (data.tts?.providers?.elevenlabs) setElevenLabsConfig(data.tts.providers.elevenlabs);
+      if (data.tts?.providers?.elevenlabs) {
+        setElevenLabsConfig(data.tts.providers.elevenlabs);
+        if (data.tts.providers.elevenlabs.configured) {
+          void fetch(apiPath("/api/audio/elevenlabs/status")).then(async (statusResponse) => {
+            if (!statusResponse.ok) return;
+            const status = await statusResponse.json() as ElevenLabsVoiceStatus;
+            if (status.reachable) {
+              setElevenLabsConfig((current) => ({
+                ...current,
+                voice: { id: status.voice.id, name: status.voice.name },
+              }));
+            }
+          }).catch(() => { /* Settings exposes provider retry without blocking the app. */ });
+        }
+      }
     }).catch(() => setApiOnline(false));
   }, []);
 
@@ -366,6 +405,8 @@ export function DesignLab() {
       elevenlabs: { ...playback.elevenlabs, ...overrides.elevenlabs },
     };
     const playAudioResponse = async (response: Response) => {
+      const cacheHeader = response.headers.get("X-Audio-Cache");
+      const cache = cacheHeader === "HIT" || cacheHeader === "MISS" ? cacheHeader : null;
       const url = URL.createObjectURL(await response.blob());
       for (let repetition = 0; repetition < nextPlayback.repetitions; repetition += 1) {
         if (sequence !== audioSequenceRef.current) break;
@@ -380,6 +421,7 @@ export function DesignLab() {
         }
       }
       URL.revokeObjectURL(url);
+      return cache;
     };
     if (openaiConfigured || elevenLabsConfig.configured) {
       try {
@@ -401,8 +443,8 @@ export function DesignLab() {
           const error = await response.json().catch(() => null) as { message?: string } | null;
           throw new Error(error?.message || "TTS unavailable");
         }
-        await playAudioResponse(response);
-        return;
+        const cache = await playAudioResponse(response);
+        return { provider, cache } satisfies PlaybackResult;
       } catch (error) {
         if (strictProvider) throw error;
         if (nextPlayback.provider === "elevenlabs") {
@@ -412,8 +454,8 @@ export function DesignLab() {
               body: JSON.stringify({ text, language, provider: "openai", speed: nextPlayback.speed, voice: nextPlayback.voice }),
             });
             if (response.ok) {
-              await playAudioResponse(response);
-              return;
+              const cache = await playAudioResponse(response);
+              return { provider: "openai", cache } satisfies PlaybackResult;
             }
           } catch { /* Browser speech is the final fallback. */ }
         }
@@ -425,6 +467,7 @@ export function DesignLab() {
       repetitions: nextPlayback.repetitions,
       pauseMs: nextPlayback.pauseMs,
     });
+    return { provider: "browser", cache: null } satisfies PlaybackResult;
   };
 
   return <div className={`simple-app simple-app--${theme}`}>
@@ -463,6 +506,7 @@ export function DesignLab() {
     /> : null}
     {route === "practice" && <PracticePage activeItemId={activeItemId} attempts={attempts}
       items={items} language={language} mode={mode} dailyProgress={dailyProgress}
+      elevenLabs={elevenLabsConfig} openaiConfigured={openaiConfigured} voices={voices}
       onActivate={setActiveItemId} onAnswer={setAnswer} onCheck={checkAnswer}
       onMode={(next) => { setMode(next); resetAttempts(); }} onRecallReview={commitRecall}
       onPreference={setPreference}
@@ -480,7 +524,7 @@ function GlobalSettings(props: {
   elevenLabs: ElevenLabsConfig;
   onClose: () => void;
   onPlayback: (playback: PlaybackPreferences) => void;
-  onPreview: () => Promise<void>;
+  onPreview: () => Promise<PlaybackResult>;
   onSaveScheduler: (settings: SchedulerSettings) => Promise<void>;
   playback: PlaybackPreferences;
   scheduler: SchedulerSettings;
@@ -492,12 +536,31 @@ function GlobalSettings(props: {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [previewState, setPreviewState] = useState<"idle" | "playing" | "error">("idle");
   const [previewError, setPreviewError] = useState("");
+  const [previewNotice, setPreviewNotice] = useState("");
+  const [voiceStatus, setVoiceStatus] = useState<ElevenLabsVoiceStatus | null>(null);
+  const [voiceStatusState, setVoiceStatusState] = useState<"idle" | "checking" | "ready" | "error">("idle");
 
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === "Escape") props.onClose(); };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [props.onClose]);
+
+  useEffect(() => {
+    if (!props.elevenLabs.configured) return;
+    const controller = new AbortController();
+    setVoiceStatusState("checking");
+    void fetch(apiPath("/api/audio/elevenlabs/status"), { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Voice check failed");
+        const status = await response.json() as ElevenLabsVoiceStatus;
+        if (controller.signal.aborted) return;
+        setVoiceStatus(status);
+        setVoiceStatusState(status.reachable ? "ready" : "error");
+      })
+      .catch(() => { if (!controller.signal.aborted) setVoiceStatusState("error"); });
+    return () => controller.abort();
+  }, [props.elevenLabs.configured]);
 
   const parseSteps = (value: string) => value.split(/[\s,]+/).map((step) => step.trim()).filter(Boolean);
   const stepPattern = /^\d+(?:\.\d+)?[mhd]$/;
@@ -539,22 +602,55 @@ function GlobalSettings(props: {
   const updateElevenLabs = <Key extends keyof ElevenLabsPreferences>(
     key: Key,
     value: ElevenLabsPreferences[Key],
-  ) => props.onPlayback({
-    ...props.playback,
-    elevenlabs: { ...props.playback.elevenlabs, [key]: value },
-  });
+  ) => {
+    setPreviewNotice("");
+    props.onPlayback({
+      ...props.playback,
+      elevenlabs: { ...props.playback.elevenlabs, [key]: value },
+    });
+  };
+
+  const refreshVoiceStatus = async () => {
+    setVoiceStatusState("checking");
+    try {
+      const response = await fetch(apiPath("/api/audio/elevenlabs/status?refresh=true"));
+      if (!response.ok) throw new Error("Voice check failed");
+      const status = await response.json() as ElevenLabsVoiceStatus;
+      setVoiceStatus(status);
+      setVoiceStatusState(status.reachable ? "ready" : "error");
+    } catch {
+      setVoiceStatusState("error");
+    }
+  };
 
   const preview = async () => {
     setPreviewState("playing");
     setPreviewError("");
+    setPreviewNotice("");
     try {
-      await props.onPreview();
+      const result = await props.onPreview();
+      if (result.provider === "elevenlabs") {
+        setPreviewNotice(result.cache === "HIT"
+          ? "Played from the server cache · no ElevenLabs credits used"
+          : "Generated once · this exact audio is now cached on the server");
+      }
       setPreviewState("idle");
     } catch (error) {
       setPreviewState("error");
       setPreviewError(error instanceof Error ? error.message : "Voice preview failed");
     }
   };
+
+  const activeVoice = voiceStatus?.reachable ? voiceStatus.voice : {
+    ...props.elevenLabs.voice,
+    category: "",
+    description: "",
+    labels: {} as Record<string, string>,
+  };
+  const voiceDetails = [activeVoice.labels.accent, activeVoice.labels.use_case, activeVoice.labels.gender]
+    .filter(Boolean).map(humanizeLabel).join(" · ") || "Configured ElevenLabs voice";
+  const speedRange = props.playback.provider === "elevenlabs"
+    ? props.elevenLabs.speedRange : { min: 0.5, max: 1.5 };
 
   return <div className="simple-settings-overlay" onMouseDown={(event) => {
     if (event.target === event.currentTarget) props.onClose();
@@ -575,7 +671,9 @@ function GlobalSettings(props: {
               onClick={() => props.onPlayback({
                 ...props.playback,
                 provider,
-                speed: provider === "elevenlabs" ? props.elevenLabs.defaults.speed : props.playback.speed,
+                speed: provider === "elevenlabs"
+                  ? clamp(props.elevenLabs.defaults.speed, props.elevenLabs.speedRange.min, props.elevenLabs.speedRange.max)
+                  : props.playback.speed,
               })}
               type="button"
             >{provider === "openai" ? "OpenAI" : "ElevenLabs"}</button>)}
@@ -588,13 +686,20 @@ function GlobalSettings(props: {
             </button>)}
           </div> : <>
             <div className="simple-elevenlabs-voice">
-              <div><strong>{props.elevenLabs.voice.name}</strong><span>Tender, kind and steady · American English</span></div>
-              <a href={`https://elevenlabs.io/app/voice-library?voiceId=${props.elevenLabs.voice.id}`} rel="noreferrer" target="_blank">Voice page</a>
+              <div><strong>{activeVoice.name}</strong><span>{voiceDetails}</span></div>
+              <a href={`https://elevenlabs.io/app/voice-library?voiceId=${activeVoice.id}`} rel="noreferrer" target="_blank">Voice page</a>
             </div>
-            <div className="simple-elevenlabs-status">
-              <i className={props.elevenLabs.configured ? "is-ready" : ""} />
-              <span>{props.elevenLabs.configured ? "API connected" : "API key missing"}</span>
-              <small>Paid plan required for this library voice</small>
+            <div className="simple-elevenlabs-status" aria-live="polite">
+              <i className={voiceStatusState === "ready" ? "is-ready" : ""} />
+              <div><span>{!props.elevenLabs.configured ? "API key missing"
+                : voiceStatusState === "checking" ? "Checking this voice…"
+                  : voiceStatusState === "ready" ? "Voice verified by ElevenLabs"
+                    : "Voice could not be verified"}</span>
+                <small>{voiceStatus?.error || "Identical audio is reused from the server cache"}</small></div>
+              {props.elevenLabs.configured ? <button aria-label="Check ElevenLabs voice again"
+                disabled={voiceStatusState === "checking"} onClick={() => void refreshVoiceStatus()} type="button">
+                <RefreshCw className={voiceStatusState === "checking" ? "simple-spin" : ""} size={13} />
+              </button> : null}
             </div>
             <div className="simple-model-choice">
               <span>Model</span><div>
@@ -619,12 +724,14 @@ function GlobalSettings(props: {
                 onClick={() => updateElevenLabs("speakerBoost", !props.playback.elevenlabs.speakerBoost)} type="button"><i /></button></div>
             </div>
           </>}
-          <button className="simple-voice-preview" disabled={previewState === "playing"}
+          <button className="simple-voice-preview" disabled={previewState === "playing"
+            || (props.playback.provider === "elevenlabs" && !props.elevenLabs.configured)}
             onClick={() => void preview()} type="button">
             {previewState === "playing" ? <LoaderCircle className="simple-spin" size={13} /> : <Play fill="currentColor" size={13} />}
-            Preview {props.playback.provider === "openai" ? capitalize(props.playback.voice) : props.elevenLabs.voice.name}
+            <span>Preview {props.playback.provider === "openai" ? capitalize(props.playback.voice) : activeVoice.name}</span>
           </button>
           {previewState === "error" ? <p className="simple-voice-error">{previewError}</p> : null}
+          {previewNotice ? <p className="simple-voice-cache-note">{previewNotice}</p> : null}
         </section>
 
         <section className="simple-settings-section">
@@ -635,7 +742,7 @@ function GlobalSettings(props: {
                 key={value} onClick={() => props.onPlayback({ ...props.playback, repetitions: value })} type="button">{value}×</button>)}
             </div></div>
             <label className="simple-global-setting simple-global-speed"><span>Speed <strong>{props.playback.speed.toFixed(2)}×</strong></span>
-              <input max="1.5" min="0.5" onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })}
+              <input max={speedRange.max} min={speedRange.min} onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })}
                 step="0.05" type="range" value={props.playback.speed} /></label>
             <div className="simple-global-setting"><label>Pause</label><div>
               {[500, 1500, 3000].map((value) => <button className={props.playback.pauseMs === value ? "is-active" : ""}
@@ -687,6 +794,7 @@ function PracticePage(props: {
   language: Language;
   mode: Mode;
   dailyProgress: DailyProgress;
+  elevenLabs: ElevenLabsConfig;
   onActivate: (itemId: string) => void;
   onAnswer: (itemId: string, value: string) => void;
   onCheck: (itemId: string) => void;
@@ -701,7 +809,10 @@ function PracticePage(props: {
   onShadowNext: (itemId: string) => void;
   playback: PlaybackPreferences;
   revealedItems: string[];
+  openaiConfigured: boolean;
+  voices: string[];
 }) {
+  const [practiceView, setPracticeView] = useState<"cards" | "saturation">("cards");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [topicFilter, setTopicFilter] = useState("all");
@@ -729,13 +840,16 @@ function PracticePage(props: {
   return <main className="simple-main simple-main--practice">
     <header className="simple-practice-toolbar">
       <div className="simple-practice-title">
-        <h1>Practice</h1>
+        <div className="simple-practice-view-title"><h1>Practice</h1><div aria-label="Practice mode" className="simple-practice-view" role="group">
+          <button className={practiceView === "cards" ? "is-active" : ""} onClick={() => setPracticeView("cards")} type="button">Cards</button>
+          <button className={practiceView === "saturation" ? "is-active" : ""} onClick={() => setPracticeView("saturation")} type="button">Saturation</button>
+        </div></div>
         <div aria-label={`${props.dailyProgress.recall} of ${goal} recall attempts today`} className="simple-daily-progress">
           <span><strong>{props.dailyProgress.recall}</strong> / {goal} recall · {props.dailyProgress.shadow} shadow</span>
           <i><b style={{ width: `${progress}%` }} /></i>
         </div>
       </div>
-      <div className="simple-feed-tools">
+      {practiceView === "cards" ? <div className="simple-feed-tools">
         <button
           aria-label={`Switch to ${props.mode === "recall" ? `${targetCode} to RU shadowing` : `RU to ${targetCode} recall`}`}
           className="simple-direction-toggle"
@@ -756,10 +870,13 @@ function PracticePage(props: {
         <button aria-label="Practice settings" className="simple-icon-button" onClick={() => setSettingsOpen((open) => !open)} type="button">
           <Settings2 size={17} />
         </button>
-      </div>
+      </div> : null}
     </header>
 
-    {settingsOpen ? <section aria-label="Playback settings" className="simple-inline-settings">
+    {practiceView === "saturation" ? <SaturationPanel language={props.language} openaiConfigured={props.openaiConfigured}
+      elevenLabs={props.elevenLabs} voices={props.voices} /> : null}
+
+    {practiceView === "cards" && settingsOpen ? <section aria-label="Playback settings" className="simple-inline-settings">
       <header><div><strong>Playback</strong><small>Shadowing rhythm for this device.</small></div>
         <button onClick={() => setSettingsOpen(false)} type="button">Done</button></header>
       <div className="simple-playback-options">
@@ -777,7 +894,7 @@ function PracticePage(props: {
       </div>
     </section> : null}
 
-    <section className="simple-island-feed" aria-label="Practice feed">
+    {practiceView === "cards" ? <section className="simple-island-feed" aria-label="Practice feed">
       {!visibleItems.length ? <p className="simple-feed-empty">Nothing matches these filters.</p> : null}
       {visibleItems.map((feedItem) => {
         const isCurrent = feedItem.publicId === props.activeItemId;
@@ -883,8 +1000,8 @@ function PracticePage(props: {
           </footer>
         </article>;
       })}
-    </section>
-    {editingItem ? <PracticeItemEditor item={editingItem} language={props.language}
+    </section> : null}
+    {practiceView === "cards" && editingItem ? <PracticeItemEditor item={editingItem} language={props.language}
       onClose={() => setEditingItem(null)} onDeleted={(itemId) => { setEditingItem(null); props.onItemDeleted(itemId); }}
       onUpdated={(item) => { setEditingItem(null); props.onItemUpdated(item); }} /> : null}
   </main>;
@@ -1044,6 +1161,7 @@ const formatThreadDate = (value: string) => {
 };
 
 function TutorPage({ language }: { language: Language }) {
+  const [tutorMode, setTutorMode] = useState<"chat" | "notebook">("chat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [draft, setDraft] = useState(""); const [sending, setSending] = useState(false);
@@ -1152,13 +1270,17 @@ function TutorPage({ language }: { language: Language }) {
     { label: "Earlier", items: threads.filter((thread) => parseThreadDate(thread.updatedAt).toDateString() !== today) },
   ].filter((group) => group.items.length);
 
-  return <main className="simple-main simple-main--chat">
-    <header className="simple-page-heading simple-tutor-heading"><h1>Tutor</h1>
-      <div className="simple-tutor-mobile-actions">
+  return <main className={`simple-main ${tutorMode === "chat" ? "simple-main--chat" : "simple-main--notebook"}`}>
+    <header className="simple-page-heading simple-tutor-heading"><div className="simple-tutor-title"><h1>Tutor</h1>
+      <div aria-label="Tutor mode" className="simple-tutor-mode" role="group">
+        <button className={tutorMode === "chat" ? "is-active" : ""} onClick={() => setTutorMode("chat")} type="button">Chat</button>
+        <button className={tutorMode === "notebook" ? "is-active" : ""} onClick={() => setTutorMode("notebook")} type="button">Notebook</button>
+      </div></div>
+      {tutorMode === "chat" ? <div className="simple-tutor-mobile-actions">
         <button onClick={() => setSessionsOpen(true)} type="button"><PanelLeft size={16} />Sessions</button>
         <button aria-label="New chat" onClick={newChat} title="New chat" type="button"><Plus size={17} /></button>
-      </div></header>
-    <section className="simple-chat">
+      </div> : null}</header>
+    {tutorMode === "notebook" ? <CaptureNotebook language={language} /> : <section className="simple-chat">
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={() => setSessionsOpen(false)} type="button" /> : null}
       <aside className={`simple-session-rail ${sessionsOpen ? "is-open" : ""}`}>
         <div className="simple-session-rail-heading"><strong>Sessions</strong>
@@ -1189,7 +1311,7 @@ function TutorPage({ language }: { language: Language }) {
           placeholder="Message your tutor…" rows={2} value={draft} />
           <button aria-label="Send" disabled={!draft.trim() || sending} onClick={() => void send()} type="button"><Send size={18} /></button></div>
       </div>
-    </section>
+    </section>}
   </main>;
 }
 
@@ -1242,6 +1364,7 @@ function LibraryPage({ language, onPlay }: { language: Language; onPlay: (text: 
     (topic === "all" || item.tags.includes(topic)) && (frequency === "all" || (item.frequencyBand || "common") === frequency)), [frequency, items, topic]);
   return <main className="simple-main"><header className="simple-page-heading"><div><h1>Library</h1><p>Your approved cards and source material.</p></div></header>
     {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onCommitted={() => void load()} /> : null}
+    <TopicsManager language={language} />
     <div className="simple-library-layout"><section className="simple-import-card">
       <div className="simple-section-heading"><FilePlus2 size={19} /><div><strong>Add text</strong><span>It stays a draft until you approve cards.</span></div></div>
       <input onChange={(event) => setTitle(event.target.value)} placeholder="Title or source" value={title} />
@@ -1254,7 +1377,7 @@ function LibraryPage({ language, onPlay }: { language: Language; onPlay: (text: 
       {notice && <p className="simple-import-notice">{notice}</p>}
     </section><section className="simple-library-panel">
       <div className="simple-library-tools"><label className="simple-search"><Search size={17} /><input onChange={(event) => setQuery(event.target.value)} placeholder="Find a phrase or thought" type="search" value={query} /></label>
-        <select aria-label="Filter by topic" onChange={(event) => setTopic(event.target.value)} value={topic}><option value="all">All topics</option>{topics.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+        <select aria-label="Filter by tag" onChange={(event) => setTopic(event.target.value)} value={topic}><option value="all">All tags</option>{topics.map((value) => <option key={value} value={value}>{value}</option>)}</select>
         <select aria-label="Filter by frequency" onChange={(event) => setFrequency(event.target.value)} value={frequency}><option value="all">Any frequency</option><option value="core">Core</option><option value="common">Common</option><option value="specific">Specific</option><option value="rare">Rare</option></select></div>
       <div className="simple-library-count">{visibleItems.length} cards</div><div className="simple-phrase-list">
         {visibleItems.map((row) => <article className="simple-phrase-row" key={row.publicId}>

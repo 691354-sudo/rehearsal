@@ -15,6 +15,9 @@ RUN npm prune --omit=dev && npm cache clean --force
 FROM node:22-bookworm-slim AS runtime
 
 WORKDIR /app
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production \
     API_HOST=0.0.0.0 \
     API_PORT=8787 \

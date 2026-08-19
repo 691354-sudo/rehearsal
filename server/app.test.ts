@@ -1,11 +1,13 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
 import { openDatabase, type RehearsalDatabase } from "./db/database.js";
 import { RehearsalRepository } from "./db/repository.js";
 import { seedDatabase } from "./db/seed.js";
+import { OpenAIService } from "./services/openai.js";
+import type { ElevenLabsService } from "./services/elevenlabs.js";
 
 describe("Rehearsal API", () => {
   let tempDir: string;
@@ -93,6 +95,37 @@ describe("Rehearsal API", () => {
       url: `/api/practice/progress?language=en&since=${encodeURIComponent("2000-01-01T00:00:00.000Z")}`,
     });
     expect(progress.json()).toMatchObject({ completed: 0, recall: 0, shadow: 1, pattern: 0 });
+    await app.close();
+  });
+
+  it("lists saturation topics and serves a ready MP3 with byte ranges", async () => {
+    const item = repository.saveItem({
+      language: "en", cue: "Я иду гулять.", target: "I'm going for a walk.", tags: ["Pocket test"],
+    });
+    repository.backfillTopicsFromTags("en");
+    const topic = repository.findIslandByTitle("en", "Pocket test")!;
+    const settings = { provider: "openai" as const, voice: "marin", speed: 1, pauseSeconds: 1.5, repetitions: 2 };
+    const created = repository.createOrRetrySaturationTrack({
+      configHash: "b".repeat(64), language: "en", islandId: topic.publicId, topicTitle: "Pocket test",
+      snapshot: [{ publicId: item.publicId, target: item.target }], settings, cacheKey: "saturation:range-test",
+    }).track;
+    repository.saveCachedAudio({
+      cacheKey: created.cacheKey, model: "saturation-v1", voice: "marin", format: "mp3", audio: Buffer.from([1, 2, 3, 4, 5]),
+    });
+    repository.completeSaturationTrack(created.publicId, 12.5);
+
+    const app = await buildApp(repository);
+    const topics = await app.inject({ method: "GET", url: "/api/saturation/topics?language=en" });
+    expect(topics.statusCode).toBe(200);
+    expect(topics.json().topics).toContainEqual({ islandId: topic.publicId, title: "Pocket test", count: 1 });
+
+    const audio = await app.inject({
+      method: "GET", url: `/api/saturation/tracks/${created.publicId}/audio`, headers: { range: "bytes=1-3" },
+    });
+    expect(audio.statusCode).toBe(206);
+    expect(audio.headers["accept-ranges"]).toBe("bytes");
+    expect(audio.headers["content-range"]).toBe("bytes 1-3/5");
+    expect(audio.rawPayload).toEqual(Buffer.from([2, 3, 4]));
     await app.close();
   });
 
@@ -198,6 +231,45 @@ describe("Rehearsal API", () => {
       id: "1YGgSmpRGVzkcaI7zhbX",
       name: "Christopher",
     });
+    expect(config.json().tts.providers.elevenlabs.speedRange).toEqual({ min: 0.7, max: 1.2 });
+    await app.close();
+  });
+
+  it("reports whether the configured ElevenLabs voice is actually reachable", async () => {
+    const voiceStatus = vi.fn().mockResolvedValue({
+      configured: true,
+      reachable: true,
+      checkedAt: "2026-08-19T12:00:00.000Z",
+      voice: {
+        id: "voice-id",
+        name: "Verified voice",
+        category: "professional",
+        description: "A test voice",
+        labels: { accent: "american" },
+      },
+      error: "",
+    });
+    const elevenlabs = { voiceStatus } as unknown as ElevenLabsService;
+    const app = await buildApp(repository, { elevenlabs });
+
+    const response = await app.inject({ method: "GET", url: "/api/audio/elevenlabs/status?refresh=true" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ reachable: true, voice: { name: "Verified voice" } });
+    expect(voiceStatus).toHaveBeenCalledWith(true);
+    await app.close();
+  });
+
+  it("rejects ElevenLabs speeds outside the provider API range before synthesis", async () => {
+    const app = await buildApp(repository);
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/audio/speech",
+      payload: { text: "Too fast", language: "en", provider: "elevenlabs", speed: 1.5 },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "INVALID_ELEVENLABS_SPEED" });
     await app.close();
   });
 
@@ -222,7 +294,9 @@ describe("Rehearsal API", () => {
   });
 
   it("keeps the tutor usable as a setup guide before a key is configured", async () => {
-    const app = await buildApp(repository);
+    const openai = new OpenAIService(repository);
+    vi.spyOn(openai, "configured", "get").mockReturnValue(false);
+    const app = await buildApp(repository, { openai });
     const response = await app.inject({
       method: "POST",
       url: "/api/chat",
@@ -294,6 +368,236 @@ describe("Rehearsal API", () => {
       focusTerms: ["bounce back"],
     });
     await app.close();
+  });
+
+  it("records a Russian voice note through OpenAI and deletes audio after transcription", async () => {
+    const openai = new OpenAIService(repository);
+    vi.spyOn(openai, "transcribe").mockResolvedValue("Я хочу спокойно объяснить свою позицию.");
+    const app = await buildApp(repository, { openai });
+    const boundary = "----rehearsal-capture-test";
+    const payload = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="note.webm"\r\n` +
+      "Content-Type: audio/webm\r\n\r\nfake-webm-audio\r\n" +
+      `--${boundary}--\r\n`,
+    );
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/captures?language=en",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+      payload,
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().note).toMatchObject({
+      language: "en",
+      transcript: "Я хочу спокойно объяснить свою позицию.",
+      status: "ready",
+    });
+    expect(repository.getCaptureAudio(response.json().note.publicId)?.audio).toBeNull();
+    await app.close();
+  });
+
+  it("retains failed capture audio for retry, then clears it after success", async () => {
+    const openai = new OpenAIService(repository);
+    const transcribe = vi.spyOn(openai, "transcribe")
+      .mockRejectedValueOnce(new Error("temporary failure"))
+      .mockResolvedValueOnce("Повторная расшифровка сработала.");
+    const app = await buildApp(repository, { openai });
+    const boundary = "----rehearsal-capture-retry";
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/captures?language=en",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+      payload: Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="note.m4a"\r\n` +
+        "Content-Type: audio/mp4\r\n\r\nfake-m4a-audio\r\n" +
+        `--${boundary}--\r\n`,
+      ),
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().note.status).toBe("failed");
+    const noteId = response.json().note.publicId as string;
+    expect(repository.getCaptureAudio(noteId)?.audio?.byteLength).toBeGreaterThan(0);
+
+    const retry = await app.inject({ method: "POST", url: `/api/captures/${noteId}/retry` });
+    expect(retry.statusCode).toBe(200);
+    expect(retry.json().note).toMatchObject({ status: "ready", transcript: "Повторная расшифровка сработала." });
+    expect(repository.getCaptureAudio(noteId)?.audio).toBeNull();
+    expect(transcribe).toHaveBeenCalledTimes(2);
+    await app.close();
+  });
+
+  it("rejects empty, unsupported, and oversized capture uploads", async () => {
+    const openai = new OpenAIService(repository);
+    vi.spyOn(openai, "transcribe").mockResolvedValue("Не должно вызываться.");
+    const app = await buildApp(repository, { openai });
+    const request = async (mime: string, audio: Buffer) => {
+      const boundary = `----capture-validation-${mime.replace(/\W/g, "")}`;
+      return app.inject({
+        method: "POST", url: "/api/captures?language=en",
+        headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+        payload: Buffer.concat([
+          Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="note.bin"\r\nContent-Type: ${mime}\r\n\r\n`),
+          audio,
+          Buffer.from(`\r\n--${boundary}--\r\n`),
+        ]),
+      });
+    };
+    expect((await request("audio/mp4", Buffer.alloc(0))).statusCode).toBe(422);
+    expect((await request("text/plain", Buffer.from("not audio"))).statusCode).toBe(415);
+    expect((await request("audio/mp4", Buffer.alloc(25 * 1024 * 1024 + 1))).statusCode).toBe(413);
+    expect(openai.transcribe).not.toHaveBeenCalled();
+    await app.close();
+  }, 20_000);
+
+  it("selects the oldest capture notes that fit the 50,000 character window", () => {
+    const makeReady = (text: string) => {
+      const note = repository.createCaptureNote({ language: "en", audio: Buffer.from("audio"), audioMime: "audio/webm" });
+      repository.completeCaptureTranscription(note.publicId, text);
+      return note.publicId;
+    };
+    const oldest = makeReady("a".repeat(30_000));
+    makeReady("b".repeat(20_001));
+    makeReady("c".repeat(10));
+    const selection = repository.selectReadyCaptureNotes("en", 50_000);
+    expect(selection.notes.map((note) => note.publicId)).toEqual([oldest]);
+    expect(selection.remaining).toBe(2);
+  });
+
+  it("turns multiple capture notes into one revisable batch and commits it atomically", async () => {
+    const first = repository.createCaptureNote({ language: "en", audio: Buffer.from("one"), audioMime: "audio/webm" });
+    const second = repository.createCaptureNote({ language: "en", audio: Buffer.from("two"), audioMime: "audio/webm" });
+    repository.completeCaptureTranscription(first.publicId, "Я хотел попросить клиента немного подождать.");
+    repository.completeCaptureTranscription(second.publicId, "Я хотел объяснить, что срок изменился.");
+
+    const openai = new OpenAIService(repository);
+    vi.spyOn(openai, "prepareCaptureBatch").mockImplementation(async ({ language }) => ({
+      mode: "openai" as const,
+      batch: repository.createReviewBatch({
+        language,
+        kind: "capture",
+        title: "Capture Reality",
+        candidates: [{
+          id: "9ad9bdcb-8309-43cd-8e75-92ed741bb511",
+          target: "Could you wait a moment?",
+          cue: "Можешь немного подождать?",
+          note: "",
+          category: "Client work",
+          focusTerms: ["wait a moment"],
+          disposition: "active",
+          frequencyBand: "core",
+          currency: "current",
+          personaFit: 5,
+          naturalness: 5,
+          commonness: 5,
+        }],
+      }),
+    }));
+    vi.spyOn(openai, "reviseReviewBatch").mockImplementation(async ({ batchPublicId, feedback }) => {
+      const batch = repository.getReviewBatch(batchPublicId)!;
+      return repository.replaceReviewCandidates(batchPublicId, [{
+        ...batch.candidates[0],
+        target: "Could you give me a moment?",
+      }], feedback);
+    });
+    const app = await buildApp(repository, { openai });
+    const prepared = await app.inject({ method: "POST", url: "/api/captures/process", payload: { language: "en" } });
+    expect(prepared.statusCode).toBe(201);
+    const batchId = prepared.json().batch.publicId as string;
+    expect(repository.listCaptureNotes("en").every((note) => note.status === "batched")).toBe(true);
+
+    const revised = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batchId}/revise`,
+      payload: { feedback: "Первая фраза слишком формальная." },
+    });
+    expect(revised.statusCode).toBe(200);
+    expect(revised.json().batch.candidates[0].target).toBe("Could you give me a moment?");
+
+    const candidate = revised.json().batch.candidates[0];
+    const committed = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batchId}/commit`,
+      payload: { candidates: [{
+        id: candidate.id,
+        target: candidate.target,
+        cue: candidate.cue,
+        note: candidate.note,
+        category: candidate.category,
+      }] },
+    });
+    expect(committed.statusCode).toBe(200);
+    expect(committed.json().added).toBe(1);
+    expect(repository.listCaptureNotes("en", true).filter((note) =>
+      [first.publicId, second.publicId].includes(note.publicId)
+    ).every((note) => note.status === "processed")).toBe(true);
+    expect(repository.listItems("en", 500).some((item) => item.target === "Could you give me a moment?")).toBe(true);
+    const captureTopic = repository.findIslandByTitle("en", "Client work");
+    expect(captureTopic).not.toBeNull();
+    expect(repository.getIsland(captureTopic!.publicId)?.items.map((item) => item.target))
+      .toContain("Could you give me a moment?");
+    await app.close();
+  });
+
+  it("backfills normalized Topics idempotently and preserves creation order", () => {
+    const first = repository.saveItem({ language: "en", cue: "Первый", target: "First.", tags: [" My Topic "] });
+    const second = repository.saveItem({ language: "en", cue: "Второй", target: "Second.", tags: ["my   topic"] });
+    repository.backfillTopicsFromTags("en");
+    repository.backfillTopicsFromTags("en");
+
+    const matching = repository.listIslands("en").filter((island) => island.title.toLocaleLowerCase().includes("my topic"));
+    expect(matching).toHaveLength(1);
+    expect(repository.getIsland(matching[0].publicId)?.items.map((item) => item.publicId))
+      .toEqual([first.publicId, second.publicId]);
+  });
+
+  it("does not recreate a deleted backfilled Topic after restart", async () => {
+    repository.saveItem({ language: "en", cue: "Удалить тему", target: "Delete the topic.", tags: ["Temporary tag topic"] });
+    const app = await buildApp(repository);
+    const topic = repository.findIslandByTitle("en", "Temporary tag topic")!;
+    expect(topic).not.toBeNull();
+    expect((await app.inject({ method: "DELETE", url: `/api/islands/${topic.publicId}` })).statusCode).toBe(204);
+    await app.close();
+
+    const restarted = await buildApp(repository);
+    expect(repository.findIslandByTitle("en", "Temporary tag topic")).toBeNull();
+    await restarted.close();
+  });
+
+  it("supports Topic CRUD, membership ordering, and deletion without deleting cards", async () => {
+    const first = repository.saveItem({ language: "en", cue: "А", target: "A.", tags: [] });
+    const second = repository.saveItem({ language: "en", cue: "Б", target: "B.", tags: [] });
+    repository.recordAttempt({
+      itemPublicId: first.publicId, mode: "recall", answer: "A.", score: 1, verdict: "easy", feedback: {}, rating: "easy",
+    });
+    const app = await buildApp(repository);
+    const created = await app.inject({
+      method: "POST", url: "/api/islands",
+      payload: { language: "en", title: "Manual topic", itemIds: [second.publicId, first.publicId] },
+    });
+    expect(created.statusCode).toBe(201);
+    const islandId = created.json().island.publicId as string;
+
+    const detail = await app.inject({ method: "GET", url: `/api/islands/${islandId}` });
+    expect(detail.json().island.items.map((item: { publicId: string }) => item.publicId))
+      .toEqual([second.publicId, first.publicId]);
+
+    const updated = await app.inject({
+      method: "PATCH", url: `/api/islands/${islandId}`,
+      payload: { title: "Renamed topic", itemIds: [first.publicId] },
+    });
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json().island).toMatchObject({ title: "Renamed topic", itemCount: 1 });
+
+    const removed = await app.inject({ method: "DELETE", url: `/api/islands/${islandId}` });
+    expect(removed.statusCode).toBe(204);
+    expect(repository.getItem(first.publicId)).not.toBeNull();
+    expect(repository.getItem(second.publicId)).not.toBeNull();
+    expect(repository.listDueItems("en", 500).some((item) => item.publicId === first.publicId)).toBe(false);
+    await app.close();
+
+    const restarted = await buildApp(repository);
+    expect(repository.findIslandByTitle("en", "Renamed topic")).toBeNull();
+    await restarted.close();
   });
 
   it("caps fresh cards without hiding scheduled reviews", () => {
