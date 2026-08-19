@@ -36,7 +36,7 @@ export type ProfileManagerOptions = {
   pins: Record<ProfileId, string>;
 };
 
-const pinPattern = /^\d{6,12}$/;
+const pinPattern = /^\d{4,12}$/;
 const registryName = "registry.json";
 const migrationReportName = "migration.json";
 
@@ -77,7 +77,7 @@ const createRegistry = (profilesDir: string, pins: Record<ProfileId, string>): P
   version: 1,
   profiles: profileIds.map((id) => {
     const pin = pins[id];
-    if (!pinPattern.test(pin)) throw new Error(`${id.toUpperCase()}_PROFILE_PIN must contain 6-12 digits`);
+    if (!pinPattern.test(pin)) throw new Error(`${id.toUpperCase()}_PROFILE_PIN must contain 4-12 digits`);
     const salt = randomBytes(16);
     return {
       id,

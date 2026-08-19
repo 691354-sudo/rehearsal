@@ -25,7 +25,7 @@ Required repository secrets:
 - `DEPLOY_SSH_KEY`
 - `DEPLOY_KNOWN_HOSTS`
 - `PRODUCTION_URL` (the application base URL, currently `https://7662n.cc/rehearsal/`)
-- `ROMAN_PROFILE_PIN` and `OLIVER_PROFILE_PIN` (6–12 digits);
+- `ROMAN_PROFILE_PIN` and `OLIVER_PROFILE_PIN` (4–12 digits);
 - `SESSION_SECRET` (a random value of at least 32 bytes).
 
 `deploy/rehearsal-backup.cron` creates a consistent SQLite backup nightly and removes backups older than 30 days. `deploy/rehearsal-model-check.cron` runs daily, while the model checker's timestamp guard permits a live provider check only once every 14 days.
