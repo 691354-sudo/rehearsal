@@ -38,6 +38,30 @@
   white-space: nowrap;
 }
 
+.simple-chat-toolbar > div {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.simple-delete-chat {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  color: var(--script-tertiary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+
+.simple-delete-chat:hover:not(:disabled) {
+  color: var(--retry);
+  background: color-mix(in srgb, var(--retry) 9%, transparent);
+  border-color: color-mix(in srgb, var(--retry) 25%, var(--script-rule));
+}
+
 .simple-chat-messages {
   min-height: 0;
   padding: 28px 32px;
@@ -282,8 +306,7 @@
 }
 
 .simple-library-heading-actions button,
-.simple-library-panel-actions > button:first-child,
-.simple-library-secondary > button:last-child {
+.simple-library-panel-actions > button:first-child {
   min-height: 40px;
   padding: 0 11px;
   color: var(--script-support);
@@ -299,10 +322,6 @@
 .simple-library-secondary.topics-manager,
 .simple-library-secondary > .topics-manager {
   margin: 0;
-}
-
-div.simple-library-secondary > button:last-child {
-  margin-top: 8px;
 }
 
 .simple-import-card.simple-library-secondary {
@@ -474,10 +493,10 @@ div.simple-library-secondary > button:last-child {
 
 .simple-phrase-row {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) 38px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
   align-items: start;
-  padding: 15px 16px;
+  padding: 18px;
   border-bottom: 1px solid var(--script-rule);
 }
 
@@ -487,19 +506,22 @@ div.simple-library-secondary > button:last-child {
   font-variant-numeric: tabular-nums;
 }
 
-.simple-phrase-row > div {
+.simple-phrase-copy {
   display: grid;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .simple-phrase-row strong {
-  font-size: 14px;
-  font-weight: 580;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .simple-phrase-row small {
   color: var(--script-support);
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .simple-phrase-row em {
@@ -524,34 +546,35 @@ div.simple-library-secondary > button:last-child {
 
 .simple-tutor-title {
   display: flex;
-  gap: 18px;
+  gap: 20px;
   align-items: center;
 }
 
 .simple-tutor-mode {
   display: flex;
-  gap: 3px;
-  padding: 3px;
+  gap: 4px;
+  padding: 4px;
   background: var(--script-inset);
-  border: 1px solid var(--script-rule);
-  border-radius: 8px;
+  border: 1px solid var(--script-rule-strong);
+  border-radius: 9px;
 }
 
 .simple-tutor-mode button {
-  min-height: 34px;
-  padding: 0 11px;
+  min-width: 92px;
+  min-height: 40px;
+  padding: 0 15px;
   color: var(--script-support);
-  font-size: 12px;
-  font-weight: 560;
+  font-size: 14px;
+  font-weight: 620;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
 }
 
 .simple-tutor-mode button.is-active {
   color: var(--script-ink);
-  background: var(--script-surface);
-  box-shadow: 0 1px 2px rgb(24 21 38 / 8%);
+  background: var(--cue-wash);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cue-light) 35%, var(--script-rule));
 }
 
 @media (max-width: 480px) {

@@ -30,6 +30,15 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     };
   });
 
+  app.delete("/api/chat/:threadId", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
+    const params = z.object({ threadId: z.string().uuid() }).parse(request.params);
+    if (!repository.tutor.deleteThread(params.threadId)) {
+      return reply.code(404).send({ error: "THREAD_NOT_FOUND" });
+    }
+    return reply.code(204).send();
+  });
+
   app.post("/api/chat", async (request) => {
     const { tutor } = dependencies.forRequest(request);
     const body = z.object({

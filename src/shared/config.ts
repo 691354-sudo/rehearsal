@@ -10,6 +10,7 @@ export const defaultPlayback: PlaybackPreferences = {
   repetitions: 2,
   speed: 1,
   pauseMs: 1500,
+  playAfterRecall: true,
   voice: "marin",
   elevenlabs: {
     modelId: "eleven_multilingual_v2",

@@ -673,10 +673,13 @@
 .simple-card-dialog-fields input,
 .simple-card-dialog-fields textarea,
 .simple-card-dialog-fields select {
+  box-sizing: border-box;
   width: 100%;
   min-height: 40px;
   padding: 9px 10px;
   color: var(--script-ink);
+  font: inherit;
+  font-size: 15px;
   background: var(--control-fill);
   border: 1px solid var(--control-rule);
   border-radius: 7px;
@@ -685,6 +688,7 @@
 
 .simple-card-dialog-fields textarea {
   resize: vertical;
+  font-size: 16px;
   line-height: 1.5;
 }
 

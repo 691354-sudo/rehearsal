@@ -351,63 +351,24 @@
 .simple-row-actions {
   display: flex !important;
   gap: 4px !important;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  max-width: 390px;
 }
 
 .simple-row-actions button {
   display: grid;
   width: auto;
-  min-width: 40px;
-  height: 40px;
-  padding: 0 9px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
   place-items: center;
   color: var(--script-support);
+  font-size: 11px;
+  font-weight: 560;
   background: transparent;
   border: 1px solid var(--script-rule);
   border-radius: 7px;
   white-space: nowrap;
-}
-
-.simple-library-edit {
-  display: grid;
-  grid-template-columns: 1fr 120px;
-  gap: 6px;
-}
-
-.simple-library-edit > input:first-child,
-.simple-library-edit > input:nth-child(2) {
-  grid-column: 1 / -1;
-}
-
-.simple-library-edit input,
-.simple-library-edit select {
-  min-height: 40px;
-  padding: 0 8px;
-  color: var(--script-ink);
-  font: inherit;
-  font-size: 12px;
-  background: var(--control-fill);
-  border: 1px solid var(--control-rule);
-  border-radius: 6px;
-}
-
-.simple-library-edit > div {
-  display: flex;
-  grid-column: 1 / -1;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-.simple-library-edit button {
-  min-height: 40px;
-  padding: 0 9px;
-  color: var(--script-support);
-  background: transparent;
-  border: 1px solid var(--script-rule);
-  border-radius: 6px;
-}
-
-.simple-library-edit button.is-primary {
-  color: var(--cue-on);
-  background: var(--cue-action);
-  border-color: var(--cue-action);
 }

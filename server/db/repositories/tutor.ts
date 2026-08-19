@@ -97,4 +97,8 @@ export class TutorRepository {
        ) ORDER BY id`,
     ).all(threadId, limit) as Array<{ role: "user" | "assistant"; content: string }>;
   }
+
+  deleteThread(publicId: string) {
+    return this.db.prepare("DELETE FROM chat_threads WHERE public_id = ?").run(publicId).changes > 0;
+  }
 }

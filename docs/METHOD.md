@@ -36,7 +36,7 @@ The source audio is temporary: it is deleted as soon as transcription succeeds. 
 
 Recall opens on the complete current FSRS due queue. The compact Topic and count controls are optional adjustments, not a required setup step: the selected Russian prompts are visible immediately below them, and Roman may start the default finite session without making a choice. Roman may narrow the queue to one Topic, choose 10, 20, 50, or all matching cards, or explicitly switch to Library practice. The active session presents one card at a time.
 
-The card shows a natural Russian cue. Roman types the complete target-language version and presses Enter. Comparison is local and immediate. The same card shows his answer, the natural answer, and their differences; an FSRS grade then schedules it. A second Enter accepts the selected grade and advances.
+The card shows a natural Russian cue. Roman types the complete target-language version and presses Enter. Comparison is local and immediate. For English, checking also plays the natural answer so Roman can repeat it aloud; this automatic playback is enabled by default and may be disabled in Settings. The same card shows his answer, the natural answer, their differences, and a manual Play action; an FSRS grade then schedules it. A second Enter accepts the selected grade and advances.
 
 Within the current session, `Again` returns the card after one other card and `Hard` returns it after several others. `Good` and `Easy` complete it for the session. These positions provide immediate reinforcement and do not replace the server's FSRS due date. A failed grade request keeps the answer, comparison, and selected grade available for retry.
 
@@ -56,7 +56,7 @@ Every card is requested and played as a separate MP3 through one persistent brow
 
 ### Conversation
 
-Tutor behaves like a normal ChatGPT conversation or role-play. It does not interrupt every sentence unless live correction was explicitly requested. At the end, `Finish & review` analyzes the complete exchange and proposes only meaningful corrections, reusable islands, and patterns.
+Tutor behaves like a normal ChatGPT conversation or role-play. It does not interrupt every sentence unless live correction was explicitly requested. Chat and Notebook remain equally visible working modes. Existing chats may be deleted explicitly; opening Tutor restores the active chat at its latest position without replaying an animated scroll through its history. At the end, `Finish & review` analyzes the complete exchange and proposes only meaningful corrections, reusable islands, and patterns.
 
 ## Approval boundary
 

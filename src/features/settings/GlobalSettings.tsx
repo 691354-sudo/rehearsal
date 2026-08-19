@@ -239,6 +239,9 @@ export function GlobalSettings(props: {
 
         <section className="simple-settings-section">
           <div className="simple-settings-section-title"><h3>Card playback</h3></div>
+          <label className="simple-recall-audio-setting"><input checked={props.playback.playAfterRecall}
+            onChange={(event) => applyPlayback({ ...props.playback, playAfterRecall: event.target.checked })} type="checkbox" />
+            <span><strong>Play answer after checking</strong><small>Recall only</small></span></label>
           <div className="simple-global-playback">
             <div className="simple-global-setting"><label>Repeats</label><div>
               {[1, 2, 3, 5].map((value) => <button className={props.playback.repetitions === value ? "is-active" : ""}

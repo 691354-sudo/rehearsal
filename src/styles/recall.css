@@ -167,9 +167,9 @@
 
 .practice-queue-preview li {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   gap: 12px;
-  align-items: start;
+  align-items: center;
   min-height: 72px;
   padding: 15px 18px;
 }
@@ -190,7 +190,7 @@
   border-radius: 6px;
 }
 
-.practice-queue-preview li div {
+.practice-queue-copy {
   min-width: 0;
 }
 
@@ -202,11 +202,52 @@
   line-height: 1.4;
 }
 
-.practice-queue-preview li div > span {
+.practice-queue-copy > span {
   display: block;
   margin-top: 3px;
   color: var(--script-tertiary);
   font-size: 13px;
+}
+
+.practice-queue-copy > small {
+  display: inline-flex;
+  max-width: 220px;
+  margin-top: 7px;
+  padding: 2px 7px;
+  overflow: hidden;
+  color: var(--script-tertiary);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 999px;
+}
+
+.practice-queue-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.practice-queue-actions button,
+.recall-natural-row button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  color: var(--script-support);
+  background: transparent;
+  border: 1px solid var(--script-rule);
+  border-radius: 7px;
+}
+
+.practice-queue-actions button:hover,
+.recall-natural-row button:hover {
+  color: var(--cue-light);
+  background: var(--cue-wash);
+  border-color: var(--cue-light);
 }
 
 .practice-queue-empty {
@@ -311,6 +352,17 @@
 .recall-natural-answer {
   color: var(--script-ink);
   font-weight: 600;
+}
+
+.recall-natural-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.recall-natural-row .recall-natural-answer {
+  min-width: 0;
 }
 
 .recall-grades {

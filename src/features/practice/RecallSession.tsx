@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Volume2 } from "lucide-react";
 import { recallKeyAction, recallSessionReducer, initialRecallSession } from "../../lib/recallSession";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { capitalize, languageCopy } from "../../shared/config";
-import type { AttemptDraft, IslandSummary, Language, LearningItem } from "../../shared/contracts";
+import type { AttemptDraft, IslandSummary, Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 
@@ -29,10 +29,13 @@ export function RecallSession(props: {
   topicId: string;
   onAnswer: (itemId: string, value: string) => void;
   onCheck: (itemId: string) => void;
+  onEdit: (item: LearningItem) => void;
   onListenMode: () => void;
   onManualReviewStarted: () => void;
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
+  onPlay: (text: string, playback: PlaybackPreferences) => Promise<unknown>;
   onTopic: (topicId: string) => void;
+  playback: PlaybackPreferences;
 }) {
   const [state, dispatch] = useReducer(recallSessionReducer, initialRecallSession);
   const [count, setCount] = useState("all");
@@ -70,9 +73,16 @@ export function RecallSession(props: {
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" || event.key.startsWith("Arrow")) event.preventDefault();
     const action = recallKeyAction(event.key, Boolean(attempt.evaluation), state.selectedRating);
-    if (action === "check") props.onCheck(current!.publicId);
+    if (action === "check") check();
     else if (action === "submit") void save();
     else if (action) dispatch({ type: "select-rating", rating: action });
+  };
+  const check = () => {
+    if (!current || !attempt.answer.trim()) return;
+    props.onCheck(current.publicId);
+    if (props.language === "en" && props.playback.playAfterRecall) {
+      void props.onPlay(current.target, props.playback).catch(() => undefined);
+    }
   };
 
   if (state.phase === "setup") return <div className="practice-ready-layout">
@@ -96,7 +106,8 @@ export function RecallSession(props: {
         Start {sessionItems.length ? `${sessionItems.length} cards` : "Recall"}<ChevronRight size={16} />
       </button>
     </section>
-    <PracticeQueuePreview items={sessionItems} mode="recall" scope={scope} />
+    <PracticeQueuePreview items={sessionItems} language={props.language} mode="recall" onEdit={props.onEdit}
+      onPlay={(item) => { void props.onPlay(item.target, props.playback); }} scope={scope} />
   </div>;
 
   if (state.phase === "complete" || !current) return <section className="recall-complete" aria-label="Recall complete">
@@ -114,12 +125,13 @@ export function RecallSession(props: {
       <div className="recall-answer-row"><input aria-label={`Type in ${languageCopy[props.language].label}`} autoComplete="off"
         onChange={(event) => { if (!attempt.evaluation) props.onAnswer(current.publicId, event.target.value); }}
         onKeyDown={onKeyDown} placeholder={`Type in ${languageCopy[props.language].label}`} readOnly={Boolean(attempt.evaluation)} ref={inputRef} value={attempt.answer} />
-        {!attempt.evaluation ? <button aria-label="Check answer" className="simple-primary" disabled={!attempt.answer.trim()} onClick={() => props.onCheck(current.publicId)} type="button"><Check size={16} /></button> : null}
+        {!attempt.evaluation ? <button aria-label="Check answer" className="simple-primary" disabled={!attempt.answer.trim()} onClick={check} type="button"><Check size={16} /></button> : null}
       </div>
       {attempt.evaluation ? <div className={`recall-result recall-result--${attempt.evaluation.verdict}`}>
         <span>{attempt.evaluation.verdict === "exact" ? "Correct" : "Compare"}</span>
         {attempt.evaluation.verdict !== "exact" ? <p className="recall-own-answer">{attempt.answer}</p> : null}
-        <p className="recall-natural-answer">{attempt.evaluation.naturalAnswer}</p>
+        <div className="recall-natural-row"><p className="recall-natural-answer">{attempt.evaluation.naturalAnswer}</p>
+          {props.language === "en" ? <button aria-label="Play natural answer" onClick={() => { void props.onPlay(current.target, props.playback); }} title="Play" type="button"><Volume2 size={16} /></button> : null}</div>
         <div className="recall-grades" aria-label="Memory grade">{reviewRatings.map((rating) => <button aria-pressed={state.selectedRating === rating}
           disabled={state.saving} key={rating} onClick={() => void save(rating)} type="button"><span>{capitalize(rating)}</span><small>{formatInterval(current.schedule?.options[rating].intervalSeconds)}</small></button>)}</div>
         {state.error ? <p className="recall-save-error" role="alert">{state.error}</p> : null}

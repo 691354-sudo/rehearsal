@@ -53,6 +53,7 @@ export type PlaybackPreferences = {
   repetitions: number;
   speed: number;
   pauseMs: number;
+  playAfterRecall: boolean;
   voice: string;
   elevenlabs: ElevenLabsPreferences;
 };
