@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  ArrowRight, Check, ChevronDown, ChevronRight, FilePlus2, LoaderCircle,
+  ArrowDown, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, FilePlus2, LoaderCircle,
   Moon, PanelLeft, Pencil, Play, Plus, RefreshCw, Search, Send, Settings2, Trash2,
-  Sparkles, Sun, ThumbsDown, ThumbsUp, Upload, Volume2, WandSparkles, X,
+  Repeat2, Sparkles, Sun, ThumbsDown, ThumbsUp, Upload, Volume2, WandSparkles, X,
 } from "lucide-react";
 import "@fontsource-variable/inter";
 import { useSpeech } from "../hooks/useSpeech";
 import { evaluateAttempt } from "../lib/compare";
 import { apiPath } from "../lib/api";
+import { moveDrillItem, orderDrillItems, reconcileDrillOrder, type DrillDirection } from "../lib/drillQueue";
 import {
   moveReviewRating,
   moveReviewedItem,
@@ -17,8 +18,8 @@ import {
 } from "../lib/sessionQueue";
 import type { DiffToken } from "../types/practice";
 import { CaptureNotebook } from "./CaptureNotebook";
+import { DrillBar } from "./DrillBar";
 import { ReviewBatchPanel, type ReviewBatch } from "./ReviewBatchPanel";
-import { SaturationPanel } from "./SaturationPanel";
 import { TopicsManager } from "./TopicsManager";
 import "./design-lab.css";
 
@@ -117,6 +118,8 @@ type SchedulerSettings = {
   newItemsPerDay: number;
 };
 type DailyProgress = { recall: number; shadow: number; pattern: number };
+type DrillStatus = "idle" | "loading" | "playing" | "paused" | "complete" | "error";
+type DrillPreferences = { order: string[]; loopIds: string[]; topics: string[] };
 
 const defaultPlayback: PlaybackPreferences = {
   provider: "openai",
@@ -166,6 +169,19 @@ const languageCopy = {
   en: { short: "EN", label: "English", locale: "en-US" },
   lv: { short: "LV", label: "Latviešu", locale: "lv-LV" },
 } as const;
+
+const loadDrillPreferences = (language: Language): DrillPreferences => {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(`rehearsal:drill:${language}`) || "{}") as Partial<DrillPreferences>;
+    return {
+      order: Array.isArray(saved.order) ? saved.order.map(String) : [],
+      loopIds: Array.isArray(saved.loopIds) ? saved.loopIds.map(String) : [],
+      topics: Array.isArray(saved.topics) ? saved.topics.map(String) : [],
+    };
+  } catch {
+    return { order: [], loopIds: [], topics: [] };
+  }
+};
 
 const fallbackItems: Record<Language, LearningItem[]> = {
   en: [{
@@ -219,10 +235,14 @@ export function DesignLab() {
   });
   const { speak, stop } = useSpeech();
   const audioSequenceRef = useRef(0);
+  const audioCancelRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem("rehearsal:theme", theme);
   }, [theme]);
+  useEffect(() => {
+    window.localStorage.removeItem("rehearsal:saturation-settings");
+  }, []);
   useEffect(() => {
     window.localStorage.setItem("rehearsal:playback", JSON.stringify(playback));
   }, [playback]);
@@ -391,13 +411,18 @@ export function DesignLab() {
     }).then((response) => { if (!response.ok) throw new Error("Shadow review failed"); setApiOnline(true); })
       .catch(() => { setApiOnline(false); setDailyProgress((progress) => ({ ...progress, shadow: Math.max(0, progress.shadow - 1) })); });
   };
+  const stopPlayback = useCallback(() => {
+    audioSequenceRef.current += 1;
+    audioCancelRef.current?.();
+    audioCancelRef.current = null;
+    stop();
+  }, [stop]);
   const playTarget = async (
     text: string,
     overrides: Partial<PlaybackPreferences> = {},
     strictProvider = false,
   ) => {
-    stop();
-    audioSequenceRef.current += 1;
+    stopPlayback();
     const sequence = audioSequenceRef.current;
     const nextPlayback = {
       ...playback,
@@ -412,9 +437,17 @@ export function DesignLab() {
         if (sequence !== audioSequenceRef.current) break;
         const audio = new Audio(url);
         await new Promise<void>((resolve) => {
-          audio.addEventListener("ended", () => resolve(), { once: true });
-          audio.addEventListener("error", () => resolve(), { once: true });
-          void audio.play().catch(() => resolve());
+          const finish = () => {
+            audio.removeEventListener("ended", finish);
+            audio.removeEventListener("error", finish);
+            if (audioCancelRef.current === cancel) audioCancelRef.current = null;
+            resolve();
+          };
+          const cancel = () => { audio.pause(); audio.removeAttribute("src"); finish(); };
+          audioCancelRef.current = cancel;
+          audio.addEventListener("ended", finish, { once: true });
+          audio.addEventListener("error", finish, { once: true });
+          void audio.play().catch(finish);
         });
         if (repetition < nextPlayback.repetitions - 1 && sequence === audioSequenceRef.current) {
           await new Promise((resolve) => window.setTimeout(resolve, nextPlayback.pauseMs));
@@ -504,7 +537,7 @@ export function DesignLab() {
       scheduler={schedulerSettings}
       voices={voices}
     /> : null}
-    {route === "practice" && <PracticePage activeItemId={activeItemId} attempts={attempts}
+    {route === "practice" && <PracticePage activeItemId={activeItemId} attempts={attempts} key={language}
       items={items} language={language} mode={mode} dailyProgress={dailyProgress}
       elevenLabs={elevenLabsConfig} openaiConfigured={openaiConfigured} voices={voices}
       onActivate={setActiveItemId} onAnswer={setAnswer} onCheck={checkAnswer}
@@ -512,6 +545,7 @@ export function DesignLab() {
       onPreference={setPreference}
       onItemDeleted={deletePracticeItem} onItemUpdated={updatePracticeItem}
       onPlayback={setPlayback} onPlay={(text) => void playTarget(text)} onShadowNext={advanceShadow}
+      onStopPlayback={stopPlayback}
       onReveal={(publicId) => setRevealedItems((current) => current.includes(publicId)
         ? current.filter((id) => id !== publicId) : [...current, publicId])}
       playback={playback} revealedItems={revealedItems} />}
@@ -807,16 +841,21 @@ function PracticePage(props: {
   onRecallReview: (itemId: string, rating: ReviewRating) => void;
   onReveal: (publicId: string) => void;
   onShadowNext: (itemId: string) => void;
+  onStopPlayback: () => void;
   playback: PlaybackPreferences;
   revealedItems: string[];
   openaiConfigured: boolean;
   voices: string[];
 }) {
-  const [practiceView, setPracticeView] = useState<"cards" | "saturation">("cards");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [topicFilter, setTopicFilter] = useState("all");
+  const initialDrillPreferences = useMemo(() => loadDrillPreferences(props.language), [props.language]);
+  const [topicFilters, setTopicFilters] = useState(initialDrillPreferences.topics);
   const [frequencyFilter, setFrequencyFilter] = useState("all");
+  const [drillOrder, setDrillOrder] = useState(initialDrillPreferences.order);
+  const [drillLoopIds, setDrillLoopIds] = useState(initialDrillPreferences.loopIds);
+  const [arrangingDrill, setArrangingDrill] = useState(false);
+  const [drillState, setDrillState] = useState<{ status: DrillStatus; currentId: string }>({ status: "idle", currentId: "" });
   const [selectedRatings, setSelectedRatings] = useState<Record<string, ReviewRating>>({});
   const [editingItem, setEditingItem] = useState<LearningItem | null>(null);
   const targetCode = languageCopy[props.language].short;
@@ -824,10 +863,37 @@ function PracticePage(props: {
   const goal = 100;
   const progress = Math.min(100, (props.dailyProgress.recall / goal) * 100);
   const topics = useMemo(() => [...new Set(props.items.flatMap((item) => item.tags.slice(0, 1)))].filter(Boolean).sort(), [props.items]);
-  const visibleItems = useMemo(() => props.items.filter((item) =>
-    (topicFilter === "all" || item.tags.includes(topicFilter)) &&
+  const orderedItems = useMemo(() => orderDrillItems(props.items, drillOrder), [drillOrder, props.items]);
+  const visibleItems = useMemo(() => orderedItems.filter((item) =>
+    (!topicFilters.length || topicFilters.includes(item.tags[0] || "")) &&
     (frequencyFilter === "all" || (item.frequencyBand || "common") === frequencyFilter)),
-  [frequencyFilter, props.items, topicFilter]);
+  [frequencyFilter, orderedItems, topicFilters]);
+  const drillActive = ["loading", "playing", "paused"].includes(drillState.status);
+
+  useEffect(() => {
+    window.localStorage.setItem(`rehearsal:drill:${props.language}`, JSON.stringify({
+      order: reconcileDrillOrder(props.items.map((item) => item.publicId), drillOrder),
+      loopIds: drillLoopIds,
+      topics: topicFilters,
+    } satisfies DrillPreferences));
+  }, [drillLoopIds, drillOrder, props.items, props.language, topicFilters]);
+
+  const updateDrillState = useCallback((status: DrillStatus, currentId: string) => {
+    setDrillState((current) => current.status === status && current.currentId === currentId
+      ? current : { status, currentId });
+  }, []);
+  const toggleTopic = (topic: string) => setTopicFilters((current) => current.includes(topic)
+    ? current.filter((value) => value !== topic) : [...current, topic]);
+  const toggleLoop = (itemId: string) => setDrillLoopIds((current) => current.includes(itemId)
+    ? current.filter((value) => value !== itemId) : [...current, itemId]);
+  const moveDrillCard = (itemId: string, direction: DrillDirection) => {
+    setDrillOrder((current) => moveDrillItem(
+      reconcileDrillOrder(props.items.map((item) => item.publicId), current),
+      visibleItems.map((item) => item.publicId),
+      itemId,
+      direction,
+    ));
+  };
 
   const activeHasEvaluation = Boolean(props.attempts[props.activeItemId]?.evaluation);
   useEffect(() => {
@@ -840,16 +906,13 @@ function PracticePage(props: {
   return <main className="simple-main simple-main--practice">
     <header className="simple-practice-toolbar">
       <div className="simple-practice-title">
-        <div className="simple-practice-view-title"><h1>Practice</h1><div aria-label="Practice mode" className="simple-practice-view" role="group">
-          <button className={practiceView === "cards" ? "is-active" : ""} onClick={() => setPracticeView("cards")} type="button">Cards</button>
-          <button className={practiceView === "saturation" ? "is-active" : ""} onClick={() => setPracticeView("saturation")} type="button">Saturation</button>
-        </div></div>
+        <h1>Practice</h1>
         <div aria-label={`${props.dailyProgress.recall} of ${goal} recall attempts today`} className="simple-daily-progress">
           <span><strong>{props.dailyProgress.recall}</strong> / {goal} recall · {props.dailyProgress.shadow} shadow</span>
           <i><b style={{ width: `${progress}%` }} /></i>
         </div>
       </div>
-      {practiceView === "cards" ? <div className="simple-feed-tools">
+      <div className="simple-feed-tools">
         <button
           aria-label={`Switch to ${props.mode === "recall" ? `${targetCode} to RU shadowing` : `RU to ${targetCode} recall`}`}
           className="simple-direction-toggle"
@@ -860,23 +923,27 @@ function PracticePage(props: {
           <span className="simple-direction-track"><ArrowRight size={13} /></span>
           <span>{props.mode === "recall" ? targetCode : "RU"}</span>
         </button>
-        <div className="simple-filter-wrap"><button aria-expanded={filtersOpen} className="simple-filter-button" onClick={() => setFiltersOpen((open) => !open)} type="button">
-          {topicFilter === "all" ? "All topics" : topicFilter} <ChevronDown size={14} /></button>
-          {filtersOpen ? <div className="simple-filter-popover"><label>Topic<select onChange={(event) => setTopicFilter(event.target.value)} value={topicFilter}>
-            <option value="all">All topics</option>{topics.map((topic) => <option key={topic} value={topic}>{topic}</option>)}</select></label>
+        <div className="simple-filter-wrap"><button aria-expanded={filtersOpen} className="simple-filter-button" disabled={drillActive} onClick={() => setFiltersOpen((open) => !open)} type="button">
+          {!topicFilters.length ? "All topics" : topicFilters.length === 1 ? topicFilters[0] : `${topicFilters.length} topics`} <ChevronDown size={14} /></button>
+          {filtersOpen ? <div className="simple-filter-popover"><fieldset><legend>Topics</legend><div className="simple-topic-checks">
+            {topics.map((topic) => <label key={topic}><input checked={topicFilters.includes(topic)} onChange={() => toggleTopic(topic)} type="checkbox" /><span>{topic}</span></label>)}
+          </div></fieldset>
             <label>Frequency<select onChange={(event) => setFrequencyFilter(event.target.value)} value={frequencyFilter}>
               <option value="all">Any frequency</option><option value="core">Core</option><option value="common">Common</option><option value="specific">Specific</option><option value="rare">Rare</option>
-            </select></label><button onClick={() => { setTopicFilter("all"); setFrequencyFilter("all"); setFiltersOpen(false); }} type="button">Reset</button></div> : null}</div>
+            </select></label><button onClick={() => { setTopicFilters([]); setFrequencyFilter("all"); setFiltersOpen(false); }} type="button">Reset</button></div> : null}</div>
         <button aria-label="Practice settings" className="simple-icon-button" onClick={() => setSettingsOpen((open) => !open)} type="button">
           <Settings2 size={17} />
         </button>
-      </div> : null}
+      </div>
     </header>
 
-    {practiceView === "saturation" ? <SaturationPanel language={props.language} openaiConfigured={props.openaiConfigured}
-      elevenLabs={props.elevenLabs} voices={props.voices} /> : null}
+    <DrillBar arranging={arrangingDrill} elevenLabsConfigured={props.elevenLabs.configured}
+      elevenLabsVoiceId={props.elevenLabs.voice.id} items={visibleItems} language={props.language}
+      loopIds={drillLoopIds} onArrange={() => setArrangingDrill((current) => !current)}
+      onBeforeStart={props.onStopPlayback} onSettings={() => setSettingsOpen((open) => !open)}
+      onState={updateDrillState} openaiConfigured={props.openaiConfigured} playback={props.playback} />
 
-    {practiceView === "cards" && settingsOpen ? <section aria-label="Playback settings" className="simple-inline-settings">
+    {settingsOpen ? <section aria-label="Playback settings" className="simple-inline-settings">
       <header><div><strong>Playback</strong><small>Shadowing rhythm for this device.</small></div>
         <button onClick={() => setSettingsOpen(false)} type="button">Done</button></header>
       <div className="simple-playback-options">
@@ -894,7 +961,7 @@ function PracticePage(props: {
       </div>
     </section> : null}
 
-    {practiceView === "cards" ? <section className="simple-island-feed" aria-label="Practice feed">
+    <section className="simple-island-feed" aria-label="Practice feed">
       {!visibleItems.length ? <p className="simple-feed-empty">Nothing matches these filters.</p> : null}
       {visibleItems.map((feedItem) => {
         const isCurrent = feedItem.publicId === props.activeItemId;
@@ -903,10 +970,14 @@ function PracticePage(props: {
         const grade = selectedRatings[feedItem.publicId] || "good";
         const topic = feedItem.tags[0] || feedItem.source || "Personal";
 
-        return <article className={`simple-island-card${isCurrent ? " is-current" : ""}`} key={feedItem.publicId}>
+        const isDrillCurrent = feedItem.publicId === drillState.currentId;
+        const isLooped = drillLoopIds.includes(feedItem.publicId);
+        const visibleIndex = visibleItems.findIndex((item) => item.publicId === feedItem.publicId);
+
+        return <article className={`simple-island-card${isCurrent ? " is-current" : ""}${isDrillCurrent ? " is-drill-current" : ""}`} key={feedItem.publicId}>
           <div className="simple-island-prompt">
             <p>{props.mode === "recall" ? feedItem.cue : feedItem.target}</p>
-            <button aria-label="Play phrase" className="simple-card-play" onClick={() => props.onPlay(feedItem.target)} type="button">
+            <button aria-label="Play phrase" className="simple-card-play" disabled={drillActive} onClick={() => props.onPlay(feedItem.target)} type="button">
               <Play fill="currentColor" size={15} />
             </button>
           </div>
@@ -982,6 +1053,14 @@ function PracticePage(props: {
               </button> : null}
               {isRevealed ? <span className="simple-revealed-copy">{props.mode === "recall" ? feedItem.target : feedItem.cue}</span> : null}
             </span>
+            {arrangingDrill ? <div className="simple-drill-card-tools" aria-label="Drill order">
+              <button aria-label="Move card up" disabled={visibleIndex === 0 || drillActive} onClick={() => moveDrillCard(feedItem.publicId, -1)} title="Move up" type="button"><ArrowUp size={14} /></button>
+              <button aria-label="Move card down" disabled={visibleIndex === visibleItems.length - 1 || drillActive} onClick={() => moveDrillCard(feedItem.publicId, 1)} title="Move down" type="button"><ArrowDown size={14} /></button>
+              <button aria-label={isLooped ? "Remove card from loop" : "Repeat card on loop"} aria-pressed={isLooped}
+                className={isLooped ? "is-active" : ""} disabled={drillActive} onClick={() => toggleLoop(feedItem.publicId)} title="Repeat on loop" type="button">
+                <Repeat2 size={14} /><span>Loop</span>
+              </button>
+            </div> : null}
             <div className="simple-card-meta">
               <div aria-label="Card preference" className="simple-preference-actions">
                 <button aria-label="Like this card" aria-pressed={feedItem.preference === "like"}
@@ -1000,8 +1079,8 @@ function PracticePage(props: {
           </footer>
         </article>;
       })}
-    </section> : null}
-    {practiceView === "cards" && editingItem ? <PracticeItemEditor item={editingItem} language={props.language}
+    </section>
+    {editingItem ? <PracticeItemEditor item={editingItem} language={props.language}
       onClose={() => setEditingItem(null)} onDeleted={(itemId) => { setEditingItem(null); props.onItemDeleted(itemId); }}
       onUpdated={(item) => { setEditingItem(null); props.onItemUpdated(item); }} /> : null}
   </main>;

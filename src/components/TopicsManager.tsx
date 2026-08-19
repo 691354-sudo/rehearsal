@@ -96,7 +96,7 @@ export function TopicsManager({ language }: { language: Language }) {
   }, [items, topic?.items]);
 
   return <section className="topics-manager">
-    <header><div><h2>Topics</h2><span>Ordered collections for Saturation. Cards can belong to more than one.</span></div>
+    <header><div><h2>Topics</h2><span>Reusable groups for filtering cards. Cards can belong to more than one.</span></div>
       <div><input aria-label="New Topic name" onChange={(event) => setNewTitle(event.target.value)} onKeyDown={(event) => {
         if (event.key === "Enter") { event.preventDefault(); void create(); }
       }} placeholder="New Topic" value={newTitle} /><button disabled={!newTitle.trim() || saving} onClick={() => void create()} type="button"><Plus size={15} />Create</button></div></header>
