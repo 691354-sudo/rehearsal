@@ -20,6 +20,7 @@ export function ListenRepeat(props: {
   items: LearningItem[];
   language: Language;
   onListened: (itemId: string) => Promise<void>;
+  onEdit: (item: LearningItem) => void;
   onPause: () => void;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
   onPlayback: (playback: PlaybackPreferences) => void;
@@ -161,7 +162,8 @@ export function ListenRepeat(props: {
         <Play fill="currentColor" size={15} />Play {candidates.length || "due"} cards
       </button>
     </section>
-    <PracticeQueuePreview items={candidates} mode="listen" scope={scope} />
+    <PracticeQueuePreview items={candidates} language={props.language} mode="listen" onEdit={props.onEdit}
+      onPlay={(item) => { void props.onPlay(item.target, props.playback); }} scope={scope} />
   </div>;
 
   if (phase === "complete") return <section className="recall-complete" aria-label="Listening complete">

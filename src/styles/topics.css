@@ -3,15 +3,16 @@
   overflow: hidden;
   background: var(--script-surface);
   border: 1px solid var(--script-rule);
-  border-radius: 11px;
+  border-radius: 12px;
 }
 
 .topics-manager > header {
   display: flex;
-  gap: 18px;
+  gap: 20px;
   align-items: center;
   justify-content: space-between;
-  padding: 15px 16px;
+  min-height: 64px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--script-rule);
 }
 
@@ -20,32 +21,45 @@
   gap: 2px;
 }
 
-.topics-manager h2 {
+.topics-manager h2,
+.topic-detail-heading h3 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 660;
+  color: var(--script-ink);
+  letter-spacing: -0.02em;
+}
+
+.topics-manager h2 {
+  font-size: 16px;
+  font-weight: 670;
 }
 
 .topics-manager > header span,
-.topics-manager > p {
+.topics-manager > p,
+.topic-detail-heading span,
+.topic-detail-heading small {
   color: var(--script-tertiary);
   font-size: 12px;
 }
 
-.topics-manager > header > div:last-child,
+.topics-header-actions,
+.topic-create,
 .topic-title-edit,
-.topic-add-item {
+.topic-detail-heading > div:last-child,
+.topic-item-actions,
+.topic-add-item > div {
   display: flex;
   gap: 6px;
+  align-items: center;
   min-width: 0;
 }
 
 .topics-manager input,
 .topics-manager select {
   min-width: 0;
-  min-height: 40px;
+  min-height: 36px;
   padding: 0 9px;
   color: var(--script-ink);
+  font-size: 12px;
   background: var(--script-inset);
   border: 1px solid var(--script-rule-strong);
   border-radius: 7px;
@@ -56,7 +70,7 @@
   gap: 5px;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: 36px;
   padding: 0 9px;
   color: var(--script-support);
   font-size: 12px;
@@ -65,14 +79,32 @@
   border-radius: 7px;
 }
 
+.topics-manager button:hover:not(:disabled) {
+  color: var(--script-ink);
+  background: var(--script-inset);
+}
+
+.topic-manager-close,
+.topic-delete {
+  width: 36px;
+  padding: 0 !important;
+}
+
+.topic-delete {
+  color: var(--retry) !important;
+  border-color: transparent !important;
+}
+
 .topics-layout {
   display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
-  min-height: 210px;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 360px;
 }
 
 .topics-layout > nav {
-  padding: 8px;
+  max-height: 620px;
+  padding: 10px 8px;
+  overflow-y: auto;
   background: var(--script-inset);
   border-right: 1px solid var(--script-rule);
 }
@@ -81,7 +113,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   width: 100%;
+  min-height: 38px;
   margin-bottom: 2px;
+  padding: 0 10px;
   text-align: left;
   border-color: transparent;
 }
@@ -89,52 +123,79 @@
 .topics-layout > nav button span {
   overflow: hidden;
   color: inherit;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .topics-layout > nav button small {
+  min-width: 22px;
+  padding: 1px 6px;
   color: var(--script-tertiary);
+  font-size: 11px;
+  text-align: center;
+  background: var(--script-surface);
+  border-radius: 999px;
 }
 
 .topics-layout > nav button.is-active {
   color: var(--script-ink);
-  font-weight: 620;
+  font-weight: 630;
   background: var(--cue-wash);
+  box-shadow: inset 2px 0 0 var(--cue-light);
 }
 
 .topic-detail {
   min-width: 0;
-  padding: 13px 14px;
+  padding: 18px 20px 20px;
+}
+
+.topic-detail-heading {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 50px;
+}
+
+.topic-detail-heading > div:first-child:not(.topic-title-edit) {
+  display: grid;
+  gap: 2px;
+}
+
+.topic-detail-heading h3 {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.topic-title-edit {
+  flex: 1;
 }
 
 .topic-title-edit input {
   flex: 1;
+  font-size: 14px;
   font-weight: 620;
 }
 
-.topic-title-edit button:last-child {
-  width: 40px;
-  padding: 0;
-  color: var(--retry);
-}
-
 .topic-items {
-  margin: 12px 0;
+  margin: 14px 0 18px;
   border-top: 1px solid var(--script-rule);
 }
 
 .topic-items article {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 16px;
   align-items: center;
-  min-height: 58px;
+  min-height: 76px;
+  padding: 11px 0;
   border-bottom: 1px solid var(--script-rule);
 }
 
 .topic-items article > div:first-child {
   display: grid;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -146,35 +207,63 @@
 }
 
 .topic-items strong {
-  font-size: 12px;
+  color: var(--script-ink);
+  font-size: 16px;
   font-weight: 590;
+  line-height: 1.35;
 }
 
 .topic-items span {
-  color: var(--script-tertiary);
-  font-size: 11px;
+  color: var(--script-support);
+  font-size: 13px;
 }
 
-.topic-items article > div:last-child {
-  display: flex;
-  gap: 3px;
+.topic-item-actions select {
+  width: 118px;
 }
 
-.topic-items article button {
-  width: 40px;
+.topic-item-actions button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 7px;
+}
+
+.topic-item-actions button[aria-label^="Move"] {
+  width: 34px;
   padding: 0;
+}
+
+.topic-item-actions .topic-remove {
+  color: var(--script-tertiary);
+}
+
+.topic-items-empty {
+  margin: 0;
+  padding: 28px 0;
+  color: var(--script-tertiary);
+  font-size: 13px;
+  text-align: center;
+  border-bottom: 1px solid var(--script-rule);
+}
+
+.topic-add-item {
+  display: grid;
+  gap: 7px;
+  color: var(--script-support);
+  font-size: 12px;
 }
 
 .topic-add-item select {
   flex: 1;
+  font-size: 13px;
 }
 
 .topic-empty {
   display: grid;
-  min-height: 180px;
+  min-height: 280px;
   place-items: center;
   color: var(--script-tertiary);
-  font-size: 12px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -184,13 +273,21 @@
   border-top: 1px solid var(--script-rule);
 }
 
+@media (max-width: 900px) {
+  .topic-items article {
+    align-items: start;
+  }
+
+  .topic-item-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 210px;
+  }
+}
+
 @media (max-width: 720px) {
   .topics-manager > header {
     align-items: flex-start;
-  }
-
-  .topics-manager > header > div:first-child span {
-    display: none;
   }
 
   .topics-layout {
@@ -209,7 +306,12 @@
     display: grid;
   }
 
-  .topics-manager > header > div:last-child input {
+  .topics-header-actions,
+  .topic-create {
+    width: 100%;
+  }
+
+  .topic-create input {
     flex: 1;
   }
 
@@ -233,16 +335,18 @@
     margin: 0;
   }
 
-  .topic-title-edit {
-    flex-wrap: wrap;
-  }
-
-  .topic-title-edit input {
-    flex-basis: 100%;
+  .topic-detail-heading,
+  .topic-title-edit,
+  .topic-items article {
+    display: grid;
   }
 
   .topic-items article {
-    align-items: start;
-    padding: 8px 0;
+    gap: 9px;
+  }
+
+  .topic-item-actions {
+    justify-content: flex-start;
+    max-width: none;
   }
 }

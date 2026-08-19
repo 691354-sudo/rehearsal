@@ -11,6 +11,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
+import { CardEditorDialog } from "./CardEditorDialog";
 import { TopicsManager } from "./TopicsManager";
 import { apiFetch } from "../../shared/api";
 import type { Island, IslandSummary, Language, LearningItem } from "../../shared/contracts";
@@ -40,8 +41,7 @@ export function LibraryPage({ language, onAvailability, onListen, onPlay, onPrac
   const [notice, setNotice] = useState("");
   const [added, setAdded] = useState(false);
   const [batch, setBatch] = useState<ReviewBatch | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState({ target: "", cue: "", note: "", frequencyBand: "common" });
+  const [editingItem, setEditingItem] = useState<LearningItem | null>(null);
 
   const load = async () => {
     try {
@@ -83,14 +83,6 @@ export function LibraryPage({ language, onAvailability, onListen, onPlay, onPrac
     } catch { setNotice("Import failed. Nothing was added to Library."); }
     finally { setImporting(false); }
   };
-  const beginEdit = (item: LearningItem) => {
-    setEditing(item.publicId);
-    setEditDraft({ target: item.target, cue: item.cue, note: item.note, frequencyBand: item.frequencyBand });
-  };
-  const saveEdit = async (itemId: string) => {
-    const response = await apiFetch(`/api/items/${itemId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(editDraft) });
-    if (response.ok) { setEditing(null); await load(); }
-  };
   const deleteItem = async (itemId: string) => {
     if (!window.confirm("Delete this card from Library?")) return;
     const response = await apiFetch(`/api/items/${itemId}`, { method: "DELETE" });
@@ -120,7 +112,7 @@ export function LibraryPage({ language, onAvailability, onListen, onPlay, onPrac
     <div className="simple-library-heading-actions"><button onClick={() => setShowTopics((shown) => !shown)} type="button">Manage topics</button>
       <button onClick={() => setShowImport((shown) => !shown)} type="button">Import text</button></div></header>
     {loadError ? <div className="simple-unavailable" role="alert"><span>Library unavailable.</span><button onClick={() => void load()} type="button"><RefreshCw size={14} />Retry</button></div> : null}
-    {showTopics ? <div className="simple-library-secondary"><TopicsManager language={language} /><button onClick={() => { setShowTopics(false); void loadTopics(); }} type="button">Close</button></div> : null}
+    {showTopics ? <div className="simple-library-secondary"><TopicsManager language={language} onClose={() => { setShowTopics(false); void loadTopics(); }} /></div> : null}
     {showImport ? <section className="simple-import-card simple-library-secondary">
       <div className="simple-section-heading"><FilePlus2 size={19} /><div><strong>Import text or transcript</strong></div></div>
       <input onChange={(event) => setTitle(event.target.value)} placeholder="Title or source" value={title} />
@@ -147,22 +139,20 @@ export function LibraryPage({ language, onAvailability, onListen, onPlay, onPrac
       <div className="simple-library-count">{visibleItems.length} cards</div><div className="simple-phrase-list">
         {!visibleItems.length && !loadError ? <p className="simple-library-empty">No cards</p> : null}
         {visibleItems.map((item) => <article className="simple-phrase-row" key={item.publicId}>
-          {editing === item.publicId ? <div className="simple-library-edit"><input onChange={(event) => setEditDraft((current) => ({ ...current, target: event.target.value }))} value={editDraft.target} />
-            <input onChange={(event) => setEditDraft((current) => ({ ...current, cue: event.target.value }))} value={editDraft.cue} />
-            <input onChange={(event) => setEditDraft((current) => ({ ...current, note: event.target.value }))} placeholder="Note" value={editDraft.note} />
-            <select onChange={(event) => setEditDraft((current) => ({ ...current, frequencyBand: event.target.value }))} value={editDraft.frequencyBand}><option value="core">Core</option><option value="common">Common</option><option value="specific">Specific</option><option value="rare">Rare</option></select>
-            <div><button onClick={() => setEditing(null)} type="button">Cancel</button><button className="is-primary" onClick={() => void saveEdit(item.publicId)} type="button">Save</button></div></div>
-          : <div><strong>{item.target}</strong><small>{item.cue}</small><em>{[libraryStatusOf(item), item.tags[0], item.frequencyBand].filter(Boolean).join(" · ")}</em></div>}
-          {editing !== item.publicId ? <div className="simple-row-actions">
-            {language === "en" ? <button aria-label="Play" onClick={() => onPlay(item.target)} type="button"><Volume2 size={15} /></button> : null}
-            {item.practiceEnabled ? <button onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Move to Learned</button> : <>
+          <div className="simple-phrase-copy"><strong>{item.target}</strong><small>{item.cue}</small><em>{[libraryStatusOf(item), item.tags[0], item.frequencyBand].filter(Boolean).join(" · ")}</em></div>
+          <div className="simple-row-actions">
+            {language === "en" ? <button aria-label="Play" onClick={() => onPlay(item.target)} title="Play" type="button"><Volume2 size={15} /></button> : null}
+            {item.practiceEnabled ? <button onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Learned</button> : <>
               <button onClick={() => onReview(item.publicId)} type="button">Review</button>
-              <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Return to learning</button></>}
-            <button onClick={() => void patternDrill(item.publicId)} type="button">Make pattern drill</button>
-            <button aria-label="Edit" onClick={() => beginEdit(item)} type="button"><Pencil size={15} /></button>
-            <button aria-label="Delete" onClick={() => void deleteItem(item.publicId)} type="button"><Trash2 size={15} /></button></div> : null}
+              <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Reactivate</button></>}
+            <button onClick={() => void patternDrill(item.publicId)} type="button">Pattern drill</button>
+            <button aria-label="Edit" onClick={() => setEditingItem(item)} title="Edit" type="button"><Pencil size={15} /></button>
+            <button aria-label="Delete" onClick={() => void deleteItem(item.publicId)} title="Delete" type="button"><Trash2 size={15} /></button></div>
         </article>)}
       </div>
     </section>
+    {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => setEditingItem(null)}
+      onSaved={(item) => { setItems((current) => current.map((candidate) => candidate.publicId === item.publicId
+        ? { ...candidate, ...item, schedule: candidate.schedule } : candidate)); setEditingItem(null); }} /> : null}
   </main>;
 }

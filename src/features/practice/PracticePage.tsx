@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CardEditorDialog } from "../library/CardEditorDialog";
 import { ListenRepeat } from "./ListenRepeat";
 import { RecallSession } from "./RecallSession";
 import { usePracticeTopics } from "./usePracticeTopics";
@@ -26,6 +27,7 @@ export function PracticePage(props: {
   onAnswer: (itemId: string, value: string) => void;
   onCheck: (itemId: string) => void;
   onListened: (itemId: string) => Promise<void>;
+  onItemUpdated: (item: LearningItem) => void;
   onManualReviewStarted: () => void;
   onMode: (mode: Mode) => void;
   onPausePlayback: () => void;
@@ -39,6 +41,7 @@ export function PracticePage(props: {
   voices: string[];
 }) {
   const [topicFilters, setTopicFilters] = useState<string[]>([]);
+  const [editingItem, setEditingItem] = useState<LearningItem | null>(null);
   const { selectedTopicItems, topics } = usePracticeTopics(props.language, topicFilters, setTopicFilters);
   const topicId = topicFilters[0] || "";
   const listeningAvailable = props.language === "en";
@@ -61,18 +64,23 @@ export function PracticePage(props: {
       manualReviewItemId={props.manualReviewItemId}
       onAnswer={props.onAnswer}
       onCheck={props.onCheck}
+      onEdit={setEditingItem}
       onListenMode={() => props.onMode("shadow")}
       onManualReviewStarted={props.onManualReviewStarted}
       onRecallReview={props.onRecallReview}
+      onPlay={props.onPlay}
       onTopic={(nextTopic) => setTopicFilters(nextTopic ? [nextTopic] : [])}
       selectedTopicItems={selectedTopicItems}
       topicId={topicId}
       topics={topics}
+      playback={props.playback}
     /> : <ListenRepeat dueItemIds={props.dueItemIds} elevenLabs={props.elevenLabs} items={props.items} language={props.language}
-      onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
+      onEdit={setEditingItem} onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
       onPlayback={props.onPlayback} onResume={props.onResumePlayback} onStop={props.onStopPlayback}
       onPracticeEnabled={props.onPracticeEnabled}
       onTopic={(nextTopic) => setTopicFilters(nextTopic ? [nextTopic] : [])}
       playback={props.playback} selectedTopicItems={selectedTopicItems} topicId={topicId} topics={topics} voices={props.voices} />}
+    {editingItem ? <CardEditorDialog item={editingItem} language={props.language} onClose={() => setEditingItem(null)}
+      onSaved={(item) => { props.onItemUpdated(item); setEditingItem(null); }} /> : null}
   </main>;
 }

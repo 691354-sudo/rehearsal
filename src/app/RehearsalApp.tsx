@@ -417,6 +417,8 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       dueItemIds={dueItemIds} items={items} language={language} mode={mode} dailyProgress={dailyProgress}
       elevenLabs={elevenLabsConfig} manualReviewItemId={manualReviewItemId}
       onAnswer={setAnswer} onCheck={checkAnswer} onListened={commitListening}
+      onItemUpdated={(item) => setItems((current) => current.map((candidate) => candidate.publicId === item.publicId
+        ? { ...candidate, ...item, schedule: candidate.schedule } : candidate))}
       onManualReviewStarted={() => setManualReviewItemId(null)}
       onMode={(next) => { setMode(next); resetAttempts(); }} onRecallReview={commitRecall}
       onPracticeEnabled={updatePracticeEnabled}

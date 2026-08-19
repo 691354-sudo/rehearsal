@@ -51,6 +51,7 @@ Rehearsal is a pragmatic, practice-first personal language tool. It should feel 
 - One active sentence is the product signature: a focused working surface with a quiet violet border and thin violet rail, surrounded by only the controls needed for the current action.
 - Both modes default to the complete ordered FSRS `Due now` selection. Topic, count, and custom Library practice are compact optional controls; the resulting cards appear immediately below them before a session starts.
 - Recall queue previews show Russian prompts only, so selection stays visible without revealing the target-language answer.
+- Every visible Practice queue card keeps compact Play, Edit, and category metadata actions. For English Recall, checking plays the natural answer by default and the result keeps a manual Play action; Settings may disable only the automatic playback.
 - Recall is a two-Enter loop: first Enter evaluates the written target-language answer and shows an inline word diff; second Enter accepts the selected memory grade and advances.
 - `Again`, `Hard`, `Good`, and `Easy` belong only to recall because they grade memory. The suggested grade is the focused default.
 - Each recall grade carries a quiet second-line interval preview. Reviewed cards leave the `Due now` scope until FSRS marks them due again, but remain available under `All Library cards`.
@@ -68,6 +69,9 @@ Rehearsal is a pragmatic, practice-first personal language tool. It should feel 
 - Topic management and text import are secondary dialogs or panels.
 - `Learned` is an explicit reversible item state. It never looks like deletion and it preserves the FSRS history.
 - Pattern Drill is a labeled card action whose proposals remain dismissible drafts until selected.
+- Library card text leads at 17 px target / 14 px cue on desktop; secondary actions use 11–12 px labels in compact 34–36 px controls. Editing uses the shared elevated card dialog rather than expanding into the list row.
+- Topic management uses a 220 px selection rail and a sentence-led detail pane. Each membership row exposes `Move to…`, compact ordering controls, and explicit Remove; adding the same card to another Topic remains a separate visible action.
+- Tutor Chat / Notebook is a high-visibility 14 px segmented control. Loaded history jumps to the latest position without animated traversal; only genuinely new content scrolls smoothly.
 
 ## Global settings
 

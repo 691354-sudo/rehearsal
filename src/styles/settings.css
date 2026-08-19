@@ -115,6 +115,41 @@
   font-weight: 650;
 }
 
+.simple-recall-audio-setting {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 10px;
+  cursor: pointer;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.simple-recall-audio-setting input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--cue-action);
+}
+
+.simple-recall-audio-setting span {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.simple-recall-audio-setting strong {
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.simple-recall-audio-setting small {
+  color: var(--script-tertiary);
+  font-size: 11px;
+}
+
 .simple-provider-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;

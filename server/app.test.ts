@@ -366,6 +366,11 @@ describe("Rehearsal API", () => {
     expect(history.statusCode).toBe(200);
     expect(history.json().messages).toHaveLength(2);
     expect(history.json().messages[0]).toEqual({ role: "user", content: "Help me practice small talk" });
+
+    const removed = await app.inject({ method: "DELETE", url: `/api/chat/${threadId}` });
+    expect(removed.statusCode).toBe(204);
+    expect((await app.inject({ method: "GET", url: "/api/chat/threads?language=en" })).json().threads).toEqual([]);
+    expect((await app.inject({ method: "GET", url: `/api/chat/${threadId}/messages` })).statusCode).toBe(404);
     await app.close();
   });
 

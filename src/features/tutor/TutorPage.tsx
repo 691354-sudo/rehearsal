@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Check, LoaderCircle, PanelLeft, Plus, Send, Upload, X } from "lucide-react";
+import { Check, LoaderCircle, PanelLeft, Plus, Send, Trash2, Upload, X } from "lucide-react";
 import { CaptureNotebook } from "../capture/CaptureNotebook";
 import type { ProfileId } from "../../../contracts/api";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
@@ -67,8 +67,10 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
   const [draft, setDraft] = useState(""); const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(""); const [added, setAdded] = useState(false);
   const [loadingThread, setLoadingThread] = useState(false); const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [deletingThread, setDeletingThread] = useState(false);
   const [reviewing, setReviewing] = useState(false); const [reviewBatch, setReviewBatch] = useState<ReviewBatch | null>(null);
   const [threadId, setThreadId] = useState<string>(); const messagesRef = useRef<HTMLDivElement>(null);
+  const scrollIntentRef = useRef<"instant" | "smooth" | null>(null);
   const storageKey = `rehearsal:${profileId}:tutor-thread:${language}`;
 
   const refreshThreads = async () => {
@@ -86,6 +88,7 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
       const response = await apiFetch(`/api/chat/${publicId}/messages`);
       if (!response.ok) throw new Error("Could not load session");
       const data = await response.json() as { messages: Array<{ role: "user" | "assistant"; content: string }> };
+      scrollIntentRef.current = "instant";
       setMessages(data.messages.map((message) => ({ ...message, id: crypto.randomUUID() })));
       setThreadId(publicId); window.localStorage.setItem(storageKey, publicId); setSessionsOpen(false);
     } finally { setLoadingThread(false); }
@@ -109,20 +112,38 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
         const loaded = await history.json() as { messages: Array<{ role: "user" | "assistant"; content: string }> };
         if (cancelled) return;
         setThreadId(selected.publicId); window.localStorage.setItem(storageKey, selected.publicId);
+        scrollIntentRef.current = "instant";
         setMessages(loaded.messages.map((message) => ({ ...message, id: crypto.randomUUID() })));
       } catch { /* A blank Tutor remains usable when history is unavailable. */ }
     })();
     return () => { cancelled = true; };
   }, [language, profileId]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const messageList = messagesRef.current;
-    if (messageList) messageList.scrollTo({ top: messageList.scrollHeight, behavior: "smooth" });
+    const intent = scrollIntentRef.current;
+    if (!messageList || !intent) return;
+    messageList.scrollTo({ top: messageList.scrollHeight, behavior: intent === "smooth" ? "smooth" : "auto" });
+    scrollIntentRef.current = null;
   }, [messages, reviewBatch]);
 
   const newChat = () => {
     setThreadId(undefined); setMessages([]); setReviewBatch(null); setDraft(""); setSendError(""); setAdded(false); setSessionsOpen(false);
     window.localStorage.removeItem(storageKey);
+  };
+
+  const deleteChat = async () => {
+    if (!threadId || deletingThread || !window.confirm("Delete this chat?")) return;
+    setDeletingThread(true); setSendError("");
+    try {
+      const response = await apiFetch(`/api/chat/${threadId}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Chat could not be deleted.");
+      const remaining = threads.filter((thread) => thread.publicId !== threadId);
+      setThreads(remaining); setThreadId(undefined); setMessages([]); setReviewBatch(null); setAdded(false);
+      window.localStorage.removeItem(storageKey);
+      if (remaining[0]) await openThread(remaining[0].publicId);
+    } catch { setSendError("Chat could not be deleted."); }
+    finally { setDeletingThread(false); }
   };
 
   const prepareVocab = async (content: string) => {
@@ -142,7 +163,7 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
       if (looksLikeVocabList(content)) {
         const data = await prepareVocab(content);
         setReviewBatch(data.batch); setThreadId(data.threadId); window.localStorage.setItem(storageKey, data.threadId);
-        setMessages((current) => [...current,
+        scrollIntentRef.current = "smooth"; setMessages((current) => [...current,
           { id: crypto.randomUUID(), role: "user", content },
           { id: crypto.randomUUID(), role: "assistant", content: data.content },
         ]);
@@ -152,7 +173,7 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
         if (!response.ok) throw new Error("Chat unavailable");
         const data = await response.json() as { threadId: string; content: string }; setThreadId(data.threadId);
         window.localStorage.setItem(storageKey, data.threadId);
-        setMessages((current) => [...current,
+        scrollIntentRef.current = "smooth"; setMessages((current) => [...current,
           { id: crypto.randomUUID(), role: "user", content },
           { id: crypto.randomUUID(), role: "assistant", content: data.content },
         ]);
@@ -167,8 +188,8 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
     try {
       const response = await apiFetch(`/api/chat/${threadId}/review`, { method: "POST" });
       if (!response.ok) throw new Error("Review failed");
-      const data = await response.json() as { batch: ReviewBatch }; setReviewBatch(data.batch);
-    } catch { setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: "Review could not be prepared. Nothing was added to Library." }]); }
+      const data = await response.json() as { batch: ReviewBatch }; scrollIntentRef.current = "smooth"; setReviewBatch(data.batch);
+    } catch { scrollIntentRef.current = "smooth"; setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: "Review could not be prepared. Nothing was added to Library." }]); }
     finally { setReviewing(false); }
   };
 
@@ -205,8 +226,10 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
       </aside>
       <div className="simple-chat-pane">
         <div className="simple-chat-toolbar"><strong>{currentThread?.title || "New chat"}</strong>
-          {threadId ? <button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
-            {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <Check size={15} />}Finish & review</button> : null}</div>
+          {threadId ? <div><button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
+            {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <Check size={15} />}Finish & review</button>
+            <button aria-label="Delete chat" className="simple-delete-chat" disabled={deletingThread || sending || reviewing}
+              onClick={() => void deleteChat()} title="Delete chat" type="button">{deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}</button></div> : null}</div>
         <div className="simple-chat-messages" ref={messagesRef}>
           {messages.map((message) => <article className={`simple-message simple-message--${message.role}`} key={message.id}>
             <span>{message.role === "user" ? "You" : "Tutor"}</span><MarkdownMessage content={message.content} /></article>)}
