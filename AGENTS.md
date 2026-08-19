@@ -35,7 +35,7 @@ This is a two-person hobby project. Prefer momentum over ceremony while keeping 
 ## Codex browser access
 
 - Run `npm run dev:codex` for isolated local visual testing. It loads the ignored `.env.codex.local`, uses separate data under `.data/codex-browser`, disables paid APIs, selects Roman, and pre-fills the local PIN.
-- Open `http://127.0.0.1:4183/` and press Enter on the pre-filled Roman login. Do not ask Roman for the PIN again.
+- Open `http://127.0.0.1:4183/` and click the enabled `Continue as Roman` button. Do not ask Roman for the PIN again.
 - Reuse an authenticated browser session when available. Use production only for read-only smoke tests unless the task explicitly authorizes a mutation.
 - Do not add an authentication bypass.
 
