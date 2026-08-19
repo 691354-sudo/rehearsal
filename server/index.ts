@@ -9,7 +9,7 @@ import { seedDatabase } from "./db/seed.js";
 
 const db = openDatabase();
 const repository = new RehearsalRepository(db);
-if (!repository.listItems("en", 1).length && !repository.listItems("lv", 1).length) {
+if (!repository.items.list("en", 1).length && !repository.items.list("lv", 1).length) {
   seedDatabase(repository);
 }
 

@@ -4,26 +4,26 @@ This file contains only current state and follow-up work. Every new session star
 
 ## Current state
 
-- The active `DesignLab.tsx` UI includes Practice, Tutor, Library, Settings, Capture Reality, Topics, and Saturation. The older prototype remains at `#legacy` until the modularization PR removes it.
-- The API currently opens one SQLite database at `.data/rehearsal.sqlite` locally and `/opt/apps/rehearsal/data/rehearsal.sqlite` in production.
+- The active UI is split into `src/app`, domain modules under `src/features`, shared contracts/config, and bounded style files. Practice, Tutor, Library, Settings, Capture Reality, Topics, and Card Drill are preserved; the legacy route and prototype source are removed.
+- The API routes and SQLite repositories are split into domain modules; the runtime still opens one database at `.data/rehearsal.sqlite` locally and `/opt/apps/rehearsal/data/rehearsal.sqlite` in production.
 - The GitHub deployment workflow uses immutable release directories. It is operational only after all deployment secrets are configured and the first manual run is verified.
 - Deterministic tests and the production build pass without paid API calls.
 
 ## Main code map
 
-- `src/components/DesignLab.tsx` — current application shell and primary flows.
-- `src/components/CaptureNotebook.tsx` — Russian voice capture and reviewed card preparation.
-- `src/components/TopicsManager.tsx` — reusable Topic ordering.
-- `src/components/SaturationPanel.tsx` — continuous walking-audio preparation and playback.
-- `src/components/design-lab.css` — current responsive design system and component states.
+- `src/app/RehearsalApp.tsx` — runtime shell, configuration, audio, and page composition.
+- `src/features/` — Practice, Tutor, Library, Capture, Settings, and Review UI behavior, including Topics and Card Drill.
+- `src/styles/` — approved tokens and feature-owned responsive styles.
 - `src/lib/compare.ts` — instant deterministic recall comparison.
 - `src/lib/sessionQueue.ts` — keyboard grade ordering and shadow queue behavior.
-- `server/app.ts` — HTTP API and validation.
-- `server/db/repository.ts` — SQLite persistence, FTS search, changes, due queue, review batches, captures, topics, and saturation.
-- `server/services/saturation.ts` — continuous audio assembly.
+- `server/app.ts` — Fastify composition and global error handling.
+- `server/http/` — domain route validation and responses.
+- `server/db/repositories/` — domain persistence, FTS search, due queue, review batches, captures, Topics, chats, audio, and settings.
+- `src/features/practice/DrillBar.tsx` — client-side Card Drill sequencing and playback controls.
 - `server/services/scheduler.ts` — FSRS-6 integration and project-specific limits.
 - `server/services/tutor.ts` — Tutor prompt and read-only tool loop.
 - `server/model-routing.ts` — Sol/Terra/Luna workload routing.
+- `server/data/seed-content.ts` — curated English and Latvian test material.
 
 ## Verification baseline
 
@@ -51,7 +51,7 @@ Before a release, verify the actual browser flow at desktop and mobile widths. F
 - Instant local answer diff with keyboard-efficient desktop and touch-complete phone grading.
 - Editable/deletable cards and persistent Like/Dislike priority.
 - Capture Reality transcription with draft review before Library insertion.
-- Ordered Topics and cached continuous Saturation audio.
+- Ordered Topics and configurable Card Drill playback backed by the existing speech cache.
 - Configurable OpenAI and ElevenLabs speech with persistent cache and request deduplication.
 - Tutor history, uploads, vocabulary context generation, and `Finish & review`.
 - Library search, import, review-before-commit, editing, deletion, category/frequency metadata.
@@ -60,7 +60,6 @@ Before a release, verify the actual browser flow at desktop and mobile widths. F
 ## Next coordinated work
 
 1. Configure the deployment secrets and verify the first release-directory deployment.
-2. Split the active UI, API routes, and repositories into feature/domain modules and remove `#legacy` without losing Capture, Topics, or Saturation.
-3. Add PIN-authenticated Roman and Oliver profiles with isolated SQLite databases.
+2. Add PIN-authenticated Roman and Oliver profiles with isolated SQLite databases.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branch order and [OPERATIONS.md](OPERATIONS.md) for production safety.

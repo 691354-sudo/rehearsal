@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, Mic, RefreshCw, Save, Square, Trash2, WandSparkles } from "lucide-react";
-import { apiPath } from "../lib/api";
-import { ReviewBatchPanel, type ReviewBatch } from "./ReviewBatchPanel";
+import { apiPath } from "../../shared/config";
+import type { Language } from "../../shared/contracts";
+import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 
-type Language = "en" | "lv";
 type CaptureStatus = "transcribing" | "ready" | "batched" | "processed" | "failed";
 type CaptureNote = {
   publicId: string;

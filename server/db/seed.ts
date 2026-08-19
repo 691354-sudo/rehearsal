@@ -33,7 +33,7 @@ export const seedDatabase = (repository: RehearsalRepository) => {
   ];
   sourceFiles.forEach((source) => {
     if (!fs.existsSync(source.path)) return;
-    repository.saveSource({
+    repository.library.saveSource({
       publicId: source.publicId,
       language: "en",
       title: source.title,
@@ -42,7 +42,7 @@ export const seedDatabase = (repository: RehearsalRepository) => {
       metadata: { importedFrom: "user attachment", curatedIntoSeed: true },
     });
   });
-  seedItems.forEach((item) => repository.saveItem(item, "system"));
+  seedItems.forEach((item) => repository.items.save(item, "system"));
   return seedItems.length;
 };
 

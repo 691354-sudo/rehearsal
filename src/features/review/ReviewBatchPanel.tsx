@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw } from "lucide-react";
-import { apiPath } from "../lib/api";
+import { apiPath } from "../../shared/config";
 
 export type ReviewCandidate = {
   id: string;

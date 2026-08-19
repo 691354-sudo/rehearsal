@@ -11,7 +11,7 @@ npm run dev
 
 - Web: `http://127.0.0.1:4173/`
 - API health: `http://127.0.0.1:8787/health`
-- The approved simple interface is now the default. The earlier prototype remains at `/#legacy`.
+- The approved interface is the only runtime UI; Practice, Tutor, Library, Settings, and shared contracts are feature modules.
 
 The browser uses the current Vite base path for API calls by default. Set `VITE_API_BASE=https://example.test/rehearsal` at build time only when the web client and API need different origins.
 

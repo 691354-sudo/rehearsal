@@ -27,5 +27,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: bash -n scripts/deploy-release.sh
+      - run: npm run check:architecture
       - run: npm test
       - run: npm run build

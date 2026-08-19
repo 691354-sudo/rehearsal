@@ -28,6 +28,7 @@ export type ElevenLabsVoiceStatus = {
   };
   error: string;
 };
+type AudioRepositories = Pick<RehearsalRepository, "audio">;
 
 export class ElevenLabsError extends Error {
   constructor(
@@ -63,7 +64,7 @@ export class ElevenLabsService {
   private voiceStatusRequest: Promise<ElevenLabsVoiceStatus> | null = null;
 
   constructor(
-    private readonly repository: RehearsalRepository,
+    private readonly repository: AudioRepositories,
     private readonly apiKey = config.elevenLabsApiKey,
   ) {}
 
@@ -115,7 +116,7 @@ export class ElevenLabsService {
     const cacheKey = createHash("sha256")
       .update(["elevenlabs", modelId, voiceId, JSON.stringify(settings), input.language, text].join("\0"))
       .digest("hex");
-    const cached = this.repository.getCachedAudio(cacheKey);
+    const cached = this.repository.audio.get(cacheKey);
     if (cached) return { ...cached, cached: true };
 
     const pending = this.inflightSpeech.get(cacheKey);
@@ -218,7 +219,7 @@ export class ElevenLabsService {
 
     const audio = Buffer.from(await response.arrayBuffer());
     if (!audio.length) throw new ElevenLabsError("ElevenLabs returned empty audio", 502, "ELEVENLABS_EMPTY_AUDIO");
-    this.repository.saveCachedAudio({
+    this.repository.audio.save({
       cacheKey: input.cacheKey,
       model: input.modelId,
       voice: input.voiceId,
