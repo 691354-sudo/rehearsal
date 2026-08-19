@@ -4,6 +4,8 @@ import { recallKeyAction, recallSessionReducer, initialRecallSession } from "../
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { capitalize, languageCopy } from "../../shared/config";
 import type { AttemptDraft, IslandSummary, Language, LearningItem } from "../../shared/contracts";
+import { PracticeQueuePreview } from "./PracticeQueuePreview";
+import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 
 const formatInterval = (seconds?: number) => {
   if (seconds === undefined) return "";
@@ -33,16 +35,19 @@ export function RecallSession(props: {
   onTopic: (topicId: string) => void;
 }) {
   const [state, dispatch] = useReducer(recallSessionReducer, initialRecallSession);
-  const [count, setCount] = useState(props.manualReviewItemId ? "all" : "20");
-  const [scope, setScope] = useState<"due" | "custom">(props.manualReviewItemId ? "custom" : "due");
+  const [count, setCount] = useState("all");
+  const [scope, setScope] = useState<PracticeScope>(props.manualReviewItemId ? "custom" : "due");
   const inputRef = useRef<HTMLInputElement>(null);
-  const dueSet = useMemo(() => new Set(props.dueItemIds), [props.dueItemIds]);
-  const candidates = useMemo(() => props.items.filter((item) =>
-    (!props.manualReviewItemId || item.publicId === props.manualReviewItemId) &&
-    (scope === "custom" || (item.practiceEnabled !== false && dueSet.has(item.publicId))) &&
-    (!props.selectedTopicItems || props.selectedTopicItems.has(item.publicId))),
-  [dueSet, props.items, props.manualReviewItemId, props.selectedTopicItems, scope]);
-  const sessionItems = count === "all" ? candidates : candidates.slice(0, Number(count));
+  const sourceItems = useMemo(() => props.manualReviewItemId
+    ? props.items.filter((item) => item.publicId === props.manualReviewItemId)
+    : props.items, [props.items, props.manualReviewItemId]);
+  const sessionItems = useMemo(() => buildPracticeSelection(
+    sourceItems,
+    props.dueItemIds,
+    props.selectedTopicItems,
+    count === "all" ? "all" : Number(count),
+    scope,
+  ), [count, props.dueItemIds, props.selectedTopicItems, scope, sourceItems]);
   const current = props.items.find((item) => item.publicId === state.queue[0]);
   const attempt = current ? props.attempts[current.publicId] || { answer: "" } : { answer: "" };
 
@@ -70,24 +75,29 @@ export function RecallSession(props: {
     else if (action) dispatch({ type: "select-rating", rating: action });
   };
 
-  if (state.phase === "setup") return <section className="recall-setup" aria-label="Recall setup">
-    {props.manualReviewItemId ? <p className="recall-manual-label">Manual review · stays Learned</p> : <div className="recall-setup-fields">
-      <label><span>Topic</span><select onChange={(event) => props.onTopic(event.target.value)} value={props.topicId}>
-        <option value="">All Topics</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}
-      </select></label>
-      <label><span>Cards</span><select onChange={(event) => setCount(event.target.value)} value={count}>
-        <option value="10">10</option><option value="20">20</option><option value="50">50</option><option value="all">All {scope === "due" ? "due" : "matching"}</option>
-      </select></label>
-    </div>}
-    <button className="simple-primary recall-start" disabled={!sessionItems.length}
-      onClick={() => { dispatch({ type: "start", itemIds: sessionItems.map((item) => item.publicId) }); props.onManualReviewStarted(); }} type="button">
-      Start {sessionItems.length ? `${sessionItems.length} cards` : "Recall"}<ChevronRight size={16} />
-    </button>
-    {!props.manualReviewItemId ? <button className="recall-custom" onClick={() => setScope((currentScope) => currentScope === "due" ? "custom" : "due")} type="button">
-      {scope === "due" ? "Custom practice" : "Use Due today"}
-    </button> : null}
-    {!sessionItems.length ? <p className="recall-empty">{scope === "due" ? "Nothing due." : "No matching cards."}</p> : null}
-  </section>;
+  if (state.phase === "setup") return <div className="practice-ready-layout">
+    <section className="recall-setup" aria-label="Recall setup">
+      {props.manualReviewItemId ? <p className="recall-manual-label">Manual review · stays Learned</p> : <>
+        <div className="practice-scope-switch" role="group" aria-label="Recall source">
+          <button aria-pressed={scope === "due"} onClick={() => setScope("due")} type="button">Due now</button>
+          <button aria-pressed={scope === "custom"} onClick={() => setScope("custom")} type="button">All Library</button>
+        </div>
+        <div className="recall-setup-fields">
+          <label><span>Topic</span><select onChange={(event) => props.onTopic(event.target.value)} value={props.topicId}>
+            <option value="">All Topics</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}
+          </select></label>
+          <label><span>Cards</span><select onChange={(event) => setCount(event.target.value)} value={count}>
+            <option value="all">All {scope === "due" ? "due" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+          </select></label>
+        </div>
+      </>}
+      <button className="simple-primary recall-start" disabled={!sessionItems.length}
+        onClick={() => { dispatch({ type: "start", itemIds: sessionItems.map((item) => item.publicId) }); props.onManualReviewStarted(); }} type="button">
+        Start {sessionItems.length ? `${sessionItems.length} cards` : "Recall"}<ChevronRight size={16} />
+      </button>
+    </section>
+    <PracticeQueuePreview items={sessionItems} mode="recall" scope={scope} />
+  </div>;
 
   if (state.phase === "complete" || !current) return <section className="recall-complete" aria-label="Recall complete">
     <span>Session complete</span><strong>{state.completed} recalled</strong><p>{props.dueItemIds.length} still due</p>

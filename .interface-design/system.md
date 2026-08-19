@@ -49,7 +49,8 @@ Rehearsal is a pragmatic, practice-first personal language tool. It should feel 
 
 - Practice has two modes only: written `Recall` and `Listen & Repeat`.
 - One active sentence is the product signature: a focused working surface with a quiet violet border and thin violet rail, surrounded by only the controls needed for the current action.
-- Recall defaults to a finite FSRS `Due today` session. Topic, count, and custom Library practice are compact pre-session controls.
+- Both modes default to the complete ordered FSRS `Due now` selection. Topic, count, and custom Library practice are compact optional controls; the resulting cards appear immediately below them before a session starts.
+- Recall queue previews show Russian prompts only, so selection stays visible without revealing the target-language answer.
 - Recall is a two-Enter loop: first Enter evaluates the written target-language answer and shows an inline word diff; second Enter accepts the selected memory grade and advances.
 - `Again`, `Hard`, `Good`, and `Easy` belong only to recall because they grade memory. The suggested grade is the focused default.
 - Each recall grade carries a quiet second-line interval preview. Reviewed cards leave the `Due now` scope until FSRS marks them due again, but remain available under `All Library cards`.
@@ -71,7 +72,8 @@ Rehearsal is a pragmatic, practice-first personal language tool. It should feel 
 ## Global settings
 
 - The header gear opens one right-side settings panel; it is available from every route.
-- Voice, repetitions, speed, and pause are one shared device preference: Global Settings defines the default and Cards edits the same values immediately.
+- Voice, repetitions, speed, and pause are one shared device preference: Global Settings and Cards edit the same values immediately. Settings shows one quiet confirmation that changes apply to the next card; it never places playback changes behind a global Save button.
 - Voice options use the muted violet selected state; Marin and Cedar carry quiet recommended labels.
+- Provider voice identity and Preview remain visible. ElevenLabs verification details, model choice, tuning sliders, speaker boost, cache information, and the external voice link live under `Advanced voice`.
 - FSRS retention, maximum interval, learning steps, relearning steps, and fuzz are saved explicitly to the database.
 - `New cards per day` remains a normal setting. Retention, intervals, learning steps, relearning steps, and fuzz live under Advanced scheduling.

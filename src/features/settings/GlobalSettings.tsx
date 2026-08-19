@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LoaderCircle, Play, RefreshCw, X } from "lucide-react";
+import { Check, LoaderCircle, Play, RefreshCw, X } from "lucide-react";
 import { speedRangeForProvider } from "../../lib/playbackSettings";
 import { apiFetch } from "../../shared/api";
 import { capitalize, humanizeLabel } from "../../shared/config";
@@ -31,6 +31,7 @@ export function GlobalSettings(props: {
   const [previewState, setPreviewState] = useState<"idle" | "playing" | "error">("idle");
   const [previewError, setPreviewError] = useState("");
   const [previewNotice, setPreviewNotice] = useState("");
+  const [playbackApplied, setPlaybackApplied] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<ElevenLabsVoiceStatus | null>(null);
   const [voiceStatusState, setVoiceStatusState] = useState<"idle" | "checking" | "ready" | "error">("idle");
 
@@ -62,20 +63,27 @@ export function GlobalSettings(props: {
   const nextRelearningSteps = parseSteps(relearningSteps);
   const validSteps = [nextLearningSteps, nextRelearningSteps]
     .every((steps) => steps.length > 0 && steps.length <= 4 && steps.every((step) => stepPattern.test(step)));
+  const nextScheduler = {
+    ...draft,
+    learningSteps: nextLearningSteps,
+    relearningSteps: nextRelearningSteps,
+  };
+  const schedulerDirty = JSON.stringify(nextScheduler) !== JSON.stringify(props.scheduler);
 
   const save = async () => {
     if (!validSteps || saveState === "saving") return;
     setSaveState("saving");
     try {
-      await props.onSaveScheduler({
-        ...draft,
-        learningSteps: nextLearningSteps,
-        relearningSteps: nextRelearningSteps,
-      });
+      await props.onSaveScheduler(nextScheduler);
       setSaveState("saved");
     } catch {
       setSaveState("error");
     }
+  };
+
+  const applyPlayback = (next: PlaybackPreferences) => {
+    props.onPlayback(next);
+    setPlaybackApplied(true);
   };
 
   const updatePreset = (
@@ -98,7 +106,7 @@ export function GlobalSettings(props: {
     value: ElevenLabsPreferences[Key],
   ) => {
     setPreviewNotice("");
-    props.onPlayback({
+    applyPlayback({
       ...props.playback,
       elevenlabs: { ...props.playback.elevenlabs, [key]: value },
     });
@@ -150,66 +158,74 @@ export function GlobalSettings(props: {
   }}>
     <section aria-labelledby="global-settings-title" aria-modal="true" className="simple-settings-panel" role="dialog">
       <header className="simple-settings-header">
-        <div><h2 id="global-settings-title">Settings</h2><span>Audio and review timing</span></div>
+        <div><h2 id="global-settings-title">Settings</h2><span className={playbackApplied ? "is-applied" : ""} role="status">
+          <Check size={12} />{playbackApplied ? "Applied to next card" : "Changes apply to next card"}
+        </span></div>
         <button aria-label="Close settings" onClick={props.onClose} type="button"><X size={18} /></button>
       </header>
 
       <div className="simple-settings-scroll">
         <section className="simple-settings-section">
-          <div className="simple-settings-section-title"><h3>Voice</h3><span>Default for Cards</span></div>
+          <div className="simple-settings-section-title"><h3>Voice</h3></div>
           <div className="simple-provider-switch" role="group" aria-label="Voice provider">
             {(["openai", "elevenlabs"] as TtsProvider[]).map((provider) => <button
               className={props.playback.provider === provider ? "is-active" : ""}
               key={provider}
-              onClick={() => props.onPlayback({ ...props.playback, provider })}
+              onClick={() => applyPlayback({ ...props.playback, provider })}
               type="button"
             >{provider === "openai" ? "OpenAI" : "ElevenLabs"}</button>)}
           </div>
 
-          {props.playback.provider === "openai" ? <div className="simple-voice-grid">
-            {props.voices.map((voice) => <button className={props.playback.voice === voice ? "is-active" : ""}
-              key={voice} onClick={() => props.onPlayback({ ...props.playback, voice })} type="button">
-              <span>{capitalize(voice)}</span>{["marin", "cedar"].includes(voice) ? <small>recommended</small> : null}
-            </button>)}
-            </div> : <>
-              <div className="simple-elevenlabs-voice">
+          {props.playback.provider === "openai" ? <label className="simple-openai-voice-choice"><span>Voice</span>
+            <select onChange={(event) => applyPlayback({ ...props.playback, voice: event.target.value })} value={props.playback.voice}>
+              {props.voices.map((voice) => <option key={voice} value={voice}>{capitalize(voice)}{["marin", "cedar"].includes(voice) ? " · recommended" : ""}</option>)}
+            </select>
+          </label> : <>
+            <div className="simple-elevenlabs-voice">
               <div><strong>{activeVoice.name}</strong><span>{voiceDetails}</span></div>
-              <a href={`https://elevenlabs.io/app/voice-library?voiceId=${activeVoice.id}`} rel="noreferrer" target="_blank">Voice page</a>
+              <i aria-label={voiceStatusState === "ready" ? "Voice ready" : "Voice status unavailable"}
+                className={voiceStatusState === "ready" ? "is-ready" : ""} role="img" />
             </div>
-            <div className="simple-elevenlabs-status" aria-live="polite">
-              <i className={voiceStatusState === "ready" ? "is-ready" : ""} />
-              <div><span>{!props.elevenLabs.configured ? "API key missing"
-                : voiceStatusState === "checking" ? "Checking this voice…"
-                  : voiceStatusState === "ready" ? "Voice verified by ElevenLabs"
-                    : "Voice could not be verified"}</span>
-                <small>{voiceStatus?.error || "Identical audio is reused from the server cache"}</small></div>
-              {props.elevenLabs.configured ? <button aria-label="Check ElevenLabs voice again"
-                disabled={voiceStatusState === "checking"} onClick={() => void refreshVoiceStatus()} type="button">
-                <RefreshCw className={voiceStatusState === "checking" ? "simple-spin" : ""} size={13} />
-              </button> : null}
-            </div>
-            <div className="simple-model-choice">
-              <span>Model</span><div>
-                <button className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
-                  onClick={() => updateElevenLabs("modelId", "eleven_multilingual_v2")} type="button">Quality</button>
-                <button className={props.playback.elevenlabs.modelId === "eleven_flash_v2_5" ? "is-active" : ""}
-                  onClick={() => updateElevenLabs("modelId", "eleven_flash_v2_5")} type="button">Fast</button>
+            <details className="simple-advanced-voice">
+              <summary>Advanced voice</summary>
+              <div className="simple-advanced-voice-body">
+                <div className="simple-elevenlabs-status" aria-live="polite">
+                  <i className={voiceStatusState === "ready" ? "is-ready" : ""} />
+                  <div><span>{!props.elevenLabs.configured ? "API key missing"
+                    : voiceStatusState === "checking" ? "Checking voice…"
+                      : voiceStatusState === "ready" ? "Voice verified"
+                        : "Voice unavailable"}</span>
+                    {voiceStatus?.error ? <small>{voiceStatus.error}</small> : null}</div>
+                  {props.elevenLabs.configured ? <button aria-label="Check ElevenLabs voice again"
+                    disabled={voiceStatusState === "checking"} onClick={() => void refreshVoiceStatus()} type="button">
+                    <RefreshCw className={voiceStatusState === "checking" ? "simple-spin" : ""} size={13} />
+                  </button> : null}
+                </div>
+                <div className="simple-model-choice">
+                  <span>Model</span><div>
+                    <button className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
+                      onClick={() => updateElevenLabs("modelId", "eleven_multilingual_v2")} type="button">Quality</button>
+                    <button className={props.playback.elevenlabs.modelId === "eleven_flash_v2_5" ? "is-active" : ""}
+                      onClick={() => updateElevenLabs("modelId", "eleven_flash_v2_5")} type="button">Fast</button>
+                  </div>
+                </div>
+                <div className="simple-voice-tuning">
+                  {([
+                    ["stability", "Stability"],
+                    ["similarityBoost", "Similarity"],
+                    ["style", "Style"],
+                  ] as const).map(([key, label]) => <label key={key}>
+                    <span>{label}<strong>{props.playback.elevenlabs[key].toFixed(2)}</strong></span>
+                    <input max="1" min="0" onChange={(event) => updateElevenLabs(key, Number(event.target.value))}
+                      step="0.01" type="range" value={props.playback.elevenlabs[key]} />
+                  </label>)}
+                  <div className="simple-speaker-boost"><span>Speaker boost</span><button aria-pressed={props.playback.elevenlabs.speakerBoost}
+                    className={props.playback.elevenlabs.speakerBoost ? "is-active" : ""}
+                    onClick={() => updateElevenLabs("speakerBoost", !props.playback.elevenlabs.speakerBoost)} type="button"><i /></button></div>
+                </div>
+                <a className="simple-voice-page" href={`https://elevenlabs.io/app/voice-library?voiceId=${activeVoice.id}`} rel="noreferrer" target="_blank">Open voice page</a>
               </div>
-            </div>
-            <div className="simple-voice-tuning">
-              {([
-                ["stability", "Stability"],
-                ["similarityBoost", "Similarity"],
-                ["style", "Style"],
-              ] as const).map(([key, label]) => <label key={key}>
-                <span>{label}<strong>{props.playback.elevenlabs[key].toFixed(2)}</strong></span>
-                <input max="1" min="0" onChange={(event) => updateElevenLabs(key, Number(event.target.value))}
-                  step="0.01" type="range" value={props.playback.elevenlabs[key]} />
-              </label>)}
-              <div className="simple-speaker-boost"><span>Speaker boost</span><button aria-pressed={props.playback.elevenlabs.speakerBoost}
-                className={props.playback.elevenlabs.speakerBoost ? "is-active" : ""}
-                onClick={() => updateElevenLabs("speakerBoost", !props.playback.elevenlabs.speakerBoost)} type="button"><i /></button></div>
-            </div>
+            </details>
           </>}
           <button className="simple-voice-preview" disabled={previewState === "playing"
             || (props.playback.provider === "elevenlabs" && !props.elevenLabs.configured)}
@@ -222,24 +238,24 @@ export function GlobalSettings(props: {
         </section>
 
         <section className="simple-settings-section">
-          <div className="simple-settings-section-title"><h3>Playback</h3><span>Default for Cards</span></div>
+          <div className="simple-settings-section-title"><h3>Card playback</h3></div>
           <div className="simple-global-playback">
             <div className="simple-global-setting"><label>Repeats</label><div>
               {[1, 2, 3, 5].map((value) => <button className={props.playback.repetitions === value ? "is-active" : ""}
-                key={value} onClick={() => props.onPlayback({ ...props.playback, repetitions: value })} type="button">{value}×</button>)}
+                key={value} onClick={() => applyPlayback({ ...props.playback, repetitions: value })} type="button">{value}×</button>)}
             </div></div>
             <label className="simple-global-setting simple-global-speed"><span>Speed <strong>{props.playback.speed.toFixed(2)}×</strong></span>
-              <input max={speedRange.max} min={speedRange.min} onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })}
+              <input max={speedRange.max} min={speedRange.min} onChange={(event) => applyPlayback({ ...props.playback, speed: Number(event.target.value) })}
                 step="0.05" type="range" value={props.playback.speed} /></label>
             <div className="simple-global-setting"><label>Pause</label><div>
               {[500, 1500, 3000].map((value) => <button className={props.playback.pauseMs === value ? "is-active" : ""}
-                key={value} onClick={() => props.onPlayback({ ...props.playback, pauseMs: value })} type="button">{value / 1000}s</button>)}
+                key={value} onClick={() => applyPlayback({ ...props.playback, pauseMs: value })} type="button">{value / 1000}s</button>)}
             </div></div>
           </div>
         </section>
 
         <section className="simple-settings-section">
-          <div className="simple-settings-section-title"><h3>Scheduling</h3><span>Recall</span></div>
+          <div className="simple-settings-section-title"><h3>Recall scheduling</h3></div>
           <label className="simple-new-items-setting"><span>New cards per day</span><input max="30" min="0" onChange={(event) => {
             setDraft((current) => ({ ...current, newItemsPerDay: Number(event.target.value) })); setSaveState("idle");
           }} type="number" value={draft.newItemsPerDay} /></label>
@@ -264,15 +280,14 @@ export function GlobalSettings(props: {
                 onClick={() => { setDraft((current) => ({ ...current, fuzz: !current.fuzz })); setSaveState("idle"); }} type="button"><i /></button></div>
             </div>
           </details>
+          <div className="simple-scheduler-save-row">
+            <span className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use steps like 1m, 10m" : ""}</span>
+            <button className="simple-settings-save" disabled={!schedulerDirty || !validSteps || saveState === "saving"} onClick={() => void save()} type="button">
+              {saveState === "saving" ? "Saving…" : "Save recall settings"}
+            </button>
+          </div>
         </section>
       </div>
-
-      <footer className="simple-settings-footer">
-        <span className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use steps like 1m, 10m" : ""}</span>
-        <button className="simple-settings-save" disabled={!validSteps || saveState === "saving"} onClick={() => void save()} type="button">
-          {saveState === "saving" ? "Saving…" : "Save scheduling"}
-        </button>
-      </footer>
     </section>
   </div>;
 }

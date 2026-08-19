@@ -68,7 +68,7 @@ export function PracticePage(props: {
       selectedTopicItems={selectedTopicItems}
       topicId={topicId}
       topics={topics}
-    /> : <ListenRepeat elevenLabs={props.elevenLabs} items={props.items} language={props.language}
+    /> : <ListenRepeat dueItemIds={props.dueItemIds} elevenLabs={props.elevenLabs} items={props.items} language={props.language}
       onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
       onPlayback={props.onPlayback} onResume={props.onResumePlayback} onStop={props.onStopPlayback}
       onPracticeEnabled={props.onPracticeEnabled}
