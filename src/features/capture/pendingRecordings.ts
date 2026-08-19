@@ -3,6 +3,7 @@ import type { Language } from "../../shared/contracts";
 
 export type PendingRecording = {
   key: string;
+  uploadId: string;
   profileId: ProfileId;
   language: Language;
   blob: Blob;
@@ -22,7 +23,10 @@ const openDatabase = () => new Promise<IDBDatabase>((resolve, reject) => {
       request.result.createObjectStore(storeName, { keyPath: "key" });
     }
   };
-  request.onsuccess = () => resolve(request.result);
+  request.onsuccess = () => {
+    request.result.onversionchange = () => request.result.close();
+    resolve(request.result);
+  };
   request.onerror = () => reject(request.error || new Error("Local recording storage is unavailable."));
 });
 
@@ -35,22 +39,38 @@ const useStore = async <T>(
     const transaction = database.transaction(storeName, mode);
     const request = action(transaction.objectStore(storeName));
     let result: T;
+    let requestError: DOMException | null = null;
+    let settled = false;
+    const fail = (error: DOMException | Error | null) => {
+      if (settled) return;
+      settled = true;
+      database.close();
+      reject(error || new Error("Local recording storage failed."));
+    };
     request.onsuccess = () => { result = request.result; };
-    request.onerror = () => reject(request.error);
+    request.onerror = () => { requestError = request.error; };
     transaction.oncomplete = () => {
+      if (settled) return;
+      settled = true;
       database.close();
       resolve(result);
     };
-    transaction.onerror = () => {
-      database.close();
-      reject(transaction.error || new Error("Local recording storage failed."));
-    };
+    transaction.onerror = () => fail(requestError || transaction.error);
+    transaction.onabort = () => fail(requestError || transaction.error);
   });
 };
 
-export const loadPendingRecording = (profileId: ProfileId, language: Language) =>
-  useStore<PendingRecording | undefined>("readonly", (store) => store.get(recordingKey(profileId, language)))
-    .then((recording) => recording || null);
+export const loadPendingRecording = async (profileId: ProfileId, language: Language) => {
+  const recording = await useStore<PendingRecording | undefined>(
+    "readonly",
+    (store) => store.get(recordingKey(profileId, language)),
+  );
+  if (!recording) return null;
+  if (recording.uploadId) return recording;
+  const migrated = { ...recording, uploadId: window.crypto.randomUUID() };
+  await useStore<IDBValidKey>("readwrite", (store) => store.put(migrated));
+  return migrated;
+};
 
 export const savePendingRecording = (
   profileId: ProfileId,
@@ -60,6 +80,7 @@ export const savePendingRecording = (
 ) => {
   const recording: PendingRecording = {
     key: recordingKey(profileId, language),
+    uploadId: window.crypto.randomUUID(),
     profileId,
     language,
     blob,

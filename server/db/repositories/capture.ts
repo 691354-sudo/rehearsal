@@ -47,8 +47,8 @@ export class CaptureRepository {
     return note;
   }
 
-  create(input: { language: LanguageCode; audio: Buffer; audioMime: string }) {
-    const publicId = randomUUID();
+  create(input: { publicId?: string; language: LanguageCode; audio: Buffer; audioMime: string }) {
+    const publicId = input.publicId || randomUUID();
     this.db.prepare(
       `INSERT INTO capture_notes(public_id, language_code, audio, audio_mime, status)
        VALUES (?, ?, ?, ?, 'transcribing')`,

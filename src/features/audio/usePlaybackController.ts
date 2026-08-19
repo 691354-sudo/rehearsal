@@ -40,6 +40,7 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
   const [elevenLabsConfig, setElevenLabsConfig] = useState(defaultElevenLabsConfig);
   const { speak, stop } = useSpeech();
   const audioSequenceRef = useRef(0);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const audioCancelRef = useRef<(() => void) | null>(null);
   const audioPauseRef = useRef<(() => void) | null>(null);
   const audioResumeRef = useRef<(() => void) | null>(null);
@@ -90,8 +91,23 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     audioCancelRef.current = null;
     audioPauseRef.current = null;
     audioResumeRef.current = null;
+    const audio = audioElementRef.current;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    }
     stop();
   }, [stop]);
+
+  useEffect(() => {
+    stopPlayback();
+  }, [language, profileId, stopPlayback]);
+
+  useEffect(() => () => {
+    stopPlayback();
+    audioElementRef.current = null;
+  }, [stopPlayback]);
 
   const pausePlayback = useCallback(() => {
     if (audioPauseRef.current) audioPauseRef.current();
@@ -119,33 +135,84 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
       const cacheHeader = response.headers.get("X-Audio-Cache");
       const cache = cacheHeader === "HIT" || cacheHeader === "MISS" ? cacheHeader : null;
       const url = URL.createObjectURL(await response.blob());
-      for (let repetition = 0; repetition < nextPlayback.repetitions; repetition += 1) {
-        if (sequence !== audioSequenceRef.current) break;
-        const audio = new Audio(url);
-        await new Promise<void>((resolve) => {
-          const finish = () => {
-            audio.removeEventListener("ended", finish);
-            audio.removeEventListener("error", finish);
-            if (audioCancelRef.current === cancel) {
-              audioCancelRef.current = null;
-              audioPauseRef.current = null;
-              audioResumeRef.current = null;
-            }
-            resolve();
-          };
-          const cancel = () => { audio.pause(); audio.removeAttribute("src"); finish(); };
-          audioCancelRef.current = cancel;
-          audioPauseRef.current = () => audio.pause();
-          audioResumeRef.current = () => { void audio.play().catch(finish); };
-          audio.addEventListener("ended", finish, { once: true });
-          audio.addEventListener("error", finish, { once: true });
-          void audio.play().catch(finish);
-        });
-        if (repetition < nextPlayback.repetitions - 1 && sequence === audioSequenceRef.current) {
-          await new Promise((resolve) => window.setTimeout(resolve, nextPlayback.pauseMs));
-        }
+      if (sequence !== audioSequenceRef.current) {
+        URL.revokeObjectURL(url);
+        return cache;
       }
-      URL.revokeObjectURL(url);
+      const audio = audioElementRef.current || new Audio();
+      audio.preload = "auto";
+      audioElementRef.current = audio;
+      audio.src = url;
+      try {
+        for (let repetition = 0; repetition < nextPlayback.repetitions; repetition += 1) {
+          if (sequence !== audioSequenceRef.current) break;
+          audio.currentTime = 0;
+          await new Promise<void>((resolve) => {
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              audio.removeEventListener("ended", finish);
+              audio.removeEventListener("error", finish);
+              if (audioCancelRef.current === cancel) {
+                audioCancelRef.current = null;
+                audioPauseRef.current = null;
+                audioResumeRef.current = null;
+              }
+              resolve();
+            };
+            const cancel = finish;
+            audioCancelRef.current = cancel;
+            audioPauseRef.current = () => audio.pause();
+            audioResumeRef.current = () => { void audio.play().catch(finish); };
+            audio.addEventListener("ended", finish, { once: true });
+            audio.addEventListener("error", finish, { once: true });
+            void audio.play().catch(finish);
+          });
+          if (repetition < nextPlayback.repetitions - 1 && sequence === audioSequenceRef.current) {
+            await new Promise<void>((resolve) => {
+              let remaining = nextPlayback.pauseMs;
+              let startedAt = Date.now();
+              let timer = window.setTimeout(finish, remaining);
+              let running = true;
+              let settled = false;
+              function finish() {
+                if (settled) return;
+                settled = true;
+                running = false;
+                window.clearTimeout(timer);
+                if (audioCancelRef.current === cancel) {
+                  audioCancelRef.current = null;
+                  audioPauseRef.current = null;
+                  audioResumeRef.current = null;
+                }
+                resolve();
+              }
+              const cancel = finish;
+              audioCancelRef.current = cancel;
+              audioPauseRef.current = () => {
+                if (!running) return;
+                running = false;
+                window.clearTimeout(timer);
+                remaining = Math.max(0, remaining - (Date.now() - startedAt));
+              };
+              audioResumeRef.current = () => {
+                if (running || settled) return;
+                running = true;
+                startedAt = Date.now();
+                timer = window.setTimeout(finish, remaining);
+              };
+            });
+          }
+        }
+      } finally {
+        if (sequence === audioSequenceRef.current) {
+          audio.pause();
+          audio.removeAttribute("src");
+          audio.load();
+        }
+        URL.revokeObjectURL(url);
+      }
       return cache;
     };
     if (openaiConfigured || elevenLabsConfig.configured) {

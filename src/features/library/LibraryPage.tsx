@@ -17,23 +17,24 @@ import { apiFetch } from "../../shared/api";
 import type { Island, IslandSummary, Language, LearningItem } from "../../shared/contracts";
 import { filterLibraryItems, libraryStatusOf, type LibrarySort, type LibraryStatus } from "../../lib/libraryView";
 
-export function LibraryPage({ cachedItems, language, onAvailability, onListen, onPlay, onPracticeEnabled, onReview }: {
-  cachedItems: LearningItem[];
+export function LibraryPage({ items, language, onItemDeleted, onItemUpdated, onItemsReload, onListen, onPlay, onPracticeEnabled, onReview }: {
+  items: LearningItem[];
   language: Language;
-  onAvailability: (online: boolean) => void;
+  onItemDeleted: (itemId: string) => void;
+  onItemUpdated: (item: LearningItem) => void;
+  onItemsReload: () => Promise<boolean>;
   onListen: () => void;
   onPlay: (text: string) => void;
   onPracticeEnabled: (itemId: string, practiceEnabled: boolean) => Promise<boolean>;
   onReview: (itemId: string) => void;
 }) {
-  const [items, setItems] = useState<LearningItem[]>(() => cachedItems.filter((item) => item.language === language));
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<LibraryStatus>("all");
   const [sort, setSort] = useState<LibrarySort>("recent");
   const [topic, setTopic] = useState("all");
   const [topics, setTopics] = useState<IslandSummary[]>([]);
   const [topicItemIds, setTopicItemIds] = useState<string[]>([]);
-  const [loadError, setLoadError] = useState(false);
+  const [topicsError, setTopicsError] = useState(false);
   const [showTopics, setShowTopics] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [title, setTitle] = useState("");
@@ -44,33 +45,55 @@ export function LibraryPage({ cachedItems, language, onAvailability, onListen, o
   const [batch, setBatch] = useState<ReviewBatch | null>(null);
   const [editingItem, setEditingItem] = useState<LearningItem | null>(null);
 
-  const load = async () => {
-    try {
-      const response = await apiFetch(`/api/items?language=${language}&limit=500&includeSchedule=true`);
-      if (!response.ok) throw new Error("Library unavailable");
-      const data = await response.json() as { items: LearningItem[] };
-      setItems(data.items || []); setLoadError(false); onAvailability(true);
-    } catch { setLoadError(true); onAvailability(false); }
-  };
-  const loadTopics = async () => {
-    const response = await apiFetch(`/api/islands?language=${language}`);
+  const loadTopics = async (nextLanguage = language) => {
+    const response = await apiFetch(`/api/islands?language=${nextLanguage}`);
     if (!response.ok) throw new Error("Topics unavailable");
     const data = await response.json() as { islands: IslandSummary[] };
-    setTopics(data.islands || []);
+    return data.islands || [];
+  };
+  const loadTopicItemIds = async (topicId: string) => {
+    const response = await apiFetch(`/api/islands/${encodeURIComponent(topicId)}`);
+    if (!response.ok) throw new Error("Topic unavailable");
+    const data = await response.json() as { island: Island };
+    return data.island.items.map((item) => item.publicId);
+  };
+  const refreshTopics = async () => {
+    try {
+      const [loadedTopics, loadedItemIds] = await Promise.all([
+        loadTopics(),
+        topic === "all" ? Promise.resolve([]) : loadTopicItemIds(topic),
+      ]);
+      setTopics(loadedTopics);
+      if (topic !== "all") setTopicItemIds(loadedItemIds);
+      setTopicsError(false);
+    } catch {
+      setTopicsError(true);
+    }
   };
 
   useEffect(() => {
-    setItems(cachedItems.filter((item) => item.language === language));
+    let active = true;
     setStatus("all"); setTopic("all"); setTopicItemIds([]); setBatch(null); setAdded(false);
-    void load(); void loadTopics().catch(() => { setTopics([]); setLoadError(true); onAvailability(false); });
+    setTopics([]); setTopicsError(false);
+    void loadTopics(language).then((loadedTopics) => {
+      if (active) setTopics(loadedTopics);
+    }).catch(() => {
+      if (active) setTopicsError(true);
+    });
+    return () => { active = false; };
   }, [language]);
   useEffect(() => {
     if (topic === "all") { setTopicItemIds([]); return; }
-    void apiFetch(`/api/islands/${encodeURIComponent(topic)}`).then(async (response) => {
-      if (!response.ok) throw new Error("Topic unavailable");
-      const data = await response.json() as { island: Island };
-      setTopicItemIds(data.island.items.map((item) => item.publicId)); onAvailability(true);
-    }).catch(() => { setTopicItemIds([]); setLoadError(true); onAvailability(false); });
+    let active = true;
+    void loadTopicItemIds(topic).then((loadedItemIds) => {
+      if (active) {
+        setTopicItemIds(loadedItemIds);
+        setTopicsError(false);
+      }
+    }).catch(() => {
+      if (active) { setTopicItemIds([]); setTopicsError(true); }
+    });
+    return () => { active = false; };
   }, [topic]);
 
   const importText = async () => {
@@ -87,12 +110,15 @@ export function LibraryPage({ cachedItems, language, onAvailability, onListen, o
   };
   const deleteItem = async (itemId: string) => {
     if (!window.confirm("Delete this card from Library?")) return;
-    const response = await apiFetch(`/api/items/${itemId}`, { method: "DELETE" });
-    if (response.ok) setItems((current) => current.filter((item) => item.publicId !== itemId));
+    setNotice("");
+    try {
+      const response = await apiFetch(`/api/items/${encodeURIComponent(itemId)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Delete failed");
+      onItemDeleted(itemId);
+    } catch { setNotice("Couldn’t delete this card."); }
   };
   const setPracticeEnabled = async (itemId: string, practiceEnabled: boolean) => {
     if (!await onPracticeEnabled(itemId, practiceEnabled)) { setNotice("Couldn’t update this card."); return; }
-    setItems((current) => current.map((item) => item.publicId === itemId ? { ...item, practiceEnabled } : item));
     setNotice(practiceEnabled ? "Returned to learning." : "Moved to Learned.");
   };
   const patternDrill = async (itemId: string) => {
@@ -113,8 +139,8 @@ export function LibraryPage({ cachedItems, language, onAvailability, onListen, o
   return <main className="simple-main"><header className="simple-page-heading"><div><h1>Library</h1><p>{items.length} cards</p></div>
     <div className="simple-library-heading-actions"><button onClick={() => setShowTopics((shown) => !shown)} type="button">Manage topics</button>
       {!showTopics ? <button onClick={() => setShowImport((shown) => !shown)} type="button">Import text</button> : null}</div></header>
-    {loadError ? <div className="simple-unavailable" role="alert"><span>Library unavailable.</span><button onClick={() => void load()} type="button"><RefreshCw size={14} />Retry</button></div> : null}
-    {showTopics ? <div className="simple-library-secondary"><TopicsManager language={language} onClose={() => { setShowTopics(false); void loadTopics(); }} /></div> : <>
+    {topicsError ? <div className="simple-unavailable" role="alert"><span>Topics unavailable. Your cards are still here.</span><button onClick={() => void refreshTopics()} type="button"><RefreshCw size={14} />Retry</button></div> : null}
+    {showTopics ? <div className="simple-library-secondary"><TopicsManager language={language} onClose={() => { setShowTopics(false); void refreshTopics(); }} /></div> : <>
       {showImport ? <section className="simple-import-card simple-library-secondary">
       <div className="simple-section-heading"><FilePlus2 size={19} /><div><strong>Import text or transcript</strong></div></div>
       <input onChange={(event) => setTitle(event.target.value)} placeholder="Title or source" value={title} />
@@ -126,7 +152,7 @@ export function LibraryPage({ cachedItems, language, onAvailability, onListen, o
         {importing ? <LoaderCircle className="simple-spin" size={17} /> : <Sparkles size={17} />}Prepare cards</button></div>
     </section> : null}
     {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onDismiss={() => { setBatch(null); setNotice(""); }} onCommitted={() => {
-      setBatch(null); setAdded(true); void load();
+      setBatch(null); setAdded(true); void onItemsReload();
     }} /> : null}
     {added ? <div className="capture-added"><strong>Added to Library</strong><div>{language === "en" ? <button onClick={onListen} type="button">Listen now</button> : null}</div></div> : null}
     {notice ? <p className="simple-library-notice" aria-live="polite">{notice}</p> : null}
@@ -139,7 +165,7 @@ export function LibraryPage({ cachedItems, language, onAvailability, onListen, o
         <select aria-label="Sort cards" onChange={(event) => setSort(event.target.value as LibrarySort)} value={sort}>
           <option value="recent">Recent</option><option value="oldest">Oldest</option><option value="due">Due soon</option><option value="az">A–Z</option></select></div>
       <div className="simple-library-count">{visibleItems.length} cards</div><div className="simple-phrase-list">
-        {!visibleItems.length && !loadError ? <p className="simple-library-empty">No cards</p> : null}
+        {!visibleItems.length ? <p className="simple-library-empty">No cards</p> : null}
         {visibleItems.map((item) => <article className="simple-phrase-row" key={item.publicId}>
           <div className="simple-phrase-copy"><strong>{item.target}</strong><small>{item.cue}</small><em>{[libraryStatusOf(item), item.tags[0], item.frequencyBand].filter(Boolean).join(" · ")}</em></div>
           <div className="simple-row-actions">
@@ -154,8 +180,7 @@ export function LibraryPage({ cachedItems, language, onAvailability, onListen, o
       </div>
     </section>
       {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => setEditingItem(null)}
-      onSaved={(item) => { setItems((current) => current.map((candidate) => candidate.publicId === item.publicId
-        ? { ...candidate, ...item, schedule: candidate.schedule } : candidate)); setEditingItem(null); }} /> : null}
+      onSaved={(item) => { onItemUpdated(item); setEditingItem(null); }} /> : null}
     </>}
   </main>;
 }

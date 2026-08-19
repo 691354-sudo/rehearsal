@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../app.js";
 import { OpenAIService } from "../services/openai.js";
@@ -63,6 +64,35 @@ describe("Capture uploads API", () => {
     });
     expect(context.repository.capture.getAudio(noteId)?.audio).toBeNull();
     expect(transcribe).toHaveBeenCalledTimes(2);
+    await app.close();
+  });
+
+  it("accepts a retried device upload only once", async () => {
+    const openai = new OpenAIService(context.repository);
+    const transcribe = vi.spyOn(openai, "transcribe").mockResolvedValue("Одна запись.");
+    const app = await buildApp(context.repository, { openai });
+    const uploadId = randomUUID();
+    const request = () => {
+      const boundary = "----rehearsal-capture-idempotency";
+      return app.inject({
+        method: "POST",
+        url: "/api/captures?language=en",
+        headers: {
+          "content-type": `multipart/form-data; boundary=${boundary}`,
+          "x-rehearsal-capture-id": uploadId,
+        },
+        payload: multipartAudio(boundary, "audio/webm", Buffer.from("same-device-recording")),
+      });
+    };
+
+    const first = await request();
+    const retry = await request();
+
+    expect(first.statusCode).toBe(201);
+    expect(retry.statusCode).toBe(200);
+    expect(retry.json()).toMatchObject({ duplicate: true, note: { publicId: uploadId } });
+    expect(context.repository.capture.list("en").filter((note) => note.publicId === uploadId)).toHaveLength(1);
+    expect(transcribe).toHaveBeenCalledTimes(1);
     await app.close();
   });
 

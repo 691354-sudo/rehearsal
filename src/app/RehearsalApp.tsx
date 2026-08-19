@@ -51,8 +51,9 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     window.localStorage.setItem(storageKey("language"), language);
     if (language === "lv") setMode("recall");
   }, [language]);
-  useEffect(() => {
-    void apiFetch("/api/config").then(async (response) => {
+  const loadConfig = async () => {
+    try {
+      const response = await apiFetch("/api/config");
       if (!response.ok) throw new Error("API unavailable");
       const data = await response.json() as {
         openaiConfigured: boolean;
@@ -64,10 +65,15 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
           };
         };
       };
-      learning.setApiOnline(true);
       if (data.scheduler) setSchedulerSettings(data.scheduler);
       audio.applyAudioConfig(data.openaiConfigured, data.tts?.providers);
-    }).catch(() => learning.setApiOnline(false));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  useEffect(() => {
+    void loadConfig();
   }, []);
 
   const saveSchedulerSettings = async (settings: SchedulerSettings) => {
@@ -123,7 +129,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     </header>
     {learning.apiOnline === false ? <div className="simple-offline" role="alert">
       <span><strong>Server unavailable.</strong> Loaded cards stay on this screen; changes will work again after reconnecting.</span>
-      <button onClick={() => void learning.loadItems(language)} type="button">Try again</button>
+      <button onClick={() => void Promise.all([learning.loadItems(language), loadConfig()])} type="button">Try again</button>
     </div> : null}
     {globalSettingsOpen ? <GlobalSettings
       onClose={() => setGlobalSettingsOpen(false)}
@@ -149,7 +155,9 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     {route === "tutor" && <TutorPage language={language} profileId={profile.id}
       onLibrary={() => setRoute("library")}
       onListen={() => { setMode("shadow"); setRoute("practice"); void learning.loadItems(language); }} />}
-    {route === "library" && <LibraryPage cachedItems={learning.items} language={language} onAvailability={learning.setApiOnline}
+    {route === "library" && <LibraryPage items={learning.items} language={language}
+      onItemDeleted={learning.removeItem} onItemUpdated={learning.updateItem}
+      onItemsReload={() => learning.loadItems(language)}
       onListen={() => { setMode("shadow"); setRoute("practice"); void learning.loadItems(language); }}
       onPlay={(text) => void audio.playTarget(text)} onPracticeEnabled={learning.updatePracticeEnabled}
       onReview={(itemId) => { setManualReviewItemId(itemId); setMode("recall"); setRoute("practice"); }} />}
