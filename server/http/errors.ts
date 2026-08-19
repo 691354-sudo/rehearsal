@@ -38,6 +38,9 @@ export const toErrorResponse = (error: unknown) => {
   if (error instanceof ElevenLabsError) {
     return { statusCode: error.statusCode, body: { error: error.code, message: error.message } };
   }
+  if (error && typeof error === "object" && "code" in error && error.code === "FST_CSRF_INVALID_TOKEN") {
+    return { statusCode: 403, body: { error: "INVALID_CSRF_TOKEN" } };
+  }
   return {
     statusCode: 500,
     body: { error: "INTERNAL_ERROR", message: error instanceof Error ? error.message : "Unknown error" },

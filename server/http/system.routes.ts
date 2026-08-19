@@ -6,8 +6,6 @@ import { elevenLabsModelOptions, schedulerSettingsSchema, voiceOptions } from ".
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
 
 export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
-  const { repository } = dependencies;
-
   app.get("/health", async () => {
     const routing = getModelRouting();
     return {
@@ -27,46 +25,50 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
             voice: config.ttsVoice,
           }
         : null,
-      stats: repository.system.stats(),
+      profiles: dependencies.health(),
     };
   });
 
-  app.get("/api/config", async () => ({
-    openaiConfigured: openAIConfigured,
-    tts: {
-      disclosure: "Голос сгенерирован искусственным интеллектом.",
-      providers: {
-        openai: {
-          configured: openAIConfigured,
-          defaultVoice: config.ttsVoice,
-          voices: voiceOptions,
-          recommendedVoices: ["marin", "cedar"],
-        },
-        elevenlabs: {
-          configured: elevenLabsConfigured,
-          voice: { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName },
-          models: elevenLabsModelOptions,
-          speedRange: elevenLabsSpeedRange,
-          defaults: {
-            modelId: config.elevenLabsModel,
-            stability: config.elevenLabsStability,
-            similarityBoost: config.elevenLabsSimilarityBoost,
-            style: config.elevenLabsStyle,
-            speakerBoost: config.elevenLabsSpeakerBoost,
-            speed: config.elevenLabsSpeed,
+  app.get("/api/config", async (request) => {
+    const { repository } = dependencies.forRequest(request);
+    return {
+      openaiConfigured: openAIConfigured,
+      tts: {
+        disclosure: "Голос сгенерирован искусственным интеллектом.",
+        providers: {
+          openai: {
+            configured: openAIConfigured,
+            defaultVoice: config.ttsVoice,
+            voices: voiceOptions,
+            recommendedVoices: ["marin", "cedar"],
           },
-          note: "Generated MP3 files are cached on this server. Identical requests reuse the cached audio.",
+          elevenlabs: {
+            configured: elevenLabsConfigured,
+            voice: { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName },
+            models: elevenLabsModelOptions,
+            speedRange: elevenLabsSpeedRange,
+            defaults: {
+              modelId: config.elevenLabsModel,
+              stability: config.elevenLabsStability,
+              similarityBoost: config.elevenLabsSimilarityBoost,
+              style: config.elevenLabsStyle,
+              speakerBoost: config.elevenLabsSpeakerBoost,
+              speed: config.elevenLabsSpeed,
+            },
+            note: "Generated MP3 files are cached on this server. Identical requests reuse the cached audio.",
+          },
         },
       },
-    },
-    scheduler: { algorithm: "FSRS-6", ...repository.practice.getSettings() },
-    languages: [
-      { code: "en", label: "English", locale: "en-US" },
-      { code: "lv", label: "Latviešu", locale: "lv-LV" },
-    ],
-  }));
+      scheduler: { algorithm: "FSRS-6", ...repository.practice.getSettings() },
+      languages: [
+        { code: "en", label: "English", locale: "en-US" },
+        { code: "lv", label: "Latviešu", locale: "lv-LV" },
+      ],
+    };
+  });
 
-  app.patch("/api/settings/scheduler", async (request) => ({
-    scheduler: repository.practice.updateSettings(schedulerSettingsSchema.parse(request.body)),
-  }));
+  app.patch("/api/settings/scheduler", async (request) => {
+    const { repository } = dependencies.forRequest(request);
+    return { scheduler: repository.practice.updateSettings(schedulerSettingsSchema.parse(request.body)) };
+  });
 };

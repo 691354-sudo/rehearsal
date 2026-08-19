@@ -6,9 +6,8 @@ import { languageSchema } from "./schemas.js";
 const scoreByRating = { again: 0, hard: 0.7, good: 0.85, easy: 1 } as const;
 
 export const registerPracticeRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
-  const { repository, openai } = dependencies;
-
   app.get("/api/practice/due", async (request) => {
+    const { repository } = dependencies.forRequest(request);
     const query = z.object({
       language: languageSchema.default("en"),
       limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -19,6 +18,7 @@ export const registerPracticeRoutes = (app: FastifyInstance, dependencies: HttpD
   });
 
   app.get("/api/practice/progress", async (request) => {
+    const { repository } = dependencies.forRequest(request);
     const query = z.object({
       language: languageSchema.default("en"),
       since: z.string().datetime(),
@@ -28,6 +28,7 @@ export const registerPracticeRoutes = (app: FastifyInstance, dependencies: HttpD
   });
 
   app.post("/api/attempts/evaluate", async (request, reply) => {
+    const { repository, openai } = dependencies.forRequest(request);
     const body = z.object({
       itemId: z.string().min(1),
       answer: z.string().trim().min(1).max(4_000),
@@ -51,6 +52,7 @@ export const registerPracticeRoutes = (app: FastifyInstance, dependencies: HttpD
   });
 
   app.post("/api/reviews", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const body = z.object({
       itemId: z.string().min(1),
       mode: z.literal("shadow"),

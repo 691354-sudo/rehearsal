@@ -4,7 +4,7 @@
 
 - React + Vite web client on port 4173.
 - Fastify API on port 8787.
-- One SQLite database in `.data/rehearsal.sqlite` using WAL and FTS5.
+- Two isolated SQLite databases in `.data/profiles/roman.sqlite` and `.data/profiles/oliver.sqlite`, both using WAL and FTS5.
 - OpenAI is optional at startup. The API reports capability state via `/health` and `/api/config`.
 
 The Vite dev server proxies `/api` and `/health`. A production build can be served by the Fastify process from `dist`.
@@ -19,7 +19,9 @@ The server remains the source of truth in every delivery target. A service worke
 
 ## Client modules
 
-`src/app` composes navigation, language, theme, profile-independent audio, and feature pages. Product behavior belongs to `src/features/<domain>`: Practice, Tutor, Library, Capture, Settings, and Review. `src/shared` contains client configuration and adapters used by more than one feature; feature-specific code must not be moved there for convenience. API shapes shared with the server live in the root `contracts` module.
+`src/features/auth` owns the profile gate and session bootstrap. `src/app` composes navigation, language, theme, audio, and feature pages after authentication. Product behavior belongs to `src/features/<domain>`: Practice and Card Drill, Tutor and Capture, Library and Topics, Settings, and Review. `src/shared` contains client configuration and adapters used by more than one feature; feature-specific code must not be moved there for convenience. API shapes shared with the server live in the root `contracts` module.
+
+The browser keeps no session credential in `localStorage`. The signed session and CSRF cookies are server-managed, while the matching CSRF token stays in memory. Language, theme, playback and Card Drill settings, and Tutor thread selection use keys namespaced by the authenticated profile.
 
 Styles follow the same ownership boundaries under `src/styles`. `base.css` owns tokens and global controls, domain files own their screens and local responsive states, and `responsive.css` contains cross-domain viewport adjustments. The removed prototype is not a runtime route or architectural fallback.
 
@@ -27,11 +29,13 @@ Styles follow the same ownership boundaries under `src/styles`. `base.css` owns 
 
 `server/app.ts` is only the Fastify composition root. Request parsing and responses are grouped by domain in `server/http`; SQL and business state never live in route modules. Persistence is split into `items`, `practice`, `reviews`, `tutor`, `library`, `capture`, `audio`, and `system` repositories under `server/db/repositories`. Services receive only the repository capabilities they use.
 
+`server/profiles` owns the fixed Roman/Oliver registry and database lifecycle. A verified signed cookie binds every non-auth `/api` request to one profile context; the server then selects that profile's repository. Client input can never select a database path. `server/auth` owns PIN verification, login throttling, cookie sessions, logout, and CSRF enforcement.
+
 Active `.ts` and `.tsx` files are limited to 450 lines and CSS files to 800 lines. `npm run check:architecture` enforces the boundary in CI. Generated-data exceptions require an explicit, documented allowlist entry; there are currently no exceptions.
 
 ## Learning data
 
-`items` is the central table. Every entry belongs to exactly one target language and keeps the Russian recall cue, target sentence, accepted alternatives, notes, source, status, quality ratings, tags, and optional embedding.
+Each profile database has the same schema and no cross-profile tables. `items` is the central table. Every entry belongs to exactly one target language and keeps the Russian recall cue, target sentence, accepted alternatives, notes, source, status, quality ratings, tags, and optional embedding.
 
 Related tables store original sources, review batches, capture notes, practice attempts, scheduling state, tutor chats, cached speech, and change events. English and Latvian queries are always filtered before data is returned to the tutor.
 
@@ -81,4 +85,4 @@ The server stores only individual provider MP3 responses; it does not assemble c
 
 ## Backup and rollback
 
-`npm run db:backup` uses SQLite's online backup API. Restore requires `CONFIRM_RESTORE=1`, validates the selected database, and preserves the current file as `pre-restore-*.sqlite` first.
+`npm run db:backup` uses SQLite's online backup API and writes separate Roman and Oliver backups. Restore requires an explicit `--profile`, requires `CONFIRM_RESTORE=1`, validates the candidate, and preserves only the selected profile database as `pre-restore-<profile>-*.sqlite` first.

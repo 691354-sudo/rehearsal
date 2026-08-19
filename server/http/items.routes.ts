@@ -4,9 +4,8 @@ import type { HttpDependencies } from "./dependencies.js";
 import { itemBodySchema, languageSchema } from "./schemas.js";
 
 export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
-  const { repository, openai } = dependencies;
-
   app.get("/api/items", async (request) => {
+    const { repository } = dependencies.forRequest(request);
     const query = z.object({
       language: languageSchema.default("en"),
       limit: z.coerce.number().int().min(1).max(500).default(100),
@@ -15,6 +14,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   });
 
   app.post("/api/items", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const body = itemBodySchema.parse(request.body);
     const item = repository.items.save({
       ...body,
@@ -28,6 +28,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   });
 
   app.patch("/api/items/:itemId/preference", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ itemId: z.string().min(1) }).parse(request.params);
     const body = z.object({ preference: z.enum(["like", "neutral", "dislike"]) }).parse(request.body);
     const item = repository.items.updatePreference(params.itemId, body.preference);
@@ -35,6 +36,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   });
 
   app.patch("/api/items/:itemId", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ itemId: z.string().min(1) }).parse(request.params);
     const body = z.object({
       target: z.string().trim().min(1).max(2_000).optional(),
@@ -50,12 +52,14 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   });
 
   app.delete("/api/items/:itemId", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ itemId: z.string().min(1) }).parse(request.params);
     if (!repository.items.delete(params.itemId)) return reply.code(404).send({ error: "ITEM_NOT_FOUND" });
     return reply.code(204).send();
   });
 
   app.get("/api/search", async (request) => {
+    const { repository, openai } = dependencies.forRequest(request);
     const query = z.object({
       q: z.string().trim().min(1).max(500),
       language: languageSchema.default("en"),
@@ -69,6 +73,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   });
 
   app.post("/api/import/text", async (request, reply) => {
+    const { repository, openai } = dependencies.forRequest(request);
     const body = z.object({
       language: languageSchema,
       title: z.string().trim().min(1).max(300),
@@ -90,6 +95,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   });
 
   app.post("/api/items/:itemId/pattern-drill", async (request, reply) => {
+    const { repository, openai } = dependencies.forRequest(request);
     const params = z.object({ itemId: z.string().min(1) }).parse(request.params);
     const item = repository.items.get(params.itemId);
     if (!item) return reply.code(404).send({ error: "ITEM_NOT_FOUND" });
@@ -97,6 +103,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   });
 
   app.post("/api/islands", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const body = z.object({
       language: languageSchema,
       title: z.string().trim().min(1).max(200),
@@ -114,17 +121,20 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   });
 
   app.get("/api/islands", async (request) => {
+    const { repository } = dependencies.forRequest(request);
     const query = z.object({ language: languageSchema }).parse(request.query);
     return { islands: repository.library.listIslands(query.language) };
   });
 
   app.get("/api/islands/:islandId", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ islandId: z.string().uuid() }).parse(request.params);
     const island = repository.library.getIsland(params.islandId);
     return island ? { island } : reply.code(404).send({ error: "TOPIC_NOT_FOUND" });
   });
 
   app.patch("/api/islands/:islandId", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ islandId: z.string().uuid() }).parse(request.params);
     const body = z.object({
       title: z.string().trim().min(1).max(200).optional(),
@@ -143,6 +153,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   });
 
   app.delete("/api/islands/:islandId", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ islandId: z.string().uuid() }).parse(request.params);
     if (!repository.library.deleteIsland(params.islandId)) {
       return reply.code(404).send({ error: "TOPIC_NOT_FOUND" });

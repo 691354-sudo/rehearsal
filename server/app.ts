@@ -1,41 +1,84 @@
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import csrfProtection from "@fastify/csrf-protection";
+import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
 import Fastify from "fastify";
-import type { RehearsalRepository } from "./db/repository.js";
+import { csrfCookieName, registerProfileAuth } from "./auth/profile-auth.js";
+import { config } from "./config.js";
+import { RehearsalRepository } from "./db/repository.js";
 import { registerAudioRoutes } from "./http/audio.routes.js";
 import { registerCaptureRoutes } from "./http/capture.routes.js";
-import type { HttpDependencies } from "./http/dependencies.js";
+import { createHttpDependencies, type ServiceOverrides } from "./http/dependencies.js";
 import { toErrorResponse } from "./http/errors.js";
 import { registerItemRoutes } from "./http/items.routes.js";
 import { registerPracticeRoutes } from "./http/practice.routes.js";
 import { registerSystemRoutes } from "./http/system.routes.js";
 import { registerTutorRoutes } from "./http/tutor.routes.js";
-import { ElevenLabsService } from "./services/elevenlabs.js";
-import { OpenAIService } from "./services/openai.js";
-import { TutorService } from "./services/tutor.js";
+import { ProfileManager } from "./profiles/manager.js";
 import type { LanguageCode } from "./types.js";
 
-export const buildApp = async (
-  repository: RehearsalRepository,
-  overrides: { openai?: OpenAIService; elevenlabs?: ElevenLabsService } = {},
-) => {
-  const app = Fastify({ logger: true, bodyLimit: 2_000_000 });
-  repository.library.runTopicBackfillMigration();
-  const openai = overrides.openai || new OpenAIService(repository);
-  const elevenlabs = overrides.elevenlabs || new ElevenLabsService(repository);
-  const dependencies: HttpDependencies = {
-    repository,
-    openai,
-    elevenlabs,
-    tutor: new TutorService(repository, openai),
-  };
+type AppOptions = ServiceOverrides & {
+  sessionSecret?: string;
+  cookieSecure?: boolean;
+};
 
+export const buildApp = async (
+  runtime: RehearsalRepository | ProfileManager,
+  options: AppOptions = {},
+) => {
+  const app = Fastify({
+    logger: true,
+    bodyLimit: 2_000_000,
+    trustProxy: config.trustedProxy,
+  });
+  const dependencies = createHttpDependencies(runtime, options);
+  const sessionSecret = options.sessionSecret ?? config.sessionSecret;
+  const cookieSecure = options.cookieSecure ?? config.sessionCookieSecure;
+
+  await app.register(helmet, {
+    hsts: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        fontSrc: ["'self'", "data:"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        mediaSrc: ["'self'", "blob:"],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+      },
+    },
+  });
   await app.register(multipart, {
     limits: { files: 1, fileSize: 25 * 1024 * 1024, fields: 0 },
   });
   await app.register(cors, {
     origin: [/^http:\/\/127\.0\.0\.1(?::\d+)?$/, /^http:\/\/localhost(?::\d+)?$/],
+    credentials: Boolean(dependencies.profiles),
   });
+
+  if (dependencies.profiles) {
+    if (Buffer.byteLength(sessionSecret) < 32) {
+      throw new Error("SESSION_SECRET must contain at least 32 bytes");
+    }
+    await app.register(cookie, { secret: sessionSecret, algorithm: "sha256" });
+    await app.register(csrfProtection, {
+      cookieKey: csrfCookieName,
+      cookieOpts: {
+        path: "/",
+        httpOnly: true,
+        secure: cookieSecure,
+        sameSite: "strict",
+        signed: true,
+        maxAge: 30 * 24 * 60 * 60,
+      },
+      getToken: (request) => request.headers["x-csrf-token"] as string | undefined,
+    });
+  }
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);
@@ -43,6 +86,7 @@ export const buildApp = async (
     void reply.code(response.statusCode).send(response.body);
   });
 
+  registerProfileAuth(app, dependencies, { cookieSecure });
   registerSystemRoutes(app, dependencies);
   registerItemRoutes(app, dependencies);
   registerPracticeRoutes(app, dependencies);

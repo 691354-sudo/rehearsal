@@ -3,17 +3,24 @@ import path from "node:path";
 import fastifyStatic from "@fastify/static";
 import { buildApp } from "./app.js";
 import { config } from "./config.js";
-import { openDatabase } from "./db/database.js";
-import { RehearsalRepository } from "./db/repository.js";
 import { seedDatabase } from "./db/seed.js";
+import { ProfileManager, profileIds } from "./profiles/manager.js";
 
-const db = openDatabase();
-const repository = new RehearsalRepository(db);
-if (!repository.items.list("en", 1).length && !repository.items.list("lv", 1).length) {
-  seedDatabase(repository);
+const profiles = await ProfileManager.create({
+  dataDir: config.dataDir,
+  backupDir: config.backupDir,
+  legacyDatabasePath: config.databasePath,
+  pins: { roman: config.romanProfilePin, oliver: config.oliverProfilePin },
+});
+
+for (const profileId of profileIds) {
+  const repository = profiles.get(profileId).repository;
+  if (!repository.items.list("en", 1).length && !repository.items.list("lv", 1).length) {
+    seedDatabase(repository);
+  }
 }
 
-const app = await buildApp(repository);
+const app = await buildApp(profiles);
 const distPath = path.resolve(process.cwd(), "dist");
 
 if (fs.existsSync(distPath)) {
@@ -28,7 +35,7 @@ if (fs.existsSync(distPath)) {
 
 const shutdown = async () => {
   await app.close();
-  db.close();
+  profiles.close();
   process.exit(0);
 };
 

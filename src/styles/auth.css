@@ -1,0 +1,222 @@
+.profile-gate {
+  --profile-canvas: #f5f4f8;
+  --profile-surface: #ffffff;
+  --profile-ink: #202026;
+  --profile-support: #62616c;
+  --profile-rule: #d5d2dc;
+  --profile-action: #6956c9;
+  --profile-wash: #f0edfb;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24px;
+  overflow: auto;
+  color: var(--profile-ink);
+  background: var(--profile-canvas);
+  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.profile-gate > span {
+  margin-left: 10px;
+  color: var(--profile-support);
+}
+
+.profile-gate button,
+.profile-gate input {
+  font: inherit;
+}
+
+.profile-gate button {
+  cursor: pointer;
+}
+
+.profile-gate button:focus-visible,
+.profile-gate input:focus-visible {
+  outline: 2px solid var(--profile-action);
+  outline-offset: 2px;
+}
+
+.profile-card {
+  width: min(100%, 420px);
+  padding: 38px;
+  background: var(--profile-surface);
+  border: 1px solid var(--profile-rule);
+  border-radius: 16px;
+  box-shadow: 0 18px 60px rgba(34, 31, 47, 0.08);
+}
+
+.profile-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 28px;
+  place-items: center;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--profile-action);
+  border-radius: 9px;
+}
+
+.profile-card header > span {
+  color: var(--profile-action);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-card h1 {
+  margin: 7px 0 8px;
+  font-size: 28px;
+  font-weight: 690;
+  letter-spacing: -0.04em;
+}
+
+.profile-card header p {
+  margin: 0;
+  color: var(--profile-support);
+  font-size: 14px;
+}
+
+.profile-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 28px 0 24px;
+}
+
+.profile-options button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 0 14px;
+  color: var(--profile-support);
+  background: var(--profile-surface);
+  border: 1px solid var(--profile-rule);
+  border-radius: 10px;
+}
+
+.profile-options button span {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  color: var(--profile-support);
+  font-size: 12px;
+  background: var(--profile-canvas);
+  border-radius: 50%;
+}
+
+.profile-options button:hover {
+  border-color: color-mix(in srgb, var(--profile-action) 45%, var(--profile-rule));
+}
+
+.profile-options button.is-active {
+  color: var(--profile-ink);
+  background: var(--profile-wash);
+  border-color: var(--profile-action);
+}
+
+.profile-options button.is-active span {
+  color: #ffffff;
+  background: var(--profile-action);
+}
+
+.profile-card form > label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--profile-support);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.profile-pin {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 13px;
+  color: var(--profile-support);
+  background: var(--profile-surface);
+  border: 1px solid var(--profile-rule);
+  border-radius: 9px;
+}
+
+.profile-pin:focus-within {
+  border-color: var(--profile-action);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--profile-action) 14%, transparent);
+}
+
+.profile-pin input {
+  min-width: 0;
+  flex: 1;
+  color: var(--profile-ink);
+  letter-spacing: 0.08em;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.profile-pin input::placeholder {
+  color: #9996a2;
+  letter-spacing: 0;
+}
+
+.profile-error {
+  margin: 9px 0 0;
+  color: #aa514f;
+  font-size: 13px;
+}
+
+.profile-submit {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 16px;
+  color: #ffffff;
+  font-weight: 600;
+  background: var(--profile-action);
+  border: 1px solid var(--profile-action);
+  border-radius: 9px;
+}
+
+.profile-submit:not(:disabled):hover {
+  background: color-mix(in srgb, var(--profile-action) 84%, #000000);
+}
+
+.profile-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 520px) {
+  .profile-gate {
+    align-items: start;
+    padding: 18px;
+  }
+
+  .profile-card {
+    box-sizing: border-box;
+    margin-top: 7vh;
+    padding: 28px 22px;
+  }
+
+  .profile-mark {
+    margin-bottom: 23px;
+  }
+
+  .profile-card h1 {
+    font-size: 25px;
+  }
+}

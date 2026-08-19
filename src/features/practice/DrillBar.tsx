@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ListMusic, LoaderCircle, Pause, Play, RotateCcw, Settings2, Square } from "lucide-react";
-import { apiPath } from "../../shared/config";
+import { apiFetch } from "../../shared/api";
 
 type Language = "en" | "lv";
 type Provider = "openai" | "elevenlabs";
@@ -150,7 +150,7 @@ export function DrillBar(props: {
     abortRef.current = controller;
     const provider = props.language === "lv" && props.playback.provider === "elevenlabs"
       ? "openai" : props.playback.provider;
-    const response = await fetch(apiPath("/api/audio/speech"), {
+    const response = await apiFetch("/api/audio/speech", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,

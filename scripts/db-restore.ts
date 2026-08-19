@@ -2,10 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { config } from "../server/config.js";
+import { profileIds, type ProfileId } from "../server/profiles/manager.js";
 
-const sourceArgument = process.argv[2];
-if (!sourceArgument) {
-  console.error("Usage: CONFIRM_RESTORE=1 npm run db:restore -- /absolute/path/to/backup.sqlite");
+const profileFlagIndex = process.argv.indexOf("--profile");
+const profileArgument = profileFlagIndex >= 0 ? process.argv[profileFlagIndex + 1] : undefined;
+const sourceArgument = process.argv.find((argument, index) =>
+  index > 1 && index !== profileFlagIndex && index !== profileFlagIndex + 1 && !argument.startsWith("--"));
+
+if (!profileArgument || !profileIds.includes(profileArgument as ProfileId) || !sourceArgument) {
+  console.error("Usage: CONFIRM_RESTORE=1 npm run db:restore -- --profile roman /absolute/path/to/backup.sqlite");
   process.exit(1);
 }
 if (process.env.CONFIRM_RESTORE !== "1") {
@@ -13,6 +18,7 @@ if (process.env.CONFIRM_RESTORE !== "1") {
   process.exit(1);
 }
 
+const profileId = profileArgument as ProfileId;
 const source = path.resolve(sourceArgument);
 if (!fs.existsSync(source) || !fs.statSync(source).isFile()) {
   console.error(`Backup file not found: ${source}`);
@@ -27,13 +33,14 @@ if (check[0]?.quick_check !== "ok") {
   process.exit(1);
 }
 
-fs.mkdirSync(path.dirname(config.databasePath), { recursive: true });
+const destination = path.join(config.dataDir, "profiles", `${profileId}.sqlite`);
+fs.mkdirSync(path.dirname(destination), { recursive: true });
 fs.mkdirSync(config.backupDir, { recursive: true });
-if (fs.existsSync(config.databasePath)) {
+if (fs.existsSync(destination)) {
   const stamp = new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
-  const safetyCopy = path.join(config.backupDir, `pre-restore-${stamp}.sqlite`);
-  fs.copyFileSync(config.databasePath, safetyCopy);
-  console.log(`Current database preserved at: ${safetyCopy}`);
+  const safetyCopy = path.join(config.backupDir, `pre-restore-${profileId}-${stamp}.sqlite`);
+  fs.copyFileSync(destination, safetyCopy);
+  console.log(`Current ${profileId} database preserved at: ${safetyCopy}`);
 }
-fs.copyFileSync(source, config.databasePath);
-console.log(`Database restored from: ${source}`);
+fs.copyFileSync(source, destination);
+console.log(`Database restored for ${profileId} from: ${source}`);

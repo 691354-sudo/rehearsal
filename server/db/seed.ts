@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import { openDatabase } from "./database.js";
 import { RehearsalRepository } from "./repository.js";
 import { seedItems } from "../data/seed-content.js";
+import { config } from "../config.js";
+import { profileIds, type ProfileId } from "../profiles/manager.js";
 
 export const seedDatabase = (repository: RehearsalRepository) => {
   const sourceFiles = [
@@ -47,10 +49,17 @@ export const seedDatabase = (repository: RehearsalRepository) => {
 };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const db = openDatabase();
+  const profileFlagIndex = process.argv.indexOf("--profile");
+  const profileArgument = profileFlagIndex >= 0 ? process.argv[profileFlagIndex + 1] : undefined;
+  if (!profileArgument || !profileIds.includes(profileArgument as ProfileId)) {
+    console.error("Usage: npm run db:seed -- --profile roman");
+    process.exit(1);
+  }
+  const databasePath = path.join(config.dataDir, "profiles", `${profileArgument}.sqlite`);
+  const db = openDatabase(databasePath);
   const repository = new RehearsalRepository(db);
   const count = seedDatabase(repository);
-  console.log(`Seeded ${count} curated learning items.`);
+  console.log(`Seeded ${count} curated learning items for ${profileArgument}.`);
   db.close();
 }
 import fs from "node:fs";

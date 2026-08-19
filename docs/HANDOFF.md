@@ -5,7 +5,8 @@ This file contains only current state and follow-up work. Every new session star
 ## Current state
 
 - The active UI is split into `src/app`, domain modules under `src/features`, shared contracts/config, and bounded style files. Practice, Tutor, Library, Settings, Capture Reality, Topics, and Card Drill are preserved; the legacy route and prototype source are removed.
-- The API routes and SQLite repositories are split into domain modules; the runtime still opens one database at `.data/rehearsal.sqlite` locally and `/opt/apps/rehearsal/data/rehearsal.sqlite` in production.
+- The API routes and SQLite repositories are split into domain modules. Roman and Oliver authenticate with fixed PIN profiles and receive separate SQLite databases selected exclusively from a signed server session.
+- The first profile-aware start archives and copies the legacy database to both profiles, verifies SQLite integrity and table counters, and never overwrites an existing profile database.
 - The GitHub deployment workflow uses immutable release directories. It is operational only after all deployment secrets are configured and the first manual run is verified.
 - Deterministic tests and the production build pass without paid API calls.
 
@@ -13,6 +14,7 @@ This file contains only current state and follow-up work. Every new session star
 
 - `src/app/RehearsalApp.tsx` — runtime shell, configuration, audio, and page composition.
 - `src/features/` — Practice, Tutor, Library, Capture, Settings, and Review UI behavior, including Topics and Card Drill.
+- `src/features/auth/` — profile login and session bootstrap.
 - `src/styles/` — approved tokens and feature-owned responsive styles.
 - `src/lib/compare.ts` — instant deterministic recall comparison.
 - `src/lib/sessionQueue.ts` — keyboard grade ordering and shadow queue behavior.
@@ -23,6 +25,8 @@ This file contains only current state and follow-up work. Every new session star
 - `server/services/scheduler.ts` — FSRS-6 integration and project-specific limits.
 - `server/services/tutor.ts` — Tutor prompt and read-only tool loop.
 - `server/model-routing.ts` — Sol/Terra/Luna workload routing.
+- `server/auth/` — profile login, rate limiting, signed cookie, and CSRF enforcement.
+- `server/profiles/` — fixed profile registry, first-run migration, and request database selection.
 - `server/data/seed-content.ts` — curated English and Latvian test material.
 
 ## Verification baseline
@@ -43,7 +47,7 @@ OPENAI_API_KEY=' ' ELEVENLABS_API_KEY=' ' npm test
 npm run build
 ```
 
-Before a release, verify the actual browser flow at desktop and mobile widths. For installable-PWA work, also run the physical iPhone gate in [MOBILE_APP_DIRECTION.md](MOBILE_APP_DIRECTION.md).
+The API tests cover edit, preference, deletion, SQLite restart persistence, legacy migration, auth rejection, cookie/CSRF protection, throttling, and bidirectional profile isolation. Before a release, verify login, switching, Practice, Tutor, Library, Capture, Topics, and Card Drill in the actual browser at desktop and mobile widths. For installable-PWA work, also run the physical iPhone gate in [MOBILE_APP_DIRECTION.md](MOBILE_APP_DIRECTION.md).
 
 ## Current feature baseline
 
@@ -60,6 +64,6 @@ Before a release, verify the actual browser flow at desktop and mobile widths. F
 ## Next coordinated work
 
 1. Configure the deployment secrets and verify the first release-directory deployment.
-2. Add PIN-authenticated Roman and Oliver profiles with isolated SQLite databases.
+2. Perform the production profile migration and keep the archived legacy database until Roman and Oliver both complete acceptance checks.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branch order and [OPERATIONS.md](OPERATIONS.md) for production safety.

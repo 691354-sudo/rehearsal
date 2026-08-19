@@ -12,10 +12,17 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: 8787
       DATABASE_PATH: /data/rehearsal.sqlite
+      DATA_DIR: /data
       BACKUP_DIR: /backups
+      ROMAN_PROFILE_PIN_FILE: /run/rehearsal-secrets/roman_profile_pin
+      OLIVER_PROFILE_PIN_FILE: /run/rehearsal-secrets/oliver_profile_pin
+      SESSION_SECRET_FILE: /run/rehearsal-secrets/session_secret
+      SESSION_COOKIE_SECURE: "true"
+      TRUST_PROXY: 127.0.0.1
       OPENAI_MODEL_ROUTING_PATH: /data/model-routing.json
     ports:
       - "127.0.0.1:8788:8787"
     volumes:
       - /opt/apps/rehearsal/data:/data
       - /opt/apps/rehearsal/backups:/backups
+      - /opt/apps/rehearsal/secrets:/run/rehearsal-secrets:ro

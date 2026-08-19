@@ -1,11 +1,11 @@
 import "@fontsource-variable/inter";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { RehearsalApp } from "./app/RehearsalApp";
+import { ProfileGate } from "./features/auth/ProfileGate";
 import "./styles/index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RehearsalApp />
+    <ProfileGate />
   </StrictMode>,
 );

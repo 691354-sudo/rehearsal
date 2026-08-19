@@ -30,7 +30,9 @@ import {
 } from "../../lib/sessionQueue";
 import { DrillBar } from "./DrillBar";
 import { loadDrillPreferences, saveDrillPreferences } from "./drillPreferences";
-import { apiPath, capitalize, languageCopy } from "../../shared/config";
+import { apiFetch } from "../../shared/api";
+import { capitalize, languageCopy } from "../../shared/config";
+import type { ProfileId } from "../../../contracts/api";
 import type {
   AttemptDraft,
   DailyProgress,
@@ -43,13 +45,13 @@ import type {
 } from "../../shared/contracts";
 
 type DrillStatus = "idle" | "loading" | "playing" | "paused" | "complete" | "error";
-
 export function PracticePage(props: {
   activeItemId: string;
   attempts: Record<string, AttemptDraft>;
   dueItemIds: string[];
   items: LearningItem[];
   language: Language;
+  profileId: ProfileId;
   mode: Mode;
   dailyProgress: DailyProgress;
   elevenLabs: ElevenLabsConfig;
@@ -69,11 +71,10 @@ export function PracticePage(props: {
   playback: PlaybackPreferences;
   revealedItems: string[];
   openaiConfigured: boolean;
-  voices: string[];
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const initialDrillPreferences = useMemo(() => loadDrillPreferences(props.language), [props.language]);
+  const initialDrillPreferences = useMemo(() => loadDrillPreferences(props.profileId, props.language), [props.language, props.profileId]);
   const [topicFilters, setTopicFilters] = useState(initialDrillPreferences.topics);
   const [frequencyFilter, setFrequencyFilter] = useState("all");
   const [practiceScope, setPracticeScope] = useState(initialDrillPreferences.scope);
@@ -104,14 +105,14 @@ export function PracticePage(props: {
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
 
   useEffect(() => {
-    saveDrillPreferences(props.language, {
+    saveDrillPreferences(props.profileId, props.language, {
       order: reconcileDrillOrder(props.items.map((item) => item.publicId), drillOrder),
       loopIds: drillLoopIds,
       topics: topicFilters,
       scope: practiceScope,
       sort: practiceSort,
     });
-  }, [drillLoopIds, drillOrder, practiceScope, practiceSort, props.items, props.language, topicFilters]);
+  }, [drillLoopIds, drillOrder, practiceScope, practiceSort, props.items, props.language, props.profileId, topicFilters]);
 
   const updateDrillState = useCallback((status: DrillStatus, currentId: string) => {
     setDrillState((current) => current.status === status && current.currentId === currentId
@@ -372,7 +373,7 @@ function PracticeItemEditor(props: {
     setSaving(true); setError("");
     try {
       const secondaryTags = props.item.tags.slice(1);
-      const response = await fetch(apiPath(`/api/items/${encodeURIComponent(props.item.publicId)}`), {
+      const response = await apiFetch(`/api/items/${encodeURIComponent(props.item.publicId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -396,7 +397,7 @@ function PracticeItemEditor(props: {
     if (!window.confirm("Delete this card from your library and practice history?")) return;
     setSaving(true); setError("");
     try {
-      const response = await fetch(apiPath(`/api/items/${encodeURIComponent(props.item.publicId)}`), { method: "DELETE" });
+      const response = await apiFetch(`/api/items/${encodeURIComponent(props.item.publicId)}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Could not delete this card");
       props.onDeleted(props.item.publicId);
     } catch (nextError) {
@@ -429,7 +430,6 @@ function PracticeItemEditor(props: {
     </form>
   </dialog>;
 }
-
 
 const gradeTitle: Record<ReviewRating, string> = {
   again: "Forgot",

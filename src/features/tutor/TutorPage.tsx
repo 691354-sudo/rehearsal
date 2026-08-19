@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Check, LoaderCircle, PanelLeft, Plus, Send, Upload, X } from "lucide-react";
 import { CaptureNotebook } from "../capture/CaptureNotebook";
+import type { ProfileId } from "../../../contracts/api";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
-import { apiPath } from "../../shared/config";
+import { apiFetch } from "../../shared/api";
 import type { ChatMessage, ChatThread, Language } from "../../shared/contracts";
 
 const renderInlineMarkdown = (text: string) => text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) =>
@@ -54,7 +55,7 @@ const formatThreadDate = (value: string) => {
   return date.toLocaleDateString("en", { month: "short", day: "numeric" });
 };
 
-export function TutorPage({ language }: { language: Language }) {
+export function TutorPage({ language, profileId }: { language: Language; profileId: ProfileId }) {
   const [tutorMode, setTutorMode] = useState<"chat" | "notebook">("chat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
@@ -62,10 +63,10 @@ export function TutorPage({ language }: { language: Language }) {
   const [loadingThread, setLoadingThread] = useState(false); const [sessionsOpen, setSessionsOpen] = useState(false);
   const [reviewing, setReviewing] = useState(false); const [reviewBatch, setReviewBatch] = useState<ReviewBatch | null>(null);
   const [threadId, setThreadId] = useState<string>(); const messagesRef = useRef<HTMLDivElement>(null);
-  const storageKey = `rehearsal:tutor-thread:${language}`;
+  const storageKey = `rehearsal:${profileId}:tutor-thread:${language}`;
 
   const refreshThreads = async () => {
-    const response = await fetch(apiPath(`/api/chat/threads?language=${language}&limit=50`));
+    const response = await apiFetch(`/api/chat/threads?language=${language}&limit=50`);
     if (!response.ok) throw new Error("Could not load sessions");
     const data = await response.json() as { threads: ChatThread[] };
     setThreads(data.threads || []);
@@ -76,7 +77,7 @@ export function TutorPage({ language }: { language: Language }) {
     if (loadingThread || publicId === threadId) { setSessionsOpen(false); return; }
     setLoadingThread(true); setReviewBatch(null);
     try {
-      const response = await fetch(apiPath(`/api/chat/${publicId}/messages`));
+      const response = await apiFetch(`/api/chat/${publicId}/messages`);
       if (!response.ok) throw new Error("Could not load session");
       const data = await response.json() as { messages: Array<{ role: "user" | "assistant"; content: string }> };
       setMessages(data.messages.map((message) => ({ ...message, id: crypto.randomUUID() })));
@@ -89,7 +90,7 @@ export function TutorPage({ language }: { language: Language }) {
     setThreadId(undefined); setReviewBatch(null); setMessages([]); setThreads([]);
     void (async () => {
       try {
-        const response = await fetch(apiPath(`/api/chat/threads?language=${language}&limit=50`));
+        const response = await apiFetch(`/api/chat/threads?language=${language}&limit=50`);
         if (!response.ok) return;
         const data = await response.json() as { threads: ChatThread[] };
         if (cancelled) return;
@@ -97,7 +98,7 @@ export function TutorPage({ language }: { language: Language }) {
         const stored = window.localStorage.getItem(storageKey);
         const selected = nextThreads.find((thread) => thread.publicId === stored) || nextThreads[0];
         if (!selected) return;
-        const history = await fetch(apiPath(`/api/chat/${selected.publicId}/messages`));
+        const history = await apiFetch(`/api/chat/${selected.publicId}/messages`);
         if (!history.ok || cancelled) return;
         const loaded = await history.json() as { messages: Array<{ role: "user" | "assistant"; content: string }> };
         if (cancelled) return;
@@ -106,7 +107,7 @@ export function TutorPage({ language }: { language: Language }) {
       } catch { /* A blank Tutor remains usable when history is unavailable. */ }
     })();
     return () => { cancelled = true; };
-  }, [language]);
+  }, [language, profileId]);
 
   useEffect(() => {
     const messageList = messagesRef.current;
@@ -119,7 +120,7 @@ export function TutorPage({ language }: { language: Language }) {
   };
 
   const prepareVocab = async (content: string) => {
-    const response = await fetch(apiPath("/api/review-batches/vocab"), {
+    const response = await apiFetch("/api/review-batches/vocab", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ language, title: "Vocabulary from Tutor", text: content, threadId }),
     });
@@ -135,7 +136,7 @@ export function TutorPage({ language }: { language: Language }) {
     try {
       if (looksLikeVocabList(content)) await prepareVocab(content);
       else {
-        const response = await fetch(apiPath("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" },
+        const response = await apiFetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ language, message: content, threadId }) });
         if (!response.ok) throw new Error("Chat unavailable");
         const data = await response.json() as { threadId: string; content: string }; setThreadId(data.threadId);
@@ -150,7 +151,7 @@ export function TutorPage({ language }: { language: Language }) {
   const finishReview = async () => {
     if (!threadId || reviewing) return; setReviewing(true);
     try {
-      const response = await fetch(apiPath(`/api/chat/${threadId}/review`), { method: "POST" });
+      const response = await apiFetch(`/api/chat/${threadId}/review`, { method: "POST" });
       if (!response.ok) throw new Error("Review failed");
       const data = await response.json() as { batch: ReviewBatch }; setReviewBatch(data.batch);
     } catch { setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: "Review could not be prepared. Nothing was added to Library." }]); }

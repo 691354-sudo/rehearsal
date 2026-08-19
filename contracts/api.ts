@@ -140,3 +140,7 @@ export type SchedulerSettings = {
 };
 
 export type DailyProgress = { recall: number; shadow: number; pattern: number };
+
+export type ProfileId = "roman" | "oliver";
+export type ProfileSummary = { id: ProfileId; name: string };
+export type AuthSession = { profile: ProfileSummary; csrfToken: string };
