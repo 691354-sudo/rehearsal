@@ -1,0 +1,297 @@
+.simple-app {
+  --stage-canvas: #f5f4f8;
+  --script-surface: #ffffff;
+  --script-inset: #f8f7fb;
+  --script-ink: #202026;
+  --script-support: #62616c;
+  --script-tertiary: #797782;
+  --script-muted: #aaa8b2;
+  --script-rule: #e5e3e9;
+  --script-rule-strong: #d5d2dc;
+  --cue-light: #6956c9;
+  --cue-action: #6956c9;
+  --cue-wash: #f0edfb;
+  --learned: #328265;
+  --learned-wash: #edf7f3;
+  --rehearsal-note: #d69a33;
+  --retry: #aa514f;
+  --cue-on: #ffffff;
+  --control-fill: #f3f1f7;
+  --control-rule: #d5d2dc;
+  --control-focus: color-mix(in srgb, var(--cue-light) 18%, transparent);
+  min-height: 100vh;
+  color: var(--script-ink);
+  background: var(--stage-canvas);
+  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color-scheme: light;
+  transition: color 160ms ease, background 160ms ease;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.simple-app--dark {
+  --stage-canvas: #090a0d;
+  --script-surface: #121318;
+  --script-inset: #0d0e12;
+  --script-ink: #f1f0f4;
+  --script-support: #aaa8b2;
+  --script-tertiary: #777681;
+  --script-muted: #575762;
+  --script-rule: rgba(237, 233, 246, 0.09);
+  --script-rule-strong: rgba(237, 233, 246, 0.17);
+  --cue-light: #a38cf4;
+  --cue-action: #735bd6;
+  --cue-wash: rgba(116, 91, 214, 0.16);
+  --learned: #72c2a2;
+  --learned-wash: rgba(77, 155, 123, 0.16);
+  --rehearsal-note: #d5a34d;
+  --retry: #d77d78;
+  --control-fill: #0d0e12;
+  --control-rule: rgba(237, 233, 246, 0.17);
+  color-scheme: dark;
+}
+
+.simple-app button,
+.simple-app textarea {
+  font: inherit;
+}
+
+.simple-app button {
+  cursor: pointer;
+}
+
+.simple-app button:disabled {
+  cursor: default;
+}
+
+.simple-app button:focus-visible,
+.simple-app input:focus-visible,
+.simple-app textarea:focus-visible,
+.simple-app select:focus-visible,
+.simple-app label:has(input[type="file"]:focus-visible) {
+  outline: 2px solid var(--cue-light);
+  outline-offset: 2px;
+}
+
+.simple-app button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.simple-app h1,
+.simple-app h2,
+.simple-app h3 {
+  text-wrap: balance;
+}
+
+.simple-app p,
+.simple-app small {
+  text-wrap: pretty;
+}
+
+.simple-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+  align-items: center;
+  height: 58px;
+  padding: 0 28px;
+  background: color-mix(in srgb, var(--stage-canvas) 92%, transparent);
+  border-bottom: 1px solid var(--script-rule);
+  backdrop-filter: blur(16px);
+}
+
+.simple-brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: max-content;
+  min-height: 40px;
+  color: var(--script-ink);
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+}
+
+.simple-brand > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--cue-on);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--cue-action);
+  border-radius: 7px;
+}
+
+.simple-brand strong {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.simple-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.simple-nav button {
+  min-height: 40px;
+  padding: 0 12px;
+  color: var(--script-support);
+  font-size: 14px;
+  font-weight: 500;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+}
+
+.simple-nav button:hover {
+  color: var(--script-ink);
+  background: var(--script-inset);
+}
+
+.simple-nav button.is-active {
+  color: var(--script-ink);
+  font-weight: 600;
+  background: var(--cue-wash);
+}
+
+.simple-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-self: end;
+}
+
+.simple-language,
+.simple-icon-button,
+.simple-settings {
+  display: inline-flex;
+  align-items: center;
+  color: var(--script-support);
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.simple-language {
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.simple-language select {
+  max-width: 90px;
+  padding: 0;
+  color: var(--script-support);
+  font: inherit;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  appearance: none;
+}
+
+.simple-api-state {
+  width: 8px;
+  height: 8px;
+  margin: 0 2px;
+  background: var(--rehearsal-note);
+  border-radius: 50%;
+}
+
+.simple-api-state.is-online {
+  background: var(--learned);
+}
+
+.simple-ai-label {
+  color: var(--script-tertiary);
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.simple-language > span {
+  color: var(--cue-light);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.simple-icon-button {
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+}
+
+.simple-main {
+  width: min(1080px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 30px 0 56px;
+}
+
+.simple-main--practice {
+  width: min(940px, calc(100% - 40px));
+}
+
+.simple-page-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.simple-page-heading h1 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+}
+
+.simple-page-heading p {
+  margin: 6px 0 0;
+  color: var(--script-support);
+  font-size: 14px;
+}
+
+.simple-primary {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 13px;
+  color: var(--cue-on);
+  font-size: 13px;
+  font-weight: 550;
+  background: var(--cue-action);
+  border: 1px solid var(--cue-action);
+  border-radius: 8px;
+}
+
+.simple-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--cue-action) 84%, #000000);
+}
+
+.simple-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.simple-language:hover,
+.simple-icon-button:hover {
+  color: var(--script-ink);
+  background: var(--script-inset);
+}
+
+.simple-spin {
+  animation: simple-spin 800ms linear infinite;
+}
+
+@keyframes simple-spin {
+  to { transform: rotate(360deg); }
+}

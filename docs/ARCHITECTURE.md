@@ -17,6 +17,16 @@ The primary phone target is the existing HTTPS client installed as an iPhone Hom
 
 The server remains the source of truth in every delivery target. A service worker may cache a versioned application shell and explicitly selected offline assets, but must not blindly cache API mutations, private learning data, or generated audio. See `docs/MOBILE_APP_DIRECTION.md` for interaction constraints and the phone verification gate.
 
+## Client modules
+
+`src/app` composes navigation, language, theme, profile-independent audio, and feature pages. Product behavior belongs to `src/features/<domain>`: Practice, Tutor, Library, Capture, Settings, and Review. `src/shared` contains API contracts and configuration used by more than one feature; feature-specific code must not be moved there for convenience.
+
+Styles follow the same ownership boundaries under `src/styles`. `base.css` owns tokens and global controls, domain files own their screens and local responsive states, and `responsive.css` contains cross-domain viewport adjustments. The removed prototype is not a runtime route or architectural fallback.
+
+## Server modules
+
+`server/app.ts` currently composes the HTTP API. The next backend refactor will keep composition there while moving request validation to domain routes and persistence to narrow domain repositories. Services receive only the repository capabilities they use.
+
 ## Learning data
 
 `items` is the central table. Every entry belongs to exactly one target language and keeps the Russian recall cue, target sentence, accepted alternatives, notes, source, status, quality ratings, tags, and optional embedding.

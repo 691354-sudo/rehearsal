@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ListMusic, LoaderCircle, Pause, Play, RotateCcw, Settings2, Square } from "lucide-react";
-import { apiPath } from "../lib/api";
+import { apiPath } from "../../shared/config";
 
 type Language = "en" | "lv";
 type Provider = "openai" | "elevenlabs";

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, LoaderCircle, Plus, Save, Trash2, X } from "lucide-react";
-import { apiPath } from "../lib/api";
+import { apiPath } from "../../shared/config";
+import type { Language, LearningItem } from "../../shared/contracts";
 
-type Language = "en" | "lv";
-type LearningItem = { publicId: string; target: string; cue: string };
 type TopicSummary = {
   publicId: string;
   language: Language;

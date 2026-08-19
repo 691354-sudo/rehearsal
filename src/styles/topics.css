@@ -1,0 +1,248 @@
+.topics-manager {
+  margin: 22px 0;
+  overflow: hidden;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 11px;
+}
+
+.topics-manager > header {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--script-rule);
+}
+
+.topics-manager > header > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.topics-manager h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 660;
+}
+
+.topics-manager > header span,
+.topics-manager > p {
+  color: var(--script-tertiary);
+  font-size: 12px;
+}
+
+.topics-manager > header > div:last-child,
+.topic-title-edit,
+.topic-add-item {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.topics-manager input,
+.topics-manager select {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 9px;
+  color: var(--script-ink);
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule-strong);
+  border-radius: 7px;
+}
+
+.topics-manager button {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 9px;
+  color: var(--script-support);
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--script-rule);
+  border-radius: 7px;
+}
+
+.topics-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  min-height: 210px;
+}
+
+.topics-layout > nav {
+  padding: 8px;
+  background: var(--script-inset);
+  border-right: 1px solid var(--script-rule);
+}
+
+.topics-layout > nav button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  margin-bottom: 2px;
+  text-align: left;
+  border-color: transparent;
+}
+
+.topics-layout > nav button span {
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topics-layout > nav button small {
+  color: var(--script-tertiary);
+}
+
+.topics-layout > nav button.is-active {
+  color: var(--script-ink);
+  font-weight: 620;
+  background: var(--cue-wash);
+}
+
+.topic-detail {
+  min-width: 0;
+  padding: 13px 14px;
+}
+
+.topic-title-edit input {
+  flex: 1;
+  font-weight: 620;
+}
+
+.topic-title-edit button:last-child {
+  width: 40px;
+  padding: 0;
+  color: var(--retry);
+}
+
+.topic-items {
+  margin: 12px 0;
+  border-top: 1px solid var(--script-rule);
+}
+
+.topic-items article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  border-bottom: 1px solid var(--script-rule);
+}
+
+.topic-items article > div:first-child {
+  display: grid;
+  min-width: 0;
+}
+
+.topic-items strong,
+.topic-items span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topic-items strong {
+  font-size: 12px;
+  font-weight: 590;
+}
+
+.topic-items span {
+  color: var(--script-tertiary);
+  font-size: 11px;
+}
+
+.topic-items article > div:last-child {
+  display: flex;
+  gap: 3px;
+}
+
+.topic-items article button {
+  width: 40px;
+  padding: 0;
+}
+
+.topic-add-item select {
+  flex: 1;
+}
+
+.topic-empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: var(--script-tertiary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.topics-manager > p {
+  margin: 0;
+  padding: 9px 14px;
+  border-top: 1px solid var(--script-rule);
+}
+
+@media (max-width: 720px) {
+  .topics-manager > header {
+    align-items: flex-start;
+  }
+
+  .topics-manager > header > div:first-child span {
+    display: none;
+  }
+
+  .topics-layout {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+
+  .topics-manager button,
+  .topics-manager input,
+  .topics-manager select {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topics-manager > header {
+    display: grid;
+  }
+
+  .topics-manager > header > div:last-child input {
+    flex: 1;
+  }
+
+  .topics-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .topics-layout > nav {
+    display: flex;
+    gap: 5px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--script-rule);
+  }
+
+  .topics-layout > nav button {
+    display: flex;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 180px;
+    margin: 0;
+  }
+
+  .topic-title-edit {
+    flex-wrap: wrap;
+  }
+
+  .topic-title-edit input {
+    flex-basis: 100%;
+  }
+
+  .topic-items article {
+    align-items: start;
+    padding: 8px 0;
+  }
+}
