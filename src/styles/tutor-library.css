@@ -15,7 +15,7 @@
 
 .simple-chat-pane {
   display: grid;
-  grid-template-rows: 48px minmax(0, 1fr) auto;
+  grid-template-rows: 48px minmax(0, 1fr) auto auto;
   min-width: 0;
   min-height: 0;
 }
@@ -83,6 +83,27 @@
   align-items: center;
   color: var(--script-tertiary);
   font-size: 13px;
+}
+
+.simple-composer-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 6px 16px;
+  color: var(--retry);
+  font-size: 12px;
+  background: var(--script-inset);
+  border-top: 1px solid var(--script-rule);
+}
+
+.simple-composer-error button {
+  min-height: 32px;
+  padding: 0 9px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 6px;
 }
 
 .simple-session-rail {

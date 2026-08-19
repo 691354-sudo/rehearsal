@@ -146,6 +146,6 @@ export function ReviewBatchPanel(props: {
       </button>
     </div> : null}
     <footer><span>{notice}</span><button className="simple-primary" disabled={!selected.size || saving || props.batch.status === "committed"} onClick={() => void commit()} type="button">
-      {saving ? <LoaderCircle className="simple-spin" size={15} /> : <Check size={15} />}{props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture" ? `Add all to Practice${selected.size ? ` (${selected.size})` : ""}` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
+      {saving ? <LoaderCircle className="simple-spin" size={15} /> : <Check size={15} />}{props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture" ? `Add to Library${selected.size ? ` (${selected.size})` : ""}` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
   </section>;
 }

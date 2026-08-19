@@ -426,6 +426,46 @@ describe("Rehearsal API", () => {
     await app.close();
   });
 
+  it("creates a ready text capture without calling OpenAI", async () => {
+    const openai = new OpenAIService(repository);
+    const transcribe = vi.spyOn(openai, "transcribe");
+    const app = await buildApp(repository, { openai });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/captures/text",
+      payload: { language: "en", transcript: "  Я хочу заказать кофе без молока.  " },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().note).toMatchObject({
+      language: "en",
+      transcript: "Я хочу заказать кофе без молока.",
+      status: "ready",
+      audioMime: "",
+    });
+    expect(transcribe).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("edits and deletes a text capture before review", async () => {
+    const app = await buildApp(repository);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/captures/text",
+      payload: { language: "lv", transcript: "Я хочу говорить точнее." },
+    });
+    const noteId = created.json().note.publicId as string;
+    const edited = await app.inject({
+      method: "PATCH",
+      url: `/api/captures/${noteId}`,
+      payload: { transcript: "Я хочу говорить по-латышски точнее." },
+    });
+    expect(edited.statusCode).toBe(200);
+    expect(edited.json().note.transcript).toBe("Я хочу говорить по-латышски точнее.");
+    expect((await app.inject({ method: "DELETE", url: `/api/captures/${noteId}` })).statusCode).toBe(204);
+    expect(repository.getCaptureNote(noteId)).toBeNull();
+    await app.close();
+  });
+
   it("retains failed capture audio for retry, then clears it after success", async () => {
     const openai = new OpenAIService(repository);
     const transcribe = vi.spyOn(openai, "transcribe")
@@ -494,13 +534,12 @@ describe("Rehearsal API", () => {
   });
 
   it("turns multiple capture notes into one revisable batch and commits it atomically", async () => {
-    const first = repository.createCaptureNote({ language: "en", audio: Buffer.from("one"), audioMime: "audio/webm" });
+    const first = repository.createTextCaptureNote({ language: "en", transcript: "Я хотел попросить клиента немного подождать." });
     const second = repository.createCaptureNote({ language: "en", audio: Buffer.from("two"), audioMime: "audio/webm" });
-    repository.completeCaptureTranscription(first.publicId, "Я хотел попросить клиента немного подождать.");
     repository.completeCaptureTranscription(second.publicId, "Я хотел объяснить, что срок изменился.");
 
     const openai = new OpenAIService(repository);
-    vi.spyOn(openai, "prepareCaptureBatch").mockImplementation(async ({ language }) => ({
+    const prepareCaptureBatch = vi.spyOn(openai, "prepareCaptureBatch").mockImplementation(async ({ language }) => ({
       mode: "openai" as const,
       batch: repository.createReviewBatch({
         language,
@@ -532,6 +571,10 @@ describe("Rehearsal API", () => {
     const app = await buildApp(repository, { openai });
     const prepared = await app.inject({ method: "POST", url: "/api/captures/process", payload: { language: "en" } });
     expect(prepared.statusCode).toBe(201);
+    expect(prepareCaptureBatch.mock.calls[0][0].notes.map((note) => note.transcript)).toEqual([
+      "Я хотел попросить клиента немного подождать.",
+      "Я хотел объяснить, что срок изменился.",
+    ]);
     const batchId = prepared.json().batch.publicId as string;
     expect(repository.listCaptureNotes("en").every((note) => note.status === "batched")).toBe(true);
 

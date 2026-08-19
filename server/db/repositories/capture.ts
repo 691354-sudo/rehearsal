@@ -36,6 +36,17 @@ const captureSelect = `SELECT n.public_id, n.language_code, n.transcript, n.audi
 export class CaptureRepository {
   constructor(private readonly db: RehearsalDatabase) {}
 
+  createText(input: { language: LanguageCode; transcript: string }) {
+    const publicId = randomUUID();
+    this.db.prepare(
+      `INSERT INTO capture_notes(public_id, language_code, transcript, status)
+       VALUES (?, ?, ?, 'ready')`,
+    ).run(publicId, input.language, input.transcript.trim());
+    const note = this.get(publicId)!;
+    logChange(this.db, "user", "create", "capture_note", publicId, null, note);
+    return note;
+  }
+
   create(input: { language: LanguageCode; audio: Buffer; audioMime: string }) {
     const publicId = randomUUID();
     this.db.prepare(

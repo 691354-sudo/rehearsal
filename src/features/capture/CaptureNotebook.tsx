@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LoaderCircle, Mic, RefreshCw, Save, Square, Trash2, WandSparkles } from "lucide-react";
+import { LoaderCircle, Mic, Plus, RefreshCw, Save, Square, Trash2, WandSparkles } from "lucide-react";
 import { apiFetch } from "../../shared/api";
 import type { Language } from "../../shared/contracts";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
@@ -27,13 +27,20 @@ const friendlyError = (error: unknown) => {
     return "Microphone access is blocked. Allow it in Brave settings and try again.";
   }
   if (error instanceof Error) return error.message;
-  return "Something went wrong. Nothing was added to Practice.";
+  return "Something went wrong. Nothing was added to Library.";
 };
 
-export function CaptureNotebook({ language }: { language: Language }) {
+export function CaptureNotebook({ language, onLibrary, onListen }: {
+  language: Language;
+  onLibrary: () => void;
+  onListen: () => void;
+}) {
   const [notes, setNotes] = useState<CaptureNote[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [textDraft, setTextDraft] = useState("");
+  const [addingText, setAddingText] = useState(false);
   const [batch, setBatch] = useState<ReviewBatch | null>(null);
+  const [added, setAdded] = useState(false);
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -65,7 +72,7 @@ export function CaptureNotebook({ language }: { language: Language }) {
   };
 
   useEffect(() => {
-    setNotes([]); setDrafts({}); setBatch(null); setNotice(""); setRemaining(0);
+    setNotes([]); setDrafts({}); setBatch(null); setNotice(""); setRemaining(0); setAdded(false);
     void refresh().catch((error) => setNotice(friendlyError(error)));
     return () => {
       stopTimers();
@@ -125,6 +132,20 @@ export function CaptureNotebook({ language }: { language: Language }) {
     const recorder = recorderRef.current;
     if (recorder && recorder.state !== "inactive") recorder.stop();
   };
+  const addText = async () => {
+    const transcript = textDraft.trim();
+    if (!transcript || addingText) return;
+    setAddingText(true); setNotice(""); setAdded(false);
+    try {
+      const response = await apiFetch("/api/captures/text", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language, transcript }),
+      });
+      if (!response.ok) throw new Error("The note could not be added.");
+      setTextDraft(""); await refresh(); setNotice("Note added.");
+    } catch (error) { setNotice(friendlyError(error)); }
+    finally { setAddingText(false); }
+  };
   const saveNote = async (note: CaptureNote) => {
     const transcript = (drafts[note.publicId] || "").trim();
     if (!transcript || transcript === note.transcript) return;
@@ -167,15 +188,18 @@ export function CaptureNotebook({ language }: { language: Language }) {
 
   const readyCount = notes.filter((note) => note.status === "ready").length;
   return <section className="capture-notebook">
-    <div className="capture-intro">
-      <div><h2>Capture what you really say</h2><p>Speak freely in Russian. Notes stay here until you ask AI to turn them into natural {language === "en" ? "English" : "Latvian"} cards.</p></div>
-      <button aria-label={recording ? "Stop recording" : "Start recording"} className={`capture-record${recording ? " is-recording" : ""}`}
-        disabled={uploading} onClick={recording ? stopRecording : () => void startRecording()} type="button">
-        {recording ? <Square fill="currentColor" size={20} /> : uploading ? <LoaderCircle className="simple-spin" size={23} /> : <Mic size={23} />}
-        <span>{recording ? formatDuration(elapsed) : uploading ? "Transcribing" : "Record"}</span>
-      </button>
+    <div className="capture-entry">
+      <textarea aria-label="Russian note" maxLength={30_000} onChange={(event) => setTextDraft(event.target.value)}
+        placeholder="Write a Russian thought…" rows={3} value={textDraft} />
+      <div><button className="simple-primary" disabled={!textDraft.trim() || addingText} onClick={() => void addText()} type="button">
+        {addingText ? <LoaderCircle className="simple-spin" size={16} /> : <Plus size={16} />}Add note</button>
+        <button aria-label={recording ? "Stop recording" : "Start recording"} className={`capture-record${recording ? " is-recording" : ""}`}
+          disabled={uploading} onClick={recording ? stopRecording : () => void startRecording()} type="button">
+          {recording ? <Square fill="currentColor" size={16} /> : uploading ? <LoaderCircle className="simple-spin" size={17} /> : <Mic size={17} />}
+          <span>{recording ? formatDuration(elapsed) : uploading ? "Transcribing" : "Record"}</span>
+        </button></div>
     </div>
-    <div aria-live="polite" className="capture-notice">{notice || "Up to 5 minutes per note. Original audio is deleted after a successful transcription."}</div>
+    {notice ? <div aria-live="polite" className="capture-notice">{notice}</div> : null}
     {pendingAudio && !uploading ? <div className="capture-pending-audio"><span>The recording is still on this screen and has not been uploaded.</span>
       <div><button onClick={() => void upload(pendingAudio)} type="button"><RefreshCw size={14} />Retry upload</button>
         <button onClick={() => { setPendingAudio(null); setNotice("Unsent recording deleted."); }} type="button"><Trash2 size={14} />Delete recording</button></div></div> : null}
@@ -184,7 +208,7 @@ export function CaptureNotebook({ language }: { language: Language }) {
       <button className="simple-primary" disabled={!readyCount || processing || Boolean(batch)} onClick={() => void prepare()} type="button">
         {processing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Prepare cards{readyCount ? ` (${readyCount})` : ""}
       </button></div>
-    {!notes.length ? <div className="capture-empty"><Mic size={20} /><strong>Your voice notebook is empty</strong><span>Record thoughts, errands, stories, frustrations—anything you would actually want to say.</span></div> : <div className="capture-notes">
+    {!notes.length ? <p className="capture-empty">No notes</p> : <div className="capture-notes">
       {notes.map((note) => <article className="capture-note" key={note.publicId}>
         <header><span className={`is-${note.status}`}>{note.status}</span><time>{new Date(note.createdAt).toLocaleString()}</time></header>
         {note.status === "failed" ? <p className="capture-error">OpenAI could not transcribe this recording. The audio is temporarily retained.</p> :
@@ -200,7 +224,10 @@ export function CaptureNotebook({ language }: { language: Language }) {
     </div>}
     {remaining ? <p className="capture-remaining">{remaining} notes will stay ready for the next package.</p> : null}
     {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onCommitted={() => {
-      setBatch(null); setRemaining(0); setNotice("Cards added to Practice. The source notes are now processed."); void refresh();
+      setBatch(null); setRemaining(0); setNotice(""); setAdded(true); void refresh();
     }} /> : null}
+    {added ? <div className="capture-added"><strong>Added to Library</strong><div>
+      {language === "en" ? <button onClick={onListen} type="button">Listen now</button> : null}
+      <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
   </section>;
 }

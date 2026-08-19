@@ -54,6 +54,9 @@ export class RehearsalRepository {
   createCaptureNote(...args: Parameters<CaptureRepository["create"]>) {
     return this.capture.create(...args);
   }
+  createTextCaptureNote(...args: Parameters<CaptureRepository["createText"]>) {
+    return this.capture.createText(...args);
+  }
   getCaptureNote(...args: Parameters<CaptureRepository["get"]>) { return this.capture.get(...args); }
   getCaptureAudio(...args: Parameters<CaptureRepository["getAudio"]>) {
     return this.capture.getAudio(...args);

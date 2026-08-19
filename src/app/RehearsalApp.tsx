@@ -390,7 +390,9 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       onPausePlayback={pausePlayback} onPlay={playTarget} onPlayback={updatePlayback}
       onResumePlayback={resumePlayback} onStopPlayback={stopPlayback}
       playback={playback} voices={voices} />}
-    {route === "tutor" && <TutorPage language={language} profileId={profile.id} />}
+    {route === "tutor" && <TutorPage language={language} profileId={profile.id}
+      onLibrary={() => setRoute("library")}
+      onListen={() => { setMode("shadow"); setRoute("practice"); void loadItems(language); }} />}
     {route === "library" && <LibraryPage language={language} onAvailability={setApiOnline} onPlay={(text) => void playTarget(text)} />}
   </div>;
 }

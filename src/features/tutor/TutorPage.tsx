@@ -55,11 +55,17 @@ const formatThreadDate = (value: string) => {
   return date.toLocaleDateString("en", { month: "short", day: "numeric" });
 };
 
-export function TutorPage({ language, profileId }: { language: Language; profileId: ProfileId }) {
+export function TutorPage({ language, profileId, onLibrary, onListen }: {
+  language: Language;
+  profileId: ProfileId;
+  onLibrary: () => void;
+  onListen: () => void;
+}) {
   const [tutorMode, setTutorMode] = useState<"chat" | "notebook">("chat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [draft, setDraft] = useState(""); const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState(""); const [added, setAdded] = useState(false);
   const [loadingThread, setLoadingThread] = useState(false); const [sessionsOpen, setSessionsOpen] = useState(false);
   const [reviewing, setReviewing] = useState(false); const [reviewBatch, setReviewBatch] = useState<ReviewBatch | null>(null);
   const [threadId, setThreadId] = useState<string>(); const messagesRef = useRef<HTMLDivElement>(null);
@@ -87,7 +93,7 @@ export function TutorPage({ language, profileId }: { language: Language; profile
 
   useEffect(() => {
     let cancelled = false;
-    setThreadId(undefined); setReviewBatch(null); setMessages([]); setThreads([]);
+    setThreadId(undefined); setReviewBatch(null); setMessages([]); setThreads([]); setSendError(""); setAdded(false);
     void (async () => {
       try {
         const response = await apiFetch(`/api/chat/threads?language=${language}&limit=50`);
@@ -115,7 +121,7 @@ export function TutorPage({ language, profileId }: { language: Language; profile
   }, [messages, reviewBatch]);
 
   const newChat = () => {
-    setThreadId(undefined); setMessages([]); setReviewBatch(null); setDraft(""); setSessionsOpen(false);
+    setThreadId(undefined); setMessages([]); setReviewBatch(null); setDraft(""); setSendError(""); setAdded(false); setSessionsOpen(false);
     window.localStorage.removeItem(storageKey);
   };
 
@@ -126,30 +132,38 @@ export function TutorPage({ language, profileId }: { language: Language; profile
     });
     if (!response.ok) throw new Error("Vocab preparation failed");
     const data = await response.json() as { batch: ReviewBatch; threadId: string; content: string };
-    setReviewBatch(data.batch); setThreadId(data.threadId); window.localStorage.setItem(storageKey, data.threadId);
-    setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.content }]);
+    return data;
   };
 
   const send = async () => {
     const content = draft.trim(); if (!content || sending) return;
-    setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", content }]); setDraft(""); setSending(true);
+    setSending(true); setSendError(""); setAdded(false);
     try {
-      if (looksLikeVocabList(content)) await prepareVocab(content);
-      else {
+      if (looksLikeVocabList(content)) {
+        const data = await prepareVocab(content);
+        setReviewBatch(data.batch); setThreadId(data.threadId); window.localStorage.setItem(storageKey, data.threadId);
+        setMessages((current) => [...current,
+          { id: crypto.randomUUID(), role: "user", content },
+          { id: crypto.randomUUID(), role: "assistant", content: data.content },
+        ]);
+      } else {
         const response = await apiFetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ language, message: content, threadId }) });
         if (!response.ok) throw new Error("Chat unavailable");
         const data = await response.json() as { threadId: string; content: string }; setThreadId(data.threadId);
         window.localStorage.setItem(storageKey, data.threadId);
-        setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.content }]);
+        setMessages((current) => [...current,
+          { id: crypto.randomUUID(), role: "user", content },
+          { id: crypto.randomUUID(), role: "assistant", content: data.content },
+        ]);
       }
-      await refreshThreads();
-    } catch { setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: "Tutor is unavailable right now. Nothing was added to Library." }]); }
+      setDraft(""); void refreshThreads().catch(() => undefined);
+    } catch { setSendError("Tutor unavailable. Retry."); }
     finally { setSending(false); }
   };
 
   const finishReview = async () => {
-    if (!threadId || reviewing) return; setReviewing(true);
+    if (!threadId || reviewing) return; setReviewing(true); setAdded(false);
     try {
       const response = await apiFetch(`/api/chat/${threadId}/review`, { method: "POST" });
       if (!response.ok) throw new Error("Review failed");
@@ -175,7 +189,7 @@ export function TutorPage({ language, profileId }: { language: Language; profile
         <button onClick={() => setSessionsOpen(true)} type="button"><PanelLeft size={16} />Sessions</button>
         <button aria-label="New chat" onClick={newChat} title="New chat" type="button"><Plus size={17} /></button>
       </div> : null}</header>
-    {tutorMode === "notebook" ? <CaptureNotebook language={language} /> : <section className="simple-chat">
+    {tutorMode === "notebook" ? <CaptureNotebook language={language} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={() => setSessionsOpen(false)} type="button" /> : null}
       <aside className={`simple-session-rail ${sessionsOpen ? "is-open" : ""}`}>
         <div className="simple-session-rail-heading"><strong>Sessions</strong>
@@ -196,9 +210,13 @@ export function TutorPage({ language, profileId }: { language: Language; profile
         <div className="simple-chat-messages" ref={messagesRef}>
           {messages.map((message) => <article className={`simple-message simple-message--${message.role}`} key={message.id}>
             <span>{message.role === "user" ? "You" : "Tutor"}</span><MarkdownMessage content={message.content} /></article>)}
-          {reviewBatch ? <ReviewBatchPanel batch={reviewBatch} onBatch={setReviewBatch} /> : null}
+          {reviewBatch ? <ReviewBatchPanel batch={reviewBatch} onBatch={setReviewBatch} onCommitted={() => { setReviewBatch(null); setAdded(true); }} /> : null}
+          {added ? <div className="simple-tutor-added"><strong>Added to Library</strong><div>
+            {language === "en" ? <button onClick={onListen} type="button">Listen now</button> : null}
+            <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
           {sending && <div className="simple-chat-loading"><LoaderCircle className="simple-spin" size={17} />Tutor is thinking…</div>}
         </div>
+        {sendError ? <div className="simple-composer-error" role="alert"><span>{sendError}</span><button onClick={() => void send()} type="button">Retry</button></div> : null}
         <div className="simple-composer"><label className="simple-composer-upload" title="Upload a text file"><Upload size={17} /><input accept=".txt,text/plain" onChange={async (event) => {
           const file = event.target.files?.[0]; if (file) setDraft(await file.text()); event.target.value = "";
         }} type="file" /></label><textarea onChange={(event) => setDraft(event.target.value)}
