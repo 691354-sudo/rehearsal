@@ -103,15 +103,45 @@ const readRegistry = (registryPath: string): ProfileRegistry => {
   return parsed;
 };
 
-const migrateLegacyDatabase = async (
+const initializeProfileDatabases = async (
   options: ProfileManagerOptions,
   registry: ProfileRegistry,
+  registryCreated: boolean,
 ) => {
   const missing = registry.profiles.filter((profile) => !fs.existsSync(profile.databasePath));
   if (!missing.length) return;
 
+  if (!registryCreated) {
+    const profileList = missing.map((profile) => profile.id).join(", ");
+    throw new Error(
+      `Profile database missing after initialization: ${profileList}. Stop the API and restore the named profile from a verified backup.`,
+    );
+  }
+
+  if (missing.length !== registry.profiles.length) {
+    throw new Error("Incomplete profile database set found during initialization; restore the registry and profile backups");
+  }
+
   if (!fs.existsSync(options.legacyDatabasePath)) {
-    for (const profile of missing) openDatabase(profile.databasePath).close();
+    let counts: Record<string, number> | null = null;
+    for (const profile of missing) {
+      const temporaryPath = `${profile.databasePath}.${process.pid}.tmp`;
+      const db = openDatabase(temporaryPath);
+      try {
+        counts ??= tableCounts(db);
+      } finally {
+        db.close();
+      }
+      fs.renameSync(temporaryPath, profile.databasePath);
+    }
+    writePrivateJson(path.join(path.dirname(registry.profiles[0].databasePath), migrationReportName), {
+      migratedAt: new Date().toISOString(),
+      mode: "fresh",
+      source: null,
+      archive: null,
+      profiles: missing.map((profile) => profile.id),
+      counts,
+    });
     return;
   }
 
@@ -125,12 +155,15 @@ const migrateLegacyDatabase = async (
     assertHealthyCopy(archivePath, expected);
 
     for (const profile of missing) {
-      await source.backup(profile.databasePath);
-      assertHealthyCopy(profile.databasePath, expected);
+      const temporaryPath = `${profile.databasePath}.${process.pid}.tmp`;
+      await source.backup(temporaryPath);
+      assertHealthyCopy(temporaryPath, expected);
+      fs.renameSync(temporaryPath, profile.databasePath);
     }
 
     writePrivateJson(path.join(path.dirname(registry.profiles[0].databasePath), migrationReportName), {
       migratedAt: new Date().toISOString(),
+      mode: "legacy",
       source: options.legacyDatabasePath,
       archive: archivePath,
       profiles: missing.map((profile) => profile.id),
@@ -162,9 +195,25 @@ export class ProfileManager {
     fs.mkdirSync(profilesDir, { recursive: true, mode: 0o700 });
     fs.chmodSync(profilesDir, 0o700);
     const registryPath = path.join(profilesDir, registryName);
-    if (!fs.existsSync(registryPath)) writePrivateJson(registryPath, createRegistry(profilesDir, options.pins));
+    const registryCreated = !fs.existsSync(registryPath);
+    if (registryCreated) {
+      const existingProfileFiles = profileIds.filter((id) => fs.existsSync(path.join(profilesDir, `${id}.sqlite`)));
+      if (existingProfileFiles.length) {
+        throw new Error("Profile registry is missing while profile databases exist; restore registry.json before starting");
+      }
+      const registry = createRegistry(profilesDir, options.pins);
+      try {
+        await initializeProfileDatabases(options, registry, true);
+        writePrivateJson(registryPath, registry);
+        return new ProfileManager(registry);
+      } catch (error) {
+        for (const profile of registry.profiles) fs.rmSync(profile.databasePath, { force: true });
+        fs.rmSync(path.join(profilesDir, migrationReportName), { force: true });
+        throw error;
+      }
+    }
     const registry = readRegistry(registryPath);
-    await migrateLegacyDatabase(options, registry);
+    await initializeProfileDatabases(options, registry, false);
     return new ProfileManager(registry);
   }
 

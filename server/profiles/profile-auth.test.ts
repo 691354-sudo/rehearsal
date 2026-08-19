@@ -220,4 +220,50 @@ describe("profile authentication and database isolation", () => {
     app = await buildApp(manager, { sessionSecret, cookieSecure: true });
     expect(manager.get("oliver").repository.items.get("en-drawn-to")?.target).toBe("Persistent Oliver edit.");
   });
+
+  it("fails closed when an initialized profile database disappears", async () => {
+    await app.close();
+    manager.close();
+    fs.rmSync(path.join(dataDir, "profiles", "oliver.sqlite"));
+
+    await expect(ProfileManager.create({
+      dataDir,
+      backupDir,
+      legacyDatabasePath: legacyPath,
+      pins,
+    })).rejects.toThrow("Profile database missing after initialization: oliver");
+  });
+
+  it("creates both empty profile databases and records a fresh initialization", async () => {
+    await app.close();
+    manager.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rehearsal-fresh-profiles-test-"));
+    dataDir = path.join(tempDir, "data");
+    backupDir = path.join(tempDir, "backups");
+    legacyPath = path.join(dataDir, "rehearsal.sqlite");
+
+    manager = await ProfileManager.create({ dataDir, backupDir, legacyDatabasePath: legacyPath, pins });
+    app = await buildApp(manager, { sessionSecret, cookieSecure: true });
+
+    expect(manager.get("roman").repository.items.list("en", 500)).toEqual([]);
+    expect(manager.get("oliver").repository.items.list("en", 500)).toEqual([]);
+    const migration = JSON.parse(fs.readFileSync(path.join(dataDir, "profiles", "migration.json"), "utf8")) as {
+      mode: string; source: string | null; profiles: ProfileId[];
+    };
+    expect(migration).toMatchObject({ mode: "fresh", source: null, profiles: ["roman", "oliver"] });
+  });
+
+  it("refuses to recreate a missing registry beside existing profile data", async () => {
+    await app.close();
+    manager.close();
+    fs.rmSync(path.join(dataDir, "profiles", "registry.json"));
+
+    await expect(ProfileManager.create({
+      dataDir,
+      backupDir,
+      legacyDatabasePath: legacyPath,
+      pins,
+    })).rejects.toThrow("Profile registry is missing while profile databases exist");
+  });
 });

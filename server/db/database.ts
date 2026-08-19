@@ -103,24 +103,63 @@ const removeLegacyContinuousTrackStorage = (db: Database.Database) => {
   db.exec("DROP TABLE IF EXISTS saturation_tracks");
 };
 
+type SchemaMigration = {
+  id: string;
+  run: (db: Database.Database) => void;
+  requiresForeignKeysOff?: boolean;
+};
+
+const schemaMigrations: SchemaMigration[] = [
+  { id: "001-review-batches-capture", run: migrateReviewBatches, requiresForeignKeysOff: true },
+  { id: "002-items-metadata", run: migrateItems },
+  { id: "003-review-state-fsrs", run: migrateReviewState },
+  { id: "004-remove-saturation-storage", run: removeLegacyContinuousTrackStorage },
+];
+
+const assertForeignKeys = (db: Database.Database) => {
+  const failures = db.pragma("foreign_key_check") as unknown[];
+  if (failures.length) throw new Error("SQLite foreign_key_check failed after schema migration");
+};
+
+const applySchemaMigrations = (db: Database.Database) => {
+  const hasMigration = db.prepare("SELECT 1 FROM schema_migrations WHERE id = ?");
+  const markMigration = db.prepare("INSERT INTO schema_migrations(id) VALUES (?)");
+
+  for (const migration of schemaMigrations) {
+    if (hasMigration.get(migration.id)) continue;
+    if (migration.requiresForeignKeysOff) db.pragma("foreign_keys = OFF");
+    try {
+      db.transaction(() => {
+        migration.run(db);
+        assertForeignKeys(db);
+        markMigration.run(migration.id);
+      })();
+    } finally {
+      if (migration.requiresForeignKeysOff) db.pragma("foreign_keys = ON");
+    }
+  }
+};
+
 export const openDatabase = (databasePath = config.databasePath) => {
   fs.mkdirSync(path.dirname(databasePath), { recursive: true });
   const db = new Database(databasePath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  db.pragma("busy_timeout = 5000");
-  migrateReviewBatches(db);
-  db.exec(schema);
-  removeLegacyContinuousTrackStorage(db);
-  migrateItems(db);
-  migrateReviewState(db);
-  db.prepare(
-    "INSERT OR IGNORE INTO languages(code, name, locale) VALUES (?, ?, ?)",
-  ).run("en", "English", "en-US");
-  db.prepare(
-    "INSERT OR IGNORE INTO languages(code, name, locale) VALUES (?, ?, ?)",
-  ).run("lv", "Latviešu", "lv-LV");
-  return db;
+  try {
+    db.pragma("journal_mode = WAL");
+    db.pragma("foreign_keys = ON");
+    db.pragma("busy_timeout = 5000");
+    db.exec(schema);
+    applySchemaMigrations(db);
+    db.prepare(
+      "INSERT OR IGNORE INTO languages(code, name, locale) VALUES (?, ?, ?)",
+    ).run("en", "English", "en-US");
+    db.prepare(
+      "INSERT OR IGNORE INTO languages(code, name, locale) VALUES (?, ?, ?)",
+    ).run("lv", "Latviešu", "lv-LV");
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 };
 
 export type RehearsalDatabase = ReturnType<typeof openDatabase>;
