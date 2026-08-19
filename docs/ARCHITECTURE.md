@@ -19,13 +19,15 @@ The server remains the source of truth in every delivery target. A service worke
 
 ## Client modules
 
-`src/app` composes navigation, language, theme, profile-independent audio, and feature pages. Product behavior belongs to `src/features/<domain>`: Practice, Tutor, Library, Capture, Settings, and Review. `src/shared` contains API contracts and configuration used by more than one feature; feature-specific code must not be moved there for convenience.
+`src/app` composes navigation, language, theme, profile-independent audio, and feature pages. Product behavior belongs to `src/features/<domain>`: Practice, Tutor, Library, Capture, Settings, and Review. `src/shared` contains client configuration and adapters used by more than one feature; feature-specific code must not be moved there for convenience. API shapes shared with the server live in the root `contracts` module.
 
 Styles follow the same ownership boundaries under `src/styles`. `base.css` owns tokens and global controls, domain files own their screens and local responsive states, and `responsive.css` contains cross-domain viewport adjustments. The removed prototype is not a runtime route or architectural fallback.
 
 ## Server modules
 
-`server/app.ts` currently composes the HTTP API. The next backend refactor will keep composition there while moving request validation to domain routes and persistence to narrow domain repositories. Services receive only the repository capabilities they use.
+`server/app.ts` is only the Fastify composition root. Request parsing and responses are grouped by domain in `server/http`; SQL and business state never live in route modules. Persistence is split into `items`, `practice`, `reviews`, `tutor`, `library`, `capture`, `audio`, and `system` repositories under `server/db/repositories`. Services receive only the repository capabilities they use.
+
+Active `.ts` and `.tsx` files are limited to 450 lines and CSS files to 800 lines. `npm run check:architecture` enforces the boundary in CI. Generated-data exceptions require an explicit, documented allowlist entry; there are currently no exceptions.
 
 ## Learning data
 

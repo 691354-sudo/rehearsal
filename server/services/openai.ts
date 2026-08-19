@@ -141,12 +141,14 @@ const localEvaluation = (item: LearningItem, answer: string): AttemptEvaluation 
   };
 };
 
+type OpenAIRepositories = Pick<RehearsalRepository, "audio" | "reviews">;
+
 export class OpenAIService {
   private readonly client = openAIConfigured
     ? new OpenAI({ apiKey: config.openaiApiKey })
     : null;
 
-  constructor(private readonly repository: RehearsalRepository) {}
+  constructor(private readonly repository: OpenAIRepositories) {}
 
   get configured() {
     return Boolean(this.client);
@@ -215,7 +217,7 @@ export class OpenAIService {
     const cacheKey = createHash("sha256")
       .update([config.ttsModel, voice, speed, input.language, input.text].join("\0"))
       .digest("hex");
-    const cached = this.repository.getCachedAudio(cacheKey);
+    const cached = this.repository.audio.get(cacheKey);
     if (cached) return { ...cached, cached: true };
     const languageName = input.language === "lv" ? "Latvian" : input.language === "ru" ? "Russian" : "English";
     const response = await this.client.audio.speech.create({
@@ -226,7 +228,7 @@ export class OpenAIService {
       response_format: "mp3",
     });
     const audio = Buffer.from(await response.arrayBuffer());
-    this.repository.saveCachedAudio({
+    this.repository.audio.save({
       cacheKey,
       model: config.ttsModel,
       voice,
@@ -245,7 +247,7 @@ export class OpenAIService {
     sourceThreadPublicId?: string;
   }) {
     if (!this.client) {
-      const batch = this.repository.createReviewBatch({
+      const batch = this.repository.reviews.create({
         language: input.language,
         kind: input.kind,
         title: input.title,
@@ -271,7 +273,7 @@ export class OpenAIService {
       response.output_parsed.items.slice(0, 100).map(toCandidate),
       input.language,
     );
-    const batch = this.repository.createReviewBatch({
+    const batch = this.repository.reviews.create({
       language: input.language,
       kind: input.kind,
       title: input.title,
@@ -331,7 +333,7 @@ export class OpenAIService {
   }
 
   async reviseReviewBatch(input: { batchPublicId: string; feedback: string }) {
-    const batch = this.repository.getReviewBatch(input.batchPublicId);
+    const batch = this.repository.reviews.get(input.batchPublicId);
     if (!batch || batch.status !== "draft") return null;
     if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
     const response = await this.client.responses.parse({
@@ -357,7 +359,7 @@ export class OpenAIService {
       response.output_parsed.items.slice(0, 100).map(toCandidate),
       batch.language,
     );
-    return this.repository.replaceReviewCandidates(batch.publicId, candidates, input.feedback);
+    return this.repository.reviews.replaceCandidates(batch.publicId, candidates, input.feedback);
   }
 
   reviewConversation(input: {
@@ -395,7 +397,7 @@ export class OpenAIService {
     candidateId: string;
     instruction: "another" | "different_context";
   }) {
-    const batch = this.repository.getReviewBatch(input.batchPublicId);
+    const batch = this.repository.reviews.get(input.batchPublicId);
     const original = batch?.candidates.find((candidate) => candidate.id === input.candidateId);
     if (!batch || !original) return null;
     if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
@@ -414,6 +416,6 @@ export class OpenAIService {
     const generated = response.output_parsed?.items[0];
     if (!generated) throw new Error("The tutor did not return a replacement");
     const replacement = { ...toCandidate(generated), id: original.id };
-    return this.repository.replaceReviewCandidate(batch.publicId, original.id, replacement);
+    return this.repository.reviews.replaceCandidate(batch.publicId, original.id, replacement);
   }
 }

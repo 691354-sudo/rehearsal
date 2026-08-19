@@ -1,0 +1,45 @@
+import { z } from "zod";
+import { ElevenLabsError } from "../services/elevenlabs.js";
+
+export const toErrorResponse = (error: unknown) => {
+  if (error instanceof z.ZodError) {
+    return { statusCode: 400, body: { error: "INVALID_REQUEST", details: error.issues } };
+  }
+  if (error instanceof Error && error.message === "OPENAI_NOT_CONFIGURED") {
+    return {
+      statusCode: 503,
+      body: { error: "OPENAI_NOT_CONFIGURED", message: "Add OPENAI_API_KEY to .env and restart the API." },
+    };
+  }
+  if (error instanceof Error && error.message === "ELEVENLABS_NOT_CONFIGURED") {
+    return {
+      statusCode: 503,
+      body: { error: "ELEVENLABS_NOT_CONFIGURED", message: "Add ELEVENLABS_API_KEY to .env and restart the API." },
+    };
+  }
+  if (error instanceof Error && error.message === "EMPTY_TRANSCRIPTION") {
+    return { statusCode: 422, body: { error: "EMPTY_TRANSCRIPTION", message: "No speech was detected." } };
+  }
+  if (error instanceof Error && error.message === "TOPIC_TITLE_EXISTS") {
+    return { statusCode: 409, body: { error: "TOPIC_TITLE_EXISTS" } };
+  }
+  if (error instanceof Error && ["TOPIC_ITEM_NOT_FOUND", "TOPIC_NOT_FOUND"].includes(error.message)) {
+    return { statusCode: 404, body: { error: error.message } };
+  }
+  if (error instanceof Error && error.message === "TOPIC_ITEM_DUPLICATE") {
+    return { statusCode: 400, body: { error: "TOPIC_ITEM_DUPLICATE" } };
+  }
+  const statusCode = typeof error === "object" && error && "statusCode" in error
+    ? Number((error as { statusCode?: number }).statusCode)
+    : 0;
+  if (statusCode === 413) {
+    return { statusCode: 413, body: { error: "AUDIO_TOO_LARGE", message: "Recordings must be 25 MB or smaller." } };
+  }
+  if (error instanceof ElevenLabsError) {
+    return { statusCode: error.statusCode, body: { error: error.code, message: error.message } };
+  }
+  return {
+    statusCode: 500,
+    body: { error: "INTERNAL_ERROR", message: error instanceof Error ? error.message : "Unknown error" },
+  };
+};

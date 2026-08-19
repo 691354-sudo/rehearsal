@@ -56,29 +56,31 @@ Your job is to help him speak naturally and automatically, not to teach theory f
 - Keep the initial answer concise, then deepen when Roman wants it.
 `;
 
+type TutorRepositories = Pick<RehearsalRepository, "items" | "practice" | "tutor">;
+
 export class TutorService {
   private readonly client: OpenAI | null;
 
   constructor(
-    private readonly repository: RehearsalRepository,
+    private readonly repository: TutorRepositories,
     private readonly openaiService: OpenAIService,
   ) {
     this.client = openaiService.configured ? new OpenAI({ apiKey: config.openaiApiKey }) : null;
   }
 
   async chat(input: { language: LanguageCode; message: string; threadPublicId?: string }) {
-    const thread = this.repository.getOrCreateThread(input.threadPublicId, input.language);
-    this.repository.addMessage(thread.id, "user", input.message);
-    this.repository.ensureThreadTitle(thread.id, input.message);
+    const thread = this.repository.tutor.getOrCreateThread(input.threadPublicId, input.language);
+    this.repository.tutor.addMessage(thread.id, "user", input.message);
+    this.repository.tutor.ensureThreadTitle(thread.id, input.message);
 
     if (!this.client) {
       const content =
         "The backend and database are ready, but OpenAI is not connected yet. Add OPENAI_API_KEY to .env and restart the app to enable Tutor replies and read-only Library search.";
-      this.repository.addMessage(thread.id, "assistant", content, { mode: "setup" });
+      this.repository.tutor.addMessage(thread.id, "assistant", content, { mode: "setup" });
       return { threadId: thread.publicId, content, mode: "setup" as const, toolCalls: [] };
     }
 
-    const history = this.repository.getMessages(thread.id, 30);
+    const history = this.repository.tutor.getMessages(thread.id, 30);
     const model = getModelRouting().tutor;
     const modelInput: OpenAI.Responses.ResponseInput = history.map((message) => ({
       role: message.role,
@@ -102,7 +104,7 @@ export class TutorService {
       for (const call of calls) {
         const result = await this.executeTool(call.name, call.arguments, input.language);
         toolCalls.push({ name: call.name, result });
-        this.repository.addMessage(thread.id, "tool", JSON.stringify(result), { name: call.name });
+        this.repository.tutor.addMessage(thread.id, "tool", JSON.stringify(result), { name: call.name });
         modelInput.push({
           type: "function_call_output",
           call_id: call.call_id,
@@ -120,7 +122,7 @@ export class TutorService {
     }
 
     const content = response.output_text.trim() || "Done.";
-    this.repository.addMessage(thread.id, "assistant", content, {
+    this.repository.tutor.addMessage(thread.id, "assistant", content, {
       responseId: response.id,
       model,
       toolCalls: toolCalls.map((call) => call.name),
@@ -129,9 +131,9 @@ export class TutorService {
   }
 
   async review(threadPublicId: string) {
-    const thread = this.repository.getThread(threadPublicId);
+    const thread = this.repository.tutor.getThread(threadPublicId);
     if (!thread) return null;
-    const messages = this.repository.getMessages(thread.id, 100);
+    const messages = this.repository.tutor.getMessages(thread.id, 100);
     return this.openaiService.reviewConversation({
       language: thread.language_code,
       threadPublicId,
@@ -144,11 +146,11 @@ export class TutorService {
     if (name === "search_library") {
       const parsed = searchArguments.parse(args);
       const embedding = await this.openaiService.embed(parsed.query);
-      return this.repository.search(parsed.query, language, embedding || undefined, parsed.limit);
+      return this.repository.items.search(parsed.query, language, embedding || undefined, parsed.limit);
     }
     if (name === "list_due_items") {
       const parsed = dueArguments.parse(args);
-      return this.repository.listDueItems(language, parsed.limit);
+      return this.repository.practice.listDue(language, parsed.limit);
     }
     return { error: `Unknown tool: ${name}` };
   }

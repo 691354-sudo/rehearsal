@@ -12,7 +12,7 @@ This document is the canonical source for production deployment, data paths, bac
 - Persistent data: `/opt/apps/rehearsal/data`
 - Backups: `/opt/apps/rehearsal/backups`
 
-nginx terminates HTTPS and removes the `/rehearsal/` prefix before proxying to the loopback API binding. The production image includes FFmpeg for Saturation assembly.
+nginx terminates HTTPS and removes the `/rehearsal/` prefix before proxying to the loopback API binding. Card Drill streams the existing per-card speech responses, so the production image has no FFmpeg dependency.
 
 The application root is not a Git checkout. GitHub Actions uploads the exact reviewed commit to `/opt/apps/rehearsal/releases/<sha>` and points `/opt/apps/rehearsal/current` at the last healthy release. It never replaces or uploads the server's `data`, `backups`, `.env`, or `.env.elevenlabs` paths.
 
