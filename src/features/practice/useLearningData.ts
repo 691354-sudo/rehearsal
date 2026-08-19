@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { evaluateAttempt } from "../../lib/compare";
 import type { ReviewRating } from "../../lib/sessionQueue";
 import { apiFetch } from "../../shared/api";
@@ -10,12 +10,35 @@ import type {
   LearningItem,
 } from "../../shared/contracts";
 
+type LearningSnapshot = {
+  items: LearningItem[];
+  dueItemIds: string[];
+  dailyProgress: DailyProgress;
+};
+
+const emptySnapshot = (): LearningSnapshot => ({
+  items: [],
+  dueItemIds: [],
+  dailyProgress: { recall: 0, shadow: 0, pattern: 0 },
+});
+
 export const useLearningData = (language: Language) => {
   const [attempts, setAttempts] = useState<Record<string, AttemptDraft>>({});
-  const [items, setItems] = useState<LearningItem[]>([]);
-  const [dueItemIds, setDueItemIds] = useState<string[]>([]);
-  const [dailyProgress, setDailyProgress] = useState<DailyProgress>({ recall: 0, shadow: 0, pattern: 0 });
+  const [snapshots, setSnapshots] = useState<Record<Language, LearningSnapshot>>(() => ({
+    en: emptySnapshot(),
+    lv: emptySnapshot(),
+  }));
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
+  const activeLanguageRef = useRef(language);
+  activeLanguageRef.current = language;
+  const { items, dueItemIds, dailyProgress } = snapshots[language];
+
+  const updateSnapshot = useCallback((targetLanguage: Language, update: (snapshot: LearningSnapshot) => LearningSnapshot) => {
+    setSnapshots((current) => ({ ...current, [targetLanguage]: update(current[targetLanguage]) }));
+  }, []);
+  const setAvailabilityFor = useCallback((targetLanguage: Language, online: boolean) => {
+    if (activeLanguageRef.current === targetLanguage) setApiOnline(online);
+  }, []);
 
   const loadItems = useCallback(async (nextLanguage: Language) => {
     try {
@@ -30,23 +53,25 @@ export const useLearningData = (language: Language) => {
       const due = await dueResponse.json() as { items: LearningItem[] };
       const progress = await progressResponse.json() as DailyProgress & { completed: number };
       const dueById = new Map(due.items.map((item) => [item.publicId, item]));
-      setItems(library.items.map((item) => dueById.get(item.publicId) || item));
-      setDueItemIds(due.items.map((item) => item.publicId));
-      setDailyProgress({
-        recall: progress.recall ?? progress.completed,
-        shadow: progress.shadow ?? 0,
-        pattern: progress.pattern ?? 0,
-      });
-      setApiOnline(true);
+      updateSnapshot(nextLanguage, () => ({
+        items: library.items.map((item) => dueById.get(item.publicId) || item),
+        dueItemIds: due.items.map((item) => item.publicId),
+        dailyProgress: {
+          recall: progress.recall ?? progress.completed,
+          shadow: progress.shadow ?? 0,
+          pattern: progress.pattern ?? 0,
+        },
+      }));
+      setAvailabilityFor(nextLanguage, true);
       return true;
     } catch {
-      setApiOnline(false);
+      setAvailabilityFor(nextLanguage, false);
       return false;
     }
-  }, []);
+  }, [setAvailabilityFor, updateSnapshot]);
 
   useEffect(() => {
-    setItems([]); setDueItemIds([]); setAttempts({});
+    setAttempts({});
     void loadItems(language);
   }, [language, loadItems]);
 
@@ -93,17 +118,20 @@ export const useLearningData = (language: Language) => {
       });
       if (!response.ok) throw new Error("Review failed");
       const data = await response.json() as { attempt: { schedule?: LearningItem["schedule"] } };
-      setApiOnline(true);
-      setDueItemIds((current) => current.filter((publicId) => publicId !== itemId));
-      setItems((current) => current.map((candidate) => candidate.publicId === itemId
-        ? { ...candidate, schedule: data.attempt.schedule || candidate.schedule } : candidate));
+      setAvailabilityFor(language, true);
+      updateSnapshot(language, (current) => ({
+        ...current,
+        dueItemIds: current.dueItemIds.filter((publicId) => publicId !== itemId),
+        items: current.items.map((candidate) => candidate.publicId === itemId
+          ? { ...candidate, schedule: data.attempt.schedule || candidate.schedule } : candidate),
+        dailyProgress: { ...current.dailyProgress, recall: current.dailyProgress.recall + 1 },
+      }));
       setAttempts((current) => {
         const next = { ...current }; delete next[itemId]; return next;
       });
-      setDailyProgress((progress) => ({ ...progress, recall: progress.recall + 1 }));
       return true;
     } catch {
-      setApiOnline(false);
+      setAvailabilityFor(language, false);
       return false;
     }
   };
@@ -116,9 +144,12 @@ export const useLearningData = (language: Language) => {
         body: JSON.stringify({ itemId, mode: "shadow", rating: "good" }),
       });
       if (!response.ok) throw new Error("Listening activity failed");
-      setApiOnline(true);
-      setDailyProgress((progress) => ({ ...progress, shadow: progress.shadow + 1 }));
-    } catch { setApiOnline(false); }
+      setAvailabilityFor(language, true);
+      updateSnapshot(language, (current) => ({
+        ...current,
+        dailyProgress: { ...current.dailyProgress, shadow: current.dailyProgress.shadow + 1 },
+      }));
+    } catch { setAvailabilityFor(language, false); }
   };
 
   const updatePracticeEnabled = async (itemId: string, practiceEnabled: boolean) => {
@@ -129,16 +160,35 @@ export const useLearningData = (language: Language) => {
         body: JSON.stringify({ practiceEnabled }),
       });
       if (!response.ok) throw new Error("Card update failed");
-      setItems((current) => current.map((item) => item.publicId === itemId ? { ...item, practiceEnabled } : item));
+      updateSnapshot(language, (current) => ({
+        ...current,
+        items: current.items.map((item) => item.publicId === itemId ? { ...item, practiceEnabled } : item),
+        dueItemIds: practiceEnabled
+          ? current.dueItemIds
+          : current.dueItemIds.filter((dueId) => dueId !== itemId),
+      }));
       if (practiceEnabled) void loadItems(language);
-      else setDueItemIds((current) => current.filter((dueId) => dueId !== itemId));
-      setApiOnline(true);
+      setAvailabilityFor(language, true);
       return true;
-    } catch { setApiOnline(false); return false; }
+    } catch { setAvailabilityFor(language, false); return false; }
   };
 
-  const updateItem = (item: LearningItem) => setItems((current) => current.map((candidate) =>
-    candidate.publicId === item.publicId ? { ...candidate, ...item, schedule: candidate.schedule } : candidate));
+  const updateItem = (item: LearningItem) => updateSnapshot(language, (current) => ({
+    ...current,
+    items: current.items.map((candidate) => candidate.publicId === item.publicId
+      ? { ...candidate, ...item, schedule: candidate.schedule } : candidate),
+  }));
+
+  const removeItem = (itemId: string) => {
+    updateSnapshot(language, (current) => ({
+      ...current,
+      items: current.items.filter((item) => item.publicId !== itemId),
+      dueItemIds: current.dueItemIds.filter((dueId) => dueId !== itemId),
+    }));
+    setAttempts((current) => {
+      const next = { ...current }; delete next[itemId]; return next;
+    });
+  };
 
   return {
     apiOnline,
@@ -150,6 +200,7 @@ export const useLearningData = (language: Language) => {
     dueItemIds,
     items,
     loadItems,
+    removeItem,
     resetAttempts: () => setAttempts({}),
     setAnswer,
     setApiOnline,

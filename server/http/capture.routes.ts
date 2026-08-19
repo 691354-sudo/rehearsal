@@ -47,6 +47,7 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
     const context = dependencies.forRequest(request);
     const { repository } = context;
     const query = z.object({ language: languageSchema }).parse(request.query);
+    const uploadId = z.string().uuid().optional().parse(request.headers["x-rehearsal-capture-id"]);
     const upload = await request.file();
     if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED" });
     const mime = upload.mimetype.toLocaleLowerCase().split(";")[0];
@@ -56,7 +57,23 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
     }
     const audio = await upload.toBuffer();
     if (!audio.byteLength) return reply.code(422).send({ error: "EMPTY_AUDIO" });
-    const created = repository.capture.create({ language: query.language, audio, audioMime: mime });
+    const existing = uploadId ? repository.capture.get(uploadId) : null;
+    if (existing) {
+      if (existing.language !== query.language) {
+        return reply.code(409).send({ error: "CAPTURE_UPLOAD_CONFLICT" });
+      }
+      return reply.send({
+        note: existing,
+        duplicate: true,
+        transcriptionFailed: existing.status === "failed",
+      });
+    }
+    const created = repository.capture.create({
+      publicId: uploadId,
+      language: query.language,
+      audio,
+      audioMime: mime,
+    });
     try {
       return reply.code(201).send({ note: await transcribe(created.publicId, context) });
     } catch (error) {
