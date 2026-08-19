@@ -4,7 +4,7 @@ import type { ProfileSummary } from "../../contracts/api";
 import { useSpeech } from "../hooks/useSpeech";
 import { evaluateAttempt } from "../lib/compare";
 import { clampPlaybackSpeed } from "../lib/playbackSettings";
-import { moveReviewedItem, type ReviewRating } from "../lib/sessionQueue";
+import type { ReviewRating } from "../lib/sessionQueue";
 import { LibraryPage } from "../features/library/LibraryPage";
 import { PracticePage } from "../features/practice/PracticePage";
 import { GlobalSettings } from "../features/settings/GlobalSettings";
@@ -23,7 +23,6 @@ import type {
   ElevenLabsConfig,
   ElevenLabsVoiceStatus,
   Evaluation,
-  ItemPreference,
   Language,
   LearningItem,
   Mode,
@@ -46,10 +45,8 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   );
   const [mode, setMode] = useState<Mode>("recall");
   const [attempts, setAttempts] = useState<Record<string, AttemptDraft>>({});
-  const [revealedItems, setRevealedItems] = useState<string[]>([]);
   const [items, setItems] = useState<LearningItem[]>([]);
   const [dueItemIds, setDueItemIds] = useState<string[]>([]);
-  const [activeItemId, setActiveItemId] = useState("");
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>({ recall: 0, shadow: 0, pattern: 0 });
   const [playback, setPlayback] = useState<PlaybackPreferences>(() => {
     try {
@@ -97,7 +94,6 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   useEffect(() => {
     window.localStorage.setItem(storageKey("language"), language);
     setItems([]); setDueItemIds([]); setAttempts({});
-    setActiveItemId(""); setRevealedItems([]);
     void loadItems(language);
   }, [language]);
   useEffect(() => {
@@ -151,7 +147,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
       const [libraryResponse, dueResponse, progressResponse] = await Promise.all([
         apiFetch(`/api/items?language=${nextLanguage}&limit=500&includeSchedule=true`),
-        apiFetch(`/api/practice/due?language=${nextLanguage}&limit=50`),
+        apiFetch(`/api/practice/due?language=${nextLanguage}&limit=100`),
         apiFetch(`/api/practice/progress?language=${nextLanguage}&since=${encodeURIComponent(startOfDay.toISOString())}`),
       ]);
       if (!libraryResponse.ok || !dueResponse.ok || !progressResponse.ok) throw new Error("API unavailable");
@@ -162,43 +158,11 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       const nextItems = library.items.map((item) => dueById.get(item.publicId) || item);
       setItems(nextItems);
       setDueItemIds(due.items.map((item) => item.publicId));
-      setActiveItemId(nextItems[0]?.publicId || "");
       setDailyProgress({ recall: progress.recall ?? progress.completed, shadow: progress.shadow ?? 0, pattern: progress.pattern ?? 0 });
       setApiOnline(true);
     } catch { setApiOnline(false); }
   };
   const resetAttempts = () => setAttempts({});
-  const setPreference = (itemId: string, preference: ItemPreference) => {
-    const previous = items.find((candidate) => candidate.publicId === itemId)?.preference || "neutral";
-    setItems((current) => current.map((candidate) => candidate.publicId === itemId
-      ? { ...candidate, preference } : candidate));
-    void apiFetch(`/api/items/${encodeURIComponent(itemId)}/preference`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ preference }),
-    }).then((response) => {
-      if (!response.ok) throw new Error("Preference update failed");
-      setApiOnline(true);
-    }).catch(() => {
-      setApiOnline(false);
-      setItems((current) => current.map((candidate) => candidate.publicId === itemId
-        ? { ...candidate, preference: previous } : candidate));
-    });
-  };
-  const updatePracticeItem = (updated: LearningItem) => {
-    setItems((current) => current.map((candidate) => candidate.publicId === updated.publicId
-      ? { ...updated, schedule: candidate.schedule } : candidate));
-  };
-  const deletePracticeItem = (itemId: string) => {
-    const nextItems = items.filter((candidate) => candidate.publicId !== itemId);
-    setItems(nextItems);
-    setAttempts((current) => {
-      const next = { ...current }; delete next[itemId]; return next;
-    });
-    setRevealedItems((current) => current.filter((publicId) => publicId !== itemId));
-    setDueItemIds((current) => current.filter((publicId) => publicId !== itemId));
-    if (activeItemId === itemId) setActiveItemId(nextItems[0]?.publicId || "");
-  };
   const setAnswer = (itemId: string, answer: string) => {
     setAttempts((current) => ({ ...current, [itemId]: { answer } }));
   };
@@ -226,22 +190,18 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       expectedTokens: local.expectedTokens,
       answerTokens: local.answerTokens,
     };
-    setActiveItemId(itemId);
     setAttempts((current) => ({ ...current, [itemId]: { answer, evaluation } }));
   };
-  const commitRecall = (itemId: string, rating: ReviewRating) => {
+  const commitRecall = async (itemId: string, rating: ReviewRating) => {
     const reviewedItem = items.find((candidate) => candidate.publicId === itemId);
     const attempt = attempts[itemId];
-    if (!reviewedItem || !attempt?.evaluation) return;
-    const itemIndex = items.findIndex((candidate) => candidate.publicId === itemId);
-    const nextItem = items[itemIndex + 1] || items[0];
-    setActiveItemId(nextItem?.publicId === itemId ? "" : nextItem?.publicId || "");
-    setDailyProgress((progress) => ({ ...progress, recall: progress.recall + 1 }));
-    void apiFetch("/api/attempts/evaluate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId: reviewedItem.publicId, answer: attempt.answer, mode: "recall", rating }),
-    }).then(async (response) => {
+    if (!reviewedItem || !attempt?.evaluation) return false;
+    try {
+      const response = await apiFetch("/api/attempts/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: reviewedItem.publicId, answer: attempt.answer, mode: "recall", rating }),
+      });
       if (!response.ok) throw new Error("Review failed");
       const data = await response.json() as { attempt: { schedule?: LearningItem["schedule"] } };
       setApiOnline(true);
@@ -251,22 +211,12 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       setAttempts((current) => {
         const next = { ...current }; delete next[itemId]; return next;
       });
-    }).catch(() => {
+      setDailyProgress((progress) => ({ ...progress, recall: progress.recall + 1 }));
+      return true;
+    } catch {
       setApiOnline(false);
-      setActiveItemId(itemId);
-      setDailyProgress((progress) => ({ ...progress, recall: Math.max(0, progress.recall - 1) }));
-    });
-  };
-  const advanceShadow = (itemId: string) => {
-    const itemIndex = items.findIndex((candidate) => candidate.publicId === itemId);
-    const nextItems = moveReviewedItem(items, "good", itemIndex);
-    setItems(nextItems); setActiveItemId(nextItems[0]?.publicId || itemId);
-    setDailyProgress((progress) => ({ ...progress, shadow: progress.shadow + 1 }));
-    void apiFetch("/api/reviews", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId, mode: "shadow", rating: "good" }),
-    }).then((response) => { if (!response.ok) throw new Error("Shadow review failed"); setApiOnline(true); })
-      .catch(() => { setApiOnline(false); setDailyProgress((progress) => ({ ...progress, shadow: Math.max(0, progress.shadow - 1) })); });
+      return false;
+    }
   };
   const stopPlayback = useCallback(() => {
     audioSequenceRef.current += 1;
@@ -397,18 +347,13 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       scheduler={schedulerSettings}
       voices={voices}
     /> : null}
-    {route === "practice" && <PracticePage activeItemId={activeItemId} attempts={attempts} key={language}
-      dueItemIds={dueItemIds} items={items} language={language} profileId={profile.id} mode={mode} dailyProgress={dailyProgress}
+    {route === "practice" && <PracticePage attempts={attempts} key={language}
+      dueItemIds={dueItemIds} items={items} language={language} mode={mode} dailyProgress={dailyProgress}
       elevenLabs={elevenLabsConfig} openaiConfigured={openaiConfigured}
-      onActivate={setActiveItemId} onAnswer={setAnswer} onCheck={checkAnswer}
+      onAnswer={setAnswer} onCheck={checkAnswer}
       onMode={(next) => { setMode(next); resetAttempts(); }} onRecallReview={commitRecall}
-      onPreference={setPreference}
-      onItemDeleted={deletePracticeItem} onItemUpdated={updatePracticeItem}
-      onPlayback={updatePlayback} onPlay={(text) => void playTarget(text)} onShadowNext={advanceShadow}
       onStopPlayback={stopPlayback}
-      onReveal={(publicId) => setRevealedItems((current) => current.includes(publicId)
-        ? current.filter((id) => id !== publicId) : [...current, publicId])}
-      playback={playback} revealedItems={revealedItems} />}
+      playback={playback} />}
     {route === "tutor" && <TutorPage language={language} profileId={profile.id} />}
     {route === "library" && <LibraryPage language={language} onAvailability={setApiOnline} onPlay={(text) => void playTarget(text)} />}
   </div>;
