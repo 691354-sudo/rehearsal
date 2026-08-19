@@ -210,24 +210,4 @@ CREATE TABLE IF NOT EXISTS audio_cache (
   audio BLOB NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE TABLE IF NOT EXISTS saturation_tracks (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  public_id TEXT NOT NULL UNIQUE,
-  config_hash TEXT NOT NULL UNIQUE,
-  language_code TEXT NOT NULL REFERENCES languages(code),
-  topic_key TEXT NOT NULL,
-  topic_title TEXT NOT NULL,
-  snapshot TEXT NOT NULL,
-  settings TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('building', 'ready', 'failed')),
-  cache_key TEXT NOT NULL,
-  duration_seconds REAL,
-  error TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_saturation_tracks_language_topic
-ON saturation_tracks(language_code, topic_key, updated_at DESC);
 `;

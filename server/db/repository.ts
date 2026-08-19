@@ -10,9 +10,6 @@ import type {
   ReviewBatch,
   ReviewBatchKind,
   ReviewCandidate,
-  SaturationSettings,
-  SaturationSnapshotItem,
-  SaturationTrack,
   SearchResult,
 } from "../types.js";
 import {
@@ -79,22 +76,6 @@ type CaptureNoteRow = {
   created_at: string;
   updated_at: string;
   processed_at: string | null;
-};
-
-type SaturationTrackRow = {
-  public_id: string;
-  config_hash: string;
-  language_code: LanguageCode;
-  topic_key: string;
-  topic_title: string;
-  snapshot: string;
-  settings: string;
-  status: SaturationTrack["status"];
-  cache_key: string;
-  duration_seconds: number | null;
-  error: string;
-  created_at: string;
-  updated_at: string;
 };
 
 type IslandRow = {
@@ -193,22 +174,6 @@ const mapCaptureNote = (row: CaptureNoteRow): CaptureNote => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   processedAt: row.processed_at,
-});
-
-const mapSaturationTrack = (row: SaturationTrackRow): SaturationTrack => ({
-  publicId: row.public_id,
-  configHash: row.config_hash,
-  language: row.language_code,
-  islandId: row.topic_key,
-  topicTitle: row.topic_title,
-  snapshot: JSON.parse(row.snapshot) as SaturationSnapshotItem[],
-  settings: JSON.parse(row.settings) as SaturationSettings,
-  status: row.status,
-  cacheKey: row.cache_key,
-  durationSeconds: row.duration_seconds,
-  error: row.error,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
 });
 
 const normalizeTopicKey = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
@@ -1246,98 +1211,6 @@ export class RehearsalRepository {
        ON CONFLICT(key) DO UPDATE SET value = 'done', updated_at = CURRENT_TIMESTAMP`,
     ).run();
     return { ...result, applied: true };
-  }
-
-  listSaturationTopics(language: LanguageCode) {
-    const rows = this.db.prepare(
-      `SELECT islands.public_id AS island_id, islands.title, COUNT(items.id) AS count
-       FROM islands
-       JOIN island_items ON island_items.island_id = islands.id
-       JOIN items ON items.id = island_items.item_id AND items.practice_enabled = 1
-       WHERE islands.language_code = ?
-       GROUP BY islands.id HAVING COUNT(items.id) > 0
-       ORDER BY islands.title COLLATE NOCASE, islands.id`,
-    ).all(language) as Array<{ island_id: string; title: string; count: number }>;
-    return rows.map((row) => ({ islandId: row.island_id, title: row.title, count: row.count }));
-  }
-
-  getSaturationTopicItems(language: LanguageCode, islandId: string): SaturationSnapshotItem[] {
-    const rows = this.db.prepare(
-      `SELECT items.public_id, items.target FROM islands
-       JOIN island_items ON island_items.island_id = islands.id
-       JOIN items ON items.id = island_items.item_id
-       WHERE islands.public_id = ? AND islands.language_code = ? AND items.practice_enabled = 1
-       ORDER BY island_items.position, island_items.rowid`,
-    ).all(islandId, language) as Array<{ public_id: string; target: string }>;
-    return rows.map((row) => ({ publicId: row.public_id, target: row.target }));
-  }
-
-  getSaturationTrack(publicId: string) {
-    const row = this.db.prepare("SELECT * FROM saturation_tracks WHERE public_id = ?")
-      .get(publicId) as SaturationTrackRow | undefined;
-    return row ? mapSaturationTrack(row) : null;
-  }
-
-  getSaturationTrackByHash(configHash: string) {
-    const row = this.db.prepare("SELECT * FROM saturation_tracks WHERE config_hash = ?")
-      .get(configHash) as SaturationTrackRow | undefined;
-    return row ? mapSaturationTrack(row) : null;
-  }
-
-  createOrRetrySaturationTrack(input: {
-    configHash: string;
-    language: LanguageCode;
-    islandId: string;
-    topicTitle: string;
-    snapshot: SaturationSnapshotItem[];
-    settings: SaturationSettings;
-    cacheKey: string;
-  }) {
-    const existing = this.getSaturationTrackByHash(input.configHash);
-    if (existing) {
-      if (existing.status === "failed") {
-        this.db.prepare(
-          `UPDATE saturation_tracks SET status = 'building', error = '', duration_seconds = NULL,
-           snapshot = ?, settings = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
-        ).run(JSON.stringify(input.snapshot), JSON.stringify(input.settings), existing.publicId);
-        return { track: this.getSaturationTrack(existing.publicId)!, shouldBuild: true };
-      }
-      return { track: existing, shouldBuild: false };
-    }
-    const publicId = randomUUID();
-    this.db.prepare(
-      `INSERT INTO saturation_tracks(
-         public_id, config_hash, language_code, topic_key, topic_title, snapshot,
-         settings, status, cache_key
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'building', ?)`,
-    ).run(
-      publicId, input.configHash, input.language, input.islandId, input.topicTitle,
-      JSON.stringify(input.snapshot), JSON.stringify(input.settings), input.cacheKey,
-    );
-    return { track: this.getSaturationTrack(publicId)!, shouldBuild: true };
-  }
-
-  completeSaturationTrack(publicId: string, durationSeconds: number) {
-    this.db.prepare(
-      `UPDATE saturation_tracks SET status = 'ready', duration_seconds = ?, error = '',
-       updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
-    ).run(durationSeconds, publicId);
-    return this.getSaturationTrack(publicId);
-  }
-
-  failSaturationTrack(publicId: string, error: string) {
-    this.db.prepare(
-      `UPDATE saturation_tracks SET status = 'failed', error = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE public_id = ?`,
-    ).run(error.slice(0, 2_000), publicId);
-    return this.getSaturationTrack(publicId);
-  }
-
-  recoverInterruptedSaturationTracks() {
-    return this.db.prepare(
-      `UPDATE saturation_tracks SET status = 'failed', error = 'BUILD_INTERRUPTED',
-       updated_at = CURRENT_TIMESTAMP WHERE status = 'building'`,
-    ).run().changes;
   }
 
   stats() {

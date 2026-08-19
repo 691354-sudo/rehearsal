@@ -9,7 +9,6 @@ import type { LanguageCode } from "./types.js";
 import { OpenAIService } from "./services/openai.js";
 import { ElevenLabsError, ElevenLabsService, elevenLabsSpeedRange } from "./services/elevenlabs.js";
 import { TutorService } from "./services/tutor.js";
-import { SaturationService } from "./services/saturation.js";
 import { getModelRouting } from "./model-routing.js";
 import type { SchedulerSettings } from "./services/scheduler.js";
 
@@ -31,27 +30,6 @@ const captureMimeTypes = new Map([
   ["audio/x-wav", "wav"],
 ]);
 const elevenLabsModelOptions = ["eleven_multilingual_v2", "eleven_flash_v2_5"] as const;
-const saturationSettingsSchema = z.object({
-  provider: z.enum(["openai", "elevenlabs"]),
-  voice: z.string().trim().min(1).max(100),
-  speed: z.number().min(0.5).max(1.5),
-  pauseSeconds: z.number().min(0.5).max(10),
-  repetitions: z.number().int().min(1).max(5),
-  modelId: z.enum(elevenLabsModelOptions).optional(),
-  stability: z.number().min(0).max(1).optional(),
-  similarityBoost: z.number().min(0).max(1).optional(),
-  style: z.number().min(0).max(1).optional(),
-  speakerBoost: z.boolean().optional(),
-}).superRefine((settings, context) => {
-  if (settings.provider === "elevenlabs"
-    && (settings.speed < elevenLabsSpeedRange.min || settings.speed > elevenLabsSpeedRange.max)) {
-    context.addIssue({
-      code: "custom",
-      path: ["speed"],
-      message: `ElevenLabs speed must be between ${elevenLabsSpeedRange.min} and ${elevenLabsSpeedRange.max}`,
-    });
-  }
-});
 const stepSchema = z.custom<StepUnit>(
   (value) => typeof value === "string" && /^\d+(?:\.\d+)?[mhd]$/.test(value),
   "Use a duration such as 1m, 2h, or 1d",
@@ -109,9 +87,6 @@ const toErrorResponse = (error: unknown) => {
   if (error instanceof Error && error.message === "EMPTY_TRANSCRIPTION") {
     return { statusCode: 422, body: { error: "EMPTY_TRANSCRIPTION", message: "No speech was detected." } };
   }
-  if (error instanceof Error && error.message === "SATURATION_TOPIC_NOT_FOUND") {
-    return { statusCode: 404, body: { error: "SATURATION_TOPIC_NOT_FOUND" } };
-  }
   if (error instanceof Error && error.message === "TOPIC_TITLE_EXISTS") {
     return { statusCode: 409, body: { error: "TOPIC_TITLE_EXISTS" } };
   }
@@ -141,13 +116,12 @@ const toErrorResponse = (error: unknown) => {
 
 export const buildApp = async (
   repository: RehearsalRepository,
-  overrides: { openai?: OpenAIService; elevenlabs?: ElevenLabsService; saturation?: SaturationService } = {},
+  overrides: { openai?: OpenAIService; elevenlabs?: ElevenLabsService } = {},
 ) => {
   const app = Fastify({ logger: true, bodyLimit: 2_000_000 });
   repository.runTopicBackfillMigration();
   const openai = overrides.openai || new OpenAIService(repository);
   const elevenlabs = overrides.elevenlabs || new ElevenLabsService(repository);
-  const saturation = overrides.saturation || new SaturationService(repository, openai, elevenlabs);
   const tutor = new TutorService(repository, openai);
 
   await app.register(multipart, {
@@ -402,54 +376,6 @@ export const buildApp = async (
       .header("X-Audio-Cache", result.cached ? "HIT" : "MISS")
       .type("audio/mpeg")
       .send(result.audio);
-  });
-
-  app.get("/api/saturation/topics", async (request) => {
-    const query = z.object({ language: languageSchema }).parse(request.query);
-    return { topics: repository.listSaturationTopics(query.language) };
-  });
-
-  app.post("/api/saturation/tracks", async (request, reply) => {
-    const body = z.object({
-      language: languageSchema,
-      islandId: z.string().uuid(),
-      settings: saturationSettingsSchema,
-    }).parse(request.body);
-    if (body.settings.provider === "openai" && !voiceOptions.includes(body.settings.voice as typeof voiceOptions[number])) {
-      return reply.code(400).send({ error: "INVALID_OPENAI_VOICE" });
-    }
-    const track = saturation.requestTrack(body);
-    return reply.code(track.status === "building" ? 202 : 200).send({ track });
-  });
-
-  app.get("/api/saturation/tracks/:trackId", async (request, reply) => {
-    const params = z.object({ trackId: z.string().uuid() }).parse(request.params);
-    const track = saturation.getTrack(params.trackId);
-    if (!track) return reply.code(404).send({ error: "SATURATION_TRACK_NOT_FOUND" });
-    return { track };
-  });
-
-  app.get("/api/saturation/tracks/:trackId/audio", async (request, reply) => {
-    const params = z.object({ trackId: z.string().uuid() }).parse(request.params);
-    const track = saturation.getTrack(params.trackId);
-    if (!track) return reply.code(404).send({ error: "SATURATION_TRACK_NOT_FOUND" });
-    if (track.status !== "ready") return reply.code(409).send({ error: "SATURATION_TRACK_NOT_READY", status: track.status });
-    const audio = saturation.getTrackAudio(params.trackId);
-    if (!audio) return reply.code(410).send({ error: "SATURATION_AUDIO_MISSING" });
-
-    const range = request.headers.range?.match(/^bytes=(\d*)-(\d*)$/);
-    reply.header("Accept-Ranges", "bytes").header("Cache-Control", "private, max-age=31536000, immutable").type("audio/mpeg");
-    if (!range) return reply.header("Content-Length", audio.byteLength).send(audio);
-    const start = range[1] ? Number(range[1]) : 0;
-    const end = range[2] ? Math.min(Number(range[2]), audio.byteLength - 1) : audio.byteLength - 1;
-    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || start >= audio.byteLength) {
-      return reply.code(416).header("Content-Range", `bytes */${audio.byteLength}`).send();
-    }
-    const chunk = audio.subarray(start, end + 1);
-    return reply.code(206)
-      .header("Content-Range", `bytes ${start}-${end}/${audio.byteLength}`)
-      .header("Content-Length", chunk.byteLength)
-      .send(chunk);
   });
 
   const transcribeCapture = async (publicId: string) => {

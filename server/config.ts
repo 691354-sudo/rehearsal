@@ -39,7 +39,6 @@ export const config = {
   elevenLabsStyle: numberFromEnv(process.env.ELEVENLABS_STYLE, 0.02),
   elevenLabsSpeakerBoost: booleanFromEnv(process.env.ELEVENLABS_SPEAKER_BOOST, true),
   elevenLabsSpeed: numberFromEnv(process.env.ELEVENLABS_SPEED, 1.05),
-  ffmpegPath: process.env.FFMPEG_PATH || "ffmpeg",
 };
 
 export const openAIConfigured = Boolean(config.openaiApiKey);

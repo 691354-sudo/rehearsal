@@ -8,42 +8,6 @@ export type LanguageCurrency = "current" | "contextual" | "dated" | "uncertain";
 export type ReviewBatchKind = "chat_review" | "vocab" | "text_import" | "pattern_drill" | "capture";
 export type ReviewBatchStatus = "draft" | "committed";
 export type CaptureNoteStatus = "transcribing" | "ready" | "batched" | "processed" | "failed";
-export type SaturationTrackStatus = "building" | "ready" | "failed";
-export type SaturationProvider = "openai" | "elevenlabs";
-
-export type SaturationSettings = {
-  provider: SaturationProvider;
-  voice: string;
-  speed: number;
-  pauseSeconds: number;
-  repetitions: number;
-  modelId?: "eleven_multilingual_v2" | "eleven_flash_v2_5";
-  stability?: number;
-  similarityBoost?: number;
-  style?: number;
-  speakerBoost?: boolean;
-};
-
-export type SaturationSnapshotItem = {
-  publicId: string;
-  target: string;
-};
-
-export type SaturationTrack = {
-  publicId: string;
-  configHash: string;
-  language: LanguageCode;
-  islandId: string;
-  topicTitle: string;
-  snapshot: SaturationSnapshotItem[];
-  settings: SaturationSettings;
-  status: SaturationTrackStatus;
-  cacheKey: string;
-  durationSeconds: number | null;
-  error: string;
-  createdAt: string;
-  updatedAt: string;
-};
 
 export type IslandSummary = {
   publicId: string;

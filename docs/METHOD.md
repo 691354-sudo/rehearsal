@@ -8,7 +8,7 @@ Rehearsal builds automatic spoken English and Latvian around one student's real 
 
 The visible unit is always a card. A card can hold a focus word in context, one sentence, a connected language island, or a short paragraph. These are different lengths of material, not separate product systems.
 
-A Topic is an ordered collection of cards around one part of Roman's real life. “Language island” remains the learning-method term; the product calls the collection a Topic. One card may appear in more than one Topic. Recall and FSRS belong to the card, while Saturation follows the Topic order. Deleting a Topic never deletes its cards.
+A Topic is a collection of cards around one part of Roman's real life. “Language island” remains the learning-method term; the product calls the collection a Topic. One card may appear in more than one Topic. Topics are optional Drill filters; deleting a Topic never deletes its cards.
 
 Good material is:
 
@@ -22,7 +22,7 @@ Every generated candidate records a frequency band (`core`, `common`, `specific`
 
 ## Daily loop
 
-The core production cycle is `Capture → Topic → Saturation → Recall`: capture real Russian thoughts, approve natural target-language cards into a Topic, hear and shadow the ordered Topic while walking, then retrieve its cards from memory.
+The core production cycle is `Capture → Topic → Drill → Recall`: capture real Russian thoughts, approve natural target-language cards, optionally group or filter them by Topic, hear and shadow the visible Cards queue while walking, then retrieve cards from memory.
 
 ### Capture Reality
 
@@ -42,11 +42,11 @@ Recall is the main memory metric. The daily target is 100 completed recall attem
 
 The target-language card is played with a chosen voice, speed, repetition count, and pause. Roman repeats aloud and controls when to move on. Shadowing activity is counted separately and does not alter the FSRS recall schedule.
 
-### Audio Saturation
+### Drill
 
-Saturation turns one real-life topic into a single target-language MP3: phrase, pause, repeat, then the next phrase. Roman chooses the voice provider, voice, speed, pause, and one to five repetitions, waits for the complete track to load, presses Play, and shadows while walking. The Russian cue is never included.
+Drill lives directly above the Cards feed. It reads the visible target-language cards from top to bottom using the selected voice, speed, pause, and repetition count. Roman may select several Topics, manually change card order, and mark a subset to continue looping after the first complete pass. The Russian cue is never spoken.
 
-The continuous track is deliberately separate from one-card Shadowing. It is designed for Brave on iPhone, background playback, lock-screen Play/Pause, and network-free continuation after the MP3 has loaded. Saturation never adds Recall attempts or changes FSRS.
+Every card is requested and played as a separate MP3 through one persistent browser audio element. Individual files are cached on the server, so the same text and voice settings do not spend provider credits twice. Drill order, Topic filters, and loop marks are device preferences. Drill never adds Recall attempts or changes FSRS.
 
 ### Conversation
 

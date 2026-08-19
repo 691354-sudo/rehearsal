@@ -98,6 +98,11 @@ const migrateItems = (db: Database.Database) => {
   }
 };
 
+const removeLegacyContinuousTrackStorage = (db: Database.Database) => {
+  db.prepare("DELETE FROM audio_cache WHERE model = 'saturation-v1'").run();
+  db.exec("DROP TABLE IF EXISTS saturation_tracks");
+};
+
 export const openDatabase = (databasePath = config.databasePath) => {
   fs.mkdirSync(path.dirname(databasePath), { recursive: true });
   const db = new Database(databasePath);
@@ -106,6 +111,7 @@ export const openDatabase = (databasePath = config.databasePath) => {
   db.pragma("busy_timeout = 5000");
   migrateReviewBatches(db);
   db.exec(schema);
+  removeLegacyContinuousTrackStorage(db);
   migrateItems(db);
   migrateReviewState(db);
   db.prepare(

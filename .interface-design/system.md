@@ -55,6 +55,9 @@ Rehearsal is a pragmatic, practice-first personal language tool. It should feel 
 - Each recall grade carries a quiet second-line interval preview. Reviewed cards leave the feed immediately and return only when FSRS marks them due.
 - In shadowing, listening and repetition are one mode. Playback rhythm lives in settings, not in separate mode tabs.
 - Shadowing has only playback, translation reveal, and a quiet next action; it does not ask for a memory grade.
+- Drill is an inline action above the Cards feed, never a separate page or mode tab. It reads the visible queue from top to bottom with one persistent player and one cached MP3 per card.
+- Topic selection is an optional multi-select filter. Manual card order and loop marks appear only when `Order` is active and persist per language on the device.
+- A Drill first plays the complete visible queue once, then continues only the loop-marked cards until stopped.
 - Inactive recall cards use a quiet `Show in EN/LV` action instead of explanatory hidden-answer copy.
 - Topic and status metadata sit quietly at the lower-right edge of each card.
 - Item utility is independent from memory: a compact footer selector sets Like, Neutral, or Dislike without adding a persistent control row.

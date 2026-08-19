@@ -27,7 +27,7 @@ Related tables store original sources, review batches, capture notes, practice a
 
 `capture_notes` stores one Russian voice-note transcript and, only while needed, its uploaded audio BLOB and MIME type. Notes move through `transcribing`, `ready`, `batched`, `processed`, or `failed`. Successful transcription clears the BLOB immediately. Capture commit creates all confirmed cards and marks every source note processed in the same transaction. Review-batch migration rebuilds the SQLite `kind` constraint without discarding existing rows.
 
-`islands` and `island_items` implement user-facing Topics. Membership is many-to-many and `island_items.position` is authoritative for Saturation order. Topic CRUD updates only membership and metadata; deleting an island cascades through `island_items` but never through `items` or `review_state`. Capture commit creates or reuses a Topic from the confirmed category inside the same transaction as the cards.
+`islands` and `island_items` implement user-facing Topics. Membership is many-to-many and may be ordered for Library management. Topic CRUD updates only membership and metadata; deleting an island cascades through `island_items` but never through `items` or `review_state`. Capture commit creates or reuses a Topic from the confirmed category inside the same transaction as the cards.
 
 The one-time `topics_backfill_v1` migration turns each normalized first tag into a Topic, preserving card creation order and every original tag. Normalization ignores case and repeated whitespace. The migration is internally idempotent and records completion in `app_settings`, so a Topic intentionally deleted later is not recreated on restart.
 
@@ -59,11 +59,11 @@ Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MI
 
 `GET /api/audio/elevenlabs/status` verifies that the configured voice ID is reachable and returns safe voice metadata without exposing the API key. The result is held in memory for ten minutes and can be explicitly refreshed from Settings. ElevenLabs speed is validated against its provider range of `0.7–1.2×`; Multilingual v2 omits the unsupported `language_code` field, while Flash v2.5 receives it.
 
-Saturation snapshots the enabled cards under one `islandId`, in `island_items.position` order, and hashes their IDs, order, target text, provider, voice, speed, pause, and repetitions. `saturation_tracks` records `building`, `ready`, or `failed`; a matching ready hash reuses its MP3, while a failed or interrupted build can be requested again safely. Individual sentence TTS comes from the existing cache.
+Drill is a client-side sequence over the visible Practice cards. The browser stores manual card order, selected Topic filters, and loop marks per language. A single persistent `<audio>` element requests one card at a time through `/api/audio/speech`, repeats it according to playback preferences, waits for the configured pause, and advances. After the first pass, only loop-marked cards continue.
 
 Topic APIs are `GET /api/islands`, `GET /api/islands/:id`, `POST /api/islands`, `PATCH /api/islands/:id`, and `DELETE /api/islands/:id`. A patch may rename a Topic or replace its ordered membership atomically.
 
-FFmpeg normalizes every phrase, inserts exact silence, and emits one continuous MP3. The final audio is stored in `audio_cache`, served with immutable caching and byte-range support, and fetched completely by the client before Play. A persistent `<audio>` element receives Media Session metadata when available. `Open in player` points directly to the same MP3 when embedded background playback is unreliable.
+The server stores only individual provider MP3 responses; it does not assemble continuous tracks and has no FFmpeg runtime dependency. Drill updates Media Session metadata for the current card and registers Play, Pause, and Stop handlers when the browser exposes that API.
 
 ## Backup and rollback
 

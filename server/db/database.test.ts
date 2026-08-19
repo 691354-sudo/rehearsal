@@ -112,4 +112,38 @@ describe("database migrations", () => {
     migrated.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
+
+  it("removes legacy continuous tracks without deleting reusable phrase audio", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rehearsal-drill-migration-"));
+    const databasePath = path.join(tempDir, "legacy.sqlite");
+    const legacy = new Database(databasePath);
+    legacy.exec(`
+      CREATE TABLE audio_cache (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cache_key TEXT NOT NULL UNIQUE,
+        model TEXT NOT NULL,
+        voice TEXT NOT NULL,
+        format TEXT NOT NULL,
+        audio BLOB NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO audio_cache(cache_key, model, voice, format, audio)
+      VALUES ('phrase', 'eleven_multilingual_v2', 'voice-id', 'mp3', X'0102');
+      INSERT INTO audio_cache(cache_key, model, voice, format, audio)
+      VALUES ('continuous', 'saturation-v1', 'voice-id', 'mp3', X'0304');
+      CREATE TABLE saturation_tracks (id INTEGER PRIMARY KEY, public_id TEXT);
+      INSERT INTO saturation_tracks VALUES (1, 'old-track');
+    `);
+    legacy.close();
+
+    const migrated = openDatabase(databasePath);
+    expect(migrated.prepare("SELECT cache_key FROM audio_cache ORDER BY cache_key").all())
+      .toEqual([{ cache_key: "phrase" }]);
+    expect(migrated.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'saturation_tracks'",
+    ).get()).toBeUndefined();
+
+    migrated.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
 });

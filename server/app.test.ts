@@ -98,37 +98,6 @@ describe("Rehearsal API", () => {
     await app.close();
   });
 
-  it("lists saturation topics and serves a ready MP3 with byte ranges", async () => {
-    const item = repository.saveItem({
-      language: "en", cue: "Я иду гулять.", target: "I'm going for a walk.", tags: ["Pocket test"],
-    });
-    repository.backfillTopicsFromTags("en");
-    const topic = repository.findIslandByTitle("en", "Pocket test")!;
-    const settings = { provider: "openai" as const, voice: "marin", speed: 1, pauseSeconds: 1.5, repetitions: 2 };
-    const created = repository.createOrRetrySaturationTrack({
-      configHash: "b".repeat(64), language: "en", islandId: topic.publicId, topicTitle: "Pocket test",
-      snapshot: [{ publicId: item.publicId, target: item.target }], settings, cacheKey: "saturation:range-test",
-    }).track;
-    repository.saveCachedAudio({
-      cacheKey: created.cacheKey, model: "saturation-v1", voice: "marin", format: "mp3", audio: Buffer.from([1, 2, 3, 4, 5]),
-    });
-    repository.completeSaturationTrack(created.publicId, 12.5);
-
-    const app = await buildApp(repository);
-    const topics = await app.inject({ method: "GET", url: "/api/saturation/topics?language=en" });
-    expect(topics.statusCode).toBe(200);
-    expect(topics.json().topics).toContainEqual({ islandId: topic.publicId, title: "Pocket test", count: 1 });
-
-    const audio = await app.inject({
-      method: "GET", url: `/api/saturation/tracks/${created.publicId}/audio`, headers: { range: "bytes=1-3" },
-    });
-    expect(audio.statusCode).toBe(206);
-    expect(audio.headers["accept-ranges"]).toBe("bytes");
-    expect(audio.headers["content-range"]).toBe("bytes 1-3/5");
-    expect(audio.rawPayload).toEqual(Buffer.from([2, 3, 4]));
-    await app.close();
-  });
-
   it("removes reviewed cards from the due queue until FSRS makes them due", () => {
     const reviewedAt = new Date("2026-08-18T12:00:00.000Z");
     repository.recordAttempt({
