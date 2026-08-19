@@ -117,6 +117,82 @@ describe("Rehearsal API", () => {
       .some((item) => item.publicId === "en-drawn-to")).toBe(true);
   });
 
+  it("returns schedule inventory and preserves it while a card is Learned", async () => {
+    const reviewedAt = new Date("2026-08-18T12:00:00.000Z");
+    repository.recordAttempt({
+      itemPublicId: "en-drawn-to",
+      mode: "recall",
+      answer: "I've always been drawn to places near the ocean.",
+      score: 1,
+      verdict: "easy",
+      feedback: {},
+      rating: "easy",
+      reviewedAt,
+    });
+    const app = await buildApp(repository);
+    const inventory = await app.inject({
+      method: "GET",
+      url: "/api/items?language=en&limit=500&includeSchedule=true",
+    });
+    const scheduled = inventory.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to");
+    expect(scheduled.schedule).toMatchObject({ state: "review" });
+
+    const learned = await app.inject({
+      method: "PATCH",
+      url: "/api/items/en-drawn-to",
+      payload: { practiceEnabled: false },
+    });
+    expect(learned.json().item.practiceEnabled).toBe(false);
+    expect(repository.listDueItems("en", 100, new Date("2026-08-27T12:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(false);
+
+    const learnedInventory = await app.inject({
+      method: "GET",
+      url: "/api/items?language=en&limit=500&includeSchedule=true",
+    });
+    expect(learnedInventory.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to"))
+      .toMatchObject({ practiceEnabled: false, schedule: { state: "review" } });
+
+    const manualReview = await app.inject({
+      method: "POST",
+      url: "/api/attempts/evaluate",
+      payload: {
+        itemId: "en-drawn-to",
+        answer: "I've always been drawn to places near the ocean.",
+        mode: "recall",
+        rating: "good",
+      },
+    });
+    expect(manualReview.statusCode).toBe(200);
+    expect(repository.getItem("en-drawn-to")?.practiceEnabled).toBe(false);
+    expect(repository.listDueItems("en", 100, new Date("2030-01-01T00:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(false);
+
+    const reactivated = await app.inject({
+      method: "PATCH",
+      url: "/api/items/en-drawn-to",
+      payload: { practiceEnabled: true },
+    });
+    expect(reactivated.json().item.practiceEnabled).toBe(true);
+    expect(repository.listDueItems("en", 100, new Date("2030-01-01T00:00:00.000Z"))
+      .some((item) => item.publicId === "en-drawn-to")).toBe(true);
+    await app.close();
+  });
+
+  it("keeps Topic membership independent from item tags", () => {
+    const item = repository.saveItem({
+      language: "en",
+      cue: "Здесь занято?",
+      target: "Is this taken?",
+      tags: ["question pattern"],
+    });
+    const topic = repository.createIsland({ language: "en", title: "Gym", itemPublicIds: [item.publicId] });
+    expect(repository.getIsland(topic.publicId)?.items[0]).toMatchObject({
+      publicId: item.publicId,
+      tags: ["question pattern"],
+    });
+  });
+
   it("updates item preference and prioritizes liked cards in the due queue", async () => {
     const app = await buildApp(repository);
     const response = await app.inject({
@@ -339,6 +415,78 @@ describe("Rehearsal API", () => {
     await app.close();
   });
 
+  it("keeps a dismissed pattern drill out of Library and commits only selected variants", async () => {
+    const before = repository.listItems("en", 500).length;
+    const openai = new OpenAIService(repository);
+    vi.spyOn(openai, "generatePatternDrill").mockImplementation(async ({ language }) => ({
+      mode: "openai" as const,
+      batch: repository.createReviewBatch({
+        language,
+        kind: "pattern_drill",
+        title: "Pattern: I've always been drawn to…",
+        candidates: [
+          {
+            id: "9ad9bdcb-8309-43cd-8e75-92ed741bb521",
+            target: "I've always been drawn to quiet coastal towns.",
+            cue: "Меня всегда тянуло к тихим приморским городам.",
+            note: "Keep the pattern; change the meaningful slot.",
+            category: "travel",
+            focusTerms: ["be drawn to"],
+            disposition: "active",
+            frequencyBand: "common",
+            currency: "current",
+            personaFit: 5,
+            naturalness: 5,
+            commonness: 5,
+          },
+          {
+            id: "9ad9bdcb-8309-43cd-8e75-92ed741bb522",
+            target: "I've always been drawn to people who speak their mind.",
+            cue: "Меня всегда тянуло к людям, которые говорят прямо.",
+            note: "Keep the pattern; change the meaningful slot.",
+            category: "relationships",
+            focusTerms: ["be drawn to"],
+            disposition: "active",
+            frequencyBand: "common",
+            currency: "current",
+            personaFit: 5,
+            naturalness: 5,
+            commonness: 5,
+          },
+        ],
+      }),
+    }));
+    const app = await buildApp(repository, { openai });
+
+    const prepared = await app.inject({ method: "POST", url: "/api/items/en-drawn-to/pattern-drill" });
+    expect(prepared.statusCode).toBe(201);
+    const batch = prepared.json().batch;
+    expect(batch.kind).toBe("pattern_drill");
+    expect(repository.listItems("en", 500)).toHaveLength(before);
+
+    const selected = batch.candidates[1];
+    const committed = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batch.publicId}/commit`,
+      payload: { candidates: [{
+        id: selected.id,
+        target: selected.target,
+        cue: selected.cue,
+        note: selected.note,
+        category: selected.category,
+      }] },
+    });
+    expect(committed.statusCode).toBe(200);
+    expect(committed.json().added).toBe(1);
+    const after = repository.listItems("en", 500);
+    expect(after).toHaveLength(before + 1);
+    expect(after.some((item) => item.target === batch.candidates[0].target)).toBe(false);
+    expect(after.find((item) => item.target === selected.target)).toMatchObject({
+      tags: ["be drawn to"],
+    });
+    await app.close();
+  });
+
   it("records a Russian voice note through OpenAI and deletes audio after transcription", async () => {
     const openai = new OpenAIService(repository);
     vi.spyOn(openai, "transcribe").mockResolvedValue("Я хочу спокойно объяснить свою позицию.");
@@ -362,6 +510,46 @@ describe("Rehearsal API", () => {
       status: "ready",
     });
     expect(repository.getCaptureAudio(response.json().note.publicId)?.audio).toBeNull();
+    await app.close();
+  });
+
+  it("creates a ready text capture without calling OpenAI", async () => {
+    const openai = new OpenAIService(repository);
+    const transcribe = vi.spyOn(openai, "transcribe");
+    const app = await buildApp(repository, { openai });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/captures/text",
+      payload: { language: "en", transcript: "  Я хочу заказать кофе без молока.  " },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().note).toMatchObject({
+      language: "en",
+      transcript: "Я хочу заказать кофе без молока.",
+      status: "ready",
+      audioMime: "",
+    });
+    expect(transcribe).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("edits and deletes a text capture before review", async () => {
+    const app = await buildApp(repository);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/captures/text",
+      payload: { language: "lv", transcript: "Я хочу говорить точнее." },
+    });
+    const noteId = created.json().note.publicId as string;
+    const edited = await app.inject({
+      method: "PATCH",
+      url: `/api/captures/${noteId}`,
+      payload: { transcript: "Я хочу говорить по-латышски точнее." },
+    });
+    expect(edited.statusCode).toBe(200);
+    expect(edited.json().note.transcript).toBe("Я хочу говорить по-латышски точнее.");
+    expect((await app.inject({ method: "DELETE", url: `/api/captures/${noteId}` })).statusCode).toBe(204);
+    expect(repository.getCaptureNote(noteId)).toBeNull();
     await app.close();
   });
 
@@ -433,13 +621,12 @@ describe("Rehearsal API", () => {
   });
 
   it("turns multiple capture notes into one revisable batch and commits it atomically", async () => {
-    const first = repository.createCaptureNote({ language: "en", audio: Buffer.from("one"), audioMime: "audio/webm" });
+    const first = repository.createTextCaptureNote({ language: "en", transcript: "Я хотел попросить клиента немного подождать." });
     const second = repository.createCaptureNote({ language: "en", audio: Buffer.from("two"), audioMime: "audio/webm" });
-    repository.completeCaptureTranscription(first.publicId, "Я хотел попросить клиента немного подождать.");
     repository.completeCaptureTranscription(second.publicId, "Я хотел объяснить, что срок изменился.");
 
     const openai = new OpenAIService(repository);
-    vi.spyOn(openai, "prepareCaptureBatch").mockImplementation(async ({ language }) => ({
+    const prepareCaptureBatch = vi.spyOn(openai, "prepareCaptureBatch").mockImplementation(async ({ language }) => ({
       mode: "openai" as const,
       batch: repository.createReviewBatch({
         language,
@@ -471,6 +658,10 @@ describe("Rehearsal API", () => {
     const app = await buildApp(repository, { openai });
     const prepared = await app.inject({ method: "POST", url: "/api/captures/process", payload: { language: "en" } });
     expect(prepared.statusCode).toBe(201);
+    expect(prepareCaptureBatch.mock.calls[0][0].notes.map((note) => note.transcript)).toEqual([
+      "Я хотел попросить клиента немного подождать.",
+      "Я хотел объяснить, что срок изменился.",
+    ]);
     const batchId = prepared.json().batch.publicId as string;
     expect(repository.listCaptureNotes("en").every((note) => note.status === "batched")).toBe(true);
 
@@ -499,11 +690,137 @@ describe("Rehearsal API", () => {
     expect(repository.listCaptureNotes("en", true).filter((note) =>
       [first.publicId, second.publicId].includes(note.publicId)
     ).every((note) => note.status === "processed")).toBe(true);
-    expect(repository.listItems("en", 500).some((item) => item.target === "Could you give me a moment?")).toBe(true);
+    expect(repository.listItems("en", 500).find((item) => item.target === "Could you give me a moment?")?.tags)
+      .toEqual(["wait a moment"]);
     const captureTopic = repository.findIslandByTitle("en", "Client work");
     expect(captureTopic).not.toBeNull();
     expect(repository.getIsland(captureTopic!.publicId)?.items.map((item) => item.target))
       .toContain("Could you give me a moment?");
+    await app.close();
+  });
+
+  it("completes the personal sentence loop from Notebook through Learned and reactivation", async () => {
+    const openai = new OpenAIService(repository);
+    vi.spyOn(openai, "transcribe").mockResolvedValue("Я хочу спросить, можем ли мы заниматься на этом тренажёре вместе.");
+    const prepareCaptureBatch = vi.spyOn(openai, "prepareCaptureBatch").mockImplementation(async ({ language }) => ({
+      mode: "openai" as const,
+      batch: repository.createReviewBatch({
+        language,
+        kind: "capture",
+        title: "Capture Reality",
+        candidates: [{
+          id: "9ad9bdcb-8309-43cd-8e75-92ed741bb531",
+          target: "Could we share this machine?",
+          cue: "Мы можем вместе заниматься на этом тренажёре?",
+          note: "At the gym",
+          category: "gym",
+          pattern: "Could we…?",
+          focusTerms: ["share this machine"],
+          disposition: "active",
+          frequencyBand: "core",
+          currency: "current",
+          personaFit: 5,
+          naturalness: 5,
+          commonness: 5,
+        }],
+      }),
+    }));
+    const app = await buildApp(repository, { openai });
+
+    const typed = await app.inject({
+      method: "POST",
+      url: "/api/captures/text",
+      payload: { language: "en", transcript: "Здесь занято?" },
+    });
+    expect(typed.statusCode).toBe(201);
+    const boundary = "----rehearsal-loop-voice";
+    const voice = await app.inject({
+      method: "POST",
+      url: "/api/captures?language=en",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+      payload: Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="gym.webm"\r\n` +
+        "Content-Type: audio/webm\r\n\r\nvoice-note\r\n" +
+        `--${boundary}--\r\n`,
+      ),
+    });
+    expect(voice.statusCode).toBe(201);
+
+    const prepared = await app.inject({ method: "POST", url: "/api/captures/process", payload: { language: "en" } });
+    expect(prepared.statusCode).toBe(201);
+    expect(prepareCaptureBatch.mock.calls[0][0].notes.map((note) => note.transcript)).toEqual([
+      "Здесь занято?",
+      "Я хочу спросить, можем ли мы заниматься на этом тренажёре вместе.",
+    ]);
+    const candidate = prepared.json().batch.candidates[0];
+    const committed = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${prepared.json().batch.publicId}/commit`,
+      payload: { candidates: [{
+        id: candidate.id,
+        target: candidate.target,
+        cue: candidate.cue,
+        note: candidate.note,
+        category: candidate.category,
+      }] },
+    });
+    expect(committed.statusCode).toBe(200);
+    const itemId = committed.json().items[0].publicId as string;
+
+    const topics = await app.inject({ method: "GET", url: "/api/islands?language=en" });
+    const gym = topics.json().islands.find((topic: { title: string }) => topic.title === "gym");
+    const gymDetail = await app.inject({ method: "GET", url: `/api/islands/${gym.publicId}` });
+    expect(gymDetail.json().island.items.map((item: { publicId: string }) => item.publicId)).toContain(itemId);
+
+    const listened = await app.inject({
+      method: "POST",
+      url: "/api/reviews",
+      payload: { itemId, mode: "shadow", rating: "good" },
+    });
+    expect(listened.json().review.schedule).toBeNull();
+    const afterListening = await app.inject({
+      method: "GET",
+      url: "/api/items?language=en&limit=500&includeSchedule=true",
+    });
+    expect(afterListening.json().items.find((item: { publicId: string }) => item.publicId === itemId).schedule).toBeUndefined();
+
+    const recalled = await app.inject({
+      method: "POST",
+      url: "/api/attempts/evaluate",
+      payload: { itemId, answer: "Could we share this machine?", mode: "recall", rating: "good" },
+    });
+    expect(recalled.statusCode).toBe(200);
+    expect(recalled.json().attempt.schedule.dueAt).toBeTruthy();
+    db.prepare("UPDATE review_state SET due_at = '2000-01-01T00:00:00.000Z' WHERE item_id = (SELECT id FROM items WHERE public_id = ?)")
+      .run(itemId);
+
+    const learned = await app.inject({
+      method: "PATCH",
+      url: `/api/items/${itemId}`,
+      payload: { practiceEnabled: false },
+    });
+    expect(learned.json().item.practiceEnabled).toBe(false);
+    const dueWhileLearned = await app.inject({ method: "GET", url: "/api/practice/due?language=en&limit=100" });
+    expect(dueWhileLearned.json().items.some((item: { publicId: string }) => item.publicId === itemId)).toBe(false);
+
+    const manualReview = await app.inject({
+      method: "POST",
+      url: "/api/attempts/evaluate",
+      payload: { itemId, answer: "Could we share this machine?", mode: "recall", rating: "easy" },
+    });
+    expect(manualReview.statusCode).toBe(200);
+    expect(repository.getItem(itemId)?.practiceEnabled).toBe(false);
+    db.prepare("UPDATE review_state SET due_at = '2000-01-01T00:00:00.000Z' WHERE item_id = (SELECT id FROM items WHERE public_id = ?)")
+      .run(itemId);
+
+    const reactivated = await app.inject({
+      method: "PATCH",
+      url: `/api/items/${itemId}`,
+      payload: { practiceEnabled: true },
+    });
+    expect(reactivated.json().item.practiceEnabled).toBe(true);
+    const dueAfterReactivation = await app.inject({ method: "GET", url: "/api/practice/due?language=en&limit=100" });
+    expect(dueAfterReactivation.json().items.some((item: { publicId: string }) => item.publicId === itemId)).toBe(true);
     await app.close();
   });
 

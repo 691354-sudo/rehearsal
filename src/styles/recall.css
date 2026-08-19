@@ -1,0 +1,352 @@
+.practice-header {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.practice-header h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.035em;
+}
+
+.practice-header p {
+  margin: 4px 0 0;
+  color: var(--script-tertiary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.practice-modes {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--control-fill);
+  border: 1px solid var(--control-rule);
+  border-radius: 9px;
+}
+
+.practice-modes button {
+  min-height: 38px;
+  padding: 0 13px;
+  color: var(--script-support);
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+
+.practice-modes button[aria-pressed="true"] {
+  color: var(--script-ink);
+  background: var(--script-surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.recall-setup,
+.recall-complete,
+.recall-session,
+.listen-legacy {
+  width: min(680px, 100%);
+  margin: 0 auto;
+}
+
+.recall-setup {
+  padding: 24px;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 14px;
+}
+
+.recall-setup-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 12px;
+}
+
+.recall-setup label {
+  display: grid;
+  gap: 6px;
+}
+
+.recall-setup label > span {
+  color: var(--script-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.recall-setup select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 11px;
+  color: var(--script-ink);
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.recall-start {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 18px;
+}
+
+.recall-custom {
+  display: block;
+  min-height: 40px;
+  margin: 8px auto 0;
+  color: var(--script-tertiary);
+  font-size: 12px;
+  background: transparent;
+  border: 0;
+}
+
+.recall-empty {
+  margin: 8px 0 0;
+  color: var(--script-tertiary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.recall-session > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: var(--script-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.recall-session > header button {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 40px;
+  color: var(--script-tertiary);
+  background: transparent;
+  border: 0;
+}
+
+.recall-card {
+  padding: 34px;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule-strong);
+  border-radius: 14px;
+}
+
+.recall-cue {
+  margin: 0 0 26px;
+  color: var(--script-ink);
+  font-size: clamp(20px, 3vw, 28px);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+
+.recall-answer-row {
+  display: flex;
+  gap: 8px;
+}
+
+.recall-answer-row input {
+  min-width: 0;
+  min-height: 48px;
+  flex: 1;
+  padding: 0 14px;
+  color: var(--script-ink);
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule-strong);
+  border-radius: 9px;
+}
+
+.recall-answer-row input:read-only {
+  color: var(--script-support);
+}
+
+.recall-answer-row button {
+  width: 48px;
+  min-height: 48px;
+}
+
+.recall-result {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--script-rule);
+}
+
+.recall-result > span {
+  color: var(--learned);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.recall-result--retry > span {
+  color: var(--retry);
+}
+
+.recall-own-answer,
+.recall-natural-answer {
+  margin: 7px 0 0;
+  font-size: 16px;
+}
+
+.recall-own-answer {
+  color: var(--script-tertiary);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--retry) 55%, transparent);
+}
+
+.recall-natural-answer {
+  color: var(--script-ink);
+  font-weight: 600;
+}
+
+.recall-grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 22px;
+}
+
+.recall-grades button {
+  display: grid;
+  min-height: 50px;
+  padding: 6px;
+  place-content: center;
+  color: var(--script-support);
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.recall-grades button[aria-pressed="true"] {
+  color: var(--cue-light);
+  background: var(--cue-wash);
+  border-color: var(--cue-light);
+}
+
+.recall-grades span {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.recall-grades small,
+.recall-key-hint {
+  color: var(--script-tertiary);
+  font-size: 11px;
+}
+
+.recall-key-hint {
+  display: block;
+  margin-top: 9px;
+  text-align: right;
+}
+
+.recall-save-error {
+  margin: 10px 0 0;
+  color: var(--retry);
+  font-size: 12px;
+}
+
+.recall-complete {
+  padding: 42px 24px;
+  text-align: center;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 14px;
+}
+
+.recall-complete > span,
+.recall-complete > strong {
+  display: block;
+}
+
+.recall-complete > span,
+.recall-complete p {
+  color: var(--script-tertiary);
+  font-size: 13px;
+}
+
+.recall-complete > strong {
+  margin-top: 4px;
+  font-size: 24px;
+}
+
+.recall-complete p {
+  margin: 3px 0 22px;
+}
+
+.recall-complete > div {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.recall-complete button {
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--script-support);
+  background: transparent;
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.recall-complete button.simple-primary {
+  color: var(--cue-on);
+  background: var(--cue-action);
+  border-color: var(--cue-action);
+}
+
+@media (max-width: 560px) {
+  .practice-header {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .practice-modes {
+    width: 100%;
+  }
+
+  .practice-modes button {
+    min-height: 44px;
+    flex: 1;
+  }
+
+  .recall-setup,
+  .recall-card {
+    padding: 18px;
+  }
+
+  .recall-setup-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .recall-cue {
+    margin-bottom: 20px;
+    font-size: 21px;
+  }
+
+  .recall-grades {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .recall-complete > div {
+    display: grid;
+  }
+}
+.recall-manual-label {
+  margin: 0;
+  color: var(--script-tertiary);
+  font-size: 13px;
+  text-align: center;
+}

@@ -12,6 +12,9 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(480px, 100%);
   height: 100%;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
   color: var(--script-ink);
   background: var(--script-surface);
   border-left: 1px solid var(--script-rule-strong);
@@ -35,6 +38,31 @@
 .simple-settings-header h2,
 .simple-settings-section h3 {
   margin: 0;
+}
+
+.simple-advanced-settings {
+  overflow: hidden;
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.simple-advanced-settings summary {
+  min-height: 44px;
+  padding: 11px 12px;
+  color: var(--script-support);
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+  background: var(--script-inset);
+}
+
+.simple-advanced-settings[open] summary {
+  border-bottom: 1px solid var(--script-rule);
+}
+
+.simple-advanced-settings .simple-fsrs-table,
+.simple-advanced-settings .simple-fsrs-details {
+  margin: 12px;
 }
 
 .simple-settings-header h2 {

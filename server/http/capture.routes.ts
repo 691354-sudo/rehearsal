@@ -66,6 +66,15 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
     }
   });
 
+  app.post("/api/captures/text", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
+    const body = z.object({
+      language: languageSchema,
+      transcript: z.string().trim().min(1).max(30_000),
+    }).parse(request.body);
+    return reply.code(201).send({ note: repository.capture.createText(body) });
+  });
+
   app.post("/api/captures/:captureId/retry", async (request, reply) => {
     const context = dependencies.forRequest(request);
     const { repository } = context;

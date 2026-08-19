@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw, X } from "lucide-react";
 import { apiFetch } from "../../shared/api";
 
 export type ReviewCandidate = {
@@ -32,6 +32,7 @@ export function ReviewBatchPanel(props: {
   batch: ReviewBatch;
   onBatch: (batch: ReviewBatch) => void;
   onCommitted?: (count: number) => void;
+  onDismiss?: () => void;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
@@ -112,9 +113,12 @@ export function ReviewBatchPanel(props: {
   };
 
   return <section className="simple-review-batch">
-    <header><div><strong>{props.batch.title}</strong><span>{props.batch.candidates.length} proposals · nothing saved yet</span></div>
-      {pages > 1 ? <nav aria-label="Candidate pages"><button disabled={page === 0} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={15} /></button>
+    <header><div><strong>{props.batch.title}</strong><span>{props.batch.kind === "pattern_drill"
+      ? "The pattern stays fixed; the meaningful slot changes."
+      : `${props.batch.candidates.length} proposals · nothing saved yet`}</span></div>
+      <div className="simple-review-header-actions">{pages > 1 ? <nav aria-label="Candidate pages"><button disabled={page === 0} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={15} /></button>
         <span>{page + 1} / {pages}</span><button disabled={page >= pages - 1} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={15} /></button></nav> : null}
+        {props.onDismiss ? <button aria-label="Close review" onClick={props.onDismiss} type="button"><X size={16} /></button> : null}</div>
     </header>
     {!visible.length ? <p className="simple-review-empty">The source is safe, but no study cards were generated. Connect OpenAI or try a clearer sample.</p> : null}
     <div className="simple-review-list">
@@ -146,6 +150,6 @@ export function ReviewBatchPanel(props: {
       </button>
     </div> : null}
     <footer><span>{notice}</span><button className="simple-primary" disabled={!selected.size || saving || props.batch.status === "committed"} onClick={() => void commit()} type="button">
-      {saving ? <LoaderCircle className="simple-spin" size={15} /> : <Check size={15} />}{props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture" ? `Add all to Practice${selected.size ? ` (${selected.size})` : ""}` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
+      {saving ? <LoaderCircle className="simple-spin" size={15} /> : <Check size={15} />}{props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture" ? `Add to Library${selected.size ? ` (${selected.size})` : ""}` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
   </section>;
 }

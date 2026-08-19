@@ -48,12 +48,26 @@ When this milestone is implemented, it should include:
 
 - a web app manifest with a stable ID, scoped start URL, `display: standalone`,
   theme/background colors, and suitable iPhone icons;
-- iOS Home Screen metadata and an in-product, dismissible installation hint;
+- iOS Home Screen metadata; no permanent installation tutorial is required for
+  the two known users;
 - a service worker for a versioned application shell and an understandable
   offline/unavailable state, without pretending server-backed features are local;
 - standalone-specific safe-area and navigation behavior;
 - a controlled update flow that does not leave old UI talking to an incompatible
   API after a deployment.
+
+## Product layout
+
+- Practice contains only `Recall` and `Listen & Repeat`. Both present one active
+  card at a time and keep session controls reachable by touch.
+- Recall defaults to `Due today`; custom Library practice remains an explicit
+  secondary choice.
+- Notebook gives typed Russian capture and voice capture equal prominence.
+- Library shows cards before management tools. Topic management and transcript
+  import use secondary dialogs or panels.
+- Mobile keeps the three-item bottom navigation. The top bar shows the current
+  section and one compact menu rather than every profile, language, theme, and
+  settings control at once.
 
 ## Verification gate
 

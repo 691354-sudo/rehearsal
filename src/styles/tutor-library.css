@@ -15,7 +15,7 @@
 
 .simple-chat-pane {
   display: grid;
-  grid-template-rows: 48px minmax(0, 1fr) auto;
+  grid-template-rows: 48px minmax(0, 1fr) auto auto;
   min-width: 0;
   min-height: 0;
 }
@@ -83,6 +83,27 @@
   align-items: center;
   color: var(--script-tertiary);
   font-size: 13px;
+}
+
+.simple-composer-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 6px 16px;
+  color: var(--retry);
+  font-size: 12px;
+  background: var(--script-inset);
+  border-top: 1px solid var(--script-rule);
+}
+
+.simple-composer-error button {
+  min-height: 32px;
+  padding: 0 9px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 6px;
 }
 
 .simple-session-rail {
@@ -253,6 +274,57 @@
   align-items: start;
 }
 
+.simple-library-heading-actions,
+.simple-library-panel-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.simple-library-heading-actions button,
+.simple-library-panel-actions > button:first-child,
+.simple-library-secondary > button:last-child {
+  min-height: 40px;
+  padding: 0 11px;
+  color: var(--script-support);
+  background: transparent;
+  border: 1px solid var(--script-rule);
+  border-radius: 7px;
+}
+
+.simple-library-secondary {
+  margin-top: 18px;
+}
+
+.simple-library-secondary.topics-manager,
+.simple-library-secondary > .topics-manager {
+  margin: 0;
+}
+
+div.simple-library-secondary > button:last-child {
+  margin-top: 8px;
+}
+
+.simple-import-card.simple-library-secondary {
+  width: min(620px, 100%);
+}
+
+.simple-library-panel-actions {
+  justify-content: flex-end;
+}
+
+.simple-library-panel--main {
+  margin-top: 20px;
+}
+
+.simple-library-notice,
+.simple-library-empty {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--script-tertiary);
+  font-size: 12px;
+}
+
 .simple-import-card,
 .simple-library-panel {
   background: var(--script-surface);
@@ -367,6 +439,32 @@
   font-size: 12px;
   border-top: 1px solid var(--script-rule);
   border-bottom: 1px solid var(--script-rule);
+}
+
+.simple-unavailable {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  color: var(--retry);
+  background: var(--script-surface);
+  border: 1px solid color-mix(in srgb, var(--retry) 28%, var(--script-rule));
+  border-radius: 8px;
+}
+
+.simple-unavailable button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 7px;
 }
 
 .simple-phrase-list {

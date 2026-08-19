@@ -114,7 +114,7 @@ export class ReviewsRepository {
           target: candidate.target,
           note: candidate.note,
           source: batch.title,
-          tags: candidate.category ? [candidate.category] : [],
+          tags: [...new Set([candidate.pattern, ...candidate.focusTerms].filter(Boolean))] as string[],
           focusTerms: candidate.focusTerms,
           naturalness: candidate.naturalness,
           commonness: candidate.commonness,
@@ -125,7 +125,7 @@ export class ReviewsRepository {
           register: "casual",
         }, "user");
         committedItems.push(item);
-        if (batch.kind === "capture" && candidate.category) {
+        if (candidate.category) {
           const topic = this.library.ensureIsland(batch.language, candidate.category, "llm");
           this.library.addIslandItem(topic.publicId, item.publicId);
         }

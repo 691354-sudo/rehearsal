@@ -4,7 +4,7 @@ import type { ProfileSummary } from "../../contracts/api";
 import { useSpeech } from "../hooks/useSpeech";
 import { evaluateAttempt } from "../lib/compare";
 import { clampPlaybackSpeed } from "../lib/playbackSettings";
-import { moveReviewedItem, type ReviewRating } from "../lib/sessionQueue";
+import type { ReviewRating } from "../lib/sessionQueue";
 import { LibraryPage } from "../features/library/LibraryPage";
 import { PracticePage } from "../features/practice/PracticePage";
 import { GlobalSettings } from "../features/settings/GlobalSettings";
@@ -14,7 +14,6 @@ import {
   defaultPlayback,
   defaultSchedulerSettings,
   defaultVoices,
-  fallbackItems,
   languageCopy,
 } from "../shared/config";
 import { apiFetch } from "../shared/api";
@@ -24,7 +23,6 @@ import type {
   ElevenLabsConfig,
   ElevenLabsVoiceStatus,
   Evaluation,
-  ItemPreference,
   Language,
   LearningItem,
   Mode,
@@ -42,15 +40,15 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   const storageKey = (name: string) => `rehearsal:${profile.id}:${name}`;
   const [route, setRoute] = useState<Route>("practice");
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [language, setLanguage] = useState<Language>(() =>
     window.localStorage.getItem(storageKey("language")) === "lv" ? "lv" : "en",
   );
   const [mode, setMode] = useState<Mode>("recall");
   const [attempts, setAttempts] = useState<Record<string, AttemptDraft>>({});
-  const [revealedItems, setRevealedItems] = useState<string[]>([]);
-  const [items, setItems] = useState<LearningItem[]>(fallbackItems[language]);
+  const [manualReviewItemId, setManualReviewItemId] = useState<string | null>(null);
+  const [items, setItems] = useState<LearningItem[]>([]);
   const [dueItemIds, setDueItemIds] = useState<string[]>([]);
-  const [activeItemId, setActiveItemId] = useState(fallbackItems[language][0].publicId);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>({ recall: 0, shadow: 0, pattern: 0 });
   const [playback, setPlayback] = useState<PlaybackPreferences>(() => {
     try {
@@ -78,6 +76,8 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   const { speak, stop } = useSpeech();
   const audioSequenceRef = useRef(0);
   const audioCancelRef = useRef<(() => void) | null>(null);
+  const audioPauseRef = useRef<(() => void) | null>(null);
+  const audioResumeRef = useRef<(() => void) | null>(null);
   const updatePlayback = useCallback((next: PlaybackPreferences) => {
     setPlayback({
       ...next,
@@ -91,14 +91,15 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   useEffect(() => {
     window.localStorage.setItem(storageKey("playback"), JSON.stringify(playback));
   }, [playback]);
+  useEffect(() => setMobileMenuOpen(false), [route]);
   useEffect(() => {
     const speed = clampPlaybackSpeed(playback.provider, playback.speed, elevenLabsConfig.speedRange);
     if (speed !== playback.speed) setPlayback((current) => ({ ...current, speed }));
   }, [elevenLabsConfig.speedRange, playback.provider, playback.speed]);
   useEffect(() => {
     window.localStorage.setItem(storageKey("language"), language);
-    setItems(fallbackItems[language]); setDueItemIds([]); setAttempts({});
-    setActiveItemId(fallbackItems[language][0].publicId); setRevealedItems([]);
+    if (language === "lv") setMode("recall");
+    setItems([]); setDueItemIds([]); setAttempts({});
     void loadItems(language);
   }, [language]);
   useEffect(() => {
@@ -151,8 +152,8 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     try {
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
       const [libraryResponse, dueResponse, progressResponse] = await Promise.all([
-        apiFetch(`/api/items?language=${nextLanguage}&limit=500`),
-        apiFetch(`/api/practice/due?language=${nextLanguage}&limit=50`),
+        apiFetch(`/api/items?language=${nextLanguage}&limit=500&includeSchedule=true`),
+        apiFetch(`/api/practice/due?language=${nextLanguage}&limit=100`),
         apiFetch(`/api/practice/progress?language=${nextLanguage}&since=${encodeURIComponent(startOfDay.toISOString())}`),
       ]);
       if (!libraryResponse.ok || !dueResponse.ok || !progressResponse.ok) throw new Error("API unavailable");
@@ -163,43 +164,11 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       const nextItems = library.items.map((item) => dueById.get(item.publicId) || item);
       setItems(nextItems);
       setDueItemIds(due.items.map((item) => item.publicId));
-      setActiveItemId(nextItems[0]?.publicId || "");
       setDailyProgress({ recall: progress.recall ?? progress.completed, shadow: progress.shadow ?? 0, pattern: progress.pattern ?? 0 });
       setApiOnline(true);
     } catch { setApiOnline(false); }
   };
   const resetAttempts = () => setAttempts({});
-  const setPreference = (itemId: string, preference: ItemPreference) => {
-    const previous = items.find((candidate) => candidate.publicId === itemId)?.preference || "neutral";
-    setItems((current) => current.map((candidate) => candidate.publicId === itemId
-      ? { ...candidate, preference } : candidate));
-    void apiFetch(`/api/items/${encodeURIComponent(itemId)}/preference`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ preference }),
-    }).then((response) => {
-      if (!response.ok) throw new Error("Preference update failed");
-      setApiOnline(true);
-    }).catch(() => {
-      setApiOnline(false);
-      setItems((current) => current.map((candidate) => candidate.publicId === itemId
-        ? { ...candidate, preference: previous } : candidate));
-    });
-  };
-  const updatePracticeItem = (updated: LearningItem) => {
-    setItems((current) => current.map((candidate) => candidate.publicId === updated.publicId
-      ? { ...updated, schedule: candidate.schedule } : candidate));
-  };
-  const deletePracticeItem = (itemId: string) => {
-    const nextItems = items.filter((candidate) => candidate.publicId !== itemId);
-    setItems(nextItems);
-    setAttempts((current) => {
-      const next = { ...current }; delete next[itemId]; return next;
-    });
-    setRevealedItems((current) => current.filter((publicId) => publicId !== itemId));
-    setDueItemIds((current) => current.filter((publicId) => publicId !== itemId));
-    if (activeItemId === itemId) setActiveItemId(nextItems[0]?.publicId || "");
-  };
   const setAnswer = (itemId: string, answer: string) => {
     setAttempts((current) => ({ ...current, [itemId]: { answer } }));
   };
@@ -227,22 +196,18 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       expectedTokens: local.expectedTokens,
       answerTokens: local.answerTokens,
     };
-    setActiveItemId(itemId);
     setAttempts((current) => ({ ...current, [itemId]: { answer, evaluation } }));
   };
-  const commitRecall = (itemId: string, rating: ReviewRating) => {
+  const commitRecall = async (itemId: string, rating: ReviewRating) => {
     const reviewedItem = items.find((candidate) => candidate.publicId === itemId);
     const attempt = attempts[itemId];
-    if (!reviewedItem || !attempt?.evaluation) return;
-    const itemIndex = items.findIndex((candidate) => candidate.publicId === itemId);
-    const nextItem = items[itemIndex + 1] || items[0];
-    setActiveItemId(nextItem?.publicId === itemId ? "" : nextItem?.publicId || "");
-    setDailyProgress((progress) => ({ ...progress, recall: progress.recall + 1 }));
-    void apiFetch("/api/attempts/evaluate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId: reviewedItem.publicId, answer: attempt.answer, mode: "recall", rating }),
-    }).then(async (response) => {
+    if (!reviewedItem || !attempt?.evaluation) return false;
+    try {
+      const response = await apiFetch("/api/attempts/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: reviewedItem.publicId, answer: attempt.answer, mode: "recall", rating }),
+      });
       if (!response.ok) throw new Error("Review failed");
       const data = await response.json() as { attempt: { schedule?: LearningItem["schedule"] } };
       setApiOnline(true);
@@ -252,29 +217,56 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       setAttempts((current) => {
         const next = { ...current }; delete next[itemId]; return next;
       });
-    }).catch(() => {
+      setDailyProgress((progress) => ({ ...progress, recall: progress.recall + 1 }));
+      return true;
+    } catch {
       setApiOnline(false);
-      setActiveItemId(itemId);
-      setDailyProgress((progress) => ({ ...progress, recall: Math.max(0, progress.recall - 1) }));
-    });
+      return false;
+    }
   };
-  const advanceShadow = (itemId: string) => {
-    const itemIndex = items.findIndex((candidate) => candidate.publicId === itemId);
-    const nextItems = moveReviewedItem(items, "good", itemIndex);
-    setItems(nextItems); setActiveItemId(nextItems[0]?.publicId || itemId);
-    setDailyProgress((progress) => ({ ...progress, shadow: progress.shadow + 1 }));
-    void apiFetch("/api/reviews", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId, mode: "shadow", rating: "good" }),
-    }).then((response) => { if (!response.ok) throw new Error("Shadow review failed"); setApiOnline(true); })
-      .catch(() => { setApiOnline(false); setDailyProgress((progress) => ({ ...progress, shadow: Math.max(0, progress.shadow - 1) })); });
+  const commitListening = async (itemId: string) => {
+    try {
+      const response = await apiFetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId, mode: "shadow", rating: "good" }),
+      });
+      if (!response.ok) throw new Error("Listening activity failed");
+      setApiOnline(true);
+      setDailyProgress((progress) => ({ ...progress, shadow: progress.shadow + 1 }));
+    } catch { setApiOnline(false); }
+  };
+  const updatePracticeEnabled = async (itemId: string, practiceEnabled: boolean) => {
+    try {
+      const response = await apiFetch(`/api/items/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ practiceEnabled }),
+      });
+      if (!response.ok) throw new Error("Card update failed");
+      setItems((current) => current.map((item) => item.publicId === itemId ? { ...item, practiceEnabled } : item));
+      if (practiceEnabled) void loadItems(language);
+      else setDueItemIds((current) => current.filter((dueId) => dueId !== itemId));
+      setApiOnline(true);
+      return true;
+    } catch { setApiOnline(false); return false; }
   };
   const stopPlayback = useCallback(() => {
     audioSequenceRef.current += 1;
     audioCancelRef.current?.();
     audioCancelRef.current = null;
+    audioPauseRef.current = null;
+    audioResumeRef.current = null;
     stop();
   }, [stop]);
+  const pausePlayback = useCallback(() => {
+    if (audioPauseRef.current) audioPauseRef.current();
+    else window.speechSynthesis?.pause();
+  }, []);
+  const resumePlayback = useCallback(() => {
+    if (audioResumeRef.current) audioResumeRef.current();
+    else window.speechSynthesis?.resume();
+  }, []);
   const playTarget = async (
     text: string,
     overrides: Partial<PlaybackPreferences> = {},
@@ -298,11 +290,17 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
           const finish = () => {
             audio.removeEventListener("ended", finish);
             audio.removeEventListener("error", finish);
-            if (audioCancelRef.current === cancel) audioCancelRef.current = null;
+            if (audioCancelRef.current === cancel) {
+              audioCancelRef.current = null;
+              audioPauseRef.current = null;
+              audioResumeRef.current = null;
+            }
             resolve();
           };
           const cancel = () => { audio.pause(); audio.removeAttribute("src"); finish(); };
           audioCancelRef.current = cancel;
+          audioPauseRef.current = () => audio.pause();
+          audioResumeRef.current = () => { void audio.play().catch(finish); };
           audio.addEventListener("ended", finish, { once: true });
           audio.addEventListener("error", finish, { once: true });
           void audio.play().catch(finish);
@@ -352,18 +350,23 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
         }
       }
     }
+    audioPauseRef.current = () => window.speechSynthesis?.pause();
+    audioResumeRef.current = () => window.speechSynthesis?.resume();
     await speak(text, {
       locale: languageCopy[language].locale,
       rate: nextPlayback.speed,
       repetitions: nextPlayback.repetitions,
       pauseMs: nextPlayback.pauseMs,
     });
+    audioPauseRef.current = null;
+    audioResumeRef.current = null;
     return { provider: "browser", cache: null } satisfies PlaybackResult;
   };
 
   return <div className={`simple-app simple-app--${theme}`}>
     <header className="simple-header">
-      <button className="simple-brand" onClick={() => setRoute("practice")} type="button"><span>R</span><strong>Rehearsal</strong></button>
+      <button className="simple-brand" onClick={() => setRoute("practice")} type="button"><span>R</span>
+        <strong className="simple-brand-product">Rehearsal</strong><strong className="simple-brand-route">{route === "practice" ? "Practice" : route === "tutor" ? "Tutor" : "Library"}</strong></button>
       <nav className="simple-nav" aria-label="Main navigation">
         <button className={route === "practice" ? "is-active" : ""} onClick={() => setRoute("practice")} type="button">Practice</button>
         <button className={route === "tutor" ? "is-active" : ""} onClick={() => setRoute("tutor")} type="button">Tutor</button>
@@ -387,6 +390,18 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
         </button>
         <button aria-label="Settings" className="simple-icon-button simple-global-settings-button" onClick={() => setGlobalSettingsOpen(true)} title="Settings" type="button"><Settings2 size={18} /></button>
       </div>
+      <button aria-expanded={mobileMenuOpen} aria-label="App menu" className="simple-mobile-menu-button"
+        onClick={() => setMobileMenuOpen((open) => !open)} type="button"><Settings2 size={19} /></button>
+      {mobileMenuOpen ? <><button aria-label="Close app menu" className="simple-mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} type="button" />
+        <div className="simple-mobile-menu">
+          <label><span>Language</span><select onChange={(event) => { setLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
+            <option value="en">English</option><option value="lv">Latviešu</option></select></label>
+          <div className="simple-mobile-menu-status"><span className={`simple-api-state ${apiOnline ? "is-online" : ""}`} />{apiOnline ? "Available" : "Unavailable"}</div>
+          <button onClick={() => { setMobileMenuOpen(false); onSwitchProfile(); }} type="button"><UserRound size={17} />{profile.name}</button>
+          <button onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")} type="button">
+            {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}{theme === "dark" ? "Light theme" : "Dark theme"}</button>
+          <button onClick={() => { setMobileMenuOpen(false); setGlobalSettingsOpen(true); }} type="button"><Settings2 size={17} />Settings</button>
+        </div></> : null}
     </header>
     {globalSettingsOpen ? <GlobalSettings
       onClose={() => setGlobalSettingsOpen(false)}
@@ -398,19 +413,22 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       scheduler={schedulerSettings}
       voices={voices}
     /> : null}
-    {route === "practice" && <PracticePage activeItemId={activeItemId} attempts={attempts} key={language}
-      dueItemIds={dueItemIds} items={items} language={language} profileId={profile.id} mode={mode} dailyProgress={dailyProgress}
-      elevenLabs={elevenLabsConfig} openaiConfigured={openaiConfigured}
-      onActivate={setActiveItemId} onAnswer={setAnswer} onCheck={checkAnswer}
+    {route === "practice" && <PracticePage attempts={attempts} key={language}
+      dueItemIds={dueItemIds} items={items} language={language} mode={mode} dailyProgress={dailyProgress}
+      elevenLabs={elevenLabsConfig} manualReviewItemId={manualReviewItemId}
+      onAnswer={setAnswer} onCheck={checkAnswer} onListened={commitListening}
+      onManualReviewStarted={() => setManualReviewItemId(null)}
       onMode={(next) => { setMode(next); resetAttempts(); }} onRecallReview={commitRecall}
-      onPreference={setPreference}
-      onItemDeleted={deletePracticeItem} onItemUpdated={updatePracticeItem}
-      onPlayback={updatePlayback} onPlay={(text) => void playTarget(text)} onShadowNext={advanceShadow}
-      onStopPlayback={stopPlayback}
-      onReveal={(publicId) => setRevealedItems((current) => current.includes(publicId)
-        ? current.filter((id) => id !== publicId) : [...current, publicId])}
-      playback={playback} revealedItems={revealedItems} />}
-    {route === "tutor" && <TutorPage language={language} profileId={profile.id} />}
-    {route === "library" && <LibraryPage language={language} onPlay={(text) => void playTarget(text)} />}
+      onPracticeEnabled={updatePracticeEnabled}
+      onPausePlayback={pausePlayback} onPlay={playTarget} onPlayback={updatePlayback}
+      onResumePlayback={resumePlayback} onStopPlayback={stopPlayback}
+      playback={playback} voices={voices} />}
+    {route === "tutor" && <TutorPage language={language} profileId={profile.id}
+      onLibrary={() => setRoute("library")}
+      onListen={() => { setMode("shadow"); setRoute("practice"); void loadItems(language); }} />}
+    {route === "library" && <LibraryPage language={language} onAvailability={setApiOnline}
+      onListen={() => { setMode("shadow"); setRoute("practice"); void loadItems(language); }}
+      onPlay={(text) => void playTarget(text)} onPracticeEnabled={updatePracticeEnabled}
+      onReview={(itemId) => { setManualReviewItemId(itemId); setMode("recall"); setRoute("practice"); }} />}
   </div>;
 }

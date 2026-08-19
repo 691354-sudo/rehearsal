@@ -66,7 +66,7 @@ Content policy:
 - target must contain only the complete target-language sentence. Never prefix it with the focus term, a label, a dash, or a definition.
 - cue must be a complete natural Russian sentence with the same meaning as target. Never return a dictionary definition or several glosses separated by punctuation.
 - focusTerms is the only field for the exact word or phrase being trained.
-- category is a real-life topic such as relationships, travel, work, or life in Riga; never use grammatical labels such as phrasal verb.
+- category is a real-life situation such as café, gym, work, relationships, travel, or life in Riga; never use grammatical labels such as conditional or phrasal verb.
 - Prefer one strong personal anchor over many generic examples. Use Riga, travel, nature, relationships, health, work, and everyday life only when they genuinely fit.
 - Russian cues must carry the same natural meaning, not word-for-word translation.
 - Keep every target sentence speakable and worth active recall. Pattern drills vary one meaningful slot while preserving the structure.
@@ -78,7 +78,7 @@ Metadata:
 - currency: current, contextual, dated, or uncertain.
 - personaFit: 1-5 for this specific adult speaker.
 - disposition: active, recognition, or skip.
-- pattern must be a short reusable frame, or an empty string.
+- pattern must describe the reusable language construction, such as a conditional, phrasal verb, or sentence frame, or be an empty string.
 `;
 
 const toCandidate = (item: z.infer<typeof generatedCandidateSchema>): ReviewCandidate => ({

@@ -42,30 +42,31 @@ Rehearsal is a pragmatic, practice-first personal language tool. It should feel 
 
 - Compact top navigation on desktop.
 - Three-item bottom navigation on mobile: Practice, Tutor, Library.
-- Language and theme controls remain visible in the header.
+- Desktop keeps language, profile, theme, and settings visible when they fit.
+- Mobile keeps the current section visible and moves language, profile, theme, and settings into one compact menu.
 
 ## Practice pattern
 
-- Practice is a single compact feed of island cards; there is no separate "Today" queue.
-- The active island is the product signature: a slightly lifted surface, quiet violet border, and a thin violet rail on the left.
-- A single direction toggle switches between RU to target-language recall and target-language shadowing.
-- In recall, every card exposes a compact target-language input. Focusing an input activates its card without navigating away.
-- Recall is a two-Enter loop: first Enter evaluates locally and shows an inline word diff; second Enter accepts the suggested memory grade, moves the card, and focuses the next phrase.
+- Practice has two modes only: written `Recall` and `Listen & Repeat`.
+- One active sentence is the product signature: a focused working surface with a quiet violet border and thin violet rail, surrounded by only the controls needed for the current action.
+- Recall defaults to a finite FSRS `Due today` session. Topic, count, and custom Library practice are compact pre-session controls.
+- Recall is a two-Enter loop: first Enter evaluates the written target-language answer and shows an inline word diff; second Enter accepts the selected memory grade and advances.
 - `Again`, `Hard`, `Good`, and `Easy` belong only to recall because they grade memory. The suggested grade is the focused default.
 - Each recall grade carries a quiet second-line interval preview. Reviewed cards leave the `Due now` scope until FSRS marks them due again, but remain available under `All Library cards`.
-- In shadowing, listening and repetition are one mode. Playback rhythm lives in settings, not in separate mode tabs.
-- Shadowing has only playback, translation reveal, and a quiet next action; it does not ask for a memory grade.
-- Drill is an inline action above the Cards feed, never a separate page or mode tab. It reads the visible queue from top to bottom with one persistent player and one cached MP3 per card.
-- Drill and its expanded Playback controls share one bordered control surface; Playback is an inset subsection, not another peer card.
-- Cards render as one grouped list surface with quiet row dividers. A small `Cards · N shown from N in Library` heading separates content from session controls.
-- Practice defaults to the complete Library inventory. `Due now`, Topic, and frequency are explicit filters; manual, due-first, new-first, and A–Z are explicit sorts.
-- Topic selection is an optional multi-select filter. Manual card order and loop marks appear only when `Order` is active and persist per language on the device.
-- A Drill first plays the complete visible queue once, then continues only the loop-marked cards until stopped.
-- Inactive recall cards use a quiet `Show in EN/LV` action instead of explanatory hidden-answer copy.
-- Topic and status metadata sit quietly at the lower-right edge of each card.
-- Item utility is independent from memory: a compact footer selector sets Like, Neutral, or Dislike without adding a persistent control row.
-- Daily volume appears beside the Practice title as a compact count and two-pixel progress rail, never as a dashboard card.
+- `Again` and `Hard` return within the current session; `Good` and `Easy` complete the card for that session. FSRS independently owns the future due date.
+- Listen & Repeat is one continuous target-language player with Play/Pause, Previous, Replay, Next, Stop, and Russian reveal. It never asks for a memory grade.
+- The player uses one persistent audio element and one cached MP3 per card, with browser speech as a whole-session fallback.
+- Topic selection uses Library Topics, never the first item tag.
+- Daily volume appears beside the Practice title as quiet factual counts, never as a quota, streak, or dashboard card.
 - Settings never dominate the practice screen.
+
+## Capture and Library
+
+- Notebook presents one Russian text field and one Record action in the same working surface. Empty states are terse because both users already understand the method.
+- Library begins with Search, learning status, Topic, and sort controls followed immediately by cards.
+- Topic management and text import are secondary dialogs or panels.
+- `Learned` is an explicit reversible item state. It never looks like deletion and it preserves the FSRS history.
+- Pattern Drill is a labeled card action whose proposals remain dismissible drafts until selected.
 
 ## Global settings
 
@@ -73,4 +74,4 @@ Rehearsal is a pragmatic, practice-first personal language tool. It should feel 
 - Voice, repetitions, speed, and pause are one shared device preference: Global Settings defines the default and Cards edits the same values immediately.
 - Voice options use the muted violet selected state; Marin and Cedar carry quiet recommended labels.
 - FSRS retention, maximum interval, learning steps, relearning steps, and fuzz are saved explicitly to the database.
-- Scheduler settings use compact table rows and familiar units rather than explanatory cards.
+- `New cards per day` remains a normal setting. Retention, intervals, learning steps, relearning steps, and fuzz live under Advanced scheduling.
