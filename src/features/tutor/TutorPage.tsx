@@ -210,7 +210,7 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
         <button onClick={() => setSessionsOpen(true)} type="button"><PanelLeft size={16} />Sessions</button>
         <button aria-label="New chat" onClick={newChat} title="New chat" type="button"><Plus size={17} /></button>
       </div> : null}</header>
-    {tutorMode === "notebook" ? <CaptureNotebook language={language} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
+    {tutorMode === "notebook" ? <CaptureNotebook language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={() => setSessionsOpen(false)} type="button" /> : null}
       <aside className={`simple-session-rail ${sessionsOpen ? "is-open" : ""}`}>
         <div className="simple-session-rail-heading"><strong>Sessions</strong>

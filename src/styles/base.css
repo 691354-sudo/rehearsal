@@ -192,6 +192,32 @@ body {
   justify-self: end;
 }
 
+.simple-offline {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px;
+  color: var(--script-support);
+  font-size: 13px;
+  background: var(--script-inset);
+  border-bottom: 1px solid var(--script-rule);
+}
+
+.simple-offline strong {
+  color: var(--script-ink);
+}
+
+.simple-offline button {
+  min-height: 40px;
+  padding: 0 12px;
+  color: var(--script-ink);
+  white-space: nowrap;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 7px;
+}
+
 .simple-language,
 .simple-profile-button,
 .simple-icon-button,
