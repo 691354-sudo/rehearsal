@@ -40,6 +40,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   const storageKey = (name: string) => `rehearsal:${profile.id}:${name}`;
   const [route, setRoute] = useState<Route>("practice");
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [language, setLanguage] = useState<Language>(() =>
     window.localStorage.getItem(storageKey("language")) === "lv" ? "lv" : "en",
   );
@@ -90,6 +91,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   useEffect(() => {
     window.localStorage.setItem(storageKey("playback"), JSON.stringify(playback));
   }, [playback]);
+  useEffect(() => setMobileMenuOpen(false), [route]);
   useEffect(() => {
     const speed = clampPlaybackSpeed(playback.provider, playback.speed, elevenLabsConfig.speedRange);
     if (speed !== playback.speed) setPlayback((current) => ({ ...current, speed }));
@@ -363,7 +365,8 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
 
   return <div className={`simple-app simple-app--${theme}`}>
     <header className="simple-header">
-      <button className="simple-brand" onClick={() => setRoute("practice")} type="button"><span>R</span><strong>Rehearsal</strong></button>
+      <button className="simple-brand" onClick={() => setRoute("practice")} type="button"><span>R</span>
+        <strong className="simple-brand-product">Rehearsal</strong><strong className="simple-brand-route">{route === "practice" ? "Practice" : route === "tutor" ? "Tutor" : "Library"}</strong></button>
       <nav className="simple-nav" aria-label="Main navigation">
         <button className={route === "practice" ? "is-active" : ""} onClick={() => setRoute("practice")} type="button">Practice</button>
         <button className={route === "tutor" ? "is-active" : ""} onClick={() => setRoute("tutor")} type="button">Tutor</button>
@@ -387,6 +390,18 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
         </button>
         <button aria-label="Settings" className="simple-icon-button simple-global-settings-button" onClick={() => setGlobalSettingsOpen(true)} title="Settings" type="button"><Settings2 size={18} /></button>
       </div>
+      <button aria-expanded={mobileMenuOpen} aria-label="App menu" className="simple-mobile-menu-button"
+        onClick={() => setMobileMenuOpen((open) => !open)} type="button"><Settings2 size={19} /></button>
+      {mobileMenuOpen ? <><button aria-label="Close app menu" className="simple-mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} type="button" />
+        <div className="simple-mobile-menu">
+          <label><span>Language</span><select onChange={(event) => { setLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
+            <option value="en">English</option><option value="lv">Latviešu</option></select></label>
+          <div className="simple-mobile-menu-status"><span className={`simple-api-state ${apiOnline ? "is-online" : ""}`} />{apiOnline ? "Available" : "Unavailable"}</div>
+          <button onClick={() => { setMobileMenuOpen(false); onSwitchProfile(); }} type="button"><UserRound size={17} />{profile.name}</button>
+          <button onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")} type="button">
+            {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}{theme === "dark" ? "Light theme" : "Dark theme"}</button>
+          <button onClick={() => { setMobileMenuOpen(false); setGlobalSettingsOpen(true); }} type="button"><Settings2 size={17} />Settings</button>
+        </div></> : null}
     </header>
     {globalSettingsOpen ? <GlobalSettings
       onClose={() => setGlobalSettingsOpen(false)}

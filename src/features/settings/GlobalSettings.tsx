@@ -239,35 +239,38 @@ export function GlobalSettings(props: {
         </section>
 
         <section className="simple-settings-section">
-          <div className="simple-settings-section-title"><h3>FSRS-6</h3><span>Recall scheduler</span></div>
+          <div className="simple-settings-section-title"><h3>Scheduling</h3><span>Recall</span></div>
           <label className="simple-new-items-setting"><span>New cards per day</span><input max="30" min="0" onChange={(event) => {
             setDraft((current) => ({ ...current, newItemsPerDay: Number(event.target.value) })); setSaveState("idle");
           }} type="number" value={draft.newItemsPerDay} /></label>
-          <div className="simple-fsrs-table">
-            <div className="simple-fsrs-head"><span>Priority</span><span>Retention</span><span>Max interval</span></div>
-            {(["like", "neutral", "dislike"] as ItemPreference[]).map((preference) => <div className="simple-fsrs-row" key={preference}>
-              <strong>{capitalize(preference)}</strong>
-              <label><input max="97" min="80" onChange={(event) => updatePreset(preference, "requestRetention", Number(event.target.value) / 100)}
-                step="1" type="number" value={Math.round(draft.presets[preference].requestRetention * 100)} /><span>%</span></label>
-              <label><input max="3650" min="7" onChange={(event) => updatePreset(preference, "maximumInterval", Number(event.target.value))}
-                step="1" type="number" value={draft.presets[preference].maximumInterval} /><span>days</span></label>
-            </div>)}
-          </div>
-          <div className="simple-fsrs-details">
-            <label><span>Learning steps</span><input aria-invalid={!nextLearningSteps.length || nextLearningSteps.some((step) => !stepPattern.test(step))}
-              onChange={(event) => { setLearningSteps(event.target.value); setSaveState("idle"); }} value={learningSteps} /></label>
-            <label><span>Relearning steps</span><input aria-invalid={!nextRelearningSteps.length || nextRelearningSteps.some((step) => !stepPattern.test(step))}
-              onChange={(event) => { setRelearningSteps(event.target.value); setSaveState("idle"); }} value={relearningSteps} /></label>
-            <div className="simple-fsrs-toggle"><span>Interval fuzz</span><button aria-pressed={draft.fuzz} className={draft.fuzz ? "is-active" : ""}
-              onClick={() => { setDraft((current) => ({ ...current, fuzz: !current.fuzz })); setSaveState("idle"); }} type="button"><i /></button></div>
-          </div>
+          <details className="simple-advanced-settings">
+            <summary>Advanced scheduling</summary>
+            <div className="simple-fsrs-table">
+              <div className="simple-fsrs-head"><span>Priority</span><span>Retention</span><span>Max interval</span></div>
+              {(["like", "neutral", "dislike"] as ItemPreference[]).map((preference) => <div className="simple-fsrs-row" key={preference}>
+                <strong>{capitalize(preference)}</strong>
+                <label><input max="97" min="80" onChange={(event) => updatePreset(preference, "requestRetention", Number(event.target.value) / 100)}
+                  step="1" type="number" value={Math.round(draft.presets[preference].requestRetention * 100)} /><span>%</span></label>
+                <label><input max="3650" min="7" onChange={(event) => updatePreset(preference, "maximumInterval", Number(event.target.value))}
+                  step="1" type="number" value={draft.presets[preference].maximumInterval} /><span>days</span></label>
+              </div>)}
+            </div>
+            <div className="simple-fsrs-details">
+              <label><span>Learning steps</span><input aria-invalid={!nextLearningSteps.length || nextLearningSteps.some((step) => !stepPattern.test(step))}
+                onChange={(event) => { setLearningSteps(event.target.value); setSaveState("idle"); }} value={learningSteps} /></label>
+              <label><span>Relearning steps</span><input aria-invalid={!nextRelearningSteps.length || nextRelearningSteps.some((step) => !stepPattern.test(step))}
+                onChange={(event) => { setRelearningSteps(event.target.value); setSaveState("idle"); }} value={relearningSteps} /></label>
+              <div className="simple-fsrs-toggle"><span>Interval fuzz</span><button aria-pressed={draft.fuzz} className={draft.fuzz ? "is-active" : ""}
+                onClick={() => { setDraft((current) => ({ ...current, fuzz: !current.fuzz })); setSaveState("idle"); }} type="button"><i /></button></div>
+            </div>
+          </details>
         </section>
       </div>
 
       <footer className="simple-settings-footer">
         <span className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use steps like 1m, 10m" : ""}</span>
         <button className="simple-settings-save" disabled={!validSteps || saveState === "saving"} onClick={() => void save()} type="button">
-          {saveState === "saving" ? "Saving…" : "Save FSRS"}
+          {saveState === "saving" ? "Saving…" : "Save scheduling"}
         </button>
       </footer>
     </section>

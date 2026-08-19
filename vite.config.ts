@@ -1,9 +1,48 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
+
+const configuredBase = process.env.VITE_BASE_PATH || "/";
+const base = configuredBase.endsWith("/") ? configuredBase : `${configuredBase}/`;
+const escapedBase = base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const privatePathPattern = new RegExp(`^${escapedBase}(?:api(?:/|$)|health$)`);
+const privateUrlPattern = new RegExp(`^https?://[^/]+${escapedBase}(?:api(?:/|$)|health(?:[?#]|$))`);
 
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH || "/",
-  plugins: [react()],
+  base,
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "prompt",
+      injectRegister: null,
+      manifest: {
+        id: base,
+        name: "Rehearsal",
+        short_name: "Rehearsal",
+        description: "Personal sentence practice for English and Latvian",
+        start_url: base,
+        scope: base,
+        display: "standalone",
+        background_color: "#f5f4f8",
+        theme_color: "#6956c9",
+        icons: [
+          { src: "icons/pwa-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icons/pwa-512.png", sizes: "512x512", type: "image/png" },
+          { src: "icons/pwa-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
+      },
+      workbox: {
+        cleanupOutdatedCaches: true,
+        globPatterns: ["**/*.{html,js,css,woff2,png,svg}"],
+        navigateFallbackDenylist: [privatePathPattern],
+        runtimeCaching: [{
+          urlPattern: privateUrlPattern,
+          handler: "NetworkOnly",
+          options: { cacheName: "private-network-only" },
+        }],
+      },
+    }),
+  ],
   server: {
     port: Number(process.env.VITE_DEV_PORT || 4173),
     strictPort: true,

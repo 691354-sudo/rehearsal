@@ -12,8 +12,8 @@
     z-index: 20;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    height: 62px;
-    padding: 7px 12px;
+    height: calc(62px + env(safe-area-inset-bottom));
+    padding: 7px 12px calc(7px + env(safe-area-inset-bottom));
     background: var(--script-surface);
     border-top: 1px solid var(--script-rule);
   }
@@ -43,7 +43,15 @@
   }
 
   .simple-main {
-    padding-bottom: 90px;
+    padding-bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+
+  .simple-library-heading-actions button,
+  .simple-library-panel-actions button,
+  .simple-library-tools input,
+  .simple-library-tools select,
+  .simple-row-actions button {
+    min-height: 44px;
   }
 
   .simple-main--practice {
@@ -53,31 +61,102 @@
 
 @media (max-width: 560px) {
   .simple-header {
-    height: 58px;
+    height: calc(58px + env(safe-area-inset-top));
     padding: 0 12px;
+    padding-top: env(safe-area-inset-top);
   }
 
-  .simple-app .simple-language {
-    font-size: 0;
-  }
-
-  .simple-profile-button {
-    width: 40px;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .simple-profile-button span {
+  .simple-brand-product {
     display: none;
   }
 
-  .simple-icon-button {
+  .simple-brand-route {
+    display: inline;
+  }
+
+  .simple-brand {
+    min-height: 44px;
+  }
+
+  .simple-header-actions {
     display: none;
   }
 
-  .simple-theme-button,
-  .simple-global-settings-button {
-    display: inline-flex;
+  .simple-mobile-menu-button {
+    z-index: 34;
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    color: var(--script-support);
+    background: var(--script-surface);
+    border: 1px solid var(--script-rule);
+    border-radius: 8px;
+  }
+
+  .simple-mobile-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 31;
+    display: block;
+    background: rgb(5 5 8 / 28%);
+    border: 0;
+  }
+
+  .simple-mobile-menu {
+    position: absolute;
+    top: calc(50px + env(safe-area-inset-top));
+    right: 12px;
+    z-index: 33;
+    display: grid;
+    width: min(260px, calc(100vw - 24px));
+    padding: 8px;
+    background: var(--script-surface);
+    border: 1px solid var(--script-rule-strong);
+    border-radius: 10px;
+    box-shadow: 0 18px 44px rgb(10 8 18 / 24%);
+  }
+
+  .simple-mobile-menu > button,
+  .simple-mobile-menu > label,
+  .simple-mobile-menu-status {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 10px;
+    color: var(--script-support);
+    font-size: 13px;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+  }
+
+  .simple-mobile-menu > label {
+    justify-content: space-between;
+  }
+
+  .simple-mobile-menu select {
+    color: var(--script-ink);
+    font: inherit;
+    background: transparent;
+    border: 0;
+  }
+
+  .simple-mobile-menu-status {
+    border-bottom: 1px solid var(--script-rule);
+  }
+
+  .simple-update-prompt {
+    right: 12px;
+    bottom: calc(74px + env(safe-area-inset-bottom));
+    left: 12px;
+    justify-content: flex-end;
+  }
+
+  .simple-update-prompt span {
+    margin-right: auto;
   }
 
   .simple-main {
@@ -299,26 +378,30 @@
     gap: 6px;
     align-items: center;
     justify-content: center;
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 9px;
     font-size: 12px;
     border: 1px solid var(--script-rule);
   }
 
   .simple-tutor-mobile-actions button:last-child {
-    width: 40px;
+    width: 44px;
     padding: 0;
   }
 
   .simple-chat {
     grid-template-columns: minmax(0, 1fr);
-    height: calc(100dvh - 170px);
-    min-height: 520px;
+    height: calc(100dvh - 170px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    min-height: 0;
+  }
+
+  .simple-composer {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
 
   .simple-session-backdrop {
     position: fixed;
-    inset: 58px 0 62px;
+    inset: calc(58px + env(safe-area-inset-top)) 0 calc(62px + env(safe-area-inset-bottom));
     z-index: 29;
     display: block;
     background: rgb(0 0 0 / 36%);
@@ -327,8 +410,8 @@
 
   .simple-session-rail {
     position: fixed;
-    top: 58px;
-    bottom: 62px;
+    top: calc(58px + env(safe-area-inset-top));
+    bottom: calc(62px + env(safe-area-inset-bottom));
     left: 0;
     z-index: 30;
     width: min(300px, 88vw);
