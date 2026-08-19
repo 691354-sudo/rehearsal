@@ -5,14 +5,14 @@ import { elevenLabsModelOptions, voiceOptions } from "./schemas.js";
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
 
 export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
-  const { openai, elevenlabs } = dependencies;
-
   app.get("/api/audio/elevenlabs/status", async (request) => {
+    const { elevenlabs } = dependencies.forRequest(request);
     const query = z.object({ refresh: z.enum(["true", "false"]).default("false") }).parse(request.query);
     return elevenlabs.voiceStatus(query.refresh === "true");
   });
 
   app.post("/api/audio/speech", async (request, reply) => {
+    const { openai, elevenlabs } = dependencies.forRequest(request);
     const body = z.object({
       text: z.string().trim().min(1).max(4_096),
       language: z.enum(["en", "lv", "ru"]),

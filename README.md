@@ -1,6 +1,6 @@
 # Rehearsal
 
-A private, practice-first AI tutor for English and Latvian. Its main loop is `Capture → Topic → Drill → Recall`: Russian voice notes become reviewed personal cards, Topics help filter them, Drill speaks the visible cards in order, and Recall schedules the individual cards with FSRS.
+A private, practice-first AI tutor for English and Latvian. Its main loop is `Capture → Topic → Drill → Recall`: Russian voice notes become reviewed personal cards, Topics help filter them, Drill speaks the visible cards in order, and Recall schedules the individual cards with FSRS. Roman and Oliver use fixed PIN profiles with separate practice data, libraries, Tutor histories, settings, and backups.
 
 ## Run locally
 
@@ -8,6 +8,8 @@ A private, practice-first AI tutor for English and Latvian. Its main loop is `Ca
 npm install
 npm run dev
 ```
+
+Before the first start, create an untracked `.env` from `.env.example` and set distinct 6–12 digit development PINs plus a random `SESSION_SECRET` of at least 32 bytes.
 
 - Web: `http://127.0.0.1:4173/`
 - API health: `http://127.0.0.1:8787/health`
@@ -71,22 +73,22 @@ need a rebuild. A failed check leaves the last working routing untouched.
 npm run models:check -- --force
 ```
 
-## Data
+## Profile data
 
-The single-user v1 uses SQLite with WAL and FTS5. The database lives at `.data/rehearsal.sqlite`. It contains the original imported sources, curated items, embeddings, attempts, review state, tutor chats, islands, cached audio, and an append-only change log.
+Each profile uses an isolated SQLite database with WAL and FTS5 at `.data/profiles/roman.sqlite` or `.data/profiles/oliver.sqlite`. On first rollout, an existing `.data/rehearsal.sqlite` is archived and copied completely to both profiles. The operation is idempotent and never replaces a profile database that already exists.
 
 ```bash
-npm run db:seed
+npm run db:seed -- --profile roman
 npm run db:backup
-CONFIRM_RESTORE=1 npm run db:restore -- /absolute/path/to/backup.sqlite
+CONFIRM_RESTORE=1 npm run db:restore -- --profile roman /absolute/path/to/backup.sqlite
 ```
 
-Restore validates the candidate with SQLite `quick_check` and creates a safety copy of the current database before replacing it. Stop the API before restoring. The canonical backup, restore, and production procedures live in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+Restore always names one profile, validates the candidate with SQLite `quick_check`, and creates a safety copy of only that profile's current database before replacing it. Stop the API before restoring. The canonical backup, restore, migration, and production procedures live in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 To generate embeddings after adding a key:
 
 ```bash
-npm run db:embed
+npm run db:embed -- --profile roman
 ```
 
 Start with [AGENTS.md](AGENTS.md). Product rules live in [docs/METHOD.md](docs/METHOD.md), code boundaries in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), collaboration in [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md), mobile constraints in [docs/MOBILE_APP_DIRECTION.md](docs/MOBILE_APP_DIRECTION.md), and production procedures in [docs/OPERATIONS.md](docs/OPERATIONS.md).

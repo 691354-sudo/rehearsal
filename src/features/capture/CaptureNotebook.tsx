@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, Mic, RefreshCw, Save, Square, Trash2, WandSparkles } from "lucide-react";
-import { apiPath } from "../../shared/config";
+import { apiFetch } from "../../shared/api";
 import type { Language } from "../../shared/contracts";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 
@@ -57,7 +57,7 @@ export function CaptureNotebook({ language }: { language: Language }) {
     streamRef.current = null;
   };
   const refresh = async () => {
-    const response = await fetch(apiPath(`/api/captures?language=${language}`));
+    const response = await apiFetch(`/api/captures?language=${language}`);
     if (!response.ok) throw new Error("Could not load voice notes.");
     const data = await response.json() as { notes: CaptureNote[]; activeBatch: ReviewBatch | null };
     setNotes(data.notes || []); setBatch(data.activeBatch || null);
@@ -83,7 +83,7 @@ export function CaptureNotebook({ language }: { language: Language }) {
     try {
       const extension = blob.type.includes("mp4") ? "m4a" : "webm";
       const form = new FormData(); form.append("audio", blob, `capture.${extension}`);
-      const response = await fetch(apiPath(`/api/captures?language=${language}`), { method: "POST", body: form });
+      const response = await apiFetch(`/api/captures?language=${language}`, { method: "POST", body: form });
       if (!response.ok) {
         const body = await response.json().catch(() => ({})) as { error?: string };
         throw new Error(body.error === "UNSUPPORTED_AUDIO_TYPE" ? "Brave produced an unsupported audio format." : "The recording could not be uploaded.");
@@ -130,7 +130,7 @@ export function CaptureNotebook({ language }: { language: Language }) {
     if (!transcript || transcript === note.transcript) return;
     setNotice("");
     try {
-      const response = await fetch(apiPath(`/api/captures/${note.publicId}`), {
+      const response = await apiFetch(`/api/captures/${note.publicId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript }),
       });
       if (!response.ok) throw new Error("The note could not be saved.");
@@ -139,13 +139,13 @@ export function CaptureNotebook({ language }: { language: Language }) {
   };
   const removeNote = async (note: CaptureNote) => {
     setNotice("");
-    const response = await fetch(apiPath(`/api/captures/${note.publicId}`), { method: "DELETE" });
+    const response = await apiFetch(`/api/captures/${note.publicId}`, { method: "DELETE" });
     if (!response.ok) { setNotice("This note is already in the current review package."); return; }
     await refresh();
   };
   const retry = async (note: CaptureNote) => {
     setNotice("Retrying transcription with OpenAI…");
-    const response = await fetch(apiPath(`/api/captures/${note.publicId}/retry`), { method: "POST" });
+    const response = await apiFetch(`/api/captures/${note.publicId}/retry`, { method: "POST" });
     if (!response.ok) { setNotice("This recording is no longer available for Retry."); return; }
     const data = await response.json() as { transcriptionFailed?: boolean };
     await refresh(); setNotice(data.transcriptionFailed ? "Transcription failed again. You can Retry or Delete." : "Transcription ready.");
@@ -154,7 +154,7 @@ export function CaptureNotebook({ language }: { language: Language }) {
     if (processing) return;
     setProcessing(true); setNotice("Preparing a natural card package…"); setRemaining(0);
     try {
-      const response = await fetch(apiPath("/api/captures/process"), {
+      const response = await apiFetch("/api/captures/process", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ language }),
       });
       if (!response.ok) throw new Error("No ready notes to prepare, or OpenAI is unavailable.");

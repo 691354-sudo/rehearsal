@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, LoaderCircle, Plus, Save, Trash2, X } from "lucide-react";
-import { apiPath } from "../../shared/config";
+import { apiFetch } from "../../shared/api";
 import type { Language, LearningItem } from "../../shared/contracts";
 
 type TopicSummary = {
@@ -23,15 +23,15 @@ export function TopicsManager({ language }: { language: Language }) {
   const [notice, setNotice] = useState("");
 
   const loadTopic = async (publicId: string) => {
-    const response = await fetch(apiPath(`/api/islands/${publicId}`));
+    const response = await apiFetch(`/api/islands/${publicId}`);
     if (!response.ok) throw new Error("Topic could not be loaded.");
     const data = await response.json() as { island: Topic };
     setTopic(data.island); setTitle(data.island.title);
   };
   const load = async (preferredId?: string) => {
     const [topicResponse, itemResponse] = await Promise.all([
-      fetch(apiPath(`/api/islands?language=${language}`)),
-      fetch(apiPath(`/api/items?language=${language}&limit=500`)),
+      apiFetch(`/api/islands?language=${language}`),
+      apiFetch(`/api/items?language=${language}&limit=500`),
     ]);
     if (!topicResponse.ok || !itemResponse.ok) throw new Error("Topics could not be loaded.");
     const topicData = await topicResponse.json() as { islands: TopicSummary[] };
@@ -51,7 +51,7 @@ export function TopicsManager({ language }: { language: Language }) {
     const nextTitle = newTitle.trim(); if (!nextTitle || saving) return;
     setSaving(true); setNotice("");
     try {
-      const response = await fetch(apiPath("/api/islands"), {
+      const response = await apiFetch("/api/islands", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language, title: nextTitle, itemIds: [] }),
       });
@@ -65,7 +65,7 @@ export function TopicsManager({ language }: { language: Language }) {
     if (!topic || saving) return;
     setSaving(true); setNotice("");
     try {
-      const response = await fetch(apiPath(`/api/islands/${topic.publicId}`), {
+      const response = await apiFetch(`/api/islands/${topic.publicId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
       });
       if (!response.ok) throw new Error(response.status === 409 ? "A Topic with this name already exists." : "Topic could not be updated.");
@@ -77,7 +77,7 @@ export function TopicsManager({ language }: { language: Language }) {
   const remove = async () => {
     if (!topic || !window.confirm(`Delete Topic “${topic.title}”? Its cards will stay in Library and Recall.`)) return;
     setSaving(true); setNotice("");
-    const response = await fetch(apiPath(`/api/islands/${topic.publicId}`), { method: "DELETE" });
+    const response = await apiFetch(`/api/islands/${topic.publicId}`, { method: "DELETE" });
     if (response.ok) { setTopic(null); await load(); setNotice("Topic deleted. Its cards were not deleted."); }
     else setNotice("Topic could not be deleted.");
     setSaving(false);

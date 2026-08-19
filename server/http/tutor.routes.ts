@@ -4,9 +4,8 @@ import type { HttpDependencies } from "./dependencies.js";
 import { languageSchema, reviewCandidateSelectionSchema } from "./schemas.js";
 
 export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
-  const { repository, openai, tutor } = dependencies;
-
   app.get("/api/chat/threads", async (request) => {
+    const { repository } = dependencies.forRequest(request);
     const query = z.object({
       language: languageSchema,
       limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -15,6 +14,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
   });
 
   app.get("/api/chat/:threadId/messages", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ threadId: z.string().uuid() }).parse(request.params);
     const thread = repository.tutor.getThread(params.threadId);
     if (!thread) return reply.code(404).send({ error: "THREAD_NOT_FOUND" });
@@ -31,6 +31,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
   });
 
   app.post("/api/chat", async (request) => {
+    const { tutor } = dependencies.forRequest(request);
     const body = z.object({
       language: languageSchema,
       message: z.string().trim().min(1).max(30_000),
@@ -40,12 +41,14 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
   });
 
   app.post("/api/chat/:threadId/review", async (request, reply) => {
+    const { tutor } = dependencies.forRequest(request);
     const params = z.object({ threadId: z.string().uuid() }).parse(request.params);
     const result = await tutor.review(params.threadId);
     return result ? reply.code(201).send(result) : reply.code(404).send({ error: "THREAD_NOT_FOUND" });
   });
 
   app.post("/api/review-batches/vocab", async (request, reply) => {
+    const { repository, openai } = dependencies.forRequest(request);
     const body = z.object({
       language: languageSchema,
       title: z.string().trim().min(1).max(300).default("Vocabulary review"),
@@ -70,6 +73,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
   });
 
   app.post("/api/review-batches/:batchId/commit", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
     const body = z.object({ candidates: z.array(reviewCandidateSelectionSchema).max(100) }).parse(request.body);
     const result = repository.reviews.commit(params.batchId, body.candidates);
@@ -77,12 +81,14 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
   });
 
   app.get("/api/review-batches/:batchId", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
     const batch = repository.reviews.get(params.batchId);
     return batch ? { batch } : reply.code(404).send({ error: "REVIEW_BATCH_NOT_FOUND" });
   });
 
   app.post("/api/review-batches/:batchId/revise", async (request, reply) => {
+    const { openai } = dependencies.forRequest(request);
     const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
     const body = z.object({ feedback: z.string().trim().min(1).max(4_000) }).parse(request.body);
     const batch = await openai.reviseReviewBatch({ batchPublicId: params.batchId, feedback: body.feedback });
@@ -90,6 +96,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
   });
 
   app.post("/api/review-batches/:batchId/candidates/:candidateId/regenerate", async (request, reply) => {
+    const { openai } = dependencies.forRequest(request);
     const params = z.object({ batchId: z.string().uuid(), candidateId: z.string().uuid() }).parse(request.params);
     const body = z.object({ instruction: z.enum(["another", "different_context"]) }).parse(request.body);
     const batch = await openai.regenerateCandidate({

@@ -169,6 +169,7 @@
 }
 
 .simple-language,
+.simple-profile-button,
 .simple-icon-button,
 .simple-settings {
   display: inline-flex;
@@ -177,6 +178,14 @@
   background: var(--script-surface);
   border: 1px solid var(--script-rule);
   border-radius: 8px;
+}
+
+.simple-profile-button {
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 11px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .simple-language {
@@ -283,6 +292,7 @@
 }
 
 .simple-language:hover,
+.simple-profile-button:hover,
 .simple-icon-button:hover {
   color: var(--script-ink);
   background: var(--script-inset);

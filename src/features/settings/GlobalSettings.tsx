@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { LoaderCircle, Play, RefreshCw, X } from "lucide-react";
 import { speedRangeForProvider } from "../../lib/playbackSettings";
-import { apiPath, capitalize, humanizeLabel } from "../../shared/config";
+import { apiFetch } from "../../shared/api";
+import { capitalize, humanizeLabel } from "../../shared/config";
 import type {
   ElevenLabsConfig,
   ElevenLabsPreferences,
@@ -43,7 +44,7 @@ export function GlobalSettings(props: {
     if (!props.elevenLabs.configured) return;
     const controller = new AbortController();
     setVoiceStatusState("checking");
-    void fetch(apiPath("/api/audio/elevenlabs/status"), { signal: controller.signal })
+    void apiFetch("/api/audio/elevenlabs/status", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Voice check failed");
         const status = await response.json() as ElevenLabsVoiceStatus;
@@ -106,7 +107,7 @@ export function GlobalSettings(props: {
   const refreshVoiceStatus = async () => {
     setVoiceStatusState("checking");
     try {
-      const response = await fetch(apiPath("/api/audio/elevenlabs/status?refresh=true"));
+      const response = await apiFetch("/api/audio/elevenlabs/status?refresh=true");
       if (!response.ok) throw new Error("Voice check failed");
       const status = await response.json() as ElevenLabsVoiceStatus;
       setVoiceStatus(status);

@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 import { TopicsManager } from "./TopicsManager";
-import { apiPath, fallbackItems } from "../../shared/config";
+import { apiFetch } from "../../shared/api";
+import { fallbackItems } from "../../shared/config";
 import type { Language, LearningItem } from "../../shared/contracts";
 
 export function LibraryPage({ language, onPlay }: { language: Language; onPlay: (text: string) => void }) {
@@ -24,14 +25,14 @@ export function LibraryPage({ language, onPlay }: { language: Language; onPlay: 
   const [editDraft, setEditDraft] = useState({ target: "", cue: "", note: "", category: "", frequencyBand: "common" });
   const load = async () => {
     const path = query.trim() ? `/api/search?q=${encodeURIComponent(query)}&language=${language}&limit=100` : `/api/items?language=${language}&limit=500`;
-    try { const response = await fetch(apiPath(path)); const data = await response.json() as { items: LearningItem[] }; setItems(data.items || []); }
+    try { const response = await apiFetch(path); const data = await response.json() as { items: LearningItem[] }; setItems(data.items || []); }
     catch { setItems(fallbackItems[language]); }
   };
   useEffect(() => { const timeout = window.setTimeout(() => void load(), query ? 250 : 0); return () => window.clearTimeout(timeout); }, [language, query]);
   const importText = async () => {
     if (!text.trim()) return; setImporting(true); setNotice(""); setBatch(null);
     try {
-      const response = await fetch(apiPath("/api/import/text"), { method: "POST", headers: { "Content-Type": "application/json" },
+      const response = await apiFetch("/api/import/text", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language, title: title.trim() || "Imported text", text }) });
       if (!response.ok) throw new Error("Import failed");
       const data = await response.json() as { batch: ReviewBatch; previewSentences: string[] };
@@ -42,19 +43,19 @@ export function LibraryPage({ language, onPlay }: { language: Language; onPlay: 
     target: row.target, cue: row.cue, note: row.note, category: row.tags[0] || "", frequencyBand: row.frequencyBand || "common",
   }); };
   const saveEdit = async (itemId: string) => {
-    const response = await fetch(apiPath(`/api/items/${itemId}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+    const response = await apiFetch(`/api/items/${itemId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
       target: editDraft.target, cue: editDraft.cue, note: editDraft.note, tags: editDraft.category ? [editDraft.category] : [], frequencyBand: editDraft.frequencyBand,
     }) });
     if (response.ok) { setEditing(null); await load(); }
   };
   const deleteItem = async (itemId: string) => {
     if (!window.confirm("Delete this card from Library?")) return;
-    const response = await fetch(apiPath(`/api/items/${itemId}`), { method: "DELETE" });
+    const response = await apiFetch(`/api/items/${itemId}`, { method: "DELETE" });
     if (response.ok) setItems((current) => current.filter((item) => item.publicId !== itemId));
   };
   const patternDrill = async (itemId: string) => {
     setNotice("Preparing pattern variants…");
-    try { const response = await fetch(apiPath(`/api/items/${itemId}/pattern-drill`), { method: "POST" });
+    try { const response = await apiFetch(`/api/items/${itemId}/pattern-drill`, { method: "POST" });
       if (!response.ok) throw new Error("Pattern failed"); const data = await response.json() as { batch: ReviewBatch };
       setBatch(data.batch); setNotice("Choose only the variants worth keeping.");
     } catch { setNotice("Couldn’t prepare pattern variants."); }

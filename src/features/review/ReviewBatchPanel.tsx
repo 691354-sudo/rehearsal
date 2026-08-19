@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw } from "lucide-react";
-import { apiPath } from "../../shared/config";
+import { apiFetch } from "../../shared/api";
 
 export type ReviewCandidate = {
   id: string;
@@ -69,7 +69,7 @@ export function ReviewBatchPanel(props: {
   const regenerate = async (candidateId: string, instruction: "another" | "different_context") => {
     setRegenerating(candidateId); setNotice("");
     try {
-      const response = await fetch(apiPath(`/api/review-batches/${props.batch.publicId}/candidates/${candidateId}/regenerate`), {
+      const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/candidates/${candidateId}/regenerate`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction }),
       });
       if (!response.ok) throw new Error("Regeneration failed");
@@ -86,7 +86,7 @@ export function ReviewBatchPanel(props: {
         id: candidate.id, target: candidate.target, cue: candidate.cue,
         note: candidate.note, category: candidate.category,
       }));
-      const response = await fetch(apiPath(`/api/review-batches/${props.batch.publicId}/commit`), {
+      const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/commit`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidates }),
       });
       if (!response.ok) throw new Error("Commit failed");
@@ -101,7 +101,7 @@ export function ReviewBatchPanel(props: {
     if (!nextFeedback || revising) return;
     setRevising(true); setNotice("");
     try {
-      const response = await fetch(apiPath(`/api/review-batches/${props.batch.publicId}/revise`), {
+      const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/revise`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ feedback: nextFeedback }),
       });
       if (!response.ok) throw new Error("Revision failed");

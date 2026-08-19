@@ -1,2 +1,2 @@
 15 3 * * * root /usr/bin/docker compose --project-name rehearsal -f /opt/apps/rehearsal/current/compose.production.yml exec -T app npm run db:backup >> /var/log/rehearsal-backup.log 2>&1
-45 3 * * * root find /opt/apps/rehearsal/backups -type f -name 'rehearsal-*.sqlite' -mtime +30 -delete
+45 3 * * * root find /opt/apps/rehearsal/backups/profiles -type f -name '*.sqlite' -mtime +30 -delete

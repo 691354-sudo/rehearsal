@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -32,6 +33,21 @@ jobs:
         name: Resolve exact release commit
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Verify manual release passed CI
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          successful_runs="$(gh api --method GET \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs" \
+            -f branch=main -f event=push -f status=success -f head_sha="$RELEASE_SHA" \
+            --jq '.total_count')"
+          if [[ "$successful_runs" -lt 1 ]]; then
+            echo "Refusing deployment: exact main commit has no successful CI run" >&2
+            exit 1
+          fi
+
       - name: Configure SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -47,6 +63,35 @@ jobs:
         env:
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
         run: git archive --format=tar.gz --output="/tmp/rehearsal-${RELEASE_SHA}.tar.gz" "$RELEASE_SHA"
+
+      - name: Install runtime secrets
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          ROMAN_PROFILE_PIN: ${{ secrets.ROMAN_PROFILE_PIN }}
+          OLIVER_PROFILE_PIN: ${{ secrets.OLIVER_PROFILE_PIN }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+        run: |
+          umask 077
+          secret_stage="/tmp/rehearsal-secrets-${GITHUB_RUN_ID}"
+          install -d -m 700 "$secret_stage"
+          printf '%s' "$ROMAN_PROFILE_PIN" > "$secret_stage/roman_profile_pin"
+          printf '%s' "$OLIVER_PROFILE_PIN" > "$secret_stage/oliver_profile_pin"
+          printf '%s' "$SESSION_SECRET" > "$secret_stage/session_secret"
+          remote_stage="/tmp/rehearsal-secrets-${GITHUB_RUN_ID}"
+          ssh -i ~/.ssh/rehearsal_deploy "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "install -d -m 700 '$remote_stage' /opt/apps/rehearsal/secrets"
+          scp -i ~/.ssh/rehearsal_deploy "$secret_stage"/* \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_stage}/"
+          ssh -i ~/.ssh/rehearsal_deploy "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "set -e
+             install -m 600 '$remote_stage/roman_profile_pin' /opt/apps/rehearsal/secrets/roman_profile_pin
+             install -m 600 '$remote_stage/oliver_profile_pin' /opt/apps/rehearsal/secrets/oliver_profile_pin
+             install -m 600 '$remote_stage/session_secret' /opt/apps/rehearsal/secrets/session_secret
+             rm -f '$remote_stage/roman_profile_pin' '$remote_stage/oliver_profile_pin' '$remote_stage/session_secret'
+             rmdir '$remote_stage'"
+          rm -f "$secret_stage/roman_profile_pin" "$secret_stage/oliver_profile_pin" "$secret_stage/session_secret"
+          rmdir "$secret_stage"
 
       - name: Upload release
         env:

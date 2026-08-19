@@ -25,20 +25,44 @@ Required repository secrets:
 - `DEPLOY_SSH_KEY`
 - `DEPLOY_KNOWN_HOSTS`
 - `PRODUCTION_URL` (the application base URL, currently `https://7662n.cc/rehearsal/`)
+- `ROMAN_PROFILE_PIN` and `OLIVER_PROFILE_PIN` (6–12 digits);
+- `SESSION_SECRET` (a random value of at least 32 bytes).
 
 `deploy/rehearsal-backup.cron` creates a consistent SQLite backup nightly and removes backups older than 30 days. `deploy/rehearsal-model-check.cron` runs daily, while the model checker's timestamp guard permits a live provider check only once every 14 days.
 
-## Local data
+The workflow installs the three profile/session values as mode-`0600` files under `/opt/apps/rehearsal/secrets`; Compose mounts that directory read-only. Provider credentials remain in `/opt/apps/rehearsal/.env` and `.env.elevenlabs`.
 
-The current single-profile database is `.data/rehearsal.sqlite`. It uses WAL, foreign keys, FTS5, and an append-only change log.
+Do not rotate profile PINs by changing the GitHub secret after the registry exists: the registry holds the salted scrypt hashes and remains authoritative. A deliberate PIN-rotation tool is not part of this release. Changing `SESSION_SECRET` invalidates every active browser session at the next deployment.
+
+## Profile data and first rollout
+
+Profile state lives only under the persistent data volume:
+
+- `/opt/apps/rehearsal/data/profiles/roman.sqlite`;
+- `/opt/apps/rehearsal/data/profiles/oliver.sqlite`;
+- `/opt/apps/rehearsal/data/profiles/registry.json` (names, database paths, PIN salts and hashes);
+- `/opt/apps/rehearsal/data/profiles/migration.json` (private migration evidence).
+
+On the first profile-aware start, the application archives the existing `rehearsal.sqlite`, copies its complete contents into each missing profile database, runs `quick_check`, and compares counters for all user-data tables. Existing profile databases are never overwritten on a repeated start. Keep the legacy database and `legacy-before-profiles-*.sqlite` archive until both users complete acceptance checks.
+
+For local development, set different non-production PINs and a random session secret in an untracked `.env`, then start normally:
 
 ```bash
-npm run db:seed
-npm run db:backup
-CONFIRM_RESTORE=1 npm run db:restore -- /absolute/path/to/backup.sqlite
+npm run db:seed -- --profile roman
+npm run dev
 ```
 
-Stop the API before restore. Restore validates the candidate with SQLite `quick_check` and creates a safety copy of the current database before replacement.
+## Backup and selective restore
+
+Backup creates one verified file per profile under `backups/profiles`:
+
+```bash
+npm run db:backup
+CONFIRM_RESTORE=1 npm run db:restore -- --profile roman /absolute/path/to/roman-backup.sqlite
+CONFIRM_RESTORE=1 npm run db:restore -- --profile oliver /absolute/path/to/oliver-backup.sqlite
+```
+
+Stop the API before restore. Restore validates the candidate with SQLite `quick_check` and creates a safety copy of only the selected profile database before replacement. Never restore one profile's file into the other profile without an explicit data-recovery decision.
 
 ## Production verification
 
@@ -49,11 +73,11 @@ curl -fsS http://127.0.0.1:8788/health
 curl -fsS https://7662n.cc/rehearsal/health
 ```
 
-Also confirm that SQLite `quick_check` succeeds, foreign-key checks are empty, and user-data counts have not unexpectedly changed.
+`/health` runs `quick_check` for both profile databases and returns only their availability, never counts or user content. During the first rollout, also inspect the private migration report and confirm that both copies have the source counters recorded immediately before migration.
 
 ## Secrets
 
-`.env` and `.env.elevenlabs` contain live credentials. Do not print, commit, copy into a release, or include them in logs. GitHub deployment credentials belong in encrypted repository secrets. Runtime databases, backups, profile registries, PIN hashes, and generated audio are never Git artifacts.
+`.env` and `.env.elevenlabs` contain live credentials. Do not print, commit, copy into a release, or include them in logs. GitHub deployment credentials belong in encrypted repository secrets. Runtime databases, backups, profile registries, PIN values and hashes, session secrets, and generated audio are never Git artifacts.
 
 ## Recovery
 

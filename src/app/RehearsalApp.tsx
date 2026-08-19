@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Moon, Settings2, Sun } from "lucide-react";
+import { ChevronDown, Moon, Settings2, Sun, UserRound } from "lucide-react";
+import type { ProfileSummary } from "../../contracts/api";
 import { useSpeech } from "../hooks/useSpeech";
 import { evaluateAttempt } from "../lib/compare";
 import { clampPlaybackSpeed } from "../lib/playbackSettings";
@@ -9,7 +10,6 @@ import { PracticePage } from "../features/practice/PracticePage";
 import { GlobalSettings } from "../features/settings/GlobalSettings";
 import { TutorPage } from "../features/tutor/TutorPage";
 import {
-  apiPath,
   defaultElevenLabsConfig,
   defaultPlayback,
   defaultSchedulerSettings,
@@ -17,6 +17,7 @@ import {
   fallbackItems,
   languageCopy,
 } from "../shared/config";
+import { apiFetch } from "../shared/api";
 import type {
   AttemptDraft,
   DailyProgress,
@@ -34,11 +35,15 @@ import type {
   Theme,
 } from "../shared/contracts";
 
-export function RehearsalApp() {
+export function RehearsalApp({ profile, onSwitchProfile }: {
+  profile: ProfileSummary;
+  onSwitchProfile: () => void;
+}) {
+  const storageKey = (name: string) => `rehearsal:${profile.id}:${name}`;
   const [route, setRoute] = useState<Route>("practice");
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
   const [language, setLanguage] = useState<Language>(() =>
-    window.localStorage.getItem("rehearsal:language") === "lv" ? "lv" : "en",
+    window.localStorage.getItem(storageKey("language")) === "lv" ? "lv" : "en",
   );
   const [mode, setMode] = useState<Mode>("recall");
   const [attempts, setAttempts] = useState<Record<string, AttemptDraft>>({});
@@ -49,7 +54,7 @@ export function RehearsalApp() {
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>({ recall: 0, shadow: 0, pattern: 0 });
   const [playback, setPlayback] = useState<PlaybackPreferences>(() => {
     try {
-      const saved = JSON.parse(window.localStorage.getItem("rehearsal:playback") || "{}") as Partial<PlaybackPreferences>;
+      const saved = JSON.parse(window.localStorage.getItem(storageKey("playback")) || "{}") as Partial<PlaybackPreferences>;
       return {
         ...defaultPlayback,
         ...saved,
@@ -66,7 +71,7 @@ export function RehearsalApp() {
   const [elevenLabsConfig, setElevenLabsConfig] = useState(defaultElevenLabsConfig);
   const [schedulerSettings, setSchedulerSettings] = useState(defaultSchedulerSettings);
   const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = window.localStorage.getItem("rehearsal:theme");
+    const savedTheme = window.localStorage.getItem(storageKey("theme"));
     if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   });
@@ -81,23 +86,23 @@ export function RehearsalApp() {
   }, [elevenLabsConfig.speedRange]);
 
   useEffect(() => {
-    window.localStorage.setItem("rehearsal:theme", theme);
+    window.localStorage.setItem(storageKey("theme"), theme);
   }, [theme]);
   useEffect(() => {
-    window.localStorage.setItem("rehearsal:playback", JSON.stringify(playback));
+    window.localStorage.setItem(storageKey("playback"), JSON.stringify(playback));
   }, [playback]);
   useEffect(() => {
     const speed = clampPlaybackSpeed(playback.provider, playback.speed, elevenLabsConfig.speedRange);
     if (speed !== playback.speed) setPlayback((current) => ({ ...current, speed }));
   }, [elevenLabsConfig.speedRange, playback.provider, playback.speed]);
   useEffect(() => {
-    window.localStorage.setItem("rehearsal:language", language);
+    window.localStorage.setItem(storageKey("language"), language);
     setItems(fallbackItems[language]); setDueItemIds([]); setAttempts({});
     setActiveItemId(fallbackItems[language][0].publicId); setRevealedItems([]);
     void loadItems(language);
   }, [language]);
   useEffect(() => {
-    void fetch(apiPath("/api/config")).then(async (response) => {
+    void apiFetch("/api/config").then(async (response) => {
       if (!response.ok) throw new Error("API unavailable");
       const data = await response.json() as {
         openaiConfigured: boolean;
@@ -115,7 +120,7 @@ export function RehearsalApp() {
       if (data.tts?.providers?.elevenlabs) {
         setElevenLabsConfig(data.tts.providers.elevenlabs);
         if (data.tts.providers.elevenlabs.configured) {
-          void fetch(apiPath("/api/audio/elevenlabs/status")).then(async (statusResponse) => {
+          void apiFetch("/api/audio/elevenlabs/status").then(async (statusResponse) => {
             if (!statusResponse.ok) return;
             const status = await statusResponse.json() as ElevenLabsVoiceStatus;
             if (status.reachable) {
@@ -131,7 +136,7 @@ export function RehearsalApp() {
   }, []);
 
   const saveSchedulerSettings = async (settings: SchedulerSettings) => {
-    const response = await fetch(apiPath("/api/settings/scheduler"), {
+    const response = await apiFetch("/api/settings/scheduler", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
@@ -146,9 +151,9 @@ export function RehearsalApp() {
     try {
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
       const [libraryResponse, dueResponse, progressResponse] = await Promise.all([
-        fetch(apiPath(`/api/items?language=${nextLanguage}&limit=500`)),
-        fetch(apiPath(`/api/practice/due?language=${nextLanguage}&limit=50`)),
-        fetch(apiPath(`/api/practice/progress?language=${nextLanguage}&since=${encodeURIComponent(startOfDay.toISOString())}`)),
+        apiFetch(`/api/items?language=${nextLanguage}&limit=500`),
+        apiFetch(`/api/practice/due?language=${nextLanguage}&limit=50`),
+        apiFetch(`/api/practice/progress?language=${nextLanguage}&since=${encodeURIComponent(startOfDay.toISOString())}`),
       ]);
       if (!libraryResponse.ok || !dueResponse.ok || !progressResponse.ok) throw new Error("API unavailable");
       const library = await libraryResponse.json() as { items: LearningItem[] };
@@ -168,7 +173,7 @@ export function RehearsalApp() {
     const previous = items.find((candidate) => candidate.publicId === itemId)?.preference || "neutral";
     setItems((current) => current.map((candidate) => candidate.publicId === itemId
       ? { ...candidate, preference } : candidate));
-    void fetch(apiPath(`/api/items/${encodeURIComponent(itemId)}/preference`), {
+    void apiFetch(`/api/items/${encodeURIComponent(itemId)}/preference`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ preference }),
@@ -233,7 +238,7 @@ export function RehearsalApp() {
     const nextItem = items[itemIndex + 1] || items[0];
     setActiveItemId(nextItem?.publicId === itemId ? "" : nextItem?.publicId || "");
     setDailyProgress((progress) => ({ ...progress, recall: progress.recall + 1 }));
-    void fetch(apiPath("/api/attempts/evaluate"), {
+    void apiFetch("/api/attempts/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId: reviewedItem.publicId, answer: attempt.answer, mode: "recall", rating }),
@@ -258,7 +263,7 @@ export function RehearsalApp() {
     const nextItems = moveReviewedItem(items, "good", itemIndex);
     setItems(nextItems); setActiveItemId(nextItems[0]?.publicId || itemId);
     setDailyProgress((progress) => ({ ...progress, shadow: progress.shadow + 1 }));
-    void fetch(apiPath("/api/reviews"), {
+    void apiFetch("/api/reviews", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId, mode: "shadow", rating: "good" }),
     }).then((response) => { if (!response.ok) throw new Error("Shadow review failed"); setApiOnline(true); })
@@ -313,7 +318,7 @@ export function RehearsalApp() {
       try {
         const provider = !strictProvider && language === "lv" && nextPlayback.provider === "elevenlabs"
           ? "openai" : nextPlayback.provider;
-        const response = await fetch(apiPath("/api/audio/speech"), {
+        const response = await apiFetch("/api/audio/speech", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             text,
@@ -335,7 +340,7 @@ export function RehearsalApp() {
         if (strictProvider) throw error;
         if (nextPlayback.provider === "elevenlabs") {
           try {
-            const response = await fetch(apiPath("/api/audio/speech"), {
+            const response = await apiFetch("/api/audio/speech", {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ text, language, provider: "openai", speed: nextPlayback.speed, voice: nextPlayback.voice }),
             });
@@ -371,6 +376,9 @@ export function RehearsalApp() {
           </select><ChevronDown size={15} />
         </label>
         <span className={`simple-api-state ${apiOnline ? "is-online" : ""}`} title={apiOnline ? "Backend online" : "Backend unavailable"} />
+        <button className="simple-profile-button" onClick={onSwitchProfile} title="Switch profile" type="button">
+          <UserRound size={16} /><span>{profile.name}</span>
+        </button>
         <button aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}
           aria-pressed={theme === "dark"} className="simple-icon-button simple-theme-button"
           onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}
@@ -391,8 +399,8 @@ export function RehearsalApp() {
       voices={voices}
     /> : null}
     {route === "practice" && <PracticePage activeItemId={activeItemId} attempts={attempts} key={language}
-      dueItemIds={dueItemIds} items={items} language={language} mode={mode} dailyProgress={dailyProgress}
-      elevenLabs={elevenLabsConfig} openaiConfigured={openaiConfigured} voices={voices}
+      dueItemIds={dueItemIds} items={items} language={language} profileId={profile.id} mode={mode} dailyProgress={dailyProgress}
+      elevenLabs={elevenLabsConfig} openaiConfigured={openaiConfigured}
       onActivate={setActiveItemId} onAnswer={setAnswer} onCheck={checkAnswer}
       onMode={(next) => { setMode(next); resetAttempts(); }} onRecallReview={commitRecall}
       onPreference={setPreference}
@@ -402,7 +410,7 @@ export function RehearsalApp() {
       onReveal={(publicId) => setRevealedItems((current) => current.includes(publicId)
         ? current.filter((id) => id !== publicId) : [...current, publicId])}
       playback={playback} revealedItems={revealedItems} />}
-    {route === "tutor" && <TutorPage language={language} />}
+    {route === "tutor" && <TutorPage language={language} profileId={profile.id} />}
     {route === "library" && <LibraryPage language={language} onPlay={(text) => void playTarget(text)} />}
   </div>;
 }

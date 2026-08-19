@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { HttpDependencies } from "./dependencies.js";
+import type { HttpContext, HttpDependencies } from "./dependencies.js";
 import { languageSchema } from "./schemas.js";
 
 const captureMimeTypes = new Map([
@@ -17,9 +17,8 @@ const captureMimeTypes = new Map([
 ]);
 
 export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
-  const { repository, openai } = dependencies;
-
-  const transcribe = async (publicId: string) => {
+  const transcribe = async (publicId: string, context: HttpContext) => {
+    const { repository, openai } = context;
     const stored = repository.capture.getAudio(publicId);
     if (!stored?.audio?.byteLength) throw new Error("CAPTURE_AUDIO_NOT_FOUND");
     const extension = captureMimeTypes.get(stored.audio_mime);
@@ -33,6 +32,7 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
   };
 
   app.get("/api/captures", async (request) => {
+    const { repository } = dependencies.forRequest(request);
     const query = z.object({
       language: languageSchema,
       includeProcessed: z.coerce.boolean().default(false),
@@ -44,6 +44,8 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
   });
 
   app.post("/api/captures", async (request, reply) => {
+    const context = dependencies.forRequest(request);
+    const { repository } = context;
     const query = z.object({ language: languageSchema }).parse(request.query);
     const upload = await request.file();
     if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED" });
@@ -56,7 +58,7 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
     if (!audio.byteLength) return reply.code(422).send({ error: "EMPTY_AUDIO" });
     const created = repository.capture.create({ language: query.language, audio, audioMime: mime });
     try {
-      return reply.code(201).send({ note: await transcribe(created.publicId) });
+      return reply.code(201).send({ note: await transcribe(created.publicId, context) });
     } catch (error) {
       const message = error instanceof Error ? error.message : "TRANSCRIPTION_FAILED";
       const note = repository.capture.failTranscription(created.publicId, message)!;
@@ -65,11 +67,13 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
   });
 
   app.post("/api/captures/:captureId/retry", async (request, reply) => {
+    const context = dependencies.forRequest(request);
+    const { repository } = context;
     const params = z.object({ captureId: z.string().uuid() }).parse(request.params);
     const note = repository.capture.markTranscribing(params.captureId);
     if (!note) return reply.code(409).send({ error: "CAPTURE_NOT_RETRYABLE" });
     try {
-      return { note: await transcribe(params.captureId) };
+      return { note: await transcribe(params.captureId, context) };
     } catch (error) {
       const message = error instanceof Error ? error.message : "TRANSCRIPTION_FAILED";
       return { note: repository.capture.failTranscription(params.captureId, message), transcriptionFailed: true };
@@ -77,6 +81,7 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
   });
 
   app.patch("/api/captures/:captureId", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ captureId: z.string().uuid() }).parse(request.params);
     const body = z.object({ transcript: z.string().trim().min(1).max(30_000) }).parse(request.body);
     const note = repository.capture.updateTranscript(params.captureId, body.transcript);
@@ -86,6 +91,7 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
   });
 
   app.delete("/api/captures/:captureId", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
     const params = z.object({ captureId: z.string().uuid() }).parse(request.params);
     if (!repository.capture.get(params.captureId)) return reply.code(404).send({ error: "CAPTURE_NOT_FOUND" });
     if (!repository.capture.delete(params.captureId)) return reply.code(409).send({ error: "CAPTURE_IN_REVIEW" });
@@ -93,6 +99,7 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
   });
 
   app.post("/api/captures/process", async (request, reply) => {
+    const { repository, openai } = dependencies.forRequest(request);
     const body = z.object({ language: languageSchema }).parse(request.body);
     const activeBatch = repository.capture.getActiveBatch(body.language);
     if (activeBatch) return { batch: activeBatch, existing: true, remaining: 0 };
