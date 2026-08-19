@@ -71,7 +71,7 @@ need a rebuild. A failed check leaves the last working routing untouched.
 npm run models:check -- --force
 ```
 
-## Data and backups
+## Data
 
 The single-user v1 uses SQLite with WAL and FTS5. The database lives at `.data/rehearsal.sqlite`. It contains the original imported sources, curated items, embeddings, attempts, review state, tutor chats, islands, cached audio, and an append-only change log.
 
@@ -81,7 +81,7 @@ npm run db:backup
 CONFIRM_RESTORE=1 npm run db:restore -- /absolute/path/to/backup.sqlite
 ```
 
-Restore validates the candidate with SQLite `quick_check` and creates a safety copy of the current database before replacing it. Stop the API before restoring.
+Restore validates the candidate with SQLite `quick_check` and creates a safety copy of the current database before replacing it. Stop the API before restoring. The canonical backup, restore, and production procedures live in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 To generate embeddings after adding a key:
 
@@ -89,24 +89,8 @@ To generate embeddings after adding a key:
 npm run db:embed
 ```
 
-See [docs/METHOD.md](docs/METHOD.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/MOBILE_APP_DIRECTION.md](docs/MOBILE_APP_DIRECTION.md), [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), and [docs/HANDOFF.md](docs/HANDOFF.md).
+Start with [AGENTS.md](AGENTS.md). Product rules live in [docs/METHOD.md](docs/METHOD.md), code boundaries in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), collaboration in [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md), mobile constraints in [docs/MOBILE_APP_DIRECTION.md](docs/MOBILE_APP_DIRECTION.md), and production procedures in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ## Production
 
-The current private deployment runs at `https://7662n.cc/rehearsal/` from
-`/opt/apps/rehearsal` on the server. Docker binds the Fastify process only to
-`127.0.0.1:8788`; nginx terminates HTTPS and removes the `/rehearsal/` prefix.
-
-```bash
-docker compose -f compose.production.yml up -d --build
-docker compose -f compose.production.yml ps
-curl http://127.0.0.1:8788/health
-```
-
-Persistent data is mounted from `data/` and backups from `backups/`. The server
-cron file in `deploy/rehearsal-backup.cron` creates a consistent SQLite backup
-each night and removes backup files older than 30 days. The daily cron entry in
-`deploy/rehearsal-model-check.cron` invokes the model checker; its internal
-timestamp guard performs the live check only once every 14 days. To enable Tutor,
-embeddings, and OpenAI speech, set `OPENAI_API_KEY` in the server-side `.env`
-and restart the container; the key is not included in the image or browser app. ElevenLabs credentials belong in the server-side `.env.elevenlabs`; the container keeps generated speech in the persistent SQLite database mounted from `data/`.
+The private deployment runs at `https://7662n.cc/rehearsal/`. Production changes must follow a reviewed GitHub merge; runtime data and credentials remain outside application releases. See [docs/OPERATIONS.md](docs/OPERATIONS.md).
