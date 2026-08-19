@@ -16,7 +16,7 @@ nginx terminates HTTPS and removes the `/rehearsal/` prefix before proxying to t
 
 The application root is not a Git checkout. GitHub Actions uploads the exact CI-checked commit to `/opt/apps/rehearsal/releases/<sha>` and points `/opt/apps/rehearsal/current` at the last healthy release. It never replaces or uploads the server's `data`, `backups`, `.env`, or `.env.elevenlabs` paths.
 
-Deployment runs only after the `CI` workflow succeeds for a push to `main`. An automatic run skips Markdown-only commits because they do not change the application; a manual run always deploys the exact current `main`. Deployments are serialized and the server retains the five most recent releases.
+Deployment runs only after the `CI` workflow succeeds for a push to `main`. For a Markdown-only commit, the automatic workflow completes successfully after recording `Skip Markdown-only release`; its upload and deployment steps are skipped because the application did not change. A manual run always deploys the exact current `main`. Deployments are serialized and the server retains the five most recent releases.
 
 ## Production delivery gate
 
@@ -30,7 +30,7 @@ When Roman asks to ship, deploy, or put a change in production, the task is comp
 
 Do not report a production request as complete after only pushing a branch, opening a pull request, passing branch CI, or merging. Follow the post-merge runs to their terminal state. If CI or deployment fails, inspect the workflow logs and fix the failure through a new pull request; do not bypass GitHub by editing or copying application files on the server. The deployment workflow's built-in rollback remains the first recovery path.
 
-For a Markdown-only commit, `Deploy production` is expected to be skipped because the runtime is unchanged. Confirm that the commit is present on `origin/main`, confirm successful post-merge CI, record the skipped deployment, and report that the existing runtime release remains active. Do not force a runtime deployment solely to publish documentation.
+For a Markdown-only commit, confirm that the commit is present on `origin/main`, post-merge CI succeeds, and the `Deploy production` workflow succeeds with `Skip Markdown-only release` while its actual deployment steps remain skipped. Report that the existing runtime release remains active. Do not force a runtime deployment solely to publish documentation.
 
 Required repository secrets:
 
