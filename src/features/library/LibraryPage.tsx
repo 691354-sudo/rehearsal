@@ -115,7 +115,7 @@ export function LibraryPage({ language, onAvailability, onPlay }: {
             <select onChange={(event) => setEditDraft((current) => ({ ...current, frequencyBand: event.target.value }))} value={editDraft.frequencyBand}><option value="core">Core</option><option value="common">Common</option><option value="specific">Specific</option><option value="rare">Rare</option></select>
             <div><button onClick={() => setEditing(null)} type="button">Cancel</button><button className="is-primary" onClick={() => void saveEdit(row.publicId)} type="button">Save</button></div></div>
           : <div><strong>{row.target}</strong><small>{row.cue}</small><em>{[row.tags[0], row.frequencyBand || "common", row.currency || "current"].filter(Boolean).join(" · ")}</em></div>}
-          {editing !== row.publicId ? <div className="simple-row-actions"><button aria-label="Play" onClick={() => onPlay(row.target)} type="button"><Volume2 size={16} /></button>
+          {editing !== row.publicId ? <div className="simple-row-actions">{language === "en" ? <button aria-label="Play" onClick={() => onPlay(row.target)} type="button"><Volume2 size={16} /></button> : null}
             <button aria-label="Pattern drill" onClick={() => void patternDrill(row.publicId)} title="Pattern drill" type="button"><WandSparkles size={16} /></button>
             <button aria-label="Edit" onClick={() => beginEdit(row)} type="button"><Pencil size={16} /></button>
             <button aria-label="Delete" onClick={() => void deleteItem(row.publicId)} type="button"><Trash2 size={16} /></button></div> : null}</article>)}

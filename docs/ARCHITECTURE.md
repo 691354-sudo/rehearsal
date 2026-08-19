@@ -79,7 +79,9 @@ Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MI
 
 Practice loads the language inventory from `/api/items?includeSchedule=true` and the current scheduler queue from `/api/practice/due`. Recall defaults to a finite session created from due items. FSRS remains the source of future due dates; the client queue only brings `Again` and `Hard` cards back during the current session. All non-Learned Library cards remain available for explicit custom practice.
 
-Listen & Repeat is a client-side sequence over an explicitly selected Topic and count. Global Settings and inline player controls edit the same `rehearsal:playback` preference. Its speed is normalized for the selected provider before persistence or playback, so an invalid ElevenLabs value cannot trigger an unintended fallback. A single persistent `<audio>` element requests one card at a time through `/api/audio/speech`, repeats it according to playback preferences, waits for the configured pause, and advances. Browser speech is the usable whole-session fallback when AI speech is unavailable.
+Listen & Repeat is a client-side sequence over an explicitly selected Topic and count. Global Settings and inline player controls edit the same `rehearsal:playback` preference. Its speed is normalized for the selected provider before persistence or playback, so an invalid ElevenLabs value cannot trigger an unintended fallback. Browser audio requests one card at a time through `/api/audio/speech`, repeats it according to playback preferences, waits for the configured pause, and advances. Browser speech is the usable whole-session fallback when AI speech is unavailable.
+
+The client exposes this audio path for English only. Latvian Practice resolves to Recall, and Latvian Library cards do not expose Play; no Latvian TTS request is initiated by the application UI.
 
 Topic APIs are `GET /api/islands`, `GET /api/islands/:id`, `POST /api/islands`, `PATCH /api/islands/:id`, and `DELETE /api/islands/:id`. A patch may rename a Topic or replace its ordered membership atomically.
 

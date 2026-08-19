@@ -74,6 +74,8 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   const { speak, stop } = useSpeech();
   const audioSequenceRef = useRef(0);
   const audioCancelRef = useRef<(() => void) | null>(null);
+  const audioPauseRef = useRef<(() => void) | null>(null);
+  const audioResumeRef = useRef<(() => void) | null>(null);
   const updatePlayback = useCallback((next: PlaybackPreferences) => {
     setPlayback({
       ...next,
@@ -93,6 +95,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   }, [elevenLabsConfig.speedRange, playback.provider, playback.speed]);
   useEffect(() => {
     window.localStorage.setItem(storageKey("language"), language);
+    if (language === "lv") setMode("recall");
     setItems([]); setDueItemIds([]); setAttempts({});
     void loadItems(language);
   }, [language]);
@@ -218,12 +221,34 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       return false;
     }
   };
+  const commitListening = async (itemId: string) => {
+    try {
+      const response = await apiFetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId, mode: "shadow", rating: "good" }),
+      });
+      if (!response.ok) throw new Error("Listening activity failed");
+      setApiOnline(true);
+      setDailyProgress((progress) => ({ ...progress, shadow: progress.shadow + 1 }));
+    } catch { setApiOnline(false); }
+  };
   const stopPlayback = useCallback(() => {
     audioSequenceRef.current += 1;
     audioCancelRef.current?.();
     audioCancelRef.current = null;
+    audioPauseRef.current = null;
+    audioResumeRef.current = null;
     stop();
   }, [stop]);
+  const pausePlayback = useCallback(() => {
+    if (audioPauseRef.current) audioPauseRef.current();
+    else window.speechSynthesis?.pause();
+  }, []);
+  const resumePlayback = useCallback(() => {
+    if (audioResumeRef.current) audioResumeRef.current();
+    else window.speechSynthesis?.resume();
+  }, []);
   const playTarget = async (
     text: string,
     overrides: Partial<PlaybackPreferences> = {},
@@ -247,11 +272,17 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
           const finish = () => {
             audio.removeEventListener("ended", finish);
             audio.removeEventListener("error", finish);
-            if (audioCancelRef.current === cancel) audioCancelRef.current = null;
+            if (audioCancelRef.current === cancel) {
+              audioCancelRef.current = null;
+              audioPauseRef.current = null;
+              audioResumeRef.current = null;
+            }
             resolve();
           };
           const cancel = () => { audio.pause(); audio.removeAttribute("src"); finish(); };
           audioCancelRef.current = cancel;
+          audioPauseRef.current = () => audio.pause();
+          audioResumeRef.current = () => { void audio.play().catch(finish); };
           audio.addEventListener("ended", finish, { once: true });
           audio.addEventListener("error", finish, { once: true });
           void audio.play().catch(finish);
@@ -301,12 +332,16 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
         }
       }
     }
+    audioPauseRef.current = () => window.speechSynthesis?.pause();
+    audioResumeRef.current = () => window.speechSynthesis?.resume();
     await speak(text, {
       locale: languageCopy[language].locale,
       rate: nextPlayback.speed,
       repetitions: nextPlayback.repetitions,
       pauseMs: nextPlayback.pauseMs,
     });
+    audioPauseRef.current = null;
+    audioResumeRef.current = null;
     return { provider: "browser", cache: null } satisfies PlaybackResult;
   };
 
@@ -349,11 +384,12 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     /> : null}
     {route === "practice" && <PracticePage attempts={attempts} key={language}
       dueItemIds={dueItemIds} items={items} language={language} mode={mode} dailyProgress={dailyProgress}
-      elevenLabs={elevenLabsConfig} openaiConfigured={openaiConfigured}
-      onAnswer={setAnswer} onCheck={checkAnswer}
+      elevenLabs={elevenLabsConfig}
+      onAnswer={setAnswer} onCheck={checkAnswer} onListened={commitListening}
       onMode={(next) => { setMode(next); resetAttempts(); }} onRecallReview={commitRecall}
-      onStopPlayback={stopPlayback}
-      playback={playback} />}
+      onPausePlayback={pausePlayback} onPlay={playTarget} onPlayback={updatePlayback}
+      onResumePlayback={resumePlayback} onStopPlayback={stopPlayback}
+      playback={playback} voices={voices} />}
     {route === "tutor" && <TutorPage language={language} profileId={profile.id} />}
     {route === "library" && <LibraryPage language={language} onAvailability={setApiOnline} onPlay={(text) => void playTarget(text)} />}
   </div>;

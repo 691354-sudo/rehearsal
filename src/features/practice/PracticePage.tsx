@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { DrillBar } from "./DrillBar";
+import { useState } from "react";
+import { ListenRepeat } from "./ListenRepeat";
 import { RecallSession } from "./RecallSession";
 import { usePracticeTopics } from "./usePracticeTopics";
 import type { ReviewRating } from "../../lib/sessionQueue";
@@ -11,6 +11,7 @@ import type {
   LearningItem,
   Mode,
   PlaybackPreferences,
+  PlaybackResult,
 } from "../../shared/contracts";
 
 export function PracticePage(props: {
@@ -23,31 +24,37 @@ export function PracticePage(props: {
   elevenLabs: ElevenLabsConfig;
   onAnswer: (itemId: string, value: string) => void;
   onCheck: (itemId: string) => void;
+  onListened: (itemId: string) => Promise<void>;
   onMode: (mode: Mode) => void;
+  onPausePlayback: () => void;
+  onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
+  onPlayback: (playback: PlaybackPreferences) => void;
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
+  onResumePlayback: () => void;
   onStopPlayback: () => void;
   playback: PlaybackPreferences;
-  openaiConfigured: boolean;
+  voices: string[];
 }) {
   const [topicFilters, setTopicFilters] = useState<string[]>([]);
   const { selectedTopicItems, topics } = usePracticeTopics(props.language, topicFilters, setTopicFilters);
-  const listeningItems = useMemo(() => props.items.filter((item) => item.practiceEnabled !== false), [props.items]);
   const topicId = topicFilters[0] || "";
+  const listeningAvailable = props.language === "en";
 
   return <main className="simple-main simple-main--practice">
     <header className="practice-header">
-      <div><h1>Practice</h1><p>{props.dueItemIds.length} due · {props.dailyProgress.recall} recalled today · {props.dailyProgress.shadow} listened today</p></div>
-      <div className="practice-modes" aria-label="Practice mode">
+      <div><h1>Practice</h1><p>{props.dueItemIds.length} due · {props.dailyProgress.recall} recalled today{listeningAvailable ? ` · ${props.dailyProgress.shadow} listened today` : ""}</p></div>
+      {listeningAvailable ? <div className="practice-modes" aria-label="Practice mode">
         <button aria-pressed={props.mode === "shadow"} onClick={() => props.onMode("shadow")} type="button">Listen &amp; Repeat</button>
         <button aria-pressed={props.mode === "recall"} onClick={() => props.onMode("recall")} type="button">Recall</button>
-      </div>
+      </div> : null}
     </header>
 
-    {props.mode === "recall" ? <RecallSession
+    {props.mode === "recall" || !listeningAvailable ? <RecallSession
       attempts={props.attempts}
       dueItemIds={props.dueItemIds}
       items={props.items}
       language={props.language}
+      listeningAvailable={listeningAvailable}
       onAnswer={props.onAnswer}
       onCheck={props.onCheck}
       onListenMode={() => props.onMode("shadow")}
@@ -56,12 +63,10 @@ export function PracticePage(props: {
       selectedTopicItems={selectedTopicItems}
       topicId={topicId}
       topics={topics}
-    /> : <section className="listen-legacy" aria-label="Listen and Repeat">
-      <DrillBar arranging={false} elevenLabsConfigured={props.elevenLabs.configured}
-        elevenLabsVoiceId={props.elevenLabs.voice.id} items={listeningItems} language={props.language}
-        loopIds={[]} onArrange={() => undefined} onBeforeStart={props.onStopPlayback}
-        onSettings={() => undefined} onState={() => undefined} openaiConfigured={props.openaiConfigured}
-        playback={props.playback} />
-    </section>}
+    /> : <ListenRepeat elevenLabs={props.elevenLabs} items={props.items} language={props.language}
+      onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
+      onPlayback={props.onPlayback} onResume={props.onResumePlayback} onStop={props.onStopPlayback}
+      onTopic={(nextTopic) => setTopicFilters(nextTopic ? [nextTopic] : [])}
+      playback={props.playback} selectedTopicItems={selectedTopicItems} topicId={topicId} topics={topics} voices={props.voices} />}
   </main>;
 }

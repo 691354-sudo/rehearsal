@@ -2,7 +2,7 @@
 
 ## Outcome
 
-Rehearsal builds automatic spoken English and Latvian around one student's real life. Fluency is treated as a physical performance skill: useful language is prepared, heard, recalled, and spoken aloud until delivery no longer requires conscious grammar calculation.
+Rehearsal builds automatic English and Latvian around one student's real life. Fluency is treated as a performance skill: useful language is prepared and recalled until delivery no longer requires conscious grammar calculation; supported English material is also heard and spoken aloud.
 
 ## Content model
 
@@ -45,6 +45,8 @@ Recall is the main memory metric, but Rehearsal has no universal daily quota or 
 ### Listen & Repeat
 
 Listen & Repeat is the second and only other Practice mode. Roman chooses a Topic and 10, 20, 50, or all available cards, then starts one continuous target-language queue. The player exposes Play/Pause, Previous, Replay, Next, Stop, and Russian reveal. The chosen voice, natural-speed default, repetition count, and pause apply to the whole queue. The Russian cue is never spoken.
+
+Listen & Repeat is currently available for English only. Latvian stays written-only in Practice and Library until a voice provider is good enough for it; the product does not silently substitute an unsuitable Latvian voice.
 
 Every card is requested and played as a separate MP3 through one persistent browser audio element. Individual files are cached on the server, so the same text and voice settings do not spend provider credits twice. Global Voice and Playback settings are the single source of truth. Provider-specific limits are enforced before playback, including ElevenLabs `0.7–1.2×`. If the selected AI provider is unavailable, the complete queue may use browser speech instead. Listening activity never changes FSRS.
 

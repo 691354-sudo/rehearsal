@@ -20,6 +20,7 @@ export function RecallSession(props: {
   dueItemIds: string[];
   items: LearningItem[];
   language: Language;
+  listeningAvailable: boolean;
   selectedTopicItems: Set<string> | null;
   topics: IslandSummary[];
   topicId: string;
@@ -89,7 +90,7 @@ export function RecallSession(props: {
   if (state.phase === "complete" || !current) return <section className="recall-complete" aria-label="Recall complete">
     <span>Session complete</span><strong>{state.completed} recalled</strong><p>{props.dueItemIds.length} still due</p>
     <div><button className="simple-primary" onClick={() => dispatch({ type: "reset" })} type="button">Start another session</button>
-      <button onClick={props.onListenMode} type="button">Listen &amp; Repeat</button></div>
+      {props.listeningAvailable ? <button onClick={props.onListenMode} type="button">Listen &amp; Repeat</button> : null}</div>
   </section>;
 
   const position = state.completed + 1;
