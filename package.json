@@ -19,6 +19,7 @@
     "preview": "vite preview",
     "db:seed": "node --import tsx server/db/seed.ts",
     "db:embed": "node --import tsx server/db/embed.ts",
+    "db:replace-library": "node --import tsx scripts/db-replace-library.ts",
     "models:check": "node --import tsx scripts/check-openai-models.ts",
     "db:backup": "node --import tsx scripts/db-backup.ts",
     "db:restore": "node --import tsx scripts/db-restore.ts"

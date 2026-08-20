@@ -82,6 +82,18 @@ CONFIRM_RESTORE=1 npm run db:restore -- --profile oliver /absolute/path/to/olive
 
 Stop the API before restore. Restore validates the candidate with SQLite `quick_check` and creates a safety copy of only the selected profile database before replacement. Never restore one profile's file into the other profile without an explicit data-recovery decision.
 
+## Curated Library replacement
+
+A validated JSON import may replace one profile-and-language Library without touching the other language, Tutor chats, Capture notes, or the other profile. Always create and verify the profile backups first, preview the exact counts, and then use the matching confirmation value:
+
+```bash
+npm run db:backup
+npm run db:replace-library -- --profile roman --input /absolute/path/roman-en.json --dry-run
+CONFIRM_REPLACE_LIBRARY=roman:en npm run db:replace-library -- --profile roman --input /absolute/path/roman-en.json
+```
+
+The replacement validates duplicate targets and cues before opening the mutation transaction. Existing cards and Topics for only the selected language are deleted, then every new card and Topic is created in one SQLite transaction. The command finishes with `foreign_key_check` and `quick_check`; retain the pre-import backup until the learner has inspected the result in production.
+
 ## Production verification
 
 Every release builds the new image, creates separate Roman and Oliver database backups with that image, replaces the container, and then verifies:
