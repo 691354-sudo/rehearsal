@@ -19,20 +19,20 @@
 }
 
 .listen-selection-grid,
-.listen-setup-grid {
+.practice-playback-settings {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
 .listen-setup label,
-.listen-player-settings label {
+.practice-playback-settings label {
   display: grid;
   gap: 6px;
 }
 
 .listen-setup label > span,
-.listen-player-settings label > span {
+.practice-playback-settings label > span {
   color: var(--script-tertiary);
   font-size: 12px;
   font-weight: 600;
@@ -40,13 +40,13 @@
 
 .listen-setup select,
 .listen-setup input[type="range"],
-.listen-player-settings select,
-.listen-player-settings input[type="range"] {
+.practice-playback-settings select,
+.practice-playback-settings input[type="range"] {
   width: 100%;
 }
 
 .listen-setup select,
-.listen-player-settings select {
+.practice-playback-settings select {
   min-height: 44px;
   padding: 0 11px;
   color: var(--script-ink);
@@ -56,7 +56,7 @@
 }
 
 .listen-setup input[type="range"],
-.listen-player-settings input[type="range"] {
+.practice-playback-settings input[type="range"] {
   min-height: 44px;
   accent-color: var(--cue-action);
 }
@@ -89,7 +89,7 @@
   white-space: nowrap;
 }
 
-.listen-playback-options .listen-setup-grid {
+.listen-playback-options .practice-playback-settings {
   padding: 14px;
   border-top: 1px solid var(--script-rule);
 }
@@ -175,7 +175,7 @@
   border-top: 1px solid var(--script-rule);
 }
 
-.listen-player-settings .listen-setup-grid {
+.listen-player-settings .practice-playback-settings {
   padding: 14px;
   background: var(--script-surface);
   border: 1px solid var(--script-rule);
@@ -249,7 +249,7 @@
   }
 
   .listen-selection-grid,
-  .listen-setup-grid {
+  .practice-playback-settings {
     grid-template-columns: 1fr;
   }
 

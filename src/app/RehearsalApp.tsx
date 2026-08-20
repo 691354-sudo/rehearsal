@@ -156,7 +156,6 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       onPracticeEnabled={learning.updatePracticeEnabled}
       onPausePlayback={audio.pausePlayback} onPlay={audio.playTarget} onPlayback={audio.updatePlayback}
       onResumePlayback={audio.resumePlayback} onStopPlayback={audio.stopPlayback}
-      onVoiceSettings={() => setGlobalSettingsOpen(true)}
       playback={audio.playback} voices={audio.voices} />}
     {route === "tutor" && <TutorPage language={language} mode={tutorMode} onMode={setTutorMode} profileId={profile.id}
       onLibrary={() => setRoute("library")}
