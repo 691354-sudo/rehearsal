@@ -40,6 +40,13 @@ This is a two-person hobby project. Prefer momentum over ceremony while keeping 
 - Reuse an authenticated browser session when available. Use production only for read-only smoke tests unless the task explicitly authorizes a mutation.
 - Do not add an authentication bypass.
 
+## Design skill routing
+
+- Use `design-arc:design-arc` for product or multi-screen journey decisions. After its setup and objective gates, treat `docs/METHOD.md` and `docs/MOBILE_APP_DIRECTION.md` as binding constraints.
+- Use `impeccable` in Operate mode for approved screen-level design, implementation, and refinement. Do not run its `init` or `document` commands or create `PRODUCT.md` or `DESIGN.md` unless Roman explicitly authorizes a new canonical document.
+- Use `web-design-guidelines` for the final independent UI, accessibility, and UX review. Normally use one design skill for a narrow task and no more than three for broad redesign work.
+- `interface-design` is not the default for Rehearsal; use it only when explicitly requested for a compatible interface-craft task.
+
 ## Change rules
 
 - Do not commit or push directly to `main`. Use `roman/<topic>`, `oliver/<topic>`, or `codex/<topic>`.
