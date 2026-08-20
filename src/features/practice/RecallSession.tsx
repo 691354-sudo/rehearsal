@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Volume2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Settings2, Volume2 } from "lucide-react";
 import { recallKeyAction, recallSessionReducer, initialRecallSession } from "../../lib/recallSession";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { capitalize, languageCopy } from "../../shared/config";
@@ -35,6 +35,7 @@ export function RecallSession(props: {
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<unknown>;
   onTopic: (topicId: string) => void;
+  onVoiceSettings: () => void;
   playback: PlaybackPreferences;
 }) {
   const [state, dispatch] = useReducer(recallSessionReducer, initialRecallSession);
@@ -140,5 +141,8 @@ export function RecallSession(props: {
         <small className="recall-key-hint">← → choose · Enter confirm</small>
       </div> : <small className="recall-key-hint">Enter to check</small>}
     </article>
+    {props.language === "en" ? <div className="recall-session-settings">
+      <button onClick={props.onVoiceSettings} type="button"><Settings2 size={16} />Voice settings</button>
+    </div> : null}
   </section>;
 }

@@ -457,6 +457,31 @@
   border-radius: 14px;
 }
 
+.recall-session-settings {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.recall-session-settings button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  color: var(--script-support);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.recall-session-settings button:hover {
+  color: var(--script-ink);
+  border-color: var(--script-rule-strong);
+}
+
 .recall-cue {
   margin: 0 0 26px;
   color: var(--script-ink);
@@ -688,6 +713,10 @@
   .recall-cue {
     margin-bottom: 20px;
     font-size: 21px;
+  }
+
+  .recall-session-settings button {
+    min-height: 44px;
   }
 
   .recall-grades {

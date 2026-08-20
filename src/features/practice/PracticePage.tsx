@@ -37,6 +37,7 @@ export function PracticePage(props: {
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
   onResumePlayback: () => void;
   onStopPlayback: () => void;
+  onVoiceSettings: () => void;
   playback: PlaybackPreferences;
   voices: string[];
 }) {
@@ -73,6 +74,7 @@ export function PracticePage(props: {
       selectedTopicItems={selectedTopicItems}
       topicId={topicId}
       topics={topics}
+      onVoiceSettings={props.onVoiceSettings}
       playback={props.playback}
     /> : <ListenRepeat dueItemIds={props.dueItemIds} elevenLabs={props.elevenLabs} items={props.items} language={props.language}
       onEdit={setEditingItem} onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
