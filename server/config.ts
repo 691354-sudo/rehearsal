@@ -63,3 +63,10 @@ export const config = {
 
 export const openAIConfigured = Boolean(config.openaiApiKey);
 export const elevenLabsConfigured = Boolean(config.elevenLabsApiKey);
+
+export const elevenLabsVoices = Array.from(new Map([
+  { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName },
+  { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
+  { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
+  { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
+].map((voice) => [voice.id, voice])).values());

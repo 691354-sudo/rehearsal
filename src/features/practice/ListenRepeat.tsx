@@ -66,13 +66,23 @@ export function ListenRepeat(props: {
   ), [countValue, props.dueItemIds, props.items, props.selectedTopicItems, scope]);
   const current = queue[index];
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
+  const selectedElevenLabsVoice = props.elevenLabs.voices.find(
+    (voice) => voice.id === props.playback.elevenlabs.voiceId,
+  ) || props.elevenLabs.voice;
   const playbackSettings = <div className="listen-setup-grid">
     <label><span>Voice</span><select aria-label="Voice" onChange={(event) => {
-      const [provider, voice] = event.target.value.split(":");
-      props.onPlayback({ ...props.playback, provider: provider as PlaybackPreferences["provider"], voice });
-    }} value={`${props.playback.provider}:${props.playback.voice}`}>
+      const [providerValue, voice] = event.target.value.split(":");
+      const provider = providerValue as PlaybackPreferences["provider"];
+      props.onPlayback(provider === "elevenlabs" ? {
+        ...props.playback,
+        provider,
+        elevenlabs: { ...props.playback.elevenlabs, voiceId: voice },
+      } : { ...props.playback, provider, voice });
+    }} value={props.playback.provider === "elevenlabs"
+      ? `elevenlabs:${selectedElevenLabsVoice.id}` : `openai:${props.playback.voice}`}>
       {props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>)}
-      {props.elevenLabs.configured && props.language === "en" ? <option value={`elevenlabs:${props.playback.voice}`}>ElevenLabs · {props.elevenLabs.voice.name}</option> : null}
+      {props.elevenLabs.configured && props.language === "en" ? props.elevenLabs.voices.map((voice) =>
+        <option key={voice.id} value={`elevenlabs:${voice.id}`}>ElevenLabs · {voice.name}</option>) : null}
     </select></label>
     <label><span>Speed · {props.playback.speed.toFixed(2)}×</span><input aria-label="Speed" max={speedRange.max} min={speedRange.min}
       onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })} step="0.05" type="range" value={props.playback.speed} /></label>
@@ -157,7 +167,7 @@ export function ListenRepeat(props: {
         </select></label>
       </div>
       <details className="listen-playback-options">
-        <summary><span>Playback</span><strong>{props.playback.provider === "elevenlabs" ? props.elevenLabs.voice.name : props.playback.voice} · {props.playback.speed.toFixed(2)}× · {props.playback.repetitions}× · {props.playback.pauseMs / 1000}s</strong></summary>
+        <summary><span>Playback</span><strong>{props.playback.provider === "elevenlabs" ? selectedElevenLabsVoice.name : props.playback.voice} · {props.playback.speed.toFixed(2)}× · {props.playback.repetitions}× · {props.playback.pauseMs / 1000}s</strong></summary>
         {playbackSettings}
       </details>
       <button className="simple-primary listen-start" disabled={!candidates.length} onClick={() => void playAt(0, candidates)} type="button">

@@ -72,6 +72,12 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     }
     if (audio?.elevenlabs) {
       setElevenLabsConfig(audio.elevenlabs);
+      setPlayback((current) => audio.elevenlabs?.voices.some(
+        (voice) => voice.id === current.elevenlabs.voiceId,
+      ) ? current : {
+        ...current,
+        elevenlabs: { ...current.elevenlabs, voiceId: audio.elevenlabs?.voice.id || current.elevenlabs.voiceId },
+      });
       if (audio.elevenlabs.configured) {
         void apiFetch("/api/audio/elevenlabs/status").then(async (response) => {
           if (!response.ok) return;
@@ -79,6 +85,8 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
           if (status.reachable) setElevenLabsConfig((current) => ({
             ...current,
             voice: { id: status.voice.id, name: status.voice.name },
+            voices: current.voices.map((voice) => voice.id === status.voice.id
+              ? { id: status.voice.id, name: status.voice.name } : voice),
           }));
         }).catch(() => { /* Settings exposes provider retry without blocking the app. */ });
       }
@@ -227,7 +235,6 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
             provider,
             speed: nextPlayback.speed,
             voice: nextPlayback.voice,
-            voiceId: elevenLabsConfig.voice.id,
             ...nextPlayback.elevenlabs,
           }),
         });

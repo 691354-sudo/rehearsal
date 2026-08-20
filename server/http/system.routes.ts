@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { config, elevenLabsConfigured, openAIConfigured } from "../config.js";
+import { config, elevenLabsConfigured, elevenLabsVoices, openAIConfigured } from "../config.js";
 import type { HttpDependencies } from "./dependencies.js";
 import { elevenLabsModelOptions, schedulerSettingsSchema, voiceOptions } from "./schemas.js";
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
@@ -41,9 +41,11 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
           elevenlabs: {
             configured: elevenLabsConfigured,
             voice: { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName },
+            voices: elevenLabsVoices,
             models: elevenLabsModelOptions,
             speedRange: elevenLabsSpeedRange,
             defaults: {
+              voiceId: config.elevenLabsVoiceId,
               modelId: config.elevenLabsModel,
               stability: config.elevenLabsStability,
               similarityBoost: config.elevenLabsSimilarityBoost,

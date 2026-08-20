@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { config } from "../config.js";
+import { config, elevenLabsVoices } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode } from "../types.js";
 
@@ -60,8 +60,8 @@ const readElevenLabsError = async (response: Response) => {
 
 export class ElevenLabsService {
   private readonly inflightSpeech = new Map<string, Promise<{ format: string; audio: Buffer }>>();
-  private voiceStatusCache: ElevenLabsVoiceStatus | null = null;
-  private voiceStatusRequest: Promise<ElevenLabsVoiceStatus> | null = null;
+  private readonly voiceStatusCache = new Map<string, ElevenLabsVoiceStatus>();
+  private readonly voiceStatusRequests = new Map<string, Promise<ElevenLabsVoiceStatus>>();
 
   constructor(
     private readonly repository: AudioRepositories,
@@ -72,10 +72,11 @@ export class ElevenLabsService {
     return Boolean(this.apiKey);
   }
 
-  async voiceStatus(refresh = false): Promise<ElevenLabsVoiceStatus> {
+  async voiceStatus(refresh = false, voiceId = config.elevenLabsVoiceId): Promise<ElevenLabsVoiceStatus> {
+    const configuredVoice = elevenLabsVoices.find((voice) => voice.id === voiceId);
     const fallbackVoice = {
-      id: config.elevenLabsVoiceId,
-      name: config.elevenLabsVoiceName,
+      id: voiceId,
+      name: configuredVoice?.name || voiceId,
       category: "",
       description: "",
       labels: {},
@@ -84,19 +85,21 @@ export class ElevenLabsService {
     if (!this.configured) {
       return { configured: false, reachable: false, checkedAt, voice: fallbackVoice, error: "API key missing" };
     }
-    if (!refresh && this.voiceStatusCache
-      && Date.now() - Date.parse(this.voiceStatusCache.checkedAt) < voiceStatusTtlMs) {
-      return this.voiceStatusCache;
+    const cached = this.voiceStatusCache.get(voiceId);
+    if (!refresh && cached
+      && Date.now() - Date.parse(cached.checkedAt) < voiceStatusTtlMs) {
+      return cached;
     }
-    if (!refresh && this.voiceStatusRequest) return this.voiceStatusRequest;
+    const pending = this.voiceStatusRequests.get(voiceId);
+    if (!refresh && pending) return pending;
 
     const request = this.fetchVoiceStatus(fallbackVoice).then((status) => {
-      this.voiceStatusCache = status;
+      this.voiceStatusCache.set(voiceId, status);
       return status;
     }).finally(() => {
-      this.voiceStatusRequest = null;
+      this.voiceStatusRequests.delete(voiceId);
     });
-    this.voiceStatusRequest = request;
+    this.voiceStatusRequests.set(voiceId, request);
     return request;
   }
 

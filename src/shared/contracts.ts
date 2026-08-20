@@ -41,6 +41,7 @@ export type ChatMessage = { id: string; role: "user" | "assistant"; content: str
 export type TtsProvider = "openai" | "elevenlabs";
 
 export type ElevenLabsPreferences = {
+  voiceId: string;
   modelId: "eleven_multilingual_v2" | "eleven_flash_v2_5";
   stability: number;
   similarityBoost: number;
@@ -61,6 +62,7 @@ export type PlaybackPreferences = {
 export type ElevenLabsConfig = {
   configured: boolean;
   voice: { id: string; name: string };
+  voices: { id: string; name: string }[];
   models: ElevenLabsPreferences["modelId"][];
   speedRange: { min: number; max: number };
   defaults: ElevenLabsPreferences & { speed: number };
