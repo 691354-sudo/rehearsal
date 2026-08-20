@@ -1,9 +1,13 @@
 .practice-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 24px;
   align-items: flex-start;
-  justify-content: space-between;
   margin-bottom: 28px;
+}
+
+.practice-modes {
+  grid-column: 2;
 }
 
 .practice-header h1 {
@@ -40,9 +44,13 @@
 }
 
 .practice-modes button[aria-pressed="true"] {
-  color: var(--script-ink);
-  background: var(--script-surface);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+  color: var(--mode-on);
+  background: var(--mode-action);
+  box-shadow: none;
+}
+
+.practice-modes button:focus-visible {
+  outline-color: var(--mode-action);
 }
 
 .recall-setup,
@@ -143,6 +151,14 @@
   background: var(--script-surface);
   border: 1px solid var(--script-rule);
   border-radius: 12px;
+}
+
+.simple-workspace--recall .practice-queue-preview,
+.simple-workspace--recall .recall-card,
+.simple-workspace--recall .recall-complete,
+.simple-workspace--listen .practice-queue-preview,
+.simple-workspace--listen .recall-complete {
+  border-top: 4px solid var(--mode-action);
 }
 
 .practice-queue-preview > header {
@@ -620,12 +636,15 @@
 @media (max-width: 560px) {
   .practice-header {
     display: grid;
+    grid-template-columns: 1fr;
     gap: 14px;
     margin-bottom: 20px;
   }
 
   .practice-modes {
-    width: 100%;
+    grid-column: 1;
+    width: min(100%, 360px);
+    justify-self: center;
   }
 
   .practice-modes button {

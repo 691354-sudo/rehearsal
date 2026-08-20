@@ -276,6 +276,14 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
     } catch (error) { setNotice(friendlyError(error)); }
     finally { setProcessing(false); }
   };
+  const resetBatch = async () => {
+    if (!batch) return;
+    const response = await apiFetch(`/api/review-batches/${batch.publicId}/reset-capture`, { method: "POST" });
+    if (!response.ok) throw new Error("Reset failed");
+    setBatch(null); setRemaining(0); setAdded(false);
+    await refresh();
+    setNotice("Suggestions reset. Your original note is ready.");
+  };
 
   const readyCount = notes.filter((note) => note.status === "ready").length;
   return <section className="capture-notebook">
@@ -316,7 +324,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
       </article>)}
     </div>}
     {remaining ? <p className="capture-remaining">{remaining} notes will stay ready for the next package.</p> : null}
-    {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onCommitted={() => {
+    {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onReset={resetBatch} onCommitted={() => {
       setBatch(null); setRemaining(0); setNotice(""); setAdded(true); void refresh();
     }} /> : null}
     {added ? <div className="capture-added"><strong>Added to Library</strong><div>

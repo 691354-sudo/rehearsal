@@ -193,6 +193,48 @@ describe("Capture review API", () => {
     await app.close();
   });
 
+  it("resets generated cards and returns the original note to Notebook", async () => {
+    const itemCount = context.repository.items.list("en", 500).length;
+    const note = context.repository.capture.createText({
+      language: "en",
+      transcript: "Я хочу перенести встречу на завтра.",
+    });
+    const candidate = reviewCandidate({
+      target: "Could we move the meeting to tomorrow?",
+      cue: "Мы можем перенести встречу на завтра?",
+      category: "work",
+    });
+    const openai = new OpenAIService(context.repository);
+    vi.spyOn(openai, "prepareCaptureBatch").mockImplementation(async ({ language }) => ({
+      mode: "openai" as const,
+      batch: context.repository.reviews.create({
+        language,
+        kind: "capture",
+        title: "Capture Reality",
+        candidates: [candidate],
+      }),
+    }));
+    const app = await buildApp(context.repository, { openai });
+    const prepared = await app.inject({
+      method: "POST", url: "/api/captures/process", payload: { language: "en" },
+    });
+    const batchId = prepared.json().batch.publicId as string;
+
+    const reset = await app.inject({
+      method: "POST", url: `/api/review-batches/${batchId}/reset-capture`,
+    });
+
+    expect(reset.json()).toEqual({ reset: true, notes: 1 });
+    expect(context.repository.reviews.get(batchId)).toBeNull();
+    expect(context.repository.capture.get(note.publicId)).toMatchObject({
+      status: "ready",
+      reviewBatchPublicId: null,
+      transcript: "Я хочу перенести встречу на завтра.",
+    });
+    expect(context.repository.items.list("en", 500)).toHaveLength(itemCount);
+    await app.close();
+  });
+
   it("completes the Notebook-to-Practice loop through Learned and reactivation", async () => {
     context.repository.capture.createText({ language: "en", transcript: "Здесь занято?" });
     const candidate = reviewCandidate({

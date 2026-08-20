@@ -129,13 +129,13 @@ export class ReviewsRepository {
     return item;
   }
 
-  resolveCaptureRevision(
+  resolveRevision(
     batchPublicId: string,
     accepted: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
     revisedCandidates: ReviewCandidate[],
   ) {
     const batch = this.get(batchPublicId);
-    if (!batch || batch.kind !== "capture" || batch.status !== "draft") return null;
+    if (!batch || batch.status !== "draft") return null;
     const acceptedCandidates = this.selectedCandidates(batch, accepted);
     const acceptedIds = new Set(acceptedCandidates.map((candidate) => candidate.id));
     if (revisedCandidates.some((candidate) => acceptedIds.has(candidate.id))) {
@@ -153,11 +153,13 @@ export class ReviewsRepository {
           `UPDATE review_batches SET candidates = '[]', status = 'committed', committed_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
         ).run(batchPublicId);
-        this.db.prepare(
-          `UPDATE capture_notes SET status = 'processed', audio = NULL,
-           processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-           WHERE review_batch_id = (SELECT id FROM review_batches WHERE public_id = ?)`,
-        ).run(batchPublicId);
+        if (batch.kind === "capture") {
+          this.db.prepare(
+            `UPDATE capture_notes SET status = 'processed', audio = NULL,
+             processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             WHERE review_batch_id = (SELECT id FROM review_batches WHERE public_id = ?)`,
+          ).run(batchPublicId);
+        }
       }
     });
     transaction();
@@ -167,6 +169,37 @@ export class ReviewsRepository {
       remaining: revisedCandidates.length,
     });
     return { batch: updated, items: committedItems };
+  }
+
+  resolveCaptureRevision(
+    batchPublicId: string,
+    accepted: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
+    revisedCandidates: ReviewCandidate[],
+  ) {
+    const batch = this.get(batchPublicId);
+    if (!batch || batch.kind !== "capture") return null;
+    return this.resolveRevision(batchPublicId, accepted, revisedCandidates);
+  }
+
+  resetCapture(batchPublicId: string) {
+    const batch = this.get(batchPublicId);
+    if (!batch || batch.kind !== "capture" || batch.status !== "draft") return 0;
+    const linked = this.db.prepare(
+      `SELECT COUNT(*) AS count FROM capture_notes
+       WHERE review_batch_id = (SELECT id FROM review_batches WHERE public_id = ?) AND status = 'batched'`,
+    ).get(batchPublicId) as { count: number };
+    if (!linked.count) return 0;
+    const transaction = this.db.transaction(() => {
+      this.db.prepare(
+        `UPDATE capture_notes SET status = 'ready', review_batch_id = NULL, processed_at = NULL,
+         updated_at = CURRENT_TIMESTAMP
+         WHERE review_batch_id = (SELECT id FROM review_batches WHERE public_id = ?) AND status = 'batched'`,
+      ).run(batchPublicId);
+      this.db.prepare("DELETE FROM review_batches WHERE public_id = ?").run(batchPublicId);
+      logChange(this.db, "user", "reset", "review_batch", batchPublicId, batch, null);
+    });
+    transaction();
+    return linked.count;
   }
 
   commit(

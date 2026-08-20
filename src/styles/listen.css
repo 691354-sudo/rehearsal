@@ -6,6 +6,10 @@
   border-radius: 14px;
 }
 
+.simple-workspace--listen .listen-player {
+  border-top: 4px solid var(--mode-action);
+}
+
 .listen-setup {
   width: 100%;
   padding: 18px;

@@ -99,6 +99,68 @@ describe("Tutor and review API", () => {
     await app.close();
   });
 
+  it("adds approved Tutor corrections while revising individually commented cards", async () => {
+    const approved = reviewCandidate({
+      id: "9ad9bdcb-8309-43cd-8e75-92ed741bb561",
+      target: "I agree with this idea.",
+      cue: "Я согласен с этой идеей.",
+      category: "conversation",
+    });
+    const commented = reviewCandidate({
+      id: "9ad9bdcb-8309-43cd-8e75-92ed741bb562",
+      target: "It depends from the situation.",
+      cue: "Это зависит от ситуации.",
+      category: "conversation",
+    });
+    const batch = context.repository.reviews.create({
+      language: "en",
+      kind: "chat_review",
+      title: "Tutor conversation review",
+      candidates: [approved, commented],
+    });
+    const openai = new OpenAIService(context.repository);
+    vi.spyOn(openai, "resolveReview").mockImplementation(async ({ batchPublicId, accepted, revisions }) => {
+      const current = context.repository.reviews.get(batchPublicId)!;
+      const revised = revisions.map((revision) => ({
+        ...current.candidates.find((candidate) => candidate.id === revision.id)!,
+        target: "It depends on the situation.",
+      }));
+      return context.repository.reviews.resolveRevision(batchPublicId, accepted, revised);
+    });
+    const app = await buildApp(context.repository, { openai });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batch.publicId}/resolve`,
+      payload: {
+        accepted: [{
+          id: approved.id,
+          target: approved.target,
+          cue: approved.cue,
+          note: approved.note,
+          category: approved.category,
+        }],
+        revisions: [{
+          id: commented.id,
+          target: commented.target,
+          cue: commented.cue,
+          note: commented.note,
+          category: commented.category,
+          feedback: "Исправь предлог, но сохрани смысл.",
+        }],
+      },
+    });
+
+    expect(response.json()).toMatchObject({ added: 1, batch: { status: "draft" } });
+    expect(response.json().batch.candidates).toEqual([
+      expect.objectContaining({ id: commented.id, target: "It depends on the situation." }),
+    ]);
+    expect(context.repository.items.list("en", 500)).toContainEqual(
+      expect.objectContaining({ target: approved.target, kind: "correction" }),
+    );
+    await app.close();
+  });
+
   it("commits only the selected pattern-drill variants", async () => {
     const before = context.repository.items.list("en", 500).length;
     const first = reviewCandidate({

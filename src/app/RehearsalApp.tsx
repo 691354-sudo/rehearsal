@@ -33,6 +33,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     window.localStorage.getItem(storageKey("language")) === "lv" ? "lv" : "en",
   );
   const [mode, setMode] = useState<Mode>("recall");
+  const [tutorMode, setTutorMode] = useState<"chat" | "notebook">("chat");
   const [manualReviewItemId, setManualReviewItemId] = useState<string | null>(null);
   const [schedulerSettings, setSchedulerSettings] = useState(defaultSchedulerSettings);
   const [theme, setTheme] = useState<Theme>(() => {
@@ -87,6 +88,9 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     setSchedulerSettings(data.scheduler);
     learning.setApiOnline(true);
   };
+  const workspaceMode = route === "practice"
+    ? mode === "shadow" ? "listen" : "recall"
+    : route === "tutor" ? tutorMode : "library";
 
   return <div className={`simple-app simple-app--${theme}`}>
     <header className="simple-header">
@@ -141,6 +145,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       scheduler={schedulerSettings}
       voices={audio.voices}
     /> : null}
+    <div className={`simple-workspace simple-workspace--${workspaceMode}`}>
     {route === "practice" && <PracticePage attempts={learning.attempts} key={language}
       dueItemIds={learning.dueItemIds} items={learning.items} language={language} mode={mode} dailyProgress={learning.dailyProgress}
       elevenLabs={audio.elevenLabsConfig} manualReviewItemId={manualReviewItemId}
@@ -152,7 +157,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       onPausePlayback={audio.pausePlayback} onPlay={audio.playTarget} onPlayback={audio.updatePlayback}
       onResumePlayback={audio.resumePlayback} onStopPlayback={audio.stopPlayback}
       playback={audio.playback} voices={audio.voices} />}
-    {route === "tutor" && <TutorPage language={language} profileId={profile.id}
+    {route === "tutor" && <TutorPage language={language} mode={tutorMode} onMode={setTutorMode} profileId={profile.id}
       onLibrary={() => setRoute("library")}
       onListen={() => { setMode("shadow"); setRoute("practice"); void learning.loadItems(language); }} />}
     {route === "library" && <LibraryPage items={learning.items} language={language}
@@ -161,5 +166,6 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       onListen={() => { setMode("shadow"); setRoute("practice"); void learning.loadItems(language); }}
       onPlay={(text) => void audio.playTarget(text)} onPracticeEnabled={learning.updatePracticeEnabled}
       onReview={(itemId) => { setManualReviewItemId(itemId); setMode("recall"); setRoute("practice"); }} />}
+    </div>
   </div>;
 }

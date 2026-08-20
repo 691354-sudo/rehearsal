@@ -6,6 +6,10 @@
   border-radius: 12px;
 }
 
+.simple-workspace--notebook .capture-notebook {
+  border-top: 4px solid var(--mode-action);
+}
+
 .capture-entry {
   display: grid;
   gap: 12px;
