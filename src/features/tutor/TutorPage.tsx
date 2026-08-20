@@ -85,13 +85,14 @@ const voiceErrorMessage = (error: unknown) => {
   return "Voice recording failed.";
 };
 
-export function TutorPage({ language, profileId, onLibrary, onListen }: {
+export function TutorPage({ language, mode, onLibrary, onListen, onMode, profileId }: {
   language: Language;
+  mode: "chat" | "notebook";
+  onMode: (mode: "chat" | "notebook") => void;
   profileId: ProfileId;
   onLibrary: () => void;
   onListen: () => void;
 }) {
-  const [tutorMode, setTutorMode] = useState<"chat" | "notebook">("chat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [draft, setDraft] = useState(""); const [sending, setSending] = useState(false);
@@ -352,17 +353,17 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
     { label: "Earlier", items: threads.filter((thread) => parseThreadDate(thread.updatedAt).toDateString() !== today) },
   ].filter((group) => group.items.length);
 
-  return <main className={`simple-main ${tutorMode === "chat" ? "simple-main--chat" : "simple-main--notebook"}`}>
-    <header className="simple-page-heading simple-tutor-heading"><div className="simple-tutor-title"><h1>Tutor</h1>
+  return <main className={`simple-main ${mode === "chat" ? "simple-main--chat" : "simple-main--notebook"}`}>
+    <header className="simple-page-heading simple-tutor-heading"><h1>Tutor</h1>
       <div aria-label="Tutor mode" className="simple-tutor-mode" role="group">
-        <button className={tutorMode === "chat" ? "is-active" : ""} onClick={() => setTutorMode("chat")} type="button">Chat</button>
-        <button className={tutorMode === "notebook" ? "is-active" : ""} onClick={() => setTutorMode("notebook")} type="button">Notebook</button>
-      </div></div>
-      {tutorMode === "chat" ? <div className="simple-tutor-mobile-actions">
+        <button aria-pressed={mode === "chat"} className={mode === "chat" ? "is-active" : ""} onClick={() => onMode("chat")} type="button">Chat</button>
+        <button aria-pressed={mode === "notebook"} className={mode === "notebook" ? "is-active" : ""} onClick={() => onMode("notebook")} type="button">Notebook</button>
+      </div>
+      {mode === "chat" ? <div className="simple-tutor-mobile-actions">
         <button onClick={() => setSessionsOpen(true)} type="button"><PanelLeft size={16} />Sessions</button>
         <button aria-label="New chat" onClick={newChat} title="New chat" type="button"><Plus size={17} /></button>
       </div> : null}</header>
-    {tutorMode === "notebook" ? <CaptureNotebook language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat"
+    {mode === "notebook" ? <CaptureNotebook language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat"
       style={{ "--tutor-composer-height": `${composerHeight}px` } as CSSProperties}>
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={() => setSessionsOpen(false)} type="button" /> : null}
       <aside className={`simple-session-rail ${sessionsOpen ? "is-open" : ""}`}>

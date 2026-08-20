@@ -180,6 +180,14 @@
   border-radius: 7px;
 }
 
+.simple-review-header-actions > button.simple-review-reset {
+  display: inline-flex;
+  gap: 6px;
+  width: auto;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
 .simple-review-batch > header strong {
   font-size: 13px;
 }
@@ -223,7 +231,7 @@
 
 .simple-review-candidate {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr);
   gap: 9px;
   align-items: start;
   padding: 11px 13px;
@@ -338,7 +346,9 @@
 
 .simple-review-actions {
   display: flex;
+  grid-column: 2;
   gap: 5px;
+  justify-content: flex-start;
 }
 
 .simple-review-empty {

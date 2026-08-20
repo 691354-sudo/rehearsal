@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw, Shuffle, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw, RotateCcw, Shuffle, X } from "lucide-react";
 import { apiFetch } from "../../shared/api";
 
 export type ReviewCandidate = {
@@ -33,10 +33,12 @@ export function ReviewBatchPanel(props: {
   onBatch: (batch: ReviewBatch) => void;
   onCommitted?: (count: number) => void;
   onDismiss?: () => void;
+  onReset?: () => Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [regenerating, setRegenerating] = useState<{ candidateId: string; instruction: "another" | "different_context" } | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
@@ -87,22 +89,7 @@ export function ReviewBatchPanel(props: {
     } catch { setNotice("Couldn’t generate another version."); }
     finally { setRegenerating(null); }
   };
-  const commit = async () => {
-    if (!selected.size || saving) return;
-    setSaving(true); setNotice("");
-    try {
-      const candidates = props.batch.candidates.filter((candidate) => selected.has(candidate.id)).map(candidateSelection);
-      const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/commit`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidates }),
-      });
-      if (!response.ok) throw new Error("Commit failed");
-      const data = await response.json() as { batch: ReviewBatch; added: number };
-      props.onBatch(data.batch); setSelected(new Set());
-      setNotice(`${data.added} added to Library.`); props.onCommitted?.(data.added);
-    } catch { setNotice("Nothing was saved. Try again."); }
-    finally { setSaving(false); }
-  };
-  const resolveCapture = async () => {
+  const resolveReview = async () => {
     if (!selected.size || saving) return;
     const candidates = props.batch.candidates.filter((candidate) => selected.has(candidate.id));
     const accepted = candidates.filter((candidate) => !comments[candidate.id]?.trim()).map(candidateSelection);
@@ -112,7 +99,8 @@ export function ReviewBatchPanel(props: {
     }));
     setSaving(true); setNotice("");
     try {
-      const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/resolve-capture`, {
+      const endpoint = props.batch.kind === "capture" ? "resolve-capture" : "resolve";
+      const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/${endpoint}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accepted, revisions }),
       });
       if (!response.ok) throw new Error("Review failed");
@@ -132,6 +120,13 @@ export function ReviewBatchPanel(props: {
     } catch { setNotice("Nothing was saved. Your comments are still here."); }
     finally { setSaving(false); }
   };
+  const reset = async () => {
+    if (!props.onReset || resetting) return;
+    setResetting(true); setNotice("");
+    try { await props.onReset(); }
+    catch { setNotice("Couldn’t reset these suggestions. Try again."); }
+    finally { setResetting(false); }
+  };
 
   const commentedCount = [...selected].filter((id) => comments[id]?.trim()).length;
   const acceptedCount = selected.size - commentedCount;
@@ -144,6 +139,8 @@ export function ReviewBatchPanel(props: {
         : `${props.batch.candidates.length} proposals · nothing saved yet`}</span></div>
       <div className="simple-review-header-actions">{pages > 1 ? <nav aria-label="Candidate pages"><button disabled={page === 0} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={15} /></button>
         <span>{page + 1} / {pages}</span><button disabled={page >= pages - 1} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={15} /></button></nav> : null}
+        {props.onReset ? <button className="simple-review-reset" disabled={saving || resetting || Boolean(regenerating)} onClick={() => void reset()} type="button">
+          {resetting ? <LoaderCircle className="simple-spin" size={14} /> : <RotateCcw size={14} />}Reset</button> : null}
         {props.onDismiss ? <button aria-label="Close review" onClick={props.onDismiss} type="button"><X size={16} /></button> : null}</div>
     </header>
     {!visible.length ? <p className="simple-review-empty">The source is safe, but no study cards were generated. Connect OpenAI or try a clearer sample.</p> : null}
@@ -159,29 +156,29 @@ export function ReviewBatchPanel(props: {
           <input aria-label="Russian cue" className="is-cue" onChange={(event) => update(candidate.id, { cue: event.target.value })} value={candidate.cue} />
           <div className="simple-review-meta"><input aria-label="Category" onChange={(event) => update(candidate.id, { category: event.target.value })} value={candidate.category} />
             <span>{candidate.disposition || "active"}</span><span>{candidate.frequencyBand}</span><span>{candidate.currency}</span></div>
-          {props.batch.kind === "capture" ? <textarea aria-label={`Comment for card ${page * pageSize + visibleIndex + 1}`}
+          <textarea aria-label={`Comment for card ${page * pageSize + visibleIndex + 1}`}
             className="simple-review-comment" onChange={(event) => {
               const value = event.target.value;
               setComments((current) => ({ ...current, [candidate.id]: value }));
               if (value.trim()) setSelected((current) => new Set(current).add(candidate.id));
             }} placeholder="What should change? Leave empty if this card is OK." rows={2}
-            value={comments[candidate.id] || ""} /> : null}
+            value={comments[candidate.id] || ""} />
         </div>
-        {props.batch.kind !== "capture" ? <div className="simple-review-actions">
+        <div className="simple-review-actions">
           <button disabled={regenerating?.candidateId === candidate.id} onClick={() => void regenerate(candidate.id, "another")} type="button">
             {regenerating?.candidateId === candidate.id && regenerating.instruction === "another"
               ? <LoaderCircle className="simple-spin" size={13} /> : <RefreshCw size={13} />}Another</button>
           <button disabled={regenerating?.candidateId === candidate.id} onClick={() => void regenerate(candidate.id, "different_context")} type="button">
             {regenerating?.candidateId === candidate.id && regenerating.instruction === "different_context"
-              ? <LoaderCircle className="simple-spin" size={13} /> : <Shuffle size={13} />}New context</button>
-        </div> : null}
+              ? <LoaderCircle className="simple-spin" size={13} /> : <Shuffle size={13} />}Change Context</button>
+        </div>
       </article>)}
     </div>
-    <footer><span>{notice}</span><button className="simple-primary" disabled={!selected.size || saving || props.batch.status === "committed"}
-      onClick={() => void (props.batch.kind === "capture" ? resolveCapture() : commit())} type="button">
+    <footer><span>{notice}</span><button className="simple-primary" disabled={!selected.size || saving || resetting || props.batch.status === "committed"}
+      onClick={() => void resolveReview()} type="button">
       {saving ? <LoaderCircle className="simple-spin" size={15} /> : commentedCount ? <RefreshCw size={15} /> : <Check size={15} />}
       {props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture"
         ? commentedCount ? `Revise ${commentedCount} · Add ${acceptedCount}` : `Add to Library${selected.size ? ` (${selected.size})` : ""}`
-        : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
+        : commentedCount ? `Revise ${commentedCount} · Add ${acceptedCount}` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
   </section>;
 }

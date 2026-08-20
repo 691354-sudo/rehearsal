@@ -5,6 +5,16 @@ import { aiLimits } from "../services/ai-limits.js";
 import { audioUploadExtension } from "./audio-upload.js";
 import { languageSchema, reviewCandidateSelectionSchema } from "./schemas.js";
 
+const reviewResolutionSchema = z.object({
+  accepted: z.array(reviewCandidateSelectionSchema).max(100),
+  revisions: z.array(reviewCandidateSelectionSchema.extend({
+    feedback: z.string().trim().min(1).max(1_000),
+  })).max(100),
+}).refine(({ accepted, revisions }) => {
+  const acceptedIds = new Set(accepted.map((candidate) => candidate.id));
+  return revisions.every((candidate) => !acceptedIds.has(candidate.id));
+}, "A candidate cannot be accepted and revised together");
+
 export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   app.get("/api/chat/threads", async (request) => {
     const { repository } = dependencies.forRequest(request);
@@ -137,17 +147,24 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
   app.post("/api/review-batches/:batchId/resolve-capture", async (request, reply) => {
     const { openai } = dependencies.forRequest(request);
     const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
-    const body = z.object({
-      accepted: z.array(reviewCandidateSelectionSchema).max(100),
-      revisions: z.array(reviewCandidateSelectionSchema.extend({
-        feedback: z.string().trim().min(1).max(1_000),
-      })).max(100),
-    }).refine(({ accepted, revisions }) => {
-      const acceptedIds = new Set(accepted.map((candidate) => candidate.id));
-      return revisions.every((candidate) => !acceptedIds.has(candidate.id));
-    }, "A candidate cannot be accepted and revised together").parse(request.body);
+    const body = reviewResolutionSchema.parse(request.body);
     const result = await openai.resolveCaptureReview({ batchPublicId: params.batchId, ...body });
     return result ? { ...result, added: result.items.length } : reply.code(404).send({ error: "REVIEW_BATCH_NOT_FOUND" });
+  });
+
+  app.post("/api/review-batches/:batchId/resolve", async (request, reply) => {
+    const { openai } = dependencies.forRequest(request);
+    const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
+    const body = reviewResolutionSchema.parse(request.body);
+    const result = await openai.resolveReview({ batchPublicId: params.batchId, ...body });
+    return result ? { ...result, added: result.items.length } : reply.code(404).send({ error: "REVIEW_BATCH_NOT_FOUND" });
+  });
+
+  app.post("/api/review-batches/:batchId/reset-capture", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
+    const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
+    const notes = repository.reviews.resetCapture(params.batchId);
+    return notes ? { reset: true, notes } : reply.code(404).send({ error: "CAPTURE_REVIEW_NOT_FOUND" });
   });
 
   app.post("/api/review-batches/:batchId/candidates/:candidateId/regenerate", async (request, reply) => {

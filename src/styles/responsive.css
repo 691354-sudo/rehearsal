@@ -364,7 +364,21 @@
   }
 
   .simple-tutor-heading {
+    grid-template-areas:
+      "title actions"
+      "modes modes";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
     align-items: center;
+  }
+
+  .simple-tutor-heading > h1 {
+    grid-area: title;
+  }
+
+  .simple-tutor-mode {
+    grid-area: modes;
+    justify-self: center;
   }
 
   .simple-main--chat {
@@ -377,6 +391,7 @@
 
   .simple-tutor-mobile-actions {
     display: flex;
+    grid-area: actions;
     gap: 6px;
   }
 

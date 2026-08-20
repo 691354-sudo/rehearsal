@@ -13,8 +13,7 @@ const commentedRevisionSchema = z.object({
 });
 
 type CandidateSelection = Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">;
-
-export async function resolveCaptureReview({ client, input, repository, learner, verifyCandidates }: {
+type ReviewResolutionDependencies = {
   client: OpenAI | null;
   input: {
     batchPublicId: string;
@@ -24,9 +23,14 @@ export async function resolveCaptureReview({ client, input, repository, learner,
   repository: Pick<RehearsalRepository, "reviews">;
   learner: LearnerPersona;
   verifyCandidates: (candidates: ReviewCandidate[], language: LanguageCode) => Promise<ReviewCandidate[]>;
-}) {
+};
+
+async function resolveReview(
+  { client, input, repository, learner, verifyCandidates }: ReviewResolutionDependencies,
+  captureOnly: boolean,
+) {
   const batch = repository.reviews.get(input.batchPublicId);
-  if (!batch || batch.kind !== "capture" || batch.status !== "draft") return null;
+  if (!batch || (captureOnly && batch.kind !== "capture") || batch.status !== "draft") return null;
   const candidates = new Map(batch.candidates.map((candidate) => [candidate.id, candidate]));
   const acceptedIds = new Set(input.accepted.map((candidate) => candidate.id));
   if (input.accepted.some((candidate) => !candidates.has(candidate.id)) ||
@@ -50,7 +54,7 @@ export async function resolveCaptureReview({ client, input, repository, learner,
       instructions: materialInstructions(
         learner,
         batch.language,
-        "Revise only the supplied candidates using each candidate's own Russian feedback. " +
+        "Revise only the supplied candidates using each candidate's own feedback. " +
           "Return exactly one replacement for every supplied candidateId, preserve that candidateId, " +
           "do not return accepted or unrelated cards, and keep the intended personal meaning.",
       ),
@@ -75,5 +79,8 @@ export async function resolveCaptureReview({ client, input, repository, learner,
     });
     revisedCandidates = await verifyCandidates(revisedCandidates, batch.language);
   }
-  return repository.reviews.resolveCaptureRevision(batch.publicId, input.accepted, revisedCandidates);
+  return repository.reviews.resolveRevision(batch.publicId, input.accepted, revisedCandidates);
 }
+
+export const resolveCaptureReview = (dependencies: ReviewResolutionDependencies) => resolveReview(dependencies, true);
+export const resolveReviewBatch = (dependencies: ReviewResolutionDependencies) => resolveReview(dependencies, false);

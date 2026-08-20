@@ -6,7 +6,10 @@ import { config, openAIConfigured } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode, LearningItem, ReviewBatchKind, ReviewCandidate } from "../types.js";
 import { aiLimits, assertAiSourceWithinBudget, conversationSourceWithinBudget } from "./ai-limits.js";
-import { resolveCaptureReview as resolveCaptureReviewService } from "./capture-review.js";
+import {
+  resolveCaptureReview as resolveCaptureReviewService,
+  resolveReviewBatch,
+} from "./capture-review.js";
 import {
   generatedMaterialSchema,
   materialInstructions,
@@ -334,6 +337,20 @@ export class OpenAIService {
     revisions: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category"> & { feedback: string }>;
   }) {
     return resolveCaptureReviewService({
+      client: this.client,
+      input,
+      repository: this.repository,
+      learner: this.learner,
+      verifyCandidates: (candidates, language) => this.verifyUncertainCandidates(candidates, language),
+    });
+  }
+
+  async resolveReview(input: {
+    batchPublicId: string;
+    accepted: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>;
+    revisions: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category"> & { feedback: string }>;
+  }) {
+    return resolveReviewBatch({
       client: this.client,
       input,
       repository: this.repository,

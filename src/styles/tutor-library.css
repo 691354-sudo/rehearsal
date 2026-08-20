@@ -13,6 +13,10 @@
   border-radius: 12px;
 }
 
+.simple-workspace--chat .simple-chat {
+  border-top: 4px solid var(--mode-action);
+}
+
 .simple-chat-pane {
   display: grid;
   grid-template-rows: 48px minmax(0, 1fr) auto auto;
@@ -632,14 +636,19 @@
   width: min(920px, calc(100% - 40px));
 }
 
-.simple-tutor-title {
-  display: flex;
-  gap: 20px;
+.simple-tutor-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
+}
+
+.simple-tutor-heading > h1 {
+  grid-column: 1;
 }
 
 .simple-tutor-mode {
   display: flex;
+  grid-column: 2;
   gap: 4px;
   padding: 4px;
   background: var(--script-inset);
@@ -660,22 +669,22 @@
 }
 
 .simple-tutor-mode button.is-active {
-  color: var(--script-ink);
-  background: var(--cue-wash);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cue-light) 35%, var(--script-rule));
+  color: var(--mode-on);
+  background: var(--mode-action);
+  box-shadow: none;
+}
+
+.simple-tutor-mode button:focus-visible {
+  outline-color: var(--mode-action);
+}
+
+.simple-tutor-mobile-actions {
+  grid-column: 3;
+  justify-self: end;
 }
 
 @media (max-width: 480px) {
-  .simple-tutor-heading {
-    align-items: flex-start;
-  }
-
-  .simple-tutor-title {
-    display: grid;
-    gap: 8px;
-  }
-
   .simple-tutor-mode button {
-    min-height: 40px;
+    min-height: 44px;
   }
 }

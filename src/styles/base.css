@@ -35,6 +35,14 @@ body {
   --control-fill: #f3f1f7;
   --control-rule: #d5d2dc;
   --control-focus: color-mix(in srgb, var(--cue-light) 18%, transparent);
+  --listen-action: #167a70;
+  --listen-canvas: #eaf7f4;
+  --recall-action: #6754cf;
+  --recall-canvas: #f1effb;
+  --chat-action: #2e70b7;
+  --chat-canvas: #edf5fc;
+  --notebook-action: #a96320;
+  --notebook-canvas: #fbf3e9;
   min-height: 100vh;
   min-height: 100dvh;
   color: var(--script-ink);
@@ -67,7 +75,49 @@ body {
   --retry: #d77d78;
   --control-fill: #0d0e12;
   --control-rule: rgba(237, 233, 246, 0.17);
+  --listen-action: #4fc7ba;
+  --listen-canvas: #0c211f;
+  --recall-action: #9f8bed;
+  --recall-canvas: #1b1728;
+  --chat-action: #70adeb;
+  --chat-canvas: #101e2c;
+  --notebook-action: #dea153;
+  --notebook-canvas: #251c12;
   color-scheme: dark;
+}
+
+.simple-workspace {
+  --mode-action: var(--cue-action);
+  --mode-canvas: var(--stage-canvas);
+  --mode-on: var(--cue-on);
+  min-height: calc(100vh - 58px);
+  min-height: calc(100dvh - 58px);
+  background: var(--mode-canvas);
+  transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.simple-workspace--listen {
+  --mode-action: var(--listen-action);
+  --mode-canvas: var(--listen-canvas);
+}
+
+.simple-workspace--recall {
+  --mode-action: var(--recall-action);
+  --mode-canvas: var(--recall-canvas);
+}
+
+.simple-workspace--chat {
+  --mode-action: var(--chat-action);
+  --mode-canvas: var(--chat-canvas);
+}
+
+.simple-workspace--notebook {
+  --mode-action: var(--notebook-action);
+  --mode-canvas: var(--notebook-canvas);
+}
+
+.simple-app--dark .simple-workspace:not(.simple-workspace--library) {
+  --mode-on: #0b0b0e;
 }
 
 .simple-app button,
