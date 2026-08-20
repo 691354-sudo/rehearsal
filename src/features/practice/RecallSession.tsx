@@ -3,7 +3,8 @@ import { Check, ChevronLeft, ChevronRight, Settings2, Volume2 } from "lucide-rea
 import { recallKeyAction, recallSessionReducer, initialRecallSession } from "../../lib/recallSession";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { capitalize, languageCopy } from "../../shared/config";
-import type { AttemptDraft, IslandSummary, Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
+import type { AttemptDraft, ElevenLabsConfig, IslandSummary, Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
+import { PlaybackSettings } from "./PlaybackSettings";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 
@@ -20,6 +21,7 @@ const formatInterval = (seconds?: number) => {
 export function RecallSession(props: {
   attempts: Record<string, AttemptDraft>;
   dueItemIds: string[];
+  elevenLabs: ElevenLabsConfig;
   items: LearningItem[];
   language: Language;
   listeningAvailable: boolean;
@@ -34,13 +36,15 @@ export function RecallSession(props: {
   onManualReviewStarted: () => void;
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<unknown>;
+  onPlayback: (playback: PlaybackPreferences) => void;
   onTopic: (topicId: string) => void;
-  onVoiceSettings: () => void;
   playback: PlaybackPreferences;
+  voices: string[];
 }) {
   const [state, dispatch] = useReducer(recallSessionReducer, initialRecallSession);
   const [count, setCount] = useState("all");
   const [scope, setScope] = useState<PracticeScope>(props.manualReviewItemId ? "custom" : "due");
+  const [showPlaybackSettings, setShowPlaybackSettings] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const sourceItems = useMemo(() => props.manualReviewItemId
     ? props.items.filter((item) => item.publicId === props.manualReviewItemId)
@@ -142,7 +146,13 @@ export function RecallSession(props: {
       </div> : <small className="recall-key-hint">Enter to check</small>}
     </article>
     {props.language === "en" ? <div className="recall-session-settings">
-      <button onClick={props.onVoiceSettings} type="button"><Settings2 size={16} />Voice settings</button>
+      <button aria-expanded={showPlaybackSettings} className={showPlaybackSettings ? "is-active" : ""}
+        onClick={() => setShowPlaybackSettings((shown) => !shown)} type="button"><Settings2 size={16} />Voice settings</button>
+      {showPlaybackSettings ? <div aria-label="Voice settings" className="recall-session-playback-settings">
+        <PlaybackSettings elevenLabs={props.elevenLabs} language={props.language} onPlayback={props.onPlayback}
+          playback={props.playback} voices={props.voices} />
+        <small>Changes apply to the next card.</small>
+      </div> : null}
     </div> : null}
   </section>;
 }

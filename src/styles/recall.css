@@ -458,12 +458,13 @@
 }
 
 .recall-session-settings {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  gap: 10px;
+  justify-items: end;
   margin-top: 12px;
 }
 
-.recall-session-settings button {
+.recall-session-settings > button {
   display: inline-flex;
   gap: 8px;
   align-items: center;
@@ -477,9 +478,38 @@
   border-radius: 8px;
 }
 
-.recall-session-settings button:hover {
+.recall-session-settings > button:hover {
   color: var(--script-ink);
   border-color: var(--script-rule-strong);
+}
+
+.recall-session-settings > button.is-active {
+  color: var(--mode-action);
+  border-color: var(--mode-action);
+}
+
+.recall-session-playback-settings {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 12px;
+}
+
+.recall-session-playback-settings .practice-playback-settings {
+  padding: 14px;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.recall-session-playback-settings > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--script-tertiary);
+  font-size: 12px;
+  text-align: right;
 }
 
 .recall-cue {
@@ -715,8 +745,12 @@
     font-size: 21px;
   }
 
-  .recall-session-settings button {
+  .recall-session-settings > button {
     min-height: 44px;
+  }
+
+  .recall-session-playback-settings {
+    padding: 12px 10px;
   }
 
   .recall-grades {

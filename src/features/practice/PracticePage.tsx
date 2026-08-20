@@ -37,7 +37,6 @@ export function PracticePage(props: {
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
   onResumePlayback: () => void;
   onStopPlayback: () => void;
-  onVoiceSettings: () => void;
   playback: PlaybackPreferences;
   voices: string[];
 }) {
@@ -59,6 +58,7 @@ export function PracticePage(props: {
     {props.mode === "recall" || !listeningAvailable ? <RecallSession
       attempts={props.attempts}
       dueItemIds={props.dueItemIds}
+      elevenLabs={props.elevenLabs}
       items={props.items}
       language={props.language}
       listeningAvailable={listeningAvailable}
@@ -70,12 +70,13 @@ export function PracticePage(props: {
       onManualReviewStarted={props.onManualReviewStarted}
       onRecallReview={props.onRecallReview}
       onPlay={props.onPlay}
+      onPlayback={props.onPlayback}
       onTopic={(nextTopic) => setTopicFilters(nextTopic ? [nextTopic] : [])}
       selectedTopicItems={selectedTopicItems}
       topicId={topicId}
       topics={topics}
-      onVoiceSettings={props.onVoiceSettings}
       playback={props.playback}
+      voices={props.voices}
     /> : <ListenRepeat dueItemIds={props.dueItemIds} elevenLabs={props.elevenLabs} items={props.items} language={props.language}
       onEdit={setEditingItem} onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
       onPlayback={props.onPlayback} onResume={props.onResumePlayback} onStop={props.onStopPlayback}
