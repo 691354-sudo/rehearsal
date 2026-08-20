@@ -64,6 +64,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
   const timeoutRef = useRef<number | null>(null);
   const sessionRef = useRef(0);
   const uploadAbortRef = useRef<AbortController | null>(null);
+  const draftKey = `rehearsal:${profileId}:notebook-draft:${language}`;
 
   const stopTimers = () => {
     if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
@@ -109,6 +110,11 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
       recorderRef.current = null; releaseStream();
     };
   }, [language, profileId]);
+  useEffect(() => setTextDraft(window.sessionStorage.getItem(draftKey) || ""), [draftKey]);
+  useEffect(() => {
+    if (textDraft) window.sessionStorage.setItem(draftKey, textDraft);
+    else window.sessionStorage.removeItem(draftKey);
+  }, [draftKey, textDraft]);
 
   const upload = async (recording: PendingRecording, session = sessionRef.current) => {
     if (!recording.blob.size) { setNotice("The recording was empty. Try again closer to the microphone."); return; }
@@ -250,6 +256,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
     } catch (error) { setNotice(friendlyError(error)); }
   };
   const removeNote = async (note: CaptureNote) => {
+    if (!window.confirm("Delete this Notebook note?")) return;
     setNotice("");
     const response = await apiFetch(`/api/captures/${note.publicId}`, { method: "DELETE" });
     if (!response.ok) { setNotice("This note is already in the current review package."); return; }
@@ -288,7 +295,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
   const readyCount = notes.filter((note) => note.status === "ready").length;
   return <section className="capture-notebook">
     <div className="capture-entry">
-      <textarea aria-label="Russian note" maxLength={30_000} onChange={(event) => setTextDraft(event.target.value)}
+      <textarea aria-label="Russian note" autoComplete="off" lang="ru" maxLength={30_000} name="notebook-note" onChange={(event) => setTextDraft(event.target.value)}
         placeholder="Write a Russian thought…" rows={3} value={textDraft} />
       <div><button className="simple-primary" disabled={!textDraft.trim() || addingText} onClick={() => void addText()} type="button">
         {addingText ? <LoaderCircle className="simple-spin" size={16} /> : <Plus size={16} />}Add note</button>
@@ -301,19 +308,19 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
     {notice ? <div aria-live="polite" className="capture-notice">{notice}</div> : null}
     {pendingRecording && !uploading ? <div className="capture-pending-audio"><span>This recording is saved on this device until the server accepts it.</span>
       <div><button onClick={() => void upload(pendingRecording)} type="button"><RefreshCw size={14} />Retry upload</button>
-        <button onClick={() => void deletePendingRecording(profileId, language).then(() => {
+        <button onClick={() => { if (!window.confirm("Delete this unsent recording from this device?")) return; void deletePendingRecording(profileId, language).then(() => {
           setPendingRecording(null); setNotice("Unsent recording deleted from this device.");
-        }).catch((error) => setNotice(friendlyError(error)))} type="button"><Trash2 size={14} />Delete recording</button></div></div> : null}
+        }).catch((error) => setNotice(friendlyError(error))); }} type="button"><Trash2 size={14} />Delete recording</button></div></div> : null}
 
-    <div className="capture-list-heading"><div><h3>Notebook</h3><span>{notes.length} {notes.length === 1 ? "note" : "notes"}</span></div>
+    <div className="capture-list-heading"><div><h2>Notebook</h2><span>{notes.length} {notes.length === 1 ? "note" : "notes"}</span></div>
       <button className="simple-primary" disabled={!readyCount || processing || Boolean(batch)} onClick={() => void prepare()} type="button">
         {processing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Prepare cards{readyCount ? ` (${readyCount})` : ""}
       </button></div>
-    {!notes.length ? <p className="capture-empty">No notes</p> : <div className="capture-notes">
+    {!notes.length ? <div className="capture-empty"><strong>Capture something you actually want to say</strong><span>Write a Russian thought or record it. Nothing enters Library until you review it.</span></div> : <div className="capture-notes">
       {notes.map((note) => <article className="capture-note" key={note.publicId}>
         <header><span className={`is-${note.status}`}>{note.status}</span><time>{new Date(note.createdAt).toLocaleString()}</time></header>
         {note.status === "failed" ? <p className="capture-error">OpenAI could not transcribe this recording. The audio is temporarily retained.</p> :
-          <textarea aria-label="Russian transcript" disabled={note.status === "batched"} onChange={(event) => setDrafts((current) => ({ ...current, [note.publicId]: event.target.value }))}
+          <textarea aria-label="Russian transcript" autoComplete="off" disabled={note.status === "batched"} lang="ru" name={`notebook-transcript-${note.publicId}`} onChange={(event) => setDrafts((current) => ({ ...current, [note.publicId]: event.target.value }))}
             rows={3} value={drafts[note.publicId] ?? note.transcript} />}
         <footer>
           {note.status === "failed" ? <button onClick={() => void retry(note)} type="button"><RefreshCw size={14} />Retry</button> :

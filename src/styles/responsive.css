@@ -602,6 +602,8 @@
     transition: none;
   }
 
+  .simple-spin { animation: none; }
+
   .simple-app button:not(:disabled):active {
     transform: none;
   }

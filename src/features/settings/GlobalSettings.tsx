@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, LoaderCircle, Play, RefreshCw, X } from "lucide-react";
 import { speedRangeForProvider } from "../../lib/playbackSettings";
 import { apiFetch } from "../../shared/api";
@@ -13,6 +13,7 @@ import type {
   SchedulerSettings,
   TtsProvider,
 } from "../../shared/contracts";
+import type { AppRoute } from "../../lib/appRoute";
 
 export function GlobalSettings(props: {
   elevenLabs: ElevenLabsConfig;
@@ -24,10 +25,14 @@ export function GlobalSettings(props: {
   scheduler: SchedulerSettings;
   voices: string[];
 }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const allowNavigationRef = useRef(false);
+  const schedulerDirtyRef = useRef(false);
   const [draft, setDraft] = useState(props.scheduler);
   const [learningSteps, setLearningSteps] = useState(props.scheduler.learningSteps.join(", "));
   const [relearningSteps, setRelearningSteps] = useState(props.scheduler.relearningSteps.join(", "));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [schedulerTouched, setSchedulerTouched] = useState(false);
   const [previewState, setPreviewState] = useState<"idle" | "playing" | "error">("idle");
   const [previewError, setPreviewError] = useState("");
   const [previewNotice, setPreviewNotice] = useState("");
@@ -37,12 +42,6 @@ export function GlobalSettings(props: {
   const selectedElevenLabsVoice = props.elevenLabs.voices.find(
     (voice) => voice.id === props.playback.elevenlabs.voiceId,
   ) || props.elevenLabs.voice;
-
-  useEffect(() => {
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") props.onClose(); };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [props.onClose]);
 
   useEffect(() => {
     if (!props.elevenLabs.configured) return;
@@ -60,6 +59,12 @@ export function GlobalSettings(props: {
       .catch(() => { if (!controller.signal.aborted) setVoiceStatusState("error"); });
     return () => controller.abort();
   }, [props.elevenLabs.configured, selectedElevenLabsVoice.id]);
+  useEffect(() => {
+    if (schedulerTouched) return;
+    setDraft(props.scheduler);
+    setLearningSteps(props.scheduler.learningSteps.join(", "));
+    setRelearningSteps(props.scheduler.relearningSteps.join(", "));
+  }, [props.scheduler, schedulerTouched]);
 
   const parseSteps = (value: string) => value.split(/[\s,]+/).map((step) => step.trim()).filter(Boolean);
   const stepPattern = /^\d+(?:\.\d+)?[mhd]$/;
@@ -67,18 +72,60 @@ export function GlobalSettings(props: {
   const nextRelearningSteps = parseSteps(relearningSteps);
   const validSteps = [nextLearningSteps, nextRelearningSteps]
     .every((steps) => steps.length > 0 && steps.length <= 4 && steps.every((step) => stepPattern.test(step)));
+  const validNewItems = Number.isInteger(draft.newItemsPerDay) && draft.newItemsPerDay >= 0 && draft.newItemsPerDay <= 30;
+  const validPresets = Object.values(draft.presets).every((preset) => Number.isInteger(preset.requestRetention * 100)
+    && preset.requestRetention >= 0.8 && preset.requestRetention <= 0.97
+    && Number.isInteger(preset.maximumInterval) && preset.maximumInterval >= 7 && preset.maximumInterval <= 3650);
+  const validScheduler = validSteps && validNewItems && validPresets;
   const nextScheduler = {
     ...draft,
     learningSteps: nextLearningSteps,
     relearningSteps: nextRelearningSteps,
   };
-  const schedulerDirty = JSON.stringify(nextScheduler) !== JSON.stringify(props.scheduler);
+  const schedulerDirty = schedulerTouched && JSON.stringify(nextScheduler) !== JSON.stringify(props.scheduler);
+  schedulerDirtyRef.current = schedulerDirty;
+  const requestClose = useCallback(() => {
+    if (schedulerDirtyRef.current && !window.confirm("Discard unsaved Recall scheduling changes?")) return;
+    allowNavigationRef.current = true;
+    props.onClose();
+  }, [props.onClose]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialog.showModal();
+    const cancel = (event: Event) => { event.preventDefault(); requestClose(); };
+    dialog.addEventListener("cancel", cancel);
+    return () => {
+      dialog.removeEventListener("cancel", cancel);
+      if (dialog.open) dialog.close();
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [requestClose]);
+  useEffect(() => {
+    if (!schedulerDirty) return;
+    const warn = (event: Event) => {
+      const next = (event as CustomEvent<{ route: AppRoute }>).detail?.route;
+      if (next?.settings || allowNavigationRef.current || window.confirm("Discard unsaved Recall scheduling changes?")) return;
+      event.preventDefault();
+    };
+    const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener("app-before-navigate", warn);
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      window.removeEventListener("app-before-navigate", warn);
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, [schedulerDirty]);
 
   const save = async () => {
-    if (!validSteps || saveState === "saving") return;
+    if (!validScheduler || saveState === "saving") return;
     setSaveState("saving");
     try {
       await props.onSaveScheduler(nextScheduler);
+      setSchedulerTouched(false);
       setSaveState("saved");
     } catch {
       setSaveState("error");
@@ -95,7 +142,7 @@ export function GlobalSettings(props: {
     field: "requestRetention" | "maximumInterval",
     value: number,
   ) => {
-    setSaveState("idle");
+    setSchedulerTouched(true); setSaveState("idle");
     setDraft((current) => ({
       ...current,
       presets: {
@@ -157,15 +204,15 @@ export function GlobalSettings(props: {
     .filter(Boolean).map(humanizeLabel).join(" · ") || "ElevenLabs voice";
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
 
-  return <div className="simple-settings-overlay" onMouseDown={(event) => {
-    if (event.target === event.currentTarget) props.onClose();
-  }}>
-    <section aria-labelledby="global-settings-title" aria-modal="true" className="simple-settings-panel" role="dialog">
+  return <dialog className="simple-settings-overlay" onMouseDown={(event) => {
+    if (event.target === event.currentTarget) requestClose();
+  }} ref={dialogRef}>
+    <section aria-labelledby="global-settings-title" className="simple-settings-panel">
       <header className="simple-settings-header">
         <div><h2 id="global-settings-title">Settings</h2><span className={playbackApplied ? "is-applied" : ""} role="status">
           <Check size={12} />{playbackApplied ? "Applied to next card" : "Changes apply to next card"}
         </span></div>
-        <button aria-label="Close settings" onClick={props.onClose} type="button"><X size={18} /></button>
+        <button aria-label="Close settings" onClick={requestClose} type="button"><X size={18} /></button>
       </header>
 
       <div className="simple-settings-scroll">
@@ -181,12 +228,12 @@ export function GlobalSettings(props: {
           </div>
 
           {props.playback.provider === "openai" ? <label className="simple-openai-voice-choice"><span>Voice</span>
-            <select onChange={(event) => applyPlayback({ ...props.playback, voice: event.target.value })} value={props.playback.voice}>
+            <select name="openai-voice" onChange={(event) => applyPlayback({ ...props.playback, voice: event.target.value })} value={props.playback.voice}>
               {props.voices.map((voice) => <option key={voice} value={voice}>{capitalize(voice)}{voice === "onyx" ? " · recommended" : ""}</option>)}
             </select>
           </label> : <>
             <label className="simple-openai-voice-choice"><span>Voice</span>
-              <select onChange={(event) => updateElevenLabs("voiceId", event.target.value)} value={selectedElevenLabsVoice.id}>
+              <select name="elevenlabs-voice" onChange={(event) => updateElevenLabs("voiceId", event.target.value)} value={selectedElevenLabsVoice.id}>
                 {props.elevenLabs.voices.map((voice) => <option key={voice.id} value={voice.id}>{voice.name}</option>)}
               </select>
             </label>
@@ -226,9 +273,9 @@ export function GlobalSettings(props: {
                   ] as const).map(([key, label]) => <label key={key}>
                     <span>{label}<strong>{props.playback.elevenlabs[key].toFixed(2)}</strong></span>
                     <input max="1" min="0" onChange={(event) => updateElevenLabs(key, Number(event.target.value))}
-                      step="0.01" type="range" value={props.playback.elevenlabs[key]} />
+                      aria-label={label} name={`elevenlabs-${key}`} step="0.01" type="range" value={props.playback.elevenlabs[key]} />
                   </label>)}
-                  <div className="simple-speaker-boost"><span>Speaker boost</span><button aria-pressed={props.playback.elevenlabs.speakerBoost}
+                  <div className="simple-speaker-boost"><span>Speaker boost</span><button aria-label="Speaker boost" aria-pressed={props.playback.elevenlabs.speakerBoost}
                     className={props.playback.elevenlabs.speakerBoost ? "is-active" : ""}
                     onClick={() => updateElevenLabs("speakerBoost", !props.playback.elevenlabs.speakerBoost)} type="button"><i /></button></div>
                 </div>
@@ -242,13 +289,13 @@ export function GlobalSettings(props: {
             {previewState === "playing" ? <LoaderCircle className="simple-spin" size={13} /> : <Play fill="currentColor" size={13} />}
             <span>Preview {props.playback.provider === "openai" ? capitalize(props.playback.voice) : activeVoice.name}</span>
           </button>
-          {previewState === "error" ? <p className="simple-voice-error">{previewError}</p> : null}
-          {previewNotice ? <p className="simple-voice-cache-note">{previewNotice}</p> : null}
+          {previewState === "error" ? <p className="simple-voice-error" role="alert">{previewError}</p> : null}
+          {previewNotice ? <p className="simple-voice-cache-note" role="status">{previewNotice}</p> : null}
         </section>
 
         <section className="simple-settings-section">
           <div className="simple-settings-section-title"><h3>Card playback</h3></div>
-          <label className="simple-recall-audio-setting"><input checked={props.playback.playAfterRecall}
+          <label className="simple-recall-audio-setting"><input checked={props.playback.playAfterRecall} name="play-after-recall"
             onChange={(event) => applyPlayback({ ...props.playback, playAfterRecall: event.target.checked })} type="checkbox" />
             <span><strong>Play answer after checking</strong><small>Recall only</small></span></label>
           <div className="simple-global-playback">
@@ -257,7 +304,7 @@ export function GlobalSettings(props: {
                 key={value} onClick={() => applyPlayback({ ...props.playback, repetitions: value })} type="button">{value}×</button>)}
             </div></div>
             <label className="simple-global-setting simple-global-speed"><span>Speed <strong>{props.playback.speed.toFixed(2)}×</strong></span>
-              <input max={speedRange.max} min={speedRange.min} onChange={(event) => applyPlayback({ ...props.playback, speed: Number(event.target.value) })}
+              <input aria-label="Playback speed" max={speedRange.max} min={speedRange.min} name="playback-speed" onChange={(event) => applyPlayback({ ...props.playback, speed: Number(event.target.value) })}
                 step="0.05" type="range" value={props.playback.speed} /></label>
             <div className="simple-global-setting"><label>Pause</label><div>
               {[500, 1500, 3000].map((value) => <button className={props.playback.pauseMs === value ? "is-active" : ""}
@@ -268,8 +315,8 @@ export function GlobalSettings(props: {
 
         <section className="simple-settings-section">
           <div className="simple-settings-section-title"><h3>Recall scheduling</h3></div>
-          <label className="simple-new-items-setting"><span>New cards per day</span><input max="30" min="0" onChange={(event) => {
-            setDraft((current) => ({ ...current, newItemsPerDay: Number(event.target.value) })); setSaveState("idle");
+          <label className="simple-new-items-setting"><span>New cards per day</span><input aria-invalid={!validNewItems} max="30" min="0" name="new-cards-per-day" onChange={(event) => {
+            setSchedulerTouched(true); setDraft((current) => ({ ...current, newItemsPerDay: Number(event.target.value) })); setSaveState("idle");
           }} type="number" value={draft.newItemsPerDay} /></label>
           <details className="simple-advanced-settings">
             <summary>Advanced scheduling</summary>
@@ -277,29 +324,29 @@ export function GlobalSettings(props: {
               <div className="simple-fsrs-head"><span>Priority</span><span>Retention</span><span>Max interval</span></div>
               {(["like", "neutral", "dislike"] as ItemPreference[]).map((preference) => <div className="simple-fsrs-row" key={preference}>
                 <strong>{capitalize(preference)}</strong>
-                <label><input max="97" min="80" onChange={(event) => updatePreset(preference, "requestRetention", Number(event.target.value) / 100)}
+                <label><input aria-label={`${capitalize(preference)} retention`} aria-invalid={!Number.isInteger(draft.presets[preference].requestRetention * 100) || draft.presets[preference].requestRetention < 0.8 || draft.presets[preference].requestRetention > 0.97} max="97" min="80" name={`${preference}-retention`} onChange={(event) => updatePreset(preference, "requestRetention", Number(event.target.value) / 100)}
                   step="1" type="number" value={Math.round(draft.presets[preference].requestRetention * 100)} /><span>%</span></label>
-                <label><input max="3650" min="7" onChange={(event) => updatePreset(preference, "maximumInterval", Number(event.target.value))}
+                <label><input aria-label={`${capitalize(preference)} maximum interval`} aria-invalid={!Number.isInteger(draft.presets[preference].maximumInterval) || draft.presets[preference].maximumInterval < 7 || draft.presets[preference].maximumInterval > 3650} max="3650" min="7" name={`${preference}-maximum-interval`} onChange={(event) => updatePreset(preference, "maximumInterval", Number(event.target.value))}
                   step="1" type="number" value={draft.presets[preference].maximumInterval} /><span>days</span></label>
               </div>)}
             </div>
             <div className="simple-fsrs-details">
-              <label><span>Learning steps</span><input aria-invalid={!nextLearningSteps.length || nextLearningSteps.some((step) => !stepPattern.test(step))}
-                onChange={(event) => { setLearningSteps(event.target.value); setSaveState("idle"); }} value={learningSteps} /></label>
-              <label><span>Relearning steps</span><input aria-invalid={!nextRelearningSteps.length || nextRelearningSteps.some((step) => !stepPattern.test(step))}
-                onChange={(event) => { setRelearningSteps(event.target.value); setSaveState("idle"); }} value={relearningSteps} /></label>
-              <div className="simple-fsrs-toggle"><span>Interval fuzz</span><button aria-pressed={draft.fuzz} className={draft.fuzz ? "is-active" : ""}
-                onClick={() => { setDraft((current) => ({ ...current, fuzz: !current.fuzz })); setSaveState("idle"); }} type="button"><i /></button></div>
+              <label><span>Learning steps</span><input aria-invalid={!nextLearningSteps.length || nextLearningSteps.length > 4 || nextLearningSteps.some((step) => !stepPattern.test(step))} autoComplete="off" name="learning-steps"
+                onChange={(event) => { setSchedulerTouched(true); setLearningSteps(event.target.value); setSaveState("idle"); }} value={learningSteps} /></label>
+              <label><span>Relearning steps</span><input aria-invalid={!nextRelearningSteps.length || nextRelearningSteps.length > 4 || nextRelearningSteps.some((step) => !stepPattern.test(step))} autoComplete="off" name="relearning-steps"
+                onChange={(event) => { setSchedulerTouched(true); setRelearningSteps(event.target.value); setSaveState("idle"); }} value={relearningSteps} /></label>
+              <div className="simple-fsrs-toggle"><span>Interval fuzz</span><button aria-label="Interval fuzz" aria-pressed={draft.fuzz} className={draft.fuzz ? "is-active" : ""}
+                onClick={() => { setSchedulerTouched(true); setDraft((current) => ({ ...current, fuzz: !current.fuzz })); setSaveState("idle"); }} type="button"><i /></button></div>
             </div>
           </details>
           <div className="simple-scheduler-save-row">
-            <span className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use steps like 1m, 10m" : ""}</span>
-            <button className="simple-settings-save" disabled={!schedulerDirty || !validSteps || saveState === "saving"} onClick={() => void save()} type="button">
+            <span aria-live="polite" className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use 1–4 steps like 1m, 10m" : !validNewItems || !validPresets ? "Use 0–30 cards, 80–97%, and 7–3650 days" : ""}</span>
+            <button className="simple-settings-save" disabled={!schedulerDirty || !validScheduler || saveState === "saving"} onClick={() => void save()} type="button">
               {saveState === "saving" ? "Saving…" : "Save recall settings"}
             </button>
           </div>
         </section>
       </div>
     </section>
-  </div>;
+  </dialog>;
 }

@@ -37,6 +37,11 @@ native-only requirement.
 - Keep generated assets and routes compatible with a non-root deployment under
   `/rehearsal/`; manifest, icons, service worker scope, and start URL must work
   from that base path.
+- Treat useful UI state as navigation state. Practice mode and selection, Tutor
+  mode/thread, Library filters/page, Topics, Settings, Import, and Card Editor
+  use stable routes or query parameters so reload and Back/Forward recover the
+  same surface. Never put answers, recordings, playback position, or sensitive
+  data in the URL.
 - Never service-worker-cache API responses, private learning data, or generated
   audio. Only the versioned application shell and static build assets are precached.
 
@@ -73,6 +78,12 @@ not a general offline queue or offline learning store.
 - Mobile keeps the three-item bottom navigation. The top bar shows the current
   section and one compact menu rather than every profile, language, theme, and
   settings control at once.
+- The canonical routes are `/practice/recall`, `/practice/listen`,
+  `/tutor/chat`, `/tutor/notebook`, `/library`, and `/library/topics`. Links must
+  preserve the selected `lang` and honor the deployment base path.
+- Settings and editors are modal, contain their own overscroll, restore focus,
+  and protect unfinished input. Tutor and Notebook drafts are restored from
+  profile-scoped session storage after reload or Back.
 
 ## Verification gate
 

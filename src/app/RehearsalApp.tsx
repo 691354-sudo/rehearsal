@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, Moon, Settings2, Sun, UserRound } from "lucide-react";
 import type { ProfileSummary } from "../../contracts/api";
 import { usePlaybackController } from "../features/audio/usePlaybackController";
@@ -7,6 +7,14 @@ import { PracticePage } from "../features/practice/PracticePage";
 import { useLearningData } from "../features/practice/useLearningData";
 import { GlobalSettings } from "../features/settings/GlobalSettings";
 import { TutorPage } from "../features/tutor/TutorPage";
+import { useAppRoute } from "../hooks/useAppRoute";
+import {
+  defaultLibraryRoute,
+  defaultPracticeRoute,
+  defaultTutorRoute,
+  type AppRoute,
+  type PracticeRoute,
+} from "../lib/appRoute";
 import {
   defaultSchedulerSettings,
   languageCopy,
@@ -15,43 +23,54 @@ import { apiFetch } from "../shared/api";
 import type {
   ElevenLabsConfig,
   Language,
-  Mode,
-  Route,
   SchedulerSettings,
   Theme,
 } from "../shared/contracts";
+import { AppLink } from "./AppLink";
 
 export function RehearsalApp({ profile, onSwitchProfile }: {
   profile: ProfileSummary;
   onSwitchProfile: () => void;
 }) {
   const storageKey = (name: string) => `rehearsal:${profile.id}:${name}`;
-  const [route, setRoute] = useState<Route>("practice");
-  const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
+  const savedLanguage: Language = window.localStorage.getItem(storageKey("language")) === "lv" ? "lv" : "en";
+  const { route, goTo } = useAppRoute(savedLanguage);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [language, setLanguage] = useState<Language>(() =>
-    window.localStorage.getItem(storageKey("language")) === "lv" ? "lv" : "en",
-  );
-  const [mode, setMode] = useState<Mode>("recall");
-  const [tutorMode, setTutorMode] = useState<"chat" | "notebook">("chat");
-  const [manualReviewItemId, setManualReviewItemId] = useState<string | null>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [schedulerSettings, setSchedulerSettings] = useState(defaultSchedulerSettings);
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = window.localStorage.getItem(storageKey("theme"));
     if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   });
+  const language = route.language;
   const learning = useLearningData(language);
   const audio = usePlaybackController(profile.id, language);
 
   useEffect(() => {
     window.localStorage.setItem(storageKey("theme"), theme);
+    document.documentElement.style.colorScheme = theme;
   }, [theme]);
-  useEffect(() => setMobileMenuOpen(false), [route]);
+  useEffect(() => setMobileMenuOpen(false), [route.section]);
   useEffect(() => {
     window.localStorage.setItem(storageKey("language"), language);
-    if (language === "lv") setMode("recall");
   }, [language]);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const firstControl = mobileMenuRef.current?.querySelector<HTMLElement>("select, button, a[href]");
+    window.requestAnimationFrame(() => firstControl?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMobileMenuOpen(false);
+      window.requestAnimationFrame(() => mobileMenuButtonRef.current?.focus());
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.requestAnimationFrame(() => mobileMenuButtonRef.current?.focus());
+    };
+  }, [mobileMenuOpen]);
   const loadConfig = async () => {
     try {
       const response = await apiFetch("/api/config");
@@ -88,23 +107,39 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
     setSchedulerSettings(data.scheduler);
     learning.setApiOnline(true);
   };
-  const workspaceMode = route === "practice"
-    ? mode === "shadow" ? "listen" : "recall"
-    : route === "tutor" ? tutorMode : "library";
+  const workspaceMode = route.section === "practice" ? route.mode : route.section === "tutor" ? route.mode : "library";
+  const sectionLabel = route.section === "practice" ? "Practice" : route.section === "tutor" ? "Tutor" : "Library";
+  const practiceRoute = (mode: PracticeRoute["mode"] = "recall") => ({ ...defaultPracticeRoute(language), mode });
+  const changeLanguage = (nextLanguage: Language) => {
+    const next: AppRoute = route.section === "practice" && nextLanguage === "lv" && route.mode === "listen"
+      ? { ...route, language: nextLanguage, mode: "recall" }
+      : { ...route, language: nextLanguage };
+    goTo(next);
+  };
+  const openSettings = useCallback(() => goTo({ ...route, settings: true }), [goTo, route]);
+  const closeSettings = useCallback(() => {
+    if (window.history.state?.surface === "settings") {
+      window.history.back();
+      return;
+    }
+    goTo({ ...route, settings: false }, "replace");
+  }, [goTo, route]);
 
   return <div className={`simple-app simple-app--${theme}`}>
+    <a className="simple-skip-link" href="#main-content">Skip to Main Content</a>
     <header className="simple-header">
-      <button className="simple-brand" onClick={() => setRoute("practice")} type="button"><span>R</span>
-        <strong className="simple-brand-product">Rehearsal</strong><strong className="simple-brand-route">{route === "practice" ? "Practice" : route === "tutor" ? "Tutor" : "Library"}</strong></button>
+      <div className="simple-header-rail">
+      <AppLink className="simple-brand" route={practiceRoute()}><span>R</span>
+        <strong className="simple-brand-product">Rehearsal</strong><strong className="simple-brand-route">{sectionLabel}</strong></AppLink>
       <nav className="simple-nav" aria-label="Main navigation">
-        <button className={route === "practice" ? "is-active" : ""} onClick={() => setRoute("practice")} type="button">Practice</button>
-        <button className={route === "tutor" ? "is-active" : ""} onClick={() => setRoute("tutor")} type="button">Tutor</button>
-        <button className={route === "library" ? "is-active" : ""} onClick={() => setRoute("library")} type="button">Library</button>
+        <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>Practice</AppLink>
+        <AppLink aria-current={route.section === "tutor" ? "page" : undefined} className={route.section === "tutor" ? "is-active" : ""} route={defaultTutorRoute(language)}>Tutor</AppLink>
+        <AppLink aria-current={route.section === "library" ? "page" : undefined} className={route.section === "library" ? "is-active" : ""} route={defaultLibraryRoute(language)}>Library</AppLink>
       </nav>
       <div className="simple-header-actions">
         <label className="simple-language"><span>{languageCopy[language].short}</span>
           <strong>{languageCopy[language].label}</strong><ChevronDown size={15} />
-          <select aria-label="Language" onChange={(event) => setLanguage(event.target.value as Language)} value={language}>
+          <select aria-label="Language" name="language" onChange={(event) => changeLanguage(event.target.value as Language)} value={language}>
             <option value="en">English</option><option value="lv">Latviešu</option>
           </select>
         </label>
@@ -117,26 +152,27 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
           title={theme === "dark" ? "Light theme" : "Dark theme"} type="button">
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <button aria-label="Settings" className="simple-icon-button simple-global-settings-button" onClick={() => setGlobalSettingsOpen(true)} title="Settings" type="button"><Settings2 size={18} /></button>
+        <button aria-label="Settings" className="simple-icon-button simple-global-settings-button" onClick={openSettings} title="Settings" type="button"><Settings2 size={18} /></button>
       </div>
       <button aria-expanded={mobileMenuOpen} aria-label="App menu" className="simple-mobile-menu-button"
-        onClick={() => setMobileMenuOpen((open) => !open)} type="button"><Settings2 size={19} /></button>
+        onClick={() => setMobileMenuOpen((open) => !open)} ref={mobileMenuButtonRef} type="button"><Settings2 size={19} /></button>
       {mobileMenuOpen ? <><button aria-label="Close app menu" className="simple-mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} type="button" />
-        <div className="simple-mobile-menu">
-          <label><span>Language</span><select onChange={(event) => { setLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
+        <div className="simple-mobile-menu" ref={mobileMenuRef}>
+          <label><span>Language</span><select name="mobile-language" onChange={(event) => { changeLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
             <option value="en">English</option><option value="lv">Latviešu</option></select></label>
           <button onClick={() => { setMobileMenuOpen(false); onSwitchProfile(); }} type="button"><UserRound size={17} />{profile.name}</button>
           <button onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")} type="button">
             {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}{theme === "dark" ? "Light theme" : "Dark theme"}</button>
-          <button onClick={() => { setMobileMenuOpen(false); setGlobalSettingsOpen(true); }} type="button"><Settings2 size={17} />Settings</button>
+          <button onClick={() => { setMobileMenuOpen(false); openSettings(); }} type="button"><Settings2 size={17} />Settings</button>
         </div></> : null}
+      </div>
     </header>
     {learning.apiOnline === false ? <div className="simple-offline" role="alert">
       <span><strong>Server unavailable.</strong> Loaded cards stay on this screen; changes will work again after reconnecting.</span>
       <button onClick={() => void Promise.all([learning.loadItems(language), loadConfig()])} type="button">Try again</button>
     </div> : null}
-    {globalSettingsOpen ? <GlobalSettings
-      onClose={() => setGlobalSettingsOpen(false)}
+    {route.settings ? <GlobalSettings
+      onClose={closeSettings}
       onPlayback={audio.updatePlayback}
       onPreview={() => audio.playTarget("This is how your tutor will sound.", { repetitions: 1 }, true)}
       onSaveScheduler={saveSchedulerSettings}
@@ -146,26 +182,28 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       voices={audio.voices}
     /> : null}
     <div className={`simple-workspace simple-workspace--${workspaceMode}`}>
-    {route === "practice" && <PracticePage attempts={learning.attempts} key={language}
-      dueItemIds={learning.dueItemIds} items={learning.items} language={language} mode={mode} dailyProgress={learning.dailyProgress}
-      elevenLabs={audio.elevenLabsConfig} manualReviewItemId={manualReviewItemId}
+    {route.section === "practice" && <PracticePage attempts={learning.attempts} key={language}
+      dueItemIds={learning.dueItemIds} items={learning.items} language={language} route={route} dailyProgress={learning.dailyProgress}
+      elevenLabs={audio.elevenLabsConfig}
       onAnswer={learning.setAnswer} onCheck={learning.checkAnswer} onListened={learning.commitListening}
+      onModeSelected={learning.resetAttempts}
       onItemUpdated={learning.updateItem}
-      onManualReviewStarted={() => setManualReviewItemId(null)}
-      onMode={(next) => { setMode(next); learning.resetAttempts(); }} onRecallReview={learning.commitRecall}
+      onRoute={(next, historyMode) => { goTo(next, historyMode); learning.resetAttempts(); }} onRecallReview={learning.commitRecall}
       onPracticeEnabled={learning.updatePracticeEnabled}
       onPausePlayback={audio.pausePlayback} onPlay={audio.playTarget} onPlayback={audio.updatePlayback}
       onResumePlayback={audio.resumePlayback} onStopPlayback={audio.stopPlayback}
       playback={audio.playback} voices={audio.voices} />}
-    {route === "tutor" && <TutorPage language={language} mode={tutorMode} onMode={setTutorMode} profileId={profile.id}
-      onLibrary={() => setRoute("library")}
-      onListen={() => { setMode("shadow"); setRoute("practice"); void learning.loadItems(language); }} />}
-    {route === "library" && <LibraryPage items={learning.items} language={language}
+    {route.section === "tutor" && <TutorPage language={language} profileId={profile.id} route={route}
+      onRoute={(next, historyMode) => goTo(next, historyMode)}
+      onLibrary={() => goTo(defaultLibraryRoute(language))}
+      onListen={() => { goTo(practiceRoute("listen")); void learning.loadItems(language); }} />}
+    {route.section === "library" && <LibraryPage items={learning.items} language={language} route={route}
+      onRoute={(next, historyMode) => goTo(next, historyMode)}
       onItemDeleted={learning.removeItem} onItemUpdated={learning.updateItem}
       onItemsReload={() => learning.loadItems(language)}
-      onListen={() => { setMode("shadow"); setRoute("practice"); void learning.loadItems(language); }}
+      onListen={() => { goTo(practiceRoute("listen")); void learning.loadItems(language); }}
       onPlay={(text) => void audio.playTarget(text)} onPracticeEnabled={learning.updatePracticeEnabled}
-      onReview={(itemId) => { setManualReviewItemId(itemId); setMode("recall"); setRoute("practice"); }} />}
+      onReview={(itemId) => goTo({ ...practiceRoute("recall"), scope: "library", review: itemId })} />}
     </div>
   </div>;
 }

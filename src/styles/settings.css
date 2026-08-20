@@ -147,7 +147,7 @@
 
 .simple-recall-audio-setting small {
   color: var(--script-tertiary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .simple-provider-switch {
@@ -592,7 +592,7 @@
   outline: 0;
 }
 
-.simple-fsrs-details input:focus {
+.simple-fsrs-details input:focus-visible {
   border-color: var(--cue-light);
 }
 

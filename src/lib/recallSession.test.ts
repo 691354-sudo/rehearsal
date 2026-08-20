@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialRecallSession, recallKeyAction, recallSessionReducer } from "./recallSession";
+import { initialRecallSession, recallItemIdsAfter, recallKeyAction, recallSessionReducer } from "./recallSession";
 
 const start = (items = ["a", "b", "c", "d"]) => recallSessionReducer(initialRecallSession, {
   type: "start",
@@ -39,5 +39,11 @@ describe("finite recall session", () => {
     expect(recallKeyAction("Enter", false, "good")).toBe("check");
     expect(recallKeyAction("Enter", true, "good")).toBe("submit");
     expect(recallKeyAction("ArrowLeft", true, "good")).toBe("hard");
+  });
+
+  it("keeps the following cards in keyboard focus order", () => {
+    expect(recallItemIdsAfter(["a", "b", "c"], "a")).toEqual(["b", "c"]);
+    expect(recallItemIdsAfter(["a", "b", "c"], "b")).toEqual(["c"]);
+    expect(recallItemIdsAfter(["a", "b", "c"], "c")).toEqual([]);
   });
 });

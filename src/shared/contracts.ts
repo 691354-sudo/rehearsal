@@ -21,9 +21,7 @@ export type {
 };
 
 export type Language = LanguageCode;
-export type Mode = "recall" | "shadow";
 export type Theme = "light" | "dark";
-export type Route = "practice" | "tutor" | "library";
 
 export type Evaluation = {
   score: number;

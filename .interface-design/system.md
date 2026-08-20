@@ -2,83 +2,75 @@
 
 ## Direction
 
-Rehearsal is a pragmatic, practice-first personal language tool. It should feel calm, immediately understandable, and comfortable for daily 10–30 minute sessions. Design quality comes from hierarchy, spacing, typography, and interaction clarity rather than decoration or metaphor.
+Rehearsal is a calm, practice-first personal language tool. The learner's sentence is the dominant visual material; controls support it and recede. Recall, Listen & Repeat, Chat, and Notebook differ through composition and content, not separate color themes.
 
 ## Typography
 
-- Inter Variable throughout the product.
-- No serif typefaces.
-- Interface body text: 15–16 px.
-- Inputs and learning text: 18 px minimum.
+- Golos Text Variable throughout the application, profile gate, controls, and learning content.
+- Font stack: `"Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`.
+- Interface body text: 15–16 px. All mobile form controls are at least 16 px.
 - Russian cue: 24–31 px depending on viewport.
-- Avoid uppercase microcopy and text below 12 px.
+- Avoid uppercase microcopy and text below 12 px. English, Russian, and Latvian text must wrap without clipping.
 
 ## Color
 
-- Light and dark themes share identical hierarchy and layout.
-- One muted violet accent for actions, selection, and the active rehearsal state.
-- Green and amber are reserved for learning outcomes and status.
-- Light: soft neutral canvas, white working surface, graphite text.
-- Dark: midnight canvas, graphite working surface, cool off-white text.
-- Theme choice persists; first visit follows system preference.
+- Light theme: **Warm Stone** — canvas `#ece7df`, surface `#f7f3ed`, inset `#e6e0d7`, ink `#282522`.
+- Dark theme: **Graphite Haze** — canvas `#2b2c2e`, surface `#353638`, inset `#252628`, ink `#f1efec`.
+- One muted terracotta accent: `#a4573b` in light mode and `#db906b` in dark mode. It identifies the current route, selected state, primary action, and focus.
+- Green, amber, and red are reserved for success/Learned, notes or warnings, and error/retry states.
+- Large workspace backgrounds remain neutral. The selected terracotta PWA `theme-color` is an intentional brand exception to canvas-colored browser chrome.
 
-## Depth
+Exact tokens live in `docs/THEME_REFRESH_SPEC.md` and must not be independently redefined here.
 
-- Borders-only depth strategy.
+## Depth, spacing, and shape
+
+- Borders-first depth strategy; no gradients or decorative shadows.
 - Two primary surfaces: canvas and working surface; inputs use an inset surface.
-- No decorative gradients or dramatic shadows.
-- Border contrast stays quiet but visible in both themes.
+- Base unit: 4 px, with an 8 px layout rhythm. Common spacing: 4, 8, 12, 16, 24, 32 px.
+- Controls use an 8 px radius; primary working surfaces use 12 px.
+- One shared focus ring and one border/radius/shadow language.
+- All interactive targets are at least 44×44 CSS px; compact icons sit inside that hitbox.
 
-## Spacing and shape
+## Shared shell and responsive grid
 
-- Base unit: 4 px, with an 8 px layout rhythm.
-- Common spacing: 4, 8, 12, 16, 24, 32 px.
-- Controls: 8 px radius.
-- Primary working surface: 12 px radius.
-- Avoid excessive nested cards.
-- Desktop practice controls stay compact; mobile touch targets can expand later without changing the visual hierarchy.
+- Header and all desktop workspaces share a centered rail up to 1080 px wide with 24 px side gutters.
+- Narrow screens use 16 px workspace gutters and safe-area insets.
+- Tutor Chat fills the dynamic viewport beneath the header; only message history scrolls and the composer remains visible.
+- Notebook fills the available viewport and grows with content.
+- Ordinary Library fills the available viewport and makes the card list its primary scroller. Import, review, and Topics use document flow.
+- Mobile active Recall hides setup chrome and keeps one current card plus its action.
+- Settings and editors use native modal dialogs, contain internal overscroll, and block background scrolling.
 
-## Navigation
+## Navigation and URL contract
 
-- Compact top navigation on desktop.
-- Three-item bottom navigation on mobile: Practice, Tutor, Library.
-- Desktop keeps language, profile, theme, and settings visible when they fit.
-- Mobile keeps the current section visible and moves language, profile, theme, and settings into one compact menu.
+- Desktop uses compact top navigation; mobile uses the three-item Practice, Tutor, Library bottom navigation.
+- Primary navigation and mode switches are real links.
+- Stable routes: `/practice/recall`, `/practice/listen`, `/tutor/chat`, `/tutor/notebook`, `/library`, and `/library/topics`.
+- Stable state is encoded in query parameters: language, Practice scope/topic/count/review card, Tutor thread, Library search/status/topic/sort/page/import/editor, and open Settings.
+- Links and parsing honor `import.meta.env.BASE_URL`, including production under `/rehearsal/`.
+- Back closes Settings, Import, and Card Editor. Unsaved Import and Card Editor content is guarded. Tutor and Notebook drafts are restored from profile-scoped session storage.
 
 ## Practice pattern
 
-- Practice has two modes only: written `Recall` and `Listen & Repeat`.
-- One active sentence is the product signature: a focused working surface with a quiet violet border and thin violet rail, surrounded by only the controls needed for the current action.
-- Both modes default to the complete ordered FSRS `Due now` selection. Topic, count, and custom Library practice are compact optional controls; the resulting cards appear immediately below them before a session starts.
-- Recall queue previews show Russian prompts without revealing the target-language answer. On desktop each row also has its own answer field, while mobile reserves answer input for the focused one-card session. Long previews reveal ten cards at a time through `Load more`.
-- Every visible Practice queue card keeps compact Play, Edit, and category metadata actions. For English Recall, checking plays the natural answer by default and the result keeps a manual Play action; Settings may disable only the automatic playback.
-- Recall is a two-Enter loop: first Enter evaluates the written target-language answer and shows an inline word diff; second Enter accepts the selected memory grade and advances.
-- `Again`, `Hard`, `Good`, and `Easy` belong only to recall because they grade memory. The suggested grade is the focused default.
-- Each recall grade carries a quiet second-line interval preview. Reviewed cards leave the `Due now` scope until FSRS marks them due again, but remain available under `All Library cards`.
-- `Again` and `Hard` return within the current session; `Good` and `Easy` complete the card for that session. FSRS independently owns the future due date.
-- Listen & Repeat is one continuous target-language player with Play/Pause, Previous, Replay, Next, Stop, and Russian reveal. It never asks for a memory grade.
-- The player uses one persistent audio element and one cached MP3 per card, with browser speech as a whole-session fallback.
-- Topic selection uses Library Topics, never the first item tag.
-- Daily volume appears beside the Practice title as quiet factual counts, never as a quota, streak, or dashboard card.
-- Settings never dominate the practice screen.
+- One active sentence is the product signature: a focused neutral working surface with a terracotta focus border and thin terracotta Recall rail.
+- Recall and Listen & Repeat share selection controls and palette. Recall grades memory; Listen & Repeat provides continuous playback without grades.
+- Queue preview and setup share the same width and panel padding. Empty Due now offers one action to browse Library.
+- Desktop keeps the two-Enter Recall path and inline queue answers. Mobile keeps the equivalent visible touch path.
+- Progress uses compositor-friendly transforms and all motion respects `prefers-reduced-motion`.
 
-## Capture and Library
+## Tutor, Notebook, and Library
 
-- Notebook presents one Russian text field and one Record action in the same working surface. Empty states are terse because both users already understand the method.
-- Library begins with Search, learning status, Topic, and sort controls followed immediately by cards.
-- Topic management and text import are secondary dialogs or panels.
-- `Learned` is an explicit reversible item state. It never looks like deletion and it preserves the FSRS history.
-- Pattern Drill is a labeled card action whose proposals remain dismissible drafts until selected.
-- Library card text leads at 17 px target / 14 px cue on desktop; secondary actions use 11–12 px labels in compact 34–36 px controls. Editing uses the shared elevated card dialog rather than expanding into the list row.
-- Topic management uses a 220 px selection rail and a sentence-led detail pane. Each membership row exposes `Move to…` and explicit Remove; manual ordering is absent because it has no learning meaning. While this panel is open, the ordinary Library list is hidden.
-- Notebook Review places one optional comment field under every proposal. Empty means approve; a comment requests a replacement for that card only. One action saves approved proposals and returns revised proposals without a package-level feedback box.
-- Tutor Chat / Notebook is a high-visibility 14 px segmented control. Loaded history jumps to the latest position without animated traversal; only genuinely new content scrolls smoothly.
+- Chat is distinguished by message bubbles and a fixed composer. Empty Chat offers up to three starter prompts and Tutor updates use a polite live log.
+- Notebook is distinguished by capture and review structure. Typed and voice capture are both visible; its empty state has one short method-specific prompt.
+- Library card language leads. Play, Learned/Reactivate, and Edit remain visible; Review now, Pattern drill, and Delete live in a controlled More disclosure. Topic metadata sits at the quiet edge of the action row instead of competing with the phrase.
+- Library renders 20 cards per URL page and applies `content-visibility` to rows. A single `Select` control enters bulk-selection mode; only then do card checkboxes and bulk actions appear. On narrow screens, each 44 px selection target overlays its card corner instead of reserving a permanent grid column.
+- Practice queue numbers are quiet inline indices rather than a dedicated column. Topic labels sit beneath the Play/Edit controls, keeping phrase width available for learning content.
+- Topics keeps membership rows sentence-led. `Select` reveals card checkboxes and one batch toolbar for Move/Remove; those controls never occupy every row. `Add cards` opens a compact labeled search picker near the Topic heading, with left-aligned results and 20-result increments.
 
-## Global settings
+## Global settings and accessibility
 
-- The header gear opens one right-side settings panel; it is available from every route.
-- Voice, repetitions, speed, and pause are one shared device preference: Global Settings and Cards edit the same values immediately. Settings shows one quiet confirmation that changes apply to the next card; it never places playback changes behind a global Save button.
-- Voice options use the muted violet selected state; Marin and Cedar carry quiet recommended labels.
-- Provider voice identity and Preview remain visible. ElevenLabs verification details, model choice, tuning sliders, speaker boost, cache information, and the external voice link live under `Advanced voice`.
-- FSRS retention, maximum interval, learning steps, relearning steps, and fuzz are saved explicitly to the database.
-- `New cards per day` remains a normal setting. Retention, intervals, learning steps, relearning steps, and fuzz live under Advanced scheduling.
+- The header gear opens one native modal dialog styled as a right drawer.
+- Playback preferences apply immediately; FSRS scheduling changes save explicitly.
+- Every control has an accessible name. Asynchronous results use status, alert, or polite live regions.
+- The document language is English; Russian cues and target-language text carry explicit language metadata.
+- The application provides a skip link, stable main landmark, visible `:focus-visible`, reduced-motion behavior, and touch-safe tap handling.
