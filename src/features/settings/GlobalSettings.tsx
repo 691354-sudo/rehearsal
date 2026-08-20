@@ -34,6 +34,9 @@ export function GlobalSettings(props: {
   const [playbackApplied, setPlaybackApplied] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<ElevenLabsVoiceStatus | null>(null);
   const [voiceStatusState, setVoiceStatusState] = useState<"idle" | "checking" | "ready" | "error">("idle");
+  const selectedElevenLabsVoice = props.elevenLabs.voices.find(
+    (voice) => voice.id === props.playback.elevenlabs.voiceId,
+  ) || props.elevenLabs.voice;
 
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === "Escape") props.onClose(); };
@@ -44,8 +47,9 @@ export function GlobalSettings(props: {
   useEffect(() => {
     if (!props.elevenLabs.configured) return;
     const controller = new AbortController();
+    setVoiceStatus(null);
     setVoiceStatusState("checking");
-    void apiFetch("/api/audio/elevenlabs/status", { signal: controller.signal })
+    void apiFetch(`/api/audio/elevenlabs/status?voiceId=${encodeURIComponent(selectedElevenLabsVoice.id)}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Voice check failed");
         const status = await response.json() as ElevenLabsVoiceStatus;
@@ -55,7 +59,7 @@ export function GlobalSettings(props: {
       })
       .catch(() => { if (!controller.signal.aborted) setVoiceStatusState("error"); });
     return () => controller.abort();
-  }, [props.elevenLabs.configured]);
+  }, [props.elevenLabs.configured, selectedElevenLabsVoice.id]);
 
   const parseSteps = (value: string) => value.split(/[\s,]+/).map((step) => step.trim()).filter(Boolean);
   const stepPattern = /^\d+(?:\.\d+)?[mhd]$/;
@@ -115,7 +119,7 @@ export function GlobalSettings(props: {
   const refreshVoiceStatus = async () => {
     setVoiceStatusState("checking");
     try {
-      const response = await apiFetch("/api/audio/elevenlabs/status?refresh=true");
+      const response = await apiFetch(`/api/audio/elevenlabs/status?refresh=true&voiceId=${encodeURIComponent(selectedElevenLabsVoice.id)}`);
       if (!response.ok) throw new Error("Voice check failed");
       const status = await response.json() as ElevenLabsVoiceStatus;
       setVoiceStatus(status);
@@ -143,14 +147,14 @@ export function GlobalSettings(props: {
     }
   };
 
-  const activeVoice = voiceStatus?.reachable ? voiceStatus.voice : {
-    ...props.elevenLabs.voice,
+  const activeVoice = voiceStatus?.reachable && voiceStatus.voice.id === selectedElevenLabsVoice.id ? voiceStatus.voice : {
+    ...selectedElevenLabsVoice,
     category: "",
     description: "",
     labels: {} as Record<string, string>,
   };
   const voiceDetails = [activeVoice.labels.accent, activeVoice.labels.use_case, activeVoice.labels.gender]
-    .filter(Boolean).map(humanizeLabel).join(" · ") || "Configured ElevenLabs voice";
+    .filter(Boolean).map(humanizeLabel).join(" · ") || "ElevenLabs voice";
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
 
   return <div className="simple-settings-overlay" onMouseDown={(event) => {
@@ -181,6 +185,11 @@ export function GlobalSettings(props: {
               {props.voices.map((voice) => <option key={voice} value={voice}>{capitalize(voice)}{voice === "onyx" ? " · recommended" : ""}</option>)}
             </select>
           </label> : <>
+            <label className="simple-openai-voice-choice"><span>Voice</span>
+              <select onChange={(event) => updateElevenLabs("voiceId", event.target.value)} value={selectedElevenLabsVoice.id}>
+                {props.elevenLabs.voices.map((voice) => <option key={voice.id} value={voice.id}>{voice.name}</option>)}
+              </select>
+            </label>
             <div className="simple-elevenlabs-voice">
               <div><strong>{activeVoice.name}</strong><span>{voiceDetails}</span></div>
               <i aria-label={voiceStatusState === "ready" ? "Voice ready" : "Voice status unavailable"}

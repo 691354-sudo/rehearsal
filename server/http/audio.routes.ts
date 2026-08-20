@@ -7,8 +7,11 @@ import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
 export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   app.get("/api/audio/elevenlabs/status", async (request) => {
     const { elevenlabs } = dependencies.forRequest(request);
-    const query = z.object({ refresh: z.enum(["true", "false"]).default("false") }).parse(request.query);
-    return elevenlabs.voiceStatus(query.refresh === "true");
+    const query = z.object({
+      refresh: z.enum(["true", "false"]).default("false"),
+      voiceId: z.string().trim().min(1).max(100).optional(),
+    }).parse(request.query);
+    return elevenlabs.voiceStatus(query.refresh === "true", query.voiceId);
   });
 
   app.post("/api/audio/speech", async (request, reply) => {

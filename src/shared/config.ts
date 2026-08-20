@@ -13,6 +13,7 @@ export const defaultPlayback: PlaybackPreferences = {
   playAfterRecall: true,
   voice: "onyx",
   elevenlabs: {
+    voiceId: "1YGgSmpRGVzkcaI7zhbX",
     modelId: "eleven_multilingual_v2",
     stability: 0.45,
     similarityBoost: 0.6,
@@ -24,6 +25,12 @@ export const defaultPlayback: PlaybackPreferences = {
 export const defaultElevenLabsConfig: ElevenLabsConfig = {
   configured: false,
   voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
+  voices: [
+    { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
+    { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
+    { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
+    { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
+  ],
   models: ["eleven_multilingual_v2", "eleven_flash_v2_5"],
   speedRange: defaultElevenLabsSpeedRange,
   defaults: { ...defaultPlayback.elevenlabs, speed: 1.05 },

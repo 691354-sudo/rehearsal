@@ -19,6 +19,12 @@ describe("audio API", () => {
     });
     expect(response.json().tts.providers.elevenlabs).toMatchObject({
       voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
+      voices: [
+        { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
+        { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
+        { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
+        { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
+      ],
       speedRange: { min: 0.7, max: 1.2 },
     });
     await app.close();
@@ -41,9 +47,12 @@ describe("audio API", () => {
     const app = await buildApp(context.repository, {
       elevenlabs: { voiceStatus } as unknown as ElevenLabsService,
     });
-    const response = await app.inject({ method: "GET", url: "/api/audio/elevenlabs/status?refresh=true" });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/audio/elevenlabs/status?refresh=true&voiceId=kdnRe2koJdOK4Ovxn2DI",
+    });
     expect(response.json()).toMatchObject({ reachable: true, voice: { name: "Verified voice" } });
-    expect(voiceStatus).toHaveBeenCalledWith(true);
+    expect(voiceStatus).toHaveBeenCalledWith(true, "kdnRe2koJdOK4Ovxn2DI");
     await app.close();
   });
 
@@ -56,6 +65,29 @@ describe("audio API", () => {
     });
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ error: "INVALID_ELEVENLABS_SPEED" });
+    await app.close();
+  });
+
+  it("passes the selected ElevenLabs voice to speech generation", async () => {
+    const speech = vi.fn().mockResolvedValue({ audio: Buffer.from([1, 2, 3]), cached: false });
+    const app = await buildApp(context.repository, {
+      elevenlabs: { speech } as unknown as ElevenLabsService,
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/audio/speech",
+      payload: {
+        text: "Test Eryn.",
+        language: "en",
+        provider: "elevenlabs",
+        voiceId: "kdnRe2koJdOK4Ovxn2DI",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(speech).toHaveBeenCalledWith(expect.objectContaining({
+      voiceId: "kdnRe2koJdOK4Ovxn2DI",
+    }));
     await app.close();
   });
 });
