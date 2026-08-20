@@ -45,12 +45,16 @@
 .topic-create,
 .topic-title-edit,
 .topic-detail-heading > div:last-child,
-.topic-item-actions,
-.topic-add-item > div {
+.topic-add-item > div:first-child {
   display: flex;
   gap: 6px;
   align-items: center;
   min-width: 0;
+}
+
+.topic-detail-heading > div:last-child {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .topics-manager input,
@@ -132,7 +136,7 @@
   min-width: 22px;
   padding: 1px 6px;
   color: var(--script-tertiary);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
   background: var(--script-surface);
   border-radius: 999px;
@@ -184,16 +188,17 @@
 }
 
 .topic-items article {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   align-items: center;
   min-height: 76px;
   padding: 11px 0;
   border-bottom: 1px solid var(--script-rule);
 }
 
-.topic-items article > div:first-child {
+.topic-item-copy {
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -218,18 +223,61 @@
   font-size: 13px;
 }
 
-.topic-item-actions select {
-  width: 118px;
+.topic-card-select {
+  position: absolute;
+  top: -3px;
+  left: -6px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  place-items: center;
 }
 
-.topic-item-actions button {
-  min-width: 34px;
-  min-height: 34px;
-  padding: 0 7px;
+.topic-card-select input,
+.topic-selection-toolbar input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--cue-action);
 }
 
-.topic-item-actions .topic-remove {
-  color: var(--script-tertiary);
+.topic-items article.is-selecting strong { padding-inline-start: 30px; }
+
+.topic-selection-toolbar {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.topic-selection-toolbar > label {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 44px;
+  color: var(--script-support);
+  font-size: 13px;
+  font-weight: 590;
+}
+
+.topic-selection-toolbar select {
+  width: min(210px, 100%);
+  margin-inline-start: auto;
+  font-size: 14px;
+}
+
+.topic-selection-toolbar .topic-remove-selected {
+  color: var(--retry);
+}
+
+.topic-items article.is-selecting:has(input:checked) {
+  background: color-mix(in srgb, var(--cue-wash) 28%, transparent);
+  box-shadow: inset 2px 0 0 var(--cue-light);
 }
 
 .topic-items-empty {
@@ -243,14 +291,107 @@
 
 .topic-add-item {
   display: grid;
-  gap: 7px;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 14px;
   color: var(--script-support);
+  font-size: 13px;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 9px;
+}
+
+.topic-add-item > div:first-child {
+  justify-content: space-between;
+}
+
+.topic-add-item > div:first-child > div {
+  display: grid;
+  gap: 2px;
+}
+
+.topic-add-item > div:first-child strong {
+  color: var(--script-ink);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.topic-add-item > div:first-child span,
+.topic-add-item > label {
+  color: var(--script-tertiary);
   font-size: 12px;
 }
 
-.topic-add-item select {
-  flex: 1;
+.topic-add-item > label {
+  margin-top: 4px;
+  font-weight: 620;
+}
+
+.topic-add-item > input {
+  width: 100%;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.topic-card-picker {
+  display: grid;
+  max-height: 240px;
+  padding: 4px;
+  overflow-y: auto;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+  overscroll-behavior: contain;
+}
+
+.topic-card-picker > span {
+  padding: 16px 10px;
+  color: var(--script-tertiary);
   font-size: 13px;
+  text-align: center;
+}
+
+.topic-card-picker > button {
+  display: grid;
+  gap: 2px;
+  justify-content: stretch;
+  justify-items: start;
+  width: 100%;
+  min-height: 52px;
+  padding: 7px 10px;
+  text-align: left;
+  border-color: transparent;
+}
+
+.topic-card-picker > button strong {
+  color: var(--script-ink);
+  font-size: 14px;
+  font-weight: 610;
+  line-height: 1.3;
+}
+
+.topic-card-picker > button small {
+  overflow-wrap: anywhere;
+  color: var(--script-tertiary);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.topic-card-picker > button.is-selected {
+  color: var(--script-ink);
+  background: var(--cue-wash);
+  border-color: var(--cue-light);
+}
+
+.topic-card-picker .topic-card-picker-more {
+  justify-items: center;
+  color: var(--cue-light);
+}
+
+.topic-add-item > button {
+  min-height: 44px;
+  justify-self: end;
 }
 
 .topic-empty {
@@ -269,15 +410,8 @@
 }
 
 @media (max-width: 900px) {
-  .topic-items article {
-    align-items: start;
-  }
-
-  .topic-item-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    max-width: 210px;
-  }
+  .topic-items article { align-items: start; }
+  .topic-selection-toolbar { flex-wrap: wrap; }
 }
 
 @media (max-width: 720px) {
@@ -331,17 +465,20 @@
   }
 
   .topic-detail-heading,
-  .topic-title-edit,
-  .topic-items article {
+  .topic-title-edit {
     display: grid;
+  }
+
+  .topic-detail-heading > div:last-child {
+    justify-content: start;
   }
 
   .topic-items article {
     gap: 9px;
   }
 
-  .topic-item-actions {
-    justify-content: flex-start;
-    max-width: none;
-  }
+  .topic-selection-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 9px; }
+  .topic-selection-toolbar > label { grid-column: 1 / -1; }
+  .topic-selection-toolbar select { width: 100%; margin: 0; }
+  .topic-selection-toolbar .topic-remove-selected { grid-column: 1 / -1; }
 }

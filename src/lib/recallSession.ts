@@ -78,3 +78,8 @@ export const recallKeyAction = (
   if (key === "ArrowRight" || key === "ArrowDown") return moveReviewRating(rating, 1);
   return null;
 };
+
+export const recallItemIdsAfter = (itemIds: string[], currentItemId: string) => {
+  const currentIndex = itemIds.indexOf(currentItemId);
+  return currentIndex < 0 ? [] : itemIds.slice(currentIndex + 1);
+};

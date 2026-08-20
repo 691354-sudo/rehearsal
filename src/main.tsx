@@ -1,4 +1,4 @@
-import "@fontsource-variable/inter";
+import "@fontsource-variable/golos-text";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { PwaUpdatePrompt } from "./app/PwaUpdatePrompt";

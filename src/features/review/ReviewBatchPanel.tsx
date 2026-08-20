@@ -137,8 +137,8 @@ export function ReviewBatchPanel(props: {
       : props.batch.kind === "capture"
         ? `${props.batch.candidates.length} proposals · review before saving`
         : `${props.batch.candidates.length} proposals · nothing saved yet`}</span></div>
-      <div className="simple-review-header-actions">{pages > 1 ? <nav aria-label="Candidate pages"><button disabled={page === 0} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={15} /></button>
-        <span>{page + 1} / {pages}</span><button disabled={page >= pages - 1} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={15} /></button></nav> : null}
+      <div className="simple-review-header-actions">{pages > 1 ? <nav aria-label="Candidate pages"><button aria-label="Previous candidate page" disabled={page === 0} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={15} /></button>
+        <span>{page + 1} / {pages}</span><button aria-label="Next candidate page" disabled={page >= pages - 1} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={15} /></button></nav> : null}
         {props.onReset ? <button className="simple-review-reset" disabled={saving || resetting || Boolean(regenerating)} onClick={() => void reset()} type="button">
           {resetting ? <LoaderCircle className="simple-spin" size={14} /> : <RotateCcw size={14} />}Reset</button> : null}
         {props.onDismiss ? <button aria-label="Close review" onClick={props.onDismiss} type="button"><X size={16} /></button> : null}</div>
@@ -152,12 +152,12 @@ export function ReviewBatchPanel(props: {
           </button>
         </div>
         <div className="simple-review-fields">
-          <input aria-label="Target phrase" onChange={(event) => update(candidate.id, { target: event.target.value })} value={candidate.target} />
-          <input aria-label="Russian cue" className="is-cue" onChange={(event) => update(candidate.id, { cue: event.target.value })} value={candidate.cue} />
-          <div className="simple-review-meta"><input aria-label="Category" onChange={(event) => update(candidate.id, { category: event.target.value })} value={candidate.category} />
+          <input aria-label="Target phrase" autoComplete="off" name={`review-target-${candidate.id}`} onChange={(event) => update(candidate.id, { target: event.target.value })} value={candidate.target} />
+          <input aria-label="Russian cue" autoComplete="off" className="is-cue" lang="ru" name={`review-cue-${candidate.id}`} onChange={(event) => update(candidate.id, { cue: event.target.value })} value={candidate.cue} />
+          <div className="simple-review-meta"><input aria-label="Category" autoComplete="off" name={`review-category-${candidate.id}`} onChange={(event) => update(candidate.id, { category: event.target.value })} value={candidate.category} />
             <span>{candidate.disposition || "active"}</span><span>{candidate.frequencyBand}</span><span>{candidate.currency}</span></div>
           <textarea aria-label={`Comment for card ${page * pageSize + visibleIndex + 1}`}
-            className="simple-review-comment" onChange={(event) => {
+            autoComplete="off" className="simple-review-comment" name={`review-comment-${candidate.id}`} onChange={(event) => {
               const value = event.target.value;
               setComments((current) => ({ ...current, [candidate.id]: value }));
               if (value.trim()) setSelected((current) => new Set(current).add(candidate.id));
@@ -174,7 +174,7 @@ export function ReviewBatchPanel(props: {
         </div>
       </article>)}
     </div>
-    <footer><span>{notice}</span><button className="simple-primary" disabled={!selected.size || saving || resetting || props.batch.status === "committed"}
+    <footer><span aria-live="polite">{notice}</span><button className="simple-primary" disabled={!selected.size || saving || resetting || props.batch.status === "committed"}
       onClick={() => void resolveReview()} type="button">
       {saving ? <LoaderCircle className="simple-spin" size={15} /> : commentedCount ? <RefreshCw size={15} /> : <Check size={15} />}
       {props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture"

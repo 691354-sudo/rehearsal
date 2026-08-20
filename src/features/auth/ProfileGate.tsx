@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { LoaderCircle, LockKeyhole } from "lucide-react";
 import type { AuthSession, ProfileId, ProfileSummary } from "../../../contracts/api";
 import { RehearsalApp } from "../../app/RehearsalApp";
@@ -12,6 +12,7 @@ export function ProfileGate() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const pinRef = useRef<HTMLInputElement>(null);
 
   const loadProfiles = async () => {
     const response = await apiFetch("/api/auth/profiles");
@@ -42,7 +43,12 @@ export function ProfileGate() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!/^\d{4,12}$/.test(pin) || submitting) return;
+    if (submitting) return;
+    if (!/^\d{4,12}$/.test(pin)) {
+      setError("Enter a PIN with 4–12 digits.");
+      pinRef.current?.focus();
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -53,6 +59,7 @@ export function ProfileGate() {
       });
       if (!response.ok) {
         setError(response.status === 429 ? "Too many attempts. Try again in 15 minutes." : "Incorrect PIN.");
+        window.requestAnimationFrame(() => pinRef.current?.focus());
         return;
       }
       const session = await response.json() as AuthSession;
@@ -81,7 +88,7 @@ export function ProfileGate() {
   if (loading) return <main className="profile-gate"><LoaderCircle className="simple-spin" size={24} /><span>Opening Rehearsal…</span></main>;
   if (profile) return <RehearsalApp key={profile.id} onSwitchProfile={() => void switchProfile()} profile={profile} />;
 
-  return <main className="profile-gate">
+  return <main className="profile-gate" id="main-content">
     <section className="profile-card">
       <div className="profile-mark">R</div>
       <header><span>Rehearsal</span><h1>Choose your profile</h1><p>Your practice, Tutor history, and settings stay separate.</p></header>
@@ -91,14 +98,14 @@ export function ProfileGate() {
           <strong>{candidate.name}</strong><span>{candidate.id === "roman" ? "R" : "O"}</span>
         </button>)}
       </div>
-      <form onSubmit={submit}>
+      <form noValidate onSubmit={submit}>
         <label htmlFor="profile-pin">PIN</label>
-        <div className="profile-pin"><LockKeyhole size={18} /><input autoComplete="current-password" autoFocus
+        <div className="profile-pin"><LockKeyhole size={18} /><input aria-describedby={error ? "profile-pin-error" : undefined} aria-invalid={Boolean(error)} autoComplete="current-password"
           id="profile-pin" inputMode="numeric" maxLength={12} minLength={4} onChange={(event) => {
             setPin(event.target.value.replace(/\D/g, "")); setError("");
-          }} pattern="[0-9]{4,12}" placeholder="4–12 digits" type="password" value={pin} /></div>
-        {error ? <p className="profile-error" role="alert">{error}</p> : null}
-        <button className="profile-submit" disabled={!/^\d{4,12}$/.test(pin) || submitting} type="submit">
+          }} name="pin" pattern="[0-9]{4,12}" placeholder="For example: 1234…" ref={pinRef} type="password" value={pin} /></div>
+        {error ? <p className="profile-error" id="profile-pin-error" role="alert">{error}</p> : null}
+        <button className="profile-submit" disabled={submitting} type="submit">
           {submitting ? <LoaderCircle className="simple-spin" size={17} /> : null}Continue as {profiles.find((candidate) => candidate.id === selected)?.name || "profile"}
         </button>
       </form>

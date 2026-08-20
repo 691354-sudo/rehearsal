@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronLeft, ChevronRight, Settings2, Volume2 } from "lucide-react";
 import { recallKeyAction, recallSessionReducer, initialRecallSession } from "../../lib/recallSession";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
@@ -7,6 +7,7 @@ import type { AttemptDraft, ElevenLabsConfig, IslandSummary, Language, LearningI
 import { PlaybackSettings } from "./PlaybackSettings";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
+import type { PracticeCardCount } from "../../lib/appRoute";
 
 const formatInterval = (seconds?: number) => {
   if (seconds === undefined) return "";
@@ -20,7 +21,9 @@ const formatInterval = (seconds?: number) => {
 
 export function RecallSession(props: {
   attempts: Record<string, AttemptDraft>;
+  count: PracticeCardCount;
   dueItemIds: string[];
+  emptyAction: ReactNode;
   elevenLabs: ElevenLabsConfig;
   items: LearningItem[];
   language: Language;
@@ -31,19 +34,20 @@ export function RecallSession(props: {
   topicId: string;
   onAnswer: (itemId: string, value: string) => void;
   onCheck: (itemId: string) => void;
+  onCount: (count: PracticeCardCount) => void;
   onEdit: (item: LearningItem) => void;
   onListenMode: () => void;
   onManualReviewStarted: () => void;
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<unknown>;
   onPlayback: (playback: PlaybackPreferences) => void;
+  onScope: (scope: PracticeScope) => void;
   onTopic: (topicId: string) => void;
   playback: PlaybackPreferences;
+  scope: PracticeScope;
   voices: string[];
 }) {
   const [state, dispatch] = useReducer(recallSessionReducer, initialRecallSession);
-  const [count, setCount] = useState("all");
-  const [scope, setScope] = useState<PracticeScope>(props.manualReviewItemId ? "custom" : "due");
   const [showPlaybackSettings, setShowPlaybackSettings] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const sourceItems = useMemo(() => props.manualReviewItemId
@@ -53,9 +57,9 @@ export function RecallSession(props: {
     sourceItems,
     props.dueItemIds,
     props.selectedTopicItems,
-    count === "all" ? "all" : Number(count),
-    scope,
-  ), [count, props.dueItemIds, props.selectedTopicItems, scope, sourceItems]);
+    props.count === "all" ? "all" : Number(props.count),
+    props.scope,
+  ), [props.count, props.dueItemIds, props.scope, props.selectedTopicItems, sourceItems]);
   const current = props.items.find((item) => item.publicId === state.queue[0]);
   const attempt = current ? props.attempts[current.publicId] || { answer: "" } : { answer: "" };
 
@@ -90,31 +94,33 @@ export function RecallSession(props: {
     }
   };
 
+  const startButton = <button className="simple-primary recall-start" disabled={!sessionItems.length}
+    onClick={() => { dispatch({ type: "start", itemIds: sessionItems.map((item) => item.publicId) }); props.onManualReviewStarted(); }} type="button">
+    <span className="recall-start-desktop">Focus mode</span><span className="recall-start-mobile">Start {sessionItems.length ? `${sessionItems.length} cards` : "Recall"}</span><ChevronRight size={16} />
+  </button>;
+
   if (state.phase === "setup") return <div className="practice-ready-layout">
     <section className="recall-setup" aria-label="Recall setup">
-      {props.manualReviewItemId ? <p className="recall-manual-label">Manual review · stays Learned</p> : <>
+      {props.manualReviewItemId ? <><p className="recall-manual-label">Manual review · stays Learned</p>{startButton}</> : <>
         <div className="practice-scope-switch" role="group" aria-label="Recall source">
-          <button aria-pressed={scope === "due"} onClick={() => setScope("due")} type="button">Due now</button>
-          <button aria-pressed={scope === "custom"} onClick={() => setScope("custom")} type="button">All Library</button>
+          <button aria-pressed={props.scope === "due"} onClick={() => props.onScope("due")} type="button">Due now</button>
+          <button aria-pressed={props.scope === "custom"} onClick={() => props.onScope("custom")} type="button">All Library</button>
         </div>
         <div className="recall-setup-fields">
-          <label><span>Topic</span><select onChange={(event) => props.onTopic(event.target.value)} value={props.topicId}>
+          <label><span>Topic</span><select name="recall-topic" onChange={(event) => props.onTopic(event.target.value)} value={props.topicId}>
             <option value="">All Topics</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}
           </select></label>
-          <label><span>Cards</span><select onChange={(event) => setCount(event.target.value)} value={count}>
-            <option value="all">All {scope === "due" ? "due" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+          <label><span>Cards</span><select name="recall-count" onChange={(event) => props.onCount(event.target.value as PracticeCardCount)} value={props.count}>
+            <option value="all">All {props.scope === "due" ? "due" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
           </select></label>
+          {startButton}
         </div>
       </>}
-      <button className="simple-primary recall-start" disabled={!sessionItems.length}
-        onClick={() => { dispatch({ type: "start", itemIds: sessionItems.map((item) => item.publicId) }); props.onManualReviewStarted(); }} type="button">
-        <span className="recall-start-desktop">Focus mode</span><span className="recall-start-mobile">Start {sessionItems.length ? `${sessionItems.length} cards` : "Recall"}</span><ChevronRight size={16} />
-      </button>
     </section>
-    <PracticeQueuePreview attempts={props.attempts} items={sessionItems} language={props.language} mode="recall"
+    <PracticeQueuePreview attempts={props.attempts} emptyAction={props.emptyAction} items={sessionItems} language={props.language} mode="recall"
       onAnswer={props.onAnswer} onCheck={props.onCheck} onEdit={props.onEdit}
       onPlay={(item) => props.onPlay(item.target, props.playback)} onRecallReview={props.onRecallReview}
-      playAfterRecall={props.playback.playAfterRecall} scope={scope} />
+      playAfterRecall={props.playback.playAfterRecall} scope={props.scope} />
   </div>;
 
   if (state.phase === "complete" || !current) return <section className="recall-complete" aria-label="Recall complete">
@@ -128,16 +134,16 @@ export function RecallSession(props: {
     <header><button aria-label="End session" onClick={() => dispatch({ type: "reset" })} type="button"><ChevronLeft size={16} />End</button>
       <span>{Math.min(position, state.initialTotal)} / {state.initialTotal}</span></header>
     <article className="recall-card">
-      <p className="recall-cue">{current.cue}</p>
-      <div className="recall-answer-row"><input aria-label={`Type in ${languageCopy[props.language].label}`} autoComplete="off"
+      <p className="recall-cue" lang="ru">{current.cue}</p>
+      <div className="recall-answer-row"><input aria-label={`Type in ${languageCopy[props.language].label}`} autoComplete="off" lang={props.language} name="recall-answer"
         onChange={(event) => { if (!attempt.evaluation) props.onAnswer(current.publicId, event.target.value); }}
-        onKeyDown={onKeyDown} placeholder={`Type in ${languageCopy[props.language].label}`} readOnly={Boolean(attempt.evaluation)} ref={inputRef} value={attempt.answer} />
+        onKeyDown={onKeyDown} placeholder={`Type in ${languageCopy[props.language].label}…`} readOnly={Boolean(attempt.evaluation)} ref={inputRef} value={attempt.answer} />
         {!attempt.evaluation ? <button aria-label="Check answer" className="simple-primary" disabled={!attempt.answer.trim()} onClick={check} type="button"><Check size={16} /></button> : null}
       </div>
-      {attempt.evaluation ? <div className={`recall-result recall-result--${attempt.evaluation.verdict}`}>
+      {attempt.evaluation ? <div aria-live="polite" className={`recall-result recall-result--${attempt.evaluation.verdict}`}>
         <span>{attempt.evaluation.verdict === "exact" ? "Correct" : "Compare"}</span>
-        {attempt.evaluation.verdict !== "exact" ? <p className="recall-own-answer">{attempt.answer}</p> : null}
-        <div className="recall-natural-row"><p className="recall-natural-answer">{attempt.evaluation.naturalAnswer}</p>
+        {attempt.evaluation.verdict !== "exact" ? <p className="recall-own-answer" lang={props.language}>{attempt.answer}</p> : null}
+        <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>{attempt.evaluation.naturalAnswer}</p>
           {props.language === "en" ? <button aria-label="Play natural answer" onClick={() => { void props.onPlay(current.target, props.playback); }} title="Play" type="button"><Volume2 size={16} /></button> : null}</div>
         <div className="recall-grades" aria-label="Memory grade">{reviewRatings.map((rating) => <button aria-pressed={state.selectedRating === rating}
           disabled={state.saving} key={rating} onClick={() => void save(rating)} type="button"><span>{capitalize(rating)}</span><small>{formatInterval(current.schedule?.options[rating].intervalSeconds)}</small></button>)}</div>

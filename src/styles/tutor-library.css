@@ -274,7 +274,7 @@
   outline: 0;
 }
 
-.simple-composer textarea:focus {
+.simple-composer textarea:focus-visible {
   border-color: var(--cue-light);
   box-shadow: 0 0 0 3px var(--control-focus);
   outline: 0;
@@ -490,9 +490,9 @@
   line-height: 1.55;
 }
 
-.simple-import-card > input:focus,
-.simple-import-card > textarea:focus,
-.simple-search input:focus {
+.simple-import-card > input:focus-visible,
+.simple-import-card > textarea:focus-visible,
+.simple-search input:focus-visible {
   border-color: var(--cue-light);
   box-shadow: 0 0 0 3px var(--control-focus);
   outline: 0;

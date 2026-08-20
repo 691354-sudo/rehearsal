@@ -7,47 +7,52 @@ body,
 }
 
 body {
-  background: #f5f4f8;
+  background: #ece7df;
 }
 
+html:has(.profile-gate),
+html:has(.simple-app--light) { color-scheme: light; }
+
+html:has(.simple-app--dark) { color-scheme: dark; }
+
 @media (prefers-color-scheme: dark) {
-  body { background: #090a0d; }
+  body { background: #2b2c2e; }
 }
 
 .simple-app {
-  --stage-canvas: #f5f4f8;
-  --script-surface: #ffffff;
-  --script-inset: #f8f7fb;
-  --script-ink: #202026;
-  --script-support: #62616c;
-  --script-tertiary: #797782;
-  --script-muted: #aaa8b2;
-  --script-rule: #e5e3e9;
-  --script-rule-strong: #d5d2dc;
-  --cue-light: #6956c9;
-  --cue-action: #6956c9;
-  --cue-wash: #f0edfb;
-  --learned: #328265;
-  --learned-wash: #edf7f3;
-  --rehearsal-note: #d69a33;
-  --retry: #aa514f;
-  --cue-on: #ffffff;
-  --control-fill: #f3f1f7;
-  --control-rule: #d5d2dc;
+  --stage-canvas: #ece7df;
+  --script-surface: #f7f3ed;
+  --script-inset: #e6e0d7;
+  --script-ink: #282522;
+  --script-support: #6f6861;
+  --script-tertiary: #746d66;
+  --script-muted: #9d958d;
+  --script-rule: #d7cfc4;
+  --script-rule-strong: #bfb4a7;
+  --cue-light: #a4573b;
+  --cue-action: #a4573b;
+  --cue-wash: #ead8cd;
+  --learned: #3f7b60;
+  --learned-wash: #e2eee7;
+  --rehearsal-note: #97611f;
+  --retry: #a64f49;
+  --cue-on: #fff9f4;
+  --control-fill: #e6e0d7;
+  --control-rule: #c9bfb3;
   --control-focus: color-mix(in srgb, var(--cue-light) 18%, transparent);
-  --listen-action: #167a70;
-  --listen-canvas: #eaf7f4;
-  --recall-action: #6754cf;
-  --recall-canvas: #f1effb;
-  --chat-action: #2e70b7;
-  --chat-canvas: #edf5fc;
-  --notebook-action: #a96320;
-  --notebook-canvas: #fbf3e9;
+  --listen-action: var(--cue-action);
+  --listen-canvas: var(--stage-canvas);
+  --recall-action: var(--cue-action);
+  --recall-canvas: var(--stage-canvas);
+  --chat-action: var(--cue-action);
+  --chat-canvas: var(--stage-canvas);
+  --notebook-action: var(--cue-action);
+  --notebook-canvas: var(--stage-canvas);
   min-height: 100vh;
   min-height: 100dvh;
   color: var(--script-ink);
   background: var(--stage-canvas);
-  font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 15px;
   line-height: 1.5;
   color-scheme: light;
@@ -57,32 +62,26 @@ body {
 }
 
 .simple-app--dark {
-  --stage-canvas: #090a0d;
-  --script-surface: #121318;
-  --script-inset: #0d0e12;
-  --script-ink: #f1f0f4;
-  --script-support: #aaa8b2;
-  --script-tertiary: #777681;
-  --script-muted: #575762;
-  --script-rule: rgba(237, 233, 246, 0.09);
-  --script-rule-strong: rgba(237, 233, 246, 0.17);
-  --cue-light: #a38cf4;
-  --cue-action: #735bd6;
-  --cue-wash: rgba(116, 91, 214, 0.16);
-  --learned: #72c2a2;
-  --learned-wash: rgba(77, 155, 123, 0.16);
-  --rehearsal-note: #d5a34d;
-  --retry: #d77d78;
-  --control-fill: #0d0e12;
-  --control-rule: rgba(237, 233, 246, 0.17);
-  --listen-action: #4fc7ba;
-  --listen-canvas: #0c211f;
-  --recall-action: #9f8bed;
-  --recall-canvas: #1b1728;
-  --chat-action: #70adeb;
-  --chat-canvas: #101e2c;
-  --notebook-action: #dea153;
-  --notebook-canvas: #251c12;
+  --stage-canvas: #2b2c2e;
+  --script-surface: #353638;
+  --script-inset: #252628;
+  --script-ink: #f1efec;
+  --script-support: #b8b5b0;
+  --script-tertiary: #a19e99;
+  --script-muted: #7d7b77;
+  --script-rule: #4c4d50;
+  --script-rule-strong: #606165;
+  --cue-light: #db906b;
+  --cue-action: #db906b;
+  --cue-wash: #4e352e;
+  --cue-on: #24140e;
+  --learned: #84c5a5;
+  --learned-wash: rgb(132 197 165 / 14%);
+  --rehearsal-note: #e0ad62;
+  --retry: #e28a82;
+  --control-fill: #252628;
+  --control-rule: #55565a;
+  --control-focus: color-mix(in srgb, var(--cue-light) 20%, transparent);
   color-scheme: dark;
 }
 
@@ -96,31 +95,36 @@ body {
   transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.simple-workspace--listen {
-  --mode-action: var(--listen-action);
-  --mode-canvas: var(--listen-canvas);
-}
-
-.simple-workspace--recall {
-  --mode-action: var(--recall-action);
-  --mode-canvas: var(--recall-canvas);
-}
-
-.simple-workspace--chat {
-  --mode-action: var(--chat-action);
-  --mode-canvas: var(--chat-canvas);
-}
-
+.simple-workspace--listen,
+.simple-workspace--recall,
+.simple-workspace--chat,
 .simple-workspace--notebook {
-  --mode-action: var(--notebook-action);
-  --mode-canvas: var(--notebook-canvas);
+  --mode-action: var(--cue-action);
+  --mode-canvas: var(--stage-canvas);
 }
 
-.simple-app--dark .simple-workspace:not(.simple-workspace--library) {
-  --mode-on: #0b0b0e;
-}
+.simple-app,
+.simple-app *,
+.simple-app *::before,
+.simple-app *::after { box-sizing: border-box; }
 
 .simple-app button,
+.simple-app a,
+.simple-app input,
+.simple-app select,
+.simple-app textarea { touch-action: manipulation; }
+
+.simple-app ::selection {
+  color: var(--cue-on);
+  background: var(--cue-action);
+}
+
+.simple-app input,
+.simple-app textarea { caret-color: var(--cue-action); }
+
+.simple-app button,
+.simple-app input,
+.simple-app select,
 .simple-app textarea {
   font: inherit;
 }
@@ -161,14 +165,19 @@ body {
   position: sticky;
   top: 0;
   z-index: 30;
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
-  align-items: center;
   height: 58px;
-  padding: 0 28px;
   background: color-mix(in srgb, var(--stage-canvas) 92%, transparent);
   border-bottom: 1px solid var(--script-rule);
   backdrop-filter: blur(16px);
+}
+
+.simple-header-rail {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+  align-items: center;
+  width: min(1080px, calc(100% - 48px));
+  height: 100%;
+  margin: 0 auto;
 }
 
 .simple-brand {
@@ -213,7 +222,9 @@ body {
   gap: 4px;
 }
 
-.simple-nav button {
+.simple-nav a {
+  display: inline-flex;
+  align-items: center;
   min-height: 40px;
   padding: 0 12px;
   color: var(--script-support);
@@ -222,14 +233,15 @@ body {
   background: transparent;
   border: 0;
   border-radius: 8px;
+  text-decoration: none;
 }
 
-.simple-nav button:hover {
+.simple-nav a:hover {
   color: var(--script-ink);
   background: var(--script-inset);
 }
 
-.simple-nav button.is-active {
+.simple-nav a.is-active {
   color: var(--script-ink);
   font-weight: 600;
   background: var(--cue-wash);
@@ -335,13 +347,13 @@ body {
 }
 
 .simple-main {
-  width: min(1080px, calc(100% - 40px));
+  width: min(1080px, calc(100% - 48px));
   margin: 0 auto;
   padding: 30px 0 56px;
 }
 
 .simple-main--practice {
-  width: min(940px, calc(100% - 40px));
+  width: min(1080px, calc(100% - 48px));
 }
 
 .simple-page-heading {
@@ -408,9 +420,9 @@ body {
   align-items: center;
   padding: 10px 12px;
   color: var(--script-ink, #202026);
-  font: 600 13px/1.4 Inter, sans-serif;
-  background: var(--script-surface, #ffffff);
-  border: 1px solid var(--script-rule-strong, #d5d2dc);
+  font: 600 13px/1.4 "Golos Text Variable", "Golos Text", sans-serif;
+  background: var(--script-surface, #f7f3ed);
+  border: 1px solid var(--script-rule-strong, #bfb4a7);
   border-radius: 10px;
   box-shadow: 0 12px 36px rgb(20 18 30 / 18%);
 }
@@ -418,12 +430,49 @@ body {
 .simple-update-prompt button {
   min-height: 36px;
   padding: 0 10px;
-  color: var(--script-ink, #202026);
-  background: var(--control-fill, #f3f1f7);
-  border: 1px solid var(--script-rule, #e5e3e9);
+  color: var(--script-ink, #282522);
+  background: var(--control-fill, #e6e0d7);
+  border: 1px solid var(--script-rule, #d7cfc4);
   border-radius: 7px;
 }
 
 @keyframes simple-spin {
   to { transform: rotate(360deg); }
+}
+
+.simple-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 200;
+  padding: 10px 14px;
+  color: var(--cue-on);
+  background: var(--cue-action);
+  border-radius: 8px;
+  transform: translateY(-160%);
+}
+
+.simple-skip-link:focus { transform: translateY(0); }
+
+.simple-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simple-app *,
+  .simple-app *::before,
+  .simple-app *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
