@@ -57,6 +57,17 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     return item ? { item } : reply.code(404).send({ error: "ITEM_NOT_FOUND" });
   });
 
+  app.delete("/api/items", async (request, reply) => {
+    const { repository } = dependencies.forRequest(request);
+    const body = z.object({
+      itemIds: z.array(z.string().min(1)).min(1).max(500),
+    }).refine(({ itemIds }) => new Set(itemIds).size === itemIds.length, {
+      message: "Item ids must be unique",
+    }).parse(request.body);
+    const deleted = repository.items.deleteMany(body.itemIds);
+    return deleted ? { deleted } : reply.code(404).send({ error: "ITEM_NOT_FOUND" });
+  });
+
   app.delete("/api/items/:itemId", async (request, reply) => {
     const { repository } = dependencies.forRequest(request);
     const params = z.object({ itemId: z.string().min(1) }).parse(request.params);

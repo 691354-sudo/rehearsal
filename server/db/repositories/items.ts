@@ -123,6 +123,21 @@ export class ItemsRepository {
     return true;
   }
 
+  deleteMany(publicIds: string[]) {
+    const uniqueIds = [...new Set(publicIds)];
+    const items = uniqueIds.map((publicId) => this.get(publicId));
+    if (items.some((item) => !item)) return null;
+    const remove = this.db.prepare("DELETE FROM items WHERE public_id = ?");
+    const transaction = this.db.transaction(() => {
+      items.forEach((item, index) => {
+        logChange(this.db, "user", "delete", "item", uniqueIds[index], item, null);
+        remove.run(uniqueIds[index]);
+      });
+    });
+    transaction();
+    return uniqueIds;
+  }
+
   search(query: string, language: LanguageCode, embedding?: number[], limit = 20): SearchResult[] {
     const keywordScores = new Map<string, number>();
     const itemById = new Map<string, LearningItem>();

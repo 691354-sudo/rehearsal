@@ -5,7 +5,7 @@
 .simple-chat {
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
-  height: clamp(560px, calc(100vh - 150px), 860px);
+  height: max(clamp(560px, calc(100vh - 150px), 860px), calc(var(--tutor-composer-height, 64px) + 260px));
   margin-top: 18px;
   overflow: hidden;
   background: var(--script-surface);
@@ -248,7 +248,7 @@
 
 .simple-composer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
+  grid-template-columns: 40px 42px minmax(0, 1fr) 42px;
   gap: 10px;
   align-items: end;
   padding: 16px;
@@ -259,9 +259,10 @@
 .simple-composer textarea {
   box-sizing: border-box;
   width: 100%;
-  max-height: 180px;
-  resize: vertical;
-  padding: 11px 13px;
+  min-height: 64px;
+  max-height: none;
+  resize: none;
+  padding: 11px 42px 11px 13px;
   color: var(--script-ink);
   background: var(--control-fill);
   border: 1px solid var(--control-rule);
@@ -275,7 +276,7 @@
   outline: 0;
 }
 
-.simple-composer button {
+.simple-composer-send {
   display: grid;
   width: 42px;
   height: 42px;
@@ -289,6 +290,92 @@
 .simple-composer button:disabled {
   cursor: default;
   opacity: 0.45;
+}
+
+.simple-composer-input {
+  position: relative;
+  min-width: 0;
+}
+
+.simple-composer-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  color: var(--script-tertiary);
+  touch-action: none;
+  cursor: ns-resize;
+  background: transparent;
+  border: 0;
+  border-radius: 0 9px 0 8px;
+}
+
+.simple-composer-resize:hover,
+.simple-composer-resize:focus-visible {
+  color: var(--cue-light);
+  background: var(--cue-wash);
+  outline: 0;
+}
+
+.simple-composer-record {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  place-items: center;
+  color: var(--script-support);
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.simple-composer-record.is-recording {
+  color: var(--cue-on);
+  background: var(--retry);
+  border-color: var(--retry);
+}
+
+.simple-composer-upload[aria-disabled="true"] {
+  pointer-events: none;
+  opacity: .45;
+}
+
+.simple-composer-voice-status {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 6px 16px;
+  color: var(--script-tertiary);
+  font-size: 12px;
+  background: var(--script-inset);
+  border-top: 1px solid var(--script-rule);
+}
+
+.simple-composer-voice-status.is-error {
+  color: var(--retry);
+}
+
+.simple-composer-voice-status > div {
+  display: flex;
+  gap: 6px;
+}
+
+.simple-composer-voice-status button {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 8px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 6px;
 }
 
 .simple-library-layout {

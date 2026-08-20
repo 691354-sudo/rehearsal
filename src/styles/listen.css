@@ -21,23 +21,28 @@
   gap: 12px;
 }
 
-.listen-setup label {
+.listen-setup label,
+.listen-player-settings label {
   display: grid;
   gap: 6px;
 }
 
-.listen-setup label > span {
+.listen-setup label > span,
+.listen-player-settings label > span {
   color: var(--script-tertiary);
   font-size: 12px;
   font-weight: 600;
 }
 
 .listen-setup select,
-.listen-setup input[type="range"] {
+.listen-setup input[type="range"],
+.listen-player-settings select,
+.listen-player-settings input[type="range"] {
   width: 100%;
 }
 
-.listen-setup select {
+.listen-setup select,
+.listen-player-settings select {
   min-height: 44px;
   padding: 0 11px;
   color: var(--script-ink);
@@ -46,7 +51,8 @@
   border-radius: 8px;
 }
 
-.listen-setup input[type="range"] {
+.listen-setup input[type="range"],
+.listen-player-settings input[type="range"] {
   min-height: 44px;
   accent-color: var(--cue-action);
 }
@@ -159,6 +165,27 @@
   border: 0;
 }
 
+.listen-player-settings {
+  padding: 16px 20px;
+  background: var(--script-inset);
+  border-top: 1px solid var(--script-rule);
+}
+
+.listen-player-settings .listen-setup-grid {
+  padding: 14px;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.listen-player-settings > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--script-tertiary);
+  font-size: 12px;
+  text-align: right;
+}
+
 .listen-controls {
   display: flex;
   gap: 8px;
@@ -186,6 +213,12 @@
   color: var(--cue-on);
   background: var(--cue-action);
   border-color: var(--cue-action);
+}
+
+.listen-controls button.is-active {
+  color: var(--cue-light);
+  background: var(--cue-wash);
+  border-color: var(--cue-light);
 }
 
 .listen-error {
@@ -234,7 +267,12 @@
   }
 
   .listen-controls {
+    flex-wrap: wrap;
     gap: 6px;
     padding-inline: 10px;
+  }
+
+  .listen-player-settings {
+    padding: 12px 10px;
   }
 }

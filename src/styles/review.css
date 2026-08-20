@@ -114,7 +114,7 @@
 }
 
 .simple-composer {
-  grid-template-columns: 40px minmax(0, 1fr) 42px;
+  grid-template-columns: 40px 42px minmax(0, 1fr) 42px;
 }
 
 .simple-composer-upload {
@@ -365,8 +365,67 @@
   margin: 0;
 }
 
+.simple-library-selection {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 6px 16px;
+  color: var(--script-tertiary);
+  font-size: 12px;
+  border-top: 1px solid var(--script-rule);
+  border-bottom: 1px solid var(--script-rule);
+}
+
+.simple-library-selection > label,
+.simple-library-selection > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.simple-library-selection input,
+.simple-card-select input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--cue-action);
+}
+
+.simple-library-selection button {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 9px;
+  color: var(--script-support);
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--script-rule);
+  border-radius: 7px;
+}
+
+.simple-library-selection .simple-delete-selected {
+  color: var(--retry);
+  border-color: color-mix(in srgb, var(--retry) 28%, var(--script-rule));
+}
+
 .simple-phrase-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+}
+
+.simple-phrase-row.is-selected {
+  background: var(--cue-wash);
+}
+
+.simple-card-select {
+  display: grid;
+  min-width: 28px;
+  min-height: 34px;
+  cursor: pointer;
+  place-items: center;
 }
 
 .simple-row-actions {

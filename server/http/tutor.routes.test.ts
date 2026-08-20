@@ -4,6 +4,15 @@ import { OpenAIService } from "../services/openai.js";
 import { createApiTestContext, type ApiTestContext } from "../testing/api-test-context.js";
 import { reviewCandidate } from "../testing/candidates.js";
 
+const multipartAudio = (boundary: string, mime: string, audio: Buffer) => Buffer.concat([
+  Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="audio"; filename="message.bin"\r\n` +
+    `Content-Type: ${mime}\r\n\r\n`,
+  ),
+  audio,
+  Buffer.from(`\r\n--${boundary}--\r\n`),
+]);
+
 describe("Tutor and review API", () => {
   let context: ApiTestContext;
 
@@ -29,6 +38,29 @@ describe("Tutor and review API", () => {
     expect(history.json().messages[0]).toEqual({ role: "user", content: "Help me practice small talk" });
     expect((await app.inject({ method: "DELETE", url: `/api/chat/${threadId}` })).statusCode).toBe(204);
     expect((await app.inject({ method: "GET", url: "/api/chat/threads?language=en" })).json().threads).toEqual([]);
+    await app.close();
+  });
+
+  it("transcribes a voice message without saving the audio or creating a chat", async () => {
+    const openai = new OpenAIService(context.repository);
+    const transcribe = vi.spyOn(openai, "transcribe").mockResolvedValue("Can we practise a job interview?");
+    const app = await buildApp(context.repository, { openai });
+    const boundary = "----rehearsal-tutor-voice";
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/chat/transcribe?language=en",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+      payload: multipartAudio(boundary, "audio/webm", Buffer.from("fake-webm-audio")),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ transcript: "Can we practise a job interview?" });
+    expect(transcribe).toHaveBeenCalledWith(expect.objectContaining({
+      audioMime: "audio/webm",
+      filename: "tutor-message.webm",
+      languages: ["en", "ru"],
+    }));
+    expect(context.repository.tutor.listThreads("en", 50)).toEqual([]);
     await app.close();
   });
 

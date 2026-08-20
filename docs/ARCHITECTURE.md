@@ -49,6 +49,8 @@ Related tables store original sources, review batches, capture notes, practice a
 
 Practice and Library use `islands` membership as the only source of Topic filtering. Item tags remain searchable metadata for patterns, source, and linguistic form, but `tags[0]` does not define a Topic. `practice_enabled = 0` is the reversible Learned state: due queries exclude it while Library inventory and review history retain it.
 
+Library bulk deletion sends up to 500 unique item public IDs in one authenticated request. The repository verifies the complete set before deleting inside one SQLite transaction, so a stale or invalid selection cannot produce a partial delete.
+
 The one-time `topics_backfill_v1` migration turns each normalized first tag into a Topic, preserving card creation order and every original tag. Normalization ignores case and repeated whitespace. The migration is internally idempotent and records completion in `app_settings`, so a Topic intentionally deleted later is not recreated on restart.
 
 ## Search
@@ -75,6 +77,8 @@ Workload roles are pinned: Sol for Tutor conversation, Terra for material genera
 
 Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MIME type through `MediaRecorder.isTypeSupported` and uploads multipart audio to Fastify. An unsent recording stays in profile-and-language-scoped IndexedDB until the server accepts its client-generated UUID; retrying that UUID is idempotent. The server enforces the 25 MB limit and sends completed recordings to `OPENAI_TRANSCRIBE_MODEL` (`gpt-transcribe` by default). `POST /api/captures/text` creates an equivalent ready note without transcription. Browser dictation is never used.
 
+Tutor voice messages reuse the compatible `MediaRecorder` formats but post transient audio to `/api/chat/transcribe`. The audio exists only for that request, is never stored in the profile database, and the returned transcript enters the ordinary `/api/chat` path. If transcription fails, the browser keeps the Blob in memory for Retry or explicit Delete while that Tutor page remains open.
+
 ## Audio
 
 `/api/audio/speech` calls OpenAI `tts-1-hd` with a compatible legacy voice or ElevenLabs TTS and stores the MP3 in the SQLite `audio_cache`. ElevenLabs cache identity includes normalized text, language, voice ID, model, speed, stability, similarity, style, and speaker boost; identical concurrent cache misses share one provider request. Cache entries survive API restarts. Responses include `X-AI-Generated-Audio: true` and `X-Audio-Cache: HIT|MISS`. The browser speech engine is the offline fallback.
@@ -90,6 +94,8 @@ The client exposes this audio path for English only. Latvian Practice resolves t
 Topic APIs are `GET /api/islands`, `GET /api/islands/:id`, `POST /api/islands`, `PATCH /api/islands/:id`, and `DELETE /api/islands/:id`. A patch may rename a Topic or replace its ordered membership atomically. The client exposes adding a card to another Topic, removing it from the current Topic, and a recoverable two-patch move between Topics; failure after the destination update leaves the card in both Topics rather than losing membership.
 
 Tutor history uses `GET /api/chat/threads`, `GET /api/chat/:threadId/messages`, and `DELETE /api/chat/:threadId`. Deleting a thread cascades to its messages inside the profile database. Loaded history is positioned immediately; smooth scrolling is reserved for new messages and newly prepared review content.
+
+The Tutor composer has its own upward resize handle at the right edge; the textarea has no fixed maximum height. On narrow layouts the chat fills the space between the app header and bottom navigation, and a larger composer expands upward before the page itself grows.
 
 The server stores only individual provider MP3 responses; it does not assemble continuous tracks and has no FFmpeg runtime dependency. Listen & Repeat updates Media Session metadata for the current card and registers Play, Pause, Previous, Next, and Stop handlers when the browser exposes that API.
 

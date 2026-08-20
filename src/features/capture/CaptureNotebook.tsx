@@ -2,6 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, Mic, Plus, RefreshCw, Save, Square, Trash2, WandSparkles } from "lucide-react";
 import type { ProfileId } from "../../../contracts/api";
 import { apiFetch } from "../../shared/api";
+import {
+  maxRecordingBytes,
+  maxRecordingSeconds,
+  recordingFilename,
+  supportedRecordingMimeType,
+} from "../../shared/audioRecording";
 import type { Language } from "../../shared/contracts";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 import {
@@ -23,10 +29,6 @@ type CaptureNote = {
   createdAt: string;
   updatedAt: string;
 };
-
-const maxBytes = 25 * 1024 * 1024;
-const maxDurationSeconds = 5 * 60;
-const preferredMimeTypes = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"];
 
 const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 const friendlyError = (error: unknown) => {
@@ -110,7 +112,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
 
   const upload = async (recording: PendingRecording, session = sessionRef.current) => {
     if (!recording.blob.size) { setNotice("The recording was empty. Try again closer to the microphone."); return; }
-    if (recording.blob.size > maxBytes) { setNotice("The recording is larger than 25 MB. Record a shorter note."); return; }
+    if (recording.blob.size > maxRecordingBytes) { setNotice("The recording is larger than 25 MB. Record a shorter note."); return; }
     const controller = new AbortController();
     uploadAbortRef.current = controller;
     try {
@@ -153,7 +155,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
         throw new Error("Audio recording is not supported in this browser.");
       }
-      const mimeType = preferredMimeTypes.find((type) => MediaRecorder.isTypeSupported(type));
+      const mimeType = supportedRecordingMimeType();
       if (!mimeType) throw new Error("This browser does not expose a supported recording format.");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (session !== sessionRef.current) {
@@ -190,13 +192,12 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
           if (session === sessionRef.current) setNotice("The recording was empty. Try again closer to the microphone.");
           return;
         }
-        if (blob.size > maxBytes) {
+        if (blob.size > maxRecordingBytes) {
           if (session === sessionRef.current) setNotice("The recording is larger than 25 MB. Record a shorter note.");
           return;
         }
-        const extension = blob.type.includes("mp4") ? "m4a" : "webm";
         if (session === sessionRef.current) setUploading(true);
-        void savePendingRecording(profileId, language, blob, `capture.${extension}`).then((saved) => {
+        void savePendingRecording(profileId, language, blob, recordingFilename("capture", blob.type)).then((saved) => {
           if (session !== sessionRef.current) return;
           setPendingRecording(saved);
           return upload(saved, session);
@@ -208,8 +209,8 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
         });
       };
       recorder.start(); setRecording(true);
-      intervalId = window.setInterval(() => setElapsed((value) => Math.min(maxDurationSeconds, value + 1)), 1000);
-      timeoutId = window.setTimeout(() => { if (recorder.state !== "inactive") recorder.stop(); }, maxDurationSeconds * 1000);
+      intervalId = window.setInterval(() => setElapsed((value) => Math.min(maxRecordingSeconds, value + 1)), 1000);
+      timeoutId = window.setTimeout(() => { if (recorder.state !== "inactive") recorder.stop(); }, maxRecordingSeconds * 1000);
       intervalRef.current = intervalId;
       timeoutRef.current = timeoutId;
     } catch (error) {

@@ -111,14 +111,20 @@ export class OpenAIService {
     return Boolean(this.client);
   }
 
-  async transcribe(input: { audio: Buffer; audioMime: string; filename: string }) {
+  async transcribe(input: {
+    audio: Buffer;
+    audioMime: string;
+    filename: string;
+    languages?: string[];
+    prompt?: string;
+  }) {
     if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
     const file = new File([new Uint8Array(input.audio)], input.filename, { type: input.audioMime });
     const transcription = await this.client.audio.transcriptions.create({
       file,
       model: config.transcriptionModel,
-      languages: ["ru"],
-      prompt: "Личная голосовая заметка на русском языке о том, что говорящий хотел бы уметь сказать.",
+      languages: input.languages || ["ru"],
+      prompt: input.prompt || "Личная голосовая заметка на русском языке о том, что говорящий хотел бы уметь сказать.",
     });
     const text = transcription.text.trim();
     if (!text) throw new Error("EMPTY_TRANSCRIPTION");
