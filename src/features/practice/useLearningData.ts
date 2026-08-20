@@ -44,7 +44,7 @@ export const useLearningData = (language: Language) => {
     try {
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
       const [libraryResponse, dueResponse, progressResponse] = await Promise.all([
-        apiFetch(`/api/items?language=${nextLanguage}&limit=500&includeSchedule=true`),
+        apiFetch(`/api/items?language=${nextLanguage}&limit=2000&includeSchedule=true`),
         apiFetch(`/api/practice/due?language=${nextLanguage}&limit=100`),
         apiFetch(`/api/practice/progress?language=${nextLanguage}&since=${encodeURIComponent(startOfDay.toISOString())}`),
       ]);

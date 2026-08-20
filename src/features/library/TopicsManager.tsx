@@ -32,7 +32,7 @@ export function TopicsManager({ language, onClose }: { language: Language; onClo
   const load = async (preferredId?: string) => {
     const [topicResponse, itemResponse] = await Promise.all([
       apiFetch(`/api/islands?language=${language}`),
-      apiFetch(`/api/items?language=${language}&limit=500`),
+      apiFetch(`/api/items?language=${language}&limit=2000`),
     ]);
     if (!topicResponse.ok || !itemResponse.ok) throw new Error("Topics could not be loaded.");
     const topicData = await topicResponse.json() as { islands: TopicSummary[] };
