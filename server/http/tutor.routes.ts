@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { HttpDependencies } from "./dependencies.js";
 import { aiLimits } from "../services/ai-limits.js";
+import { audioUploadExtension } from "./audio-upload.js";
 import { languageSchema, reviewCandidateSelectionSchema } from "./schemas.js";
 
 export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
@@ -48,6 +49,34 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
       threadId: z.string().uuid().optional(),
     }).parse(request.body);
     return tutor.chat({ language: body.language, message: body.message, threadPublicId: body.threadId });
+  });
+
+  app.post("/api/chat/transcribe", async (request, reply) => {
+    const { openai } = dependencies.forRequest(request);
+    const query = z.object({ language: languageSchema }).parse(request.query);
+    const upload = await request.file();
+    if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED" });
+    const mime = upload.mimetype.toLocaleLowerCase().split(";")[0];
+    const extension = audioUploadExtension(mime);
+    if (!extension) {
+      await upload.toBuffer();
+      return reply.code(415).send({ error: "UNSUPPORTED_AUDIO_TYPE", mime });
+    }
+    const audio = await upload.toBuffer();
+    if (!audio.byteLength) return reply.code(422).send({ error: "EMPTY_AUDIO" });
+    try {
+      const languages = query.language === "en" ? ["en", "ru"] : ["lv", "ru", "en"];
+      const transcript = await openai.transcribe({
+        audio,
+        audioMime: mime,
+        filename: `tutor-message.${extension}`,
+        languages,
+        prompt: "A conversational message to a language tutor. Preserve the language and wording the speaker used.",
+      });
+      return { transcript };
+    } catch {
+      return reply.code(503).send({ error: "TRANSCRIPTION_FAILED" });
+    }
   });
 
   app.post("/api/chat/:threadId/review", async (request, reply) => {

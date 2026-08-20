@@ -1,27 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { HttpContext, HttpDependencies } from "./dependencies.js";
+import { audioUploadExtension } from "./audio-upload.js";
 import { languageSchema } from "./schemas.js";
-
-const captureMimeTypes = new Map([
-  ["audio/mp4", "m4a"],
-  ["audio/m4a", "m4a"],
-  ["audio/x-m4a", "m4a"],
-  ["video/mp4", "mp4"],
-  ["audio/webm", "webm"],
-  ["video/webm", "webm"],
-  ["audio/mpeg", "mp3"],
-  ["audio/mp3", "mp3"],
-  ["audio/wav", "wav"],
-  ["audio/x-wav", "wav"],
-]);
 
 export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   const transcribe = async (publicId: string, context: HttpContext) => {
     const { repository, openai } = context;
     const stored = repository.capture.getAudio(publicId);
     if (!stored?.audio?.byteLength) throw new Error("CAPTURE_AUDIO_NOT_FOUND");
-    const extension = captureMimeTypes.get(stored.audio_mime);
+    const extension = audioUploadExtension(stored.audio_mime);
     if (!extension) throw new Error("UNSUPPORTED_AUDIO_TYPE");
     const transcript = await openai.transcribe({
       audio: stored.audio,
@@ -51,7 +39,7 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
     const upload = await request.file();
     if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED" });
     const mime = upload.mimetype.toLocaleLowerCase().split(";")[0];
-    if (!captureMimeTypes.has(mime)) {
+    if (!audioUploadExtension(mime)) {
       await upload.toBuffer();
       return reply.code(415).send({ error: "UNSUPPORTED_AUDIO_TYPE", mime });
     }

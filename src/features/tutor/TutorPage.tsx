@@ -1,10 +1,29 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
-import { Check, LoaderCircle, PanelLeft, Plus, Send, Trash2, Upload, X } from "lucide-react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import {
+  Check,
+  LoaderCircle,
+  Mic,
+  MoveDiagonal2,
+  PanelLeft,
+  Plus,
+  RefreshCw,
+  Send,
+  Square,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import { CaptureNotebook } from "../capture/CaptureNotebook";
 import type { ProfileId } from "../../../contracts/api";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 import { apiFetch } from "../../shared/api";
+import {
+  maxRecordingBytes,
+  maxRecordingSeconds,
+  recordingFilename,
+  supportedRecordingMimeType,
+} from "../../shared/audioRecording";
 import type { ChatMessage, ChatThread, Language } from "../../shared/contracts";
 
 const renderInlineMarkdown = (text: string) => text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) =>
@@ -55,6 +74,17 @@ const formatThreadDate = (value: string) => {
   return date.toLocaleDateString("en", { month: "short", day: "numeric" });
 };
 
+type PendingTutorRecording = { blob: Blob; filename: string };
+
+const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+const voiceErrorMessage = (error: unknown) => {
+  if (error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError")) {
+    return "Microphone access is blocked. Allow it in your browser or Home Screen app settings and try again.";
+  }
+  if (error instanceof Error) return error.message;
+  return "Voice recording failed.";
+};
+
 export function TutorPage({ language, profileId, onLibrary, onListen }: {
   language: Language;
   profileId: ProfileId;
@@ -70,7 +100,16 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
   const [deletingThread, setDeletingThread] = useState(false);
   const [reviewing, setReviewing] = useState(false); const [reviewBatch, setReviewBatch] = useState<ReviewBatch | null>(null);
   const [threadId, setThreadId] = useState<string>(); const messagesRef = useRef<HTMLDivElement>(null);
+  const [recording, setRecording] = useState(false); const [transcribing, setTranscribing] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0); const [voiceError, setVoiceError] = useState("");
+  const [pendingVoice, setPendingVoice] = useState<PendingTutorRecording | null>(null);
+  const [composerHeight, setComposerHeight] = useState(64);
   const scrollIntentRef = useRef<"instant" | "smooth" | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null); const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingIntervalRef = useRef<number | null>(null); const recordingTimeoutRef = useRef<number | null>(null);
+  const voiceSessionRef = useRef(0); const voiceAbortRef = useRef<AbortController | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const resizeStartRef = useRef<{ clientY: number; height: number } | null>(null);
   const storageKey = `rehearsal:${profileId}:tutor-thread:${language}`;
 
   const refreshThreads = async () => {
@@ -93,6 +132,29 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
       setThreadId(publicId); window.localStorage.setItem(storageKey, publicId); setSessionsOpen(false);
     } finally { setLoadingThread(false); }
   };
+
+  const stopVoiceTimers = () => {
+    if (recordingIntervalRef.current !== null) window.clearInterval(recordingIntervalRef.current);
+    if (recordingTimeoutRef.current !== null) window.clearTimeout(recordingTimeoutRef.current);
+    recordingIntervalRef.current = null; recordingTimeoutRef.current = null;
+  };
+  const releaseVoiceStream = () => {
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recordingStreamRef.current = null;
+  };
+
+  useEffect(() => {
+    const session = ++voiceSessionRef.current;
+    setRecording(false); setTranscribing(false); setRecordingSeconds(0); setVoiceError(""); setPendingVoice(null);
+    return () => {
+      if (voiceSessionRef.current === session) voiceSessionRef.current += 1;
+      voiceAbortRef.current?.abort(); voiceAbortRef.current = null;
+      stopVoiceTimers();
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") { recorder.onstop = null; recorder.stop(); }
+      recorderRef.current = null; releaseVoiceStream();
+    };
+  }, [language, profileId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,8 +218,8 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
     return data;
   };
 
-  const send = async () => {
-    const content = draft.trim(); if (!content || sending) return;
+  const sendContent = async (rawContent: string) => {
+    const content = rawContent.trim(); if (!content || sending) return false;
     setSending(true); setSendError(""); setAdded(false);
     try {
       if (looksLikeVocabList(content)) {
@@ -178,9 +240,99 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
           { id: crypto.randomUUID(), role: "assistant", content: data.content },
         ]);
       }
-      setDraft(""); void refreshThreads().catch(() => undefined);
-    } catch { setSendError("Tutor unavailable. Retry."); }
+      setDraft((current) => current.trim() === content ? "" : current); void refreshThreads().catch(() => undefined);
+      return true;
+    } catch { setSendError("Tutor unavailable. Retry."); return false; }
     finally { setSending(false); }
+  };
+  const send = () => sendContent(draft);
+
+  const transcribeVoice = async (pending: PendingTutorRecording, session = voiceSessionRef.current) => {
+    if (!pending.blob.size) { setVoiceError("The recording was empty. Try again closer to the microphone."); return; }
+    if (pending.blob.size > maxRecordingBytes) { setVoiceError("The recording is larger than 25 MB. Record a shorter message."); return; }
+    const controller = new AbortController(); voiceAbortRef.current = controller;
+    setTranscribing(true); setVoiceError("");
+    try {
+      const form = new FormData(); form.append("audio", pending.blob, pending.filename);
+      const response = await apiFetch(`/api/chat/transcribe?language=${language}`, {
+        method: "POST", body: form, signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("Transcription failed. Your recording is still available to retry.");
+      const data = await response.json() as { transcript: string };
+      if (session !== voiceSessionRef.current || controller.signal.aborted) return;
+      setPendingVoice(null); setTranscribing(false); setDraft(data.transcript);
+      await sendContent(data.transcript);
+    } catch (error) {
+      if (session === voiceSessionRef.current && !controller.signal.aborted) setVoiceError(voiceErrorMessage(error));
+    } finally {
+      if (voiceAbortRef.current === controller) voiceAbortRef.current = null;
+      if (session === voiceSessionRef.current) setTranscribing(false);
+    }
+  };
+
+  const startVoiceRecording = async () => {
+    if (recording || transcribing || pendingVoice || sending) return;
+    const session = voiceSessionRef.current; setVoiceError(""); setRecordingSeconds(0);
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        throw new Error("Audio recording is not supported in this browser.");
+      }
+      const mimeType = supportedRecordingMimeType();
+      if (!mimeType) throw new Error("This browser does not expose a supported recording format.");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (session !== voiceSessionRef.current) { stream.getTracks().forEach((track) => track.stop()); return; }
+      const recorder = new MediaRecorder(stream, { mimeType }); const chunks: Blob[] = [];
+      let intervalId: number | null = null; let timeoutId: number | null = null;
+      const releaseRecorder = () => {
+        if (intervalId !== null) window.clearInterval(intervalId);
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+        if (recordingIntervalRef.current === intervalId) recordingIntervalRef.current = null;
+        if (recordingTimeoutRef.current === timeoutId) recordingTimeoutRef.current = null;
+        if (recorderRef.current === recorder) recorderRef.current = null;
+        stream.getTracks().forEach((track) => track.stop());
+        if (recordingStreamRef.current === stream) recordingStreamRef.current = null;
+      };
+      recorderRef.current = recorder; recordingStreamRef.current = stream;
+      recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      recorder.onerror = () => {
+        releaseRecorder();
+        if (session === voiceSessionRef.current) { setRecording(false); setVoiceError("Recording failed. Nothing was sent."); }
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: recorder.mimeType || mimeType }); releaseRecorder();
+        if (session !== voiceSessionRef.current) return;
+        setRecording(false);
+        if (!blob.size) { setVoiceError("The recording was empty. Try again closer to the microphone."); return; }
+        if (blob.size > maxRecordingBytes) { setVoiceError("The recording is larger than 25 MB. Record a shorter message."); return; }
+        const pending = { blob, filename: recordingFilename("tutor-message", blob.type) };
+        setPendingVoice(pending); void transcribeVoice(pending, session);
+      };
+      recorder.start(); setRecording(true);
+      intervalId = window.setInterval(() => setRecordingSeconds((value) => Math.min(maxRecordingSeconds, value + 1)), 1000);
+      timeoutId = window.setTimeout(() => { if (recorder.state !== "inactive") recorder.stop(); }, maxRecordingSeconds * 1000);
+      recordingIntervalRef.current = intervalId; recordingTimeoutRef.current = timeoutId;
+    } catch (error) {
+      if (session !== voiceSessionRef.current) return;
+      stopVoiceTimers(); releaseVoiceStream(); setVoiceError(voiceErrorMessage(error));
+    }
+  };
+  const stopVoiceRecording = () => {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  };
+
+  const beginComposerResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!composerRef.current) return;
+    event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId);
+    resizeStartRef.current = { clientY: event.clientY, height: composerRef.current.getBoundingClientRect().height };
+  };
+  const resizeComposer = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = resizeStartRef.current;
+    if (start) setComposerHeight(Math.max(64, Math.round(start.height + start.clientY - event.clientY)));
+  };
+  const finishComposerResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    resizeStartRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
 
   const finishReview = async () => {
@@ -210,7 +362,8 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
         <button onClick={() => setSessionsOpen(true)} type="button"><PanelLeft size={16} />Sessions</button>
         <button aria-label="New chat" onClick={newChat} title="New chat" type="button"><Plus size={17} /></button>
       </div> : null}</header>
-    {tutorMode === "notebook" ? <CaptureNotebook language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
+    {tutorMode === "notebook" ? <CaptureNotebook language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat"
+      style={{ "--tutor-composer-height": `${composerHeight}px` } as CSSProperties}>
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={() => setSessionsOpen(false)} type="button" /> : null}
       <aside className={`simple-session-rail ${sessionsOpen ? "is-open" : ""}`}>
         <div className="simple-session-rail-heading"><strong>Sessions</strong>
@@ -240,12 +393,32 @@ export function TutorPage({ language, profileId, onLibrary, onListen }: {
           {sending && <div className="simple-chat-loading"><LoaderCircle className="simple-spin" size={17} />Tutor is thinking…</div>}
         </div>
         {sendError ? <div className="simple-composer-error" role="alert"><span>{sendError}</span><button onClick={() => void send()} type="button">Retry</button></div> : null}
-        <div className="simple-composer"><label className="simple-composer-upload" title="Upload a text file"><Upload size={17} /><input accept=".txt,text/plain" onChange={async (event) => {
+        {recording || transcribing || voiceError || pendingVoice ? <div aria-live="polite" className={`simple-composer-voice-status${voiceError ? " is-error" : ""}`}>
+          <span>{recording ? `Listening · ${formatDuration(recordingSeconds)} · tap Stop to send`
+            : transcribing ? "Transcribing your message…" : voiceError}</span>
+          {pendingVoice && !transcribing ? <div><button onClick={() => void transcribeVoice(pendingVoice)} type="button"><RefreshCw size={14} />Retry</button>
+            <button onClick={() => { setPendingVoice(null); setVoiceError(""); }} type="button"><Trash2 size={14} />Delete recording</button></div> : null}
+        </div> : null}
+        <div className="simple-composer"><label aria-disabled={sending || recording || transcribing} className="simple-composer-upload" title="Upload a text file"><Upload size={17} /><input accept=".txt,text/plain"
+          disabled={sending || recording || transcribing} onChange={async (event) => {
           const file = event.target.files?.[0]; if (file) setDraft(await file.text()); event.target.value = "";
-        }} type="file" /></label><textarea onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }}
-          placeholder="Message your tutor…" rows={2} value={draft} />
-          <button aria-label="Send" disabled={!draft.trim() || sending} onClick={() => void send()} type="button"><Send size={18} /></button></div>
+        }} type="file" /></label>
+          <button aria-label={recording ? "Stop and send voice message" : "Record and send voice message"}
+            className={`simple-composer-record${recording ? " is-recording" : ""}`}
+            disabled={sending || transcribing || Boolean(pendingVoice)} onClick={recording ? stopVoiceRecording : () => void startVoiceRecording()}
+            title={recording ? "Stop and send" : "Voice message"} type="button">
+            {recording ? <Square fill="currentColor" size={15} /> : transcribing ? <LoaderCircle className="simple-spin" size={17} /> : <Mic size={18} />}
+          </button>
+          <div className="simple-composer-input"><textarea onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }}
+            placeholder="Message your tutor…" ref={composerRef} rows={2} style={{ height: `${composerHeight}px` }} value={draft} />
+            <button aria-label="Resize message field" className="simple-composer-resize" onKeyDown={(event) => {
+              if (event.key === "ArrowUp") { event.preventDefault(); setComposerHeight((height) => height + 40); }
+              if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(64, height - 40)); }
+            }} onPointerCancel={finishComposerResize} onPointerDown={beginComposerResize} onPointerMove={resizeComposer}
+              onPointerUp={finishComposerResize} title="Drag up to enlarge" type="button"><MoveDiagonal2 size={14} /></button></div>
+          <button aria-label="Send" className="simple-composer-send" disabled={!draft.trim() || sending || recording || transcribing}
+            onClick={() => void send()} type="button"><Send size={18} /></button></div>
       </div>
     </section>}
   </main>;

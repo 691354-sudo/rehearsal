@@ -67,6 +67,7 @@ not a general offline queue or offline learning store.
 - Recall defaults to `Due today`; custom Library practice remains an explicit
   secondary choice.
 - Notebook gives typed Russian capture and voice capture equal prominence.
+- Tutor Chat exposes a touch-sized voice-message action and keeps failed transcription audio available for Retry or Delete while the page remains open.
 - Library shows cards before management tools. Topic management and transcript
   import use secondary dialogs or panels.
 - Mobile keeps the three-item bottom navigation. The top bar shows the current

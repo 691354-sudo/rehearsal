@@ -48,6 +48,8 @@ Recall is the main memory metric, but Rehearsal has no universal daily quota or 
 
 Listen & Repeat is the second and only other Practice mode. It also opens on the complete current FSRS due queue and shows the selected cards immediately. The learner may play that default queue without configuring it, narrow it by Topic or count, or explicitly switch to all Library cards. The player exposes Play/Pause, Previous, Replay, Next, Stop, and Russian reveal. The saved voice, natural-speed default, repetition count, and pause apply to the whole queue. Playback changes apply automatically to the next card request; the Russian cue is never spoken.
 
+Once Listen & Repeat starts, Voice settings sit with the transport controls so playback can be adjusted without leaving the active card. The settings remain available before playback for initial setup.
+
 Listen & Repeat is currently available for English only. Latvian stays written-only in Practice and Library until a voice provider is good enough for it; the product does not silently substitute an unsuitable Latvian voice.
 
 Every card is requested and played as a separate MP3 through one persistent browser audio element. Individual files are cached on the server, so the same text and voice settings do not spend provider credits twice. Global Voice and Playback settings are the single source of truth. Provider-specific limits are enforced before playback, including ElevenLabs `0.7–1.2×`. If the selected AI provider is unavailable, the complete queue may use browser speech instead. Listening activity never changes FSRS.
@@ -56,9 +58,13 @@ Every card is requested and played as a separate MP3 through one persistent brow
 
 `Learned` is an explicit, reversible user decision rather than an automatic FSRS state. Moving a card to Learned disables it for the daily due queue without deleting the card or its review history. Learned cards remain in Library and may be played or reviewed manually. Returning one to learning preserves its schedule and makes it eligible for the due queue again.
 
+Library cards may be selected with checkboxes and deleted as one confirmed batch. The batch operation is atomic: it deletes every selected card or none of them.
+
 ### Conversation
 
 Tutor behaves like a normal ChatGPT conversation or role-play. It does not interrupt every sentence unless live correction was explicitly requested. Chat and Notebook remain equally visible working modes. Existing chats may be deleted explicitly; opening Tutor restores the active chat at its latest position without replaying an animated scroll through its history. At the end, `Finish & review` analyzes the complete exchange and proposes only meaningful corrections, reusable islands, and patterns.
+
+Tutor Chat accepts either typed messages or a voice message. A voice message records after an explicit microphone action, is transcribed on the server, and sends the transcript immediately. A failed transcription keeps the recording available in the current page for Retry or Delete rather than silently discarding it.
 
 ## Approval boundary
 

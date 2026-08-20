@@ -132,6 +132,32 @@ describe("practice and library API", () => {
     expect(context.repository.items.get("en-drawn-to")).toBeNull();
   });
 
+  it("deletes a selected set of Library cards atomically", async () => {
+    const first = context.repository.items.save({ language: "en", cue: "Первая", target: "First card." });
+    const second = context.repository.items.save({ language: "en", cue: "Вторая", target: "Second card." });
+    const app = await buildApp(context.repository);
+
+    const missing = await app.inject({
+      method: "DELETE",
+      url: "/api/items",
+      payload: { itemIds: [first.publicId, "missing-card"] },
+    });
+    expect(missing.statusCode).toBe(404);
+    expect(context.repository.items.get(first.publicId)).not.toBeNull();
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: "/api/items",
+      payload: { itemIds: [first.publicId, second.publicId] },
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json().deleted).toEqual([first.publicId, second.publicId]);
+    expect(context.repository.items.get(first.publicId)).toBeNull();
+    expect(context.repository.items.get(second.publicId)).toBeNull();
+    expect(context.repository.items.get("en-drawn-to")).not.toBeNull();
+    await app.close();
+  });
+
   it("persists safe FSRS settings and rejects unsafe values", async () => {
     const app = await buildApp(context.repository);
     const settings = {

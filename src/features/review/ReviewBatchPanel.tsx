@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw, Shuffle, X } from "lucide-react";
 import { apiFetch } from "../../shared/api";
 
 export type ReviewCandidate = {
@@ -37,7 +37,7 @@ export function ReviewBatchPanel(props: {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [regenerating, setRegenerating] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState<{ candidateId: string; instruction: "another" | "different_context" } | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
   const candidateSignature = props.batch.candidates
@@ -76,7 +76,7 @@ export function ReviewBatchPanel(props: {
     category: candidate.category,
   });
   const regenerate = async (candidateId: string, instruction: "another" | "different_context") => {
-    setRegenerating(candidateId); setNotice("");
+    setRegenerating({ candidateId, instruction }); setNotice("");
     try {
       const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/candidates/${candidateId}/regenerate`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction }),
@@ -168,9 +168,12 @@ export function ReviewBatchPanel(props: {
             value={comments[candidate.id] || ""} /> : null}
         </div>
         {props.batch.kind !== "capture" ? <div className="simple-review-actions">
-          <button disabled={regenerating === candidate.id} onClick={() => void regenerate(candidate.id, "another")} type="button">
-            {regenerating === candidate.id ? <LoaderCircle className="simple-spin" size={13} /> : <RefreshCw size={13} />}Another</button>
-          <button disabled={regenerating === candidate.id} onClick={() => void regenerate(candidate.id, "different_context")} type="button">New context</button>
+          <button disabled={regenerating?.candidateId === candidate.id} onClick={() => void regenerate(candidate.id, "another")} type="button">
+            {regenerating?.candidateId === candidate.id && regenerating.instruction === "another"
+              ? <LoaderCircle className="simple-spin" size={13} /> : <RefreshCw size={13} />}Another</button>
+          <button disabled={regenerating?.candidateId === candidate.id} onClick={() => void regenerate(candidate.id, "different_context")} type="button">
+            {regenerating?.candidateId === candidate.id && regenerating.instruction === "different_context"
+              ? <LoaderCircle className="simple-spin" size={13} /> : <Shuffle size={13} />}New context</button>
         </div> : null}
       </article>)}
     </div>

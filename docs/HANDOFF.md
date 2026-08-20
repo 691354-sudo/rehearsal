@@ -9,6 +9,7 @@ This file contains only current state and follow-up work. Start with [AGENTS.md]
 - LLM roles are pinned to Sol, Terra, and Luna. Roman retains the established personal context; Oliver receives a neutral persona. Prompt and output budgets are enforced, and model checks are manual.
 - ElevenLabs remains the primary configured English voice. OpenAI fallback uses `tts-1-hd` with `onyx`; browser speech remains the last fallback.
 - The PWA keeps already loaded cards visible during network loss and stores one unsent Capture recording per profile and language in IndexedDB until server confirmation.
+- Library supports checkbox multi-selection with atomic batch deletion. Tutor Chat supports transient voice transcription with in-page Retry/Delete recovery and an upward-resizing composer. Active Listen & Repeat keeps Voice settings with its transport controls.
 - The client shell delegates learning data and audio playback to feature hooks. Server tests are split by domain, legacy repository wrappers are gone, and TypeScript rejects unused locals and parameters.
 - Production uses immutable CI-checked releases and separate verified profile backups. No production application files are edited manually.
 
