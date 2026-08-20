@@ -3,11 +3,20 @@ import { buildApp } from "../app.js";
 import { OpenAIService } from "../services/openai.js";
 import { createApiTestContext, type ApiTestContext } from "../testing/api-test-context.js";
 
-describe("Item rewrite API", () => {
+describe("Item API", () => {
   let context: ApiTestContext;
 
   beforeEach(() => { context = createApiTestContext(); });
   afterEach(() => { context.close(); });
+
+  it("allows the client to request a Library larger than 500 cards", async () => {
+    const app = await buildApp(context.repository);
+    const response = await app.inject({ method: "GET", url: "/api/items?language=en&limit=2000" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().items.length).toBeGreaterThan(0);
+    await app.close();
+  });
 
   it("returns an edited proposal without changing the saved Library card", async () => {
     const original = context.repository.items.get("en-drawn-to")!;

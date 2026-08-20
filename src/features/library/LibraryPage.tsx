@@ -44,6 +44,7 @@ export function LibraryPage({ items, language, onItemDeleted, onItemUpdated, onI
   const [added, setAdded] = useState(false);
   const [batch, setBatch] = useState<ReviewBatch | null>(null);
   const [editingItem, setEditingItem] = useState<LearningItem | null>(null);
+  const [visibleCount, setVisibleCount] = useState(50);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [deletingSelected, setDeletingSelected] = useState(false);
 
@@ -76,6 +77,7 @@ export function LibraryPage({ items, language, onItemDeleted, onItemUpdated, onI
   useEffect(() => {
     let active = true;
     setStatus("all"); setTopic("all"); setTopicItemIds([]); setBatch(null); setAdded(false); setSelectedItemIds(new Set());
+    setVisibleCount(50);
     setTopics([]); setTopicsError(false);
     void loadTopics(language).then((loadedTopics) => {
       if (active) setTopics(loadedTopics);
@@ -137,13 +139,13 @@ export function LibraryPage({ items, language, onItemDeleted, onItemUpdated, onI
       setBatch(data.batch); setNotice("");
     } catch { setNotice("Couldn’t prepare pattern variants."); }
   };
-
   const topicItemSet = useMemo(() => new Set(topicItemIds), [topicItemIds]);
   const visibleItems = useMemo(() => filterLibraryItems(items, {
     query, status, sort, topicItemIds: topic === "all" ? null : topicItemSet,
   }), [items, query, sort, status, topic, topicItemSet]);
-  const selectedVisibleCount = visibleItems.filter((item) => selectedItemIds.has(item.publicId)).length;
-  const allVisibleSelected = Boolean(visibleItems.length) && selectedVisibleCount === visibleItems.length;
+  const displayedItems = visibleItems.slice(0, visibleCount);
+  const selectedVisibleCount = displayedItems.filter((item) => selectedItemIds.has(item.publicId)).length;
+  const allVisibleSelected = Boolean(displayedItems.length) && selectedVisibleCount === displayedItems.length;
   const toggleItem = (itemId: string) => setSelectedItemIds((current) => {
     const next = new Set(current);
     if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
@@ -151,7 +153,7 @@ export function LibraryPage({ items, language, onItemDeleted, onItemUpdated, onI
   });
   const toggleVisible = () => setSelectedItemIds((current) => {
     const next = new Set(current);
-    visibleItems.forEach((item) => { if (allVisibleSelected) next.delete(item.publicId); else next.add(item.publicId); });
+    displayedItems.forEach((item) => { if (allVisibleSelected) next.delete(item.publicId); else next.add(item.publicId); });
     return next;
   });
   const deleteSelected = async () => {
@@ -202,22 +204,22 @@ export function LibraryPage({ items, language, onItemDeleted, onItemUpdated, onI
     {notice ? <p className="simple-library-notice" aria-live="polite">{notice}</p> : null}
 
     <section className="simple-library-panel simple-library-panel--main">
-      <div className="simple-library-tools"><label className="simple-search"><Search size={17} /><input onChange={(event) => setQuery(event.target.value)} placeholder="Search" type="search" value={query} /></label>
-        <select aria-label="Filter by status" onChange={(event) => setStatus(event.target.value as LibraryStatus)} value={status}>
+      <div className="simple-library-tools"><label className="simple-search"><Search size={17} /><input onChange={(event) => { setQuery(event.target.value); setVisibleCount(50); }} placeholder="Search" type="search" value={query} /></label>
+        <select aria-label="Filter by status" onChange={(event) => { setStatus(event.target.value as LibraryStatus); setVisibleCount(50); }} value={status}>
           <option value="all">All</option><option value="new">New</option><option value="learning">Learning</option><option value="learned">Learned</option></select>
-        <select aria-label="Filter by Topic" onChange={(event) => setTopic(event.target.value)} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title}</option>)}</select>
-        <select aria-label="Sort cards" onChange={(event) => setSort(event.target.value as LibrarySort)} value={sort}>
+        <select aria-label="Filter by Topic" onChange={(event) => { setTopic(event.target.value); setVisibleCount(50); }} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title}</option>)}</select>
+        <select aria-label="Sort cards" onChange={(event) => { setSort(event.target.value as LibrarySort); setVisibleCount(50); }} value={sort}>
           <option value="recent">Recent</option><option value="oldest">Oldest</option><option value="due">Due soon</option><option value="az">A–Z</option></select></div>
       <div className="simple-library-selection">
-        <label><input aria-label="Select all visible cards" checked={allVisibleSelected} disabled={!visibleItems.length || deletingSelected} onChange={toggleVisible} type="checkbox" />
-          <span>{visibleItems.length} cards</span></label>
+        <label><input aria-label="Select all visible cards" checked={allVisibleSelected} disabled={!displayedItems.length || deletingSelected} onChange={toggleVisible} type="checkbox" />
+          <span>{displayedItems.length} of {visibleItems.length} cards</span></label>
         {selectedItemIds.size ? <div><span>{selectedItemIds.size} selected</span>
           <button disabled={deletingSelected} onClick={() => setSelectedItemIds(new Set())} type="button">Clear</button>
           <button className="simple-delete-selected" disabled={deletingSelected} onClick={() => void deleteSelected()} type="button">
             {deletingSelected ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}Delete</button></div> : null}
       </div><div className="simple-phrase-list">
         {!visibleItems.length ? <p className="simple-library-empty">No cards</p> : null}
-        {visibleItems.map((item) => <article className={`simple-phrase-row${selectedItemIds.has(item.publicId) ? " is-selected" : ""}`} key={item.publicId}>
+        {displayedItems.map((item) => <article className={`simple-phrase-row${selectedItemIds.has(item.publicId) ? " is-selected" : ""}`} key={item.publicId}>
           <label className="simple-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)}
             disabled={deletingSelected} onChange={() => toggleItem(item.publicId)} type="checkbox" /></label>
           <div className="simple-phrase-copy"><strong>{item.target}</strong><small>{item.cue}</small><em>{[libraryStatusOf(item), item.tags[0], item.frequencyBand].filter(Boolean).join(" · ")}</em></div>
@@ -230,6 +232,8 @@ export function LibraryPage({ items, language, onItemDeleted, onItemUpdated, onI
             <button aria-label="Edit" onClick={() => setEditingItem(item)} title="Edit" type="button"><Pencil size={15} /></button>
             <button aria-label="Delete" onClick={() => void deleteItem(item.publicId)} title="Delete" type="button"><Trash2 size={15} /></button></div>
         </article>)}
+        {displayedItems.length < visibleItems.length ? <div className="simple-library-load-more"><span>{visibleItems.length - displayedItems.length} more cards</span>
+          <button onClick={() => setVisibleCount((current) => current + 50)} type="button">Load more</button></div> : null}
       </div>
     </section>
       {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => setEditingItem(null)}

@@ -9,7 +9,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     const { repository } = dependencies.forRequest(request);
     const query = z.object({
       language: languageSchema.default("en"),
-      limit: z.coerce.number().int().min(1).max(500).default(100),
+      limit: z.coerce.number().int().min(1).max(2_000).default(100),
       includeSchedule: z.coerce.boolean().default(false),
     }).parse(request.query);
     return {

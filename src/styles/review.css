@@ -462,3 +462,25 @@
   border-radius: 7px;
   white-space: nowrap;
 }
+
+.simple-library-load-more {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: var(--script-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.simple-library-load-more button {
+  min-height: 40px;
+  padding: 0 14px;
+  color: var(--cue-light);
+  font-size: 13px;
+  font-weight: 620;
+  background: transparent;
+  border: 1px solid var(--script-rule-strong);
+  border-radius: 8px;
+}
