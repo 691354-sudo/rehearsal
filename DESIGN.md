@@ -142,7 +142,7 @@ Search, status, topic, and sort controls form one filter surface above the resul
 
 ### Topics: Add and Select
 
-Topics uses a topic rail and a sentence-led membership list. The selected topic owns the Add cards, Rename, Select, and Delete actions. **Add cards** opens a searchable picker and reveals eligible cards in increments of 20; selection is explicit before confirmation. **Select** changes the membership list into batch mode, reveals checkboxes, and exposes Move and Remove actions. Outside batch mode, checkbox and batch chrome are absent. On narrow screens, the topic rail becomes horizontally scrollable and the membership list remains a single readable column.
+Topics uses a topic rail and a sentence-led membership list. The selected topic owns the Add cards, Rename, Select, and Delete actions; each membership row keeps one right-aligned Edit control. **Add cards** opens a searchable picker and reveals eligible cards in increments of 20; selection is explicit before confirmation. **Select** changes the membership list into batch mode, reveals checkboxes, and exposes Move and Remove actions. Outside batch mode, checkbox and batch chrome are absent. On narrow screens, the topic rail becomes horizontally scrollable and the membership list remains a single readable column.
 
 ### Settings, dialogs, and states
 

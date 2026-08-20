@@ -106,7 +106,7 @@ export function parseAppRoute(
       sort: librarySorts.has(sort) ? sort : "recent",
       page: Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1,
       panel: path === "library" && params.get("panel") === "import" ? "import" : null,
-      edit: path === "library" ? valueOrNull(params, "edit") : null,
+      edit: valueOrNull(params, "edit"),
       language,
       settings,
     };
@@ -149,7 +149,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
     if (route.sort !== "recent") params.set("sort", route.sort);
     if (route.page > 1) params.set("page", String(route.page));
     if (route.view === "cards" && route.panel) params.set("panel", route.panel);
-    if (route.view === "cards" && route.edit) params.set("edit", route.edit);
+    if (route.edit) params.set("edit", route.edit);
   }
 
   return `${base}${path}?${params.toString()}`;

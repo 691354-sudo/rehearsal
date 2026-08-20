@@ -320,8 +320,9 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
       {notes.map((note) => <article className="capture-note" key={note.publicId}>
         <header><span className={`is-${note.status}`}>{note.status}</span><time>{new Date(note.createdAt).toLocaleString()}</time></header>
         {note.status === "failed" ? <p className="capture-error">OpenAI could not transcribe this recording. The audio is temporarily retained.</p> :
-          <textarea aria-label="Russian transcript" autoComplete="off" disabled={note.status === "batched"} lang="ru" name={`notebook-transcript-${note.publicId}`} onChange={(event) => setDrafts((current) => ({ ...current, [note.publicId]: event.target.value }))}
-            rows={3} value={drafts[note.publicId] ?? note.transcript} />}
+          <textarea aria-label="Russian transcript" autoComplete="off" disabled={note.status === "batched"} lang="ru" name={`notebook-transcript-${note.publicId}`}
+            onChange={(event) => setDrafts((current) => ({ ...current, [note.publicId]: event.target.value }))}
+            rows={1} value={drafts[note.publicId] ?? note.transcript} />}
         <footer>
           {note.status === "failed" ? <button onClick={() => void retry(note)} type="button"><RefreshCw size={14} />Retry</button> :
             <button disabled={note.status !== "ready" || !drafts[note.publicId]?.trim() || drafts[note.publicId] === note.transcript}
