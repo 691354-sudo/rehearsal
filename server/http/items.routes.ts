@@ -57,6 +57,21 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     return item ? { item } : reply.code(404).send({ error: "ITEM_NOT_FOUND" });
   });
 
+  app.post("/api/items/:itemId/rewrite", async (request, reply) => {
+    const { repository, openai } = dependencies.forRequest(request);
+    const params = z.object({ itemId: z.string().min(1) }).parse(request.params);
+    const body = z.object({
+      target: z.string().trim().min(1).max(2_000),
+      cue: z.string().trim().min(1).max(2_000),
+      note: z.string().trim().max(2_000),
+      feedback: z.string().trim().min(1).max(1_000),
+    }).parse(request.body);
+    const item = repository.items.get(params.itemId);
+    if (!item) return reply.code(404).send({ error: "ITEM_NOT_FOUND" });
+    const proposal = await openai.rewriteLibraryItem({ language: item.language, ...body });
+    return { proposal };
+  });
+
   app.delete("/api/items", async (request, reply) => {
     const { repository } = dependencies.forRequest(request);
     const body = z.object({

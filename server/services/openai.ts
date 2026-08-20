@@ -17,6 +17,7 @@ import {
   toCandidate,
 } from "./material-generation.js";
 import { genericLearnerPersona, type LearnerPersona } from "./learner-persona.js";
+import { rewriteLibraryItem as rewriteLibraryItemService } from "./library-item-rewrite.js";
 
 const evaluationSchema = z.object({
   score: z.number().min(0).max(1),
@@ -387,6 +388,16 @@ export class OpenAIService {
         "Create 6 practical substitution-drill variants from this base card. Change one meaningful slot at a time, " +
         "keep the same reusable grammar/collocation frame, and avoid trivial synonym lists.",
     });
+  }
+
+  rewriteLibraryItem(input: {
+    language: LanguageCode;
+    target: string;
+    cue: string;
+    note: string;
+    feedback: string;
+  }) {
+    return rewriteLibraryItemService({ client: this.client, learner: this.learner, ...input });
   }
 
   async regenerateCandidate(input: {

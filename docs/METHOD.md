@@ -60,6 +60,8 @@ Every card is requested and played as a separate MP3 through one persistent brow
 
 Library cards may be selected with checkboxes and deleted as one confirmed batch. The batch operation is atomic: it deletes every selected card or none of them.
 
+A saved Library card may be rewritten from its Edit dialog using one optional learner comment such as “too formal” or “keep the context, but I would say it differently.” The model rewrites only the unsaved editor draft. The stored card, Topic membership, and review history remain unchanged until the learner explicitly presses `Save card`; a failed rewrite preserves both the current draft and the comment for retry.
+
 ### Conversation
 
 Tutor behaves like a normal ChatGPT conversation or role-play. It does not interrupt every sentence unless live correction was explicitly requested. Chat and Notebook remain equally visible working modes. Existing chats may be deleted explicitly; opening Tutor restores the active chat at its latest position without replaying an animated scroll through its history. At the end, `Finish & review` analyzes the complete exchange and proposes only meaningful corrections, reusable islands, and patterns.

@@ -632,6 +632,68 @@
   border: 1px solid var(--script-rule);
   border-radius: 7px;
 }
+
+.simple-card-rewrite {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.simple-card-rewrite-heading {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  color: var(--cue-light);
+}
+
+.simple-card-rewrite-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.simple-card-rewrite-heading strong {
+  color: var(--script-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.simple-card-rewrite-heading span,
+.simple-card-rewrite-actions small {
+  color: var(--script-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.simple-card-rewrite-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.simple-card-rewrite-actions button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 12px;
+  color: var(--cue-light);
+  font-size: 13px;
+  font-weight: 620;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule-strong);
+  border-radius: 7px;
+}
+
+.simple-card-rewrite-notice {
+  margin: 0;
+  color: var(--learned);
+  font-size: 12px;
+}
 .simple-main--notebook {
   width: min(920px, calc(100% - 40px));
 }
