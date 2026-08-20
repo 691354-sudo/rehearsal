@@ -60,7 +60,7 @@
 .topics-manager input,
 .topics-manager select {
   min-width: 0;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 9px;
   color: var(--script-ink);
   font-size: 12px;
@@ -117,7 +117,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   width: 100%;
-  min-height: 38px;
+  min-height: 44px;
   margin-bottom: 2px;
   padding: 0 10px;
   text-align: left;
@@ -160,6 +160,10 @@
   align-items: center;
   justify-content: space-between;
   min-height: 50px;
+  padding: 12px 14px;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 9px;
 }
 
 .topic-detail-heading > div:first-child:not(.topic-title-edit) {
@@ -170,6 +174,11 @@
 .topic-detail-heading h3 {
   font-size: 18px;
   font-weight: 650;
+}
+
+.topic-title-summary small {
+  display: block;
+  margin-top: 2px;
 }
 
 .topic-title-edit {
@@ -183,19 +192,29 @@
 }
 
 .topic-items {
-  margin: 14px 0 18px;
+  margin: 18px 0;
   border-top: 1px solid var(--script-rule);
 }
 
 .topic-items article {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   min-height: 76px;
   padding: 11px 0;
   border-bottom: 1px solid var(--script-rule);
+}
+
+.topic-card-edit {
+  width: 44px;
+  padding: 0 !important;
+  color: var(--script-tertiary) !important;
+}
+
+.topic-card-edit:hover:not(:disabled) {
+  color: var(--cue-light) !important;
 }
 
 .topic-item-copy {
@@ -452,8 +471,13 @@
     display: flex;
     gap: 5px;
     overflow-x: auto;
+    scrollbar-width: none;
     border-right: 0;
     border-bottom: 1px solid var(--script-rule);
+  }
+
+  .topics-layout > nav::-webkit-scrollbar {
+    display: none;
   }
 
   .topics-layout > nav button {
@@ -467,6 +491,21 @@
   .topic-detail-heading,
   .topic-title-edit {
     display: grid;
+  }
+
+  .topic-detail-heading {
+    position: relative;
+    padding: 12px;
+  }
+
+  .topic-title-summary {
+    padding-inline-end: 44px;
+  }
+
+  .topic-detail-heading .topic-delete {
+    position: absolute;
+    top: 12px;
+    right: 12px;
   }
 
   .topic-detail-heading > div:last-child {

@@ -12,10 +12,11 @@ type TopicSummary = {
 };
 type Topic = TopicSummary & { items: LearningItem[] };
 
-export function TopicsManager({ initialTopicId, language, onClose, onTopic }: {
+export function TopicsManager({ initialTopicId, language, onClose, onEdit, onTopic }: {
   initialTopicId: string;
   language: Language;
   onClose: () => void;
+  onEdit: (itemId: string) => void;
   onTopic: (topicId: string) => void;
 }) {
   const [topics, setTopics] = useState<TopicSummary[]>([]);
@@ -163,7 +164,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onTopic }: {
           <div className="topic-detail-heading">{renaming ? <div className="topic-title-edit"><input aria-label="Topic name" autoComplete="off" name="topic-name" onChange={(event) => setTitle(event.target.value)} value={title} />
             <button disabled={saving || !title.trim() || title.trim() === topic.title} onClick={() => void update({ title: title.trim() })} type="button"><Save size={14} />Save</button>
             <button onClick={() => { setTitle(topic.title); setRenaming(false); }} type="button">Cancel</button></div>
-          : <div><span>Selected Topic</span><h3>{topic.title}</h3><small>{topic.items.length} {topic.items.length === 1 ? "card" : "cards"}</small></div>}
+          : <div className="topic-title-summary"><h3>{topic.title}</h3><small>{topic.items.length} {topic.items.length === 1 ? "card" : "cards"}</small></div>}
             {!renaming ? <div>{selectionMode ? <button onClick={() => { setSelectionMode(false); setSelectedItemIds(new Set()); setMoveTargetId(""); }} type="button">Cancel selection</button> : <>
               <button className="topic-add-toggle" onClick={() => { setAddingCard((active) => !active); setAddItemId(""); setItemSearch(""); }} type="button">{addingCard ? <X size={14} /> : <Plus size={14} />}{addingCard ? "Close" : "Add cards"}</button>
               <button onClick={() => { setAddingCard(false); setRenaming(true); }} type="button"><Pencil size={14} />Rename</button>
@@ -193,7 +194,8 @@ export function TopicsManager({ initialTopicId, language, onClose, onTopic }: {
           <div className="topic-items">{topic.items.length ? topic.items.map((item) => <article className={selectionMode ? "is-selecting" : ""} key={item.publicId}>
             {selectionMode ? <label className="topic-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} disabled={saving}
               onChange={() => toggleSelected(item.publicId)} type="checkbox" /></label> : null}
-            <div className="topic-item-copy"><strong lang={language}>{item.target}</strong><span lang="ru">{item.cue}</span></div></article>)
+            <div className="topic-item-copy"><strong lang={language}>{item.target}</strong><span lang="ru">{item.cue}</span></div>
+            <button aria-label={`Edit ${item.target}`} className="topic-card-edit" onClick={() => onEdit(item.publicId)} title="Edit card" type="button"><Pencil size={15} /></button></article>)
             : <p className="topic-items-empty">No cards in this Topic.</p>}</div>
         </>}
       </div>

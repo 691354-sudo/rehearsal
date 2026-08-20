@@ -6,6 +6,10 @@ body,
   margin: 0;
 }
 
+@media (min-width: 901px) {
+  html { scrollbar-gutter: stable both-edges; }
+}
+
 body {
   background: #ece7df;
 }

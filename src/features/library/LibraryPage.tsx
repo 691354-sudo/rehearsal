@@ -46,6 +46,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [deletingSelected, setDeletingSelected] = useState(false);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [topicsRevision, setTopicsRevision] = useState(0);
   const allowDirtyNavigationRef = useRef(false);
   const showTopics = route.view === "topics";
   const showImport = route.panel === "import";
@@ -241,8 +242,9 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     <div className="simple-library-heading-actions"><button onClick={() => patchRoute({ view: showTopics ? "cards" : "topics", panel: null, edit: null }, "push")} type="button">{showTopics ? "Back to cards" : "Manage topics"}</button>
       {!showTopics ? <button onClick={() => showImport ? closeSurface("import", { panel: null }) : patchRoute({ panel: "import", edit: null }, "push")} type="button">{showImport ? "Close import" : "Import text"}</button> : null}</div></header>
     {topicsError ? <div className="simple-unavailable" role="alert"><span>Topics unavailable. Your cards are still here.</span><button onClick={() => void refreshTopics()} type="button"><RefreshCw size={14} />Retry</button></div> : null}
-    {showTopics ? <div className="simple-library-secondary"><TopicsManager initialTopicId={route.topic === "all" ? "" : route.topic} language={language}
+    {showTopics ? <div className="simple-library-secondary"><TopicsManager initialTopicId={route.topic === "all" ? "" : route.topic} key={`${language}:${topicsRevision}`} language={language}
       onClose={() => { patchRoute({ view: "cards" }, "replace"); void refreshTopics(); }}
+      onEdit={(itemId) => patchRoute({ edit: itemId }, "push")}
       onTopic={(topicId) => patchRoute({ topic: topicId || "all" }, "replace")} /></div> : <>
       {showImport ? <section className="simple-import-card simple-library-secondary">
       <div className="simple-section-heading"><FilePlus2 size={19} /><div><strong>Import text or transcript</strong></div></div>
@@ -271,16 +273,18 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
         <select aria-label="Filter by Topic" name="library-topic" onChange={(event) => patchRoute({ topic: event.target.value, page: 1 })} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title}</option>)}</select>
         <select aria-label="Sort cards" name="library-sort" onChange={(event) => patchRoute({ sort: event.target.value as LibrarySort, page: 1 })} value={sort}>
           <option value="recent">Recent</option><option value="oldest">Oldest</option><option value="due">Due soon</option><option value="az">A–Z</option></select></div>
-      <div className="simple-library-selection">
+      <div className={`simple-library-selection${selectionMode ? "" : " is-idle"}`}>
         {selectionMode ? <label><input aria-label="Select all visible cards" checked={allVisibleSelected} disabled={!displayedItems.length || deletingSelected} name="select-visible-cards" onChange={toggleVisible} type="checkbox" />
-          <span>{displayedItems.length} visible</span></label> : <span>{displayedItems.length} of {visibleItems.length} cards</span>}
-        <div>{selectionMode ? <>
+          <span>{displayedItems.length} visible</span></label> : <div className="simple-library-selection-start">
+          <button disabled={!displayedItems.length} onClick={() => setSelectionMode(true)} type="button">Select</button>
+          <span>{displayedItems.length} of {visibleItems.length} cards</span></div>}
+        {selectionMode ? <div>
           {selectedItemIds.size ? <><span>{selectedItemIds.size} selected</span>
             <button disabled={deletingSelected} onClick={() => setSelectedItemIds(new Set())} type="button">Clear</button>
             <button className="simple-delete-selected" disabled={deletingSelected} onClick={() => void deleteSelected()} type="button">
               {deletingSelected ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}Delete</button></> : null}
           <button onClick={() => { setSelectedItemIds(new Set()); setSelectionMode(false); }} type="button">Done</button>
-        </> : <button disabled={!displayedItems.length} onClick={() => setSelectionMode(true)} type="button">Select</button>}</div>
+        </div> : null}
       </div><div className="simple-phrase-list">
         {!visibleItems.length ? <div className="simple-library-empty"><strong>No matching cards</strong><span>Try a different word or clear the current filters.</span>
           <button onClick={() => { setSearchInput(""); patchRoute({ query: "", status: "all", topic: "all", sort: "recent", page: 1 }); }} type="button">Clear filters</button></div> : null}
@@ -288,30 +292,32 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
           {selectionMode ? <label className="simple-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} name={`select-card-${item.publicId}`}
             disabled={deletingSelected} onChange={() => toggleItem(item.publicId)} type="checkbox" /></label> : null}
           <div className="simple-phrase-copy"><strong lang={language}>{item.target}</strong><small lang="ru">{item.cue}</small></div>
-          <div className="simple-row-actions">
-            {language === "en" ? <button aria-label="Play" onClick={() => onPlay(item.target)} title="Play" type="button"><Volume2 size={15} /></button> : null}
-            {item.practiceEnabled
-              ? <button aria-label={`Mark ${item.target} as learned`} onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Learned</button>
-              : <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Reactivate</button>}
-            <button aria-label={`Edit ${item.target}`} onClick={() => patchRoute({ edit: item.publicId }, "push")} title="Edit" type="button"><Pencil size={16} /></button>
-            <div className="simple-row-more" data-library-actions={item.publicId} onBlur={(event) => {
+          <div className="simple-row-actions"><em className="simple-phrase-meta">{item.tags[0] || libraryStatusOf(item)}</em>
+            <div className="simple-row-action-buttons">
+              {language === "en" ? <button aria-label="Play" onClick={() => onPlay(item.target)} title="Play" type="button"><Volume2 size={15} /></button> : null}
+              {item.practiceEnabled
+                ? <button aria-label={`Mark ${item.target} as learned`} onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Learned</button>
+                : <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Reactivate</button>}
+              <button aria-label={`Edit ${item.target}`} onClick={() => patchRoute({ edit: item.publicId }, "push")} title="Edit" type="button"><Pencil size={16} /></button>
+              <div className="simple-row-more" data-library-actions={item.publicId} onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null);
-            }}>
-              <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-label={`More actions for ${item.target}`}
-                onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)} title="More actions" type="button"><MoreHorizontal size={17} /></button>
-              {openActionsId === item.publicId ? <div className="simple-row-more-panel" id={`card-actions-${item.publicId}`}>
-                {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} type="button">Review now</button> : null}
-                <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} type="button">Pattern drill</button>
-                <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} type="button"><Trash2 size={15} />Delete</button>
-              </div> : null}
-            </div><em className="simple-phrase-meta">{item.tags[0] || libraryStatusOf(item)}</em></div>
+              }}>
+                <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-label={`More actions for ${item.target}`}
+                  onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)} title="More actions" type="button"><MoreHorizontal size={17} /></button>
+                {openActionsId === item.publicId ? <div className="simple-row-more-panel" id={`card-actions-${item.publicId}`}>
+                  {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} type="button">Review now</button> : null}
+                  <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} type="button">Pattern drill</button>
+                  <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} type="button"><Trash2 size={15} />Delete</button>
+                </div> : null}
+              </div>
+            </div></div>
         </article>)}
         {displayedItems.length < visibleItems.length ? <div className="simple-library-load-more"><span>{visibleItems.length - displayedItems.length} more cards</span>
           <button onClick={() => patchRoute({ page: route.page + 1 })} type="button">Load more</button></div> : null}
       </div>
     </section>
-      {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => closeSurface("editor", { edit: null })}
-      onSaved={(item) => { onItemUpdated(item); closeSurface("editor", { edit: null }); }} /> : null}
     </>}
+    {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => closeSurface("editor", { edit: null })}
+      onSaved={(item) => { onItemUpdated(item); if (showTopics) setTopicsRevision((revision) => revision + 1); closeSurface("editor", { edit: null }); }} /> : null}
   </main>;
 }

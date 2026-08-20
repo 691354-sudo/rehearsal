@@ -41,7 +41,7 @@ describe("app routes", () => {
     const routes: AppRoute[] = [
       { section: "practice", mode: "listen", scope: "library", topic: "topic", cards: "50", review: null, language: "en", settings: true },
       { section: "tutor", mode: "notebook", thread: null, language: "lv", settings: false },
-      { ...defaultLibraryRoute("en"), view: "topics", topic: "topic", page: 2 },
+      { ...defaultLibraryRoute("en"), view: "topics", topic: "topic", page: 2, edit: "card-1" },
     ];
     routes.forEach((route) => {
       const href = new URL(serializeAppRoute(route, "/rehearsal/"), "https://example.test");
