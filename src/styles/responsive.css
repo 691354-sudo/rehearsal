@@ -250,6 +250,15 @@
     padding: 12px;
   }
 
+  .simple-card-rewrite-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .simple-card-rewrite-actions button {
+    min-height: 44px;
+  }
+
   .simple-playback-options {
     grid-template-columns: 1fr;
     gap: 14px;
