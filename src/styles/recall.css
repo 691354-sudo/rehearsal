@@ -238,20 +238,6 @@
   font-size: 13px;
 }
 
-.practice-queue-tag {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  margin-top: 2px;
-  overflow: hidden;
-  color: var(--script-muted);
-  font-size: 12px;
-  line-height: 1.35;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .practice-queue-actions {
   display: flex;
   flex-wrap: wrap;

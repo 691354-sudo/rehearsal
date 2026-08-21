@@ -53,7 +53,6 @@ export function PracticeQueuePreview(props: {
         <div className="practice-queue-actions">
           {props.language === "en" ? <button aria-label={`Play ${item.target}`} onClick={() => void props.onPlay(item)} title="Play" type="button"><Volume2 size={15} /></button> : null}
           <button aria-label={`Edit ${item.target}`} onClick={() => props.onEdit(item)} title="Edit" type="button"><Pencil size={15} /></button>
-          <small className="practice-queue-tag">{item.tags[0] || item.source || "Personal"}</small>
         </div>
       </li>)}
     </ol> : <div className="practice-queue-empty"><span>{props.scope === "due" ? "Nothing due right now." : "No matching cards."}</span>{props.emptyAction}</div>}
