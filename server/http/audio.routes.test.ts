@@ -112,6 +112,57 @@ describe("audio API", () => {
     await app.close();
   });
 
+  it("prepares cached and missing card audio with an explicit priority card", async () => {
+    const cachedItem = context.repository.items.save({ language: "en", cue: "Cached", target: "Already cached." });
+    const missingItem = context.repository.items.save({ language: "en", cue: "Missing", target: "Generate me first." });
+    const cachedSpeech = vi.fn((input: { text: string }) => input.text === cachedItem.target
+      ? { audio: Buffer.from([1]), format: "mp3" } : null);
+    const speech = vi.fn().mockResolvedValue({ audio: Buffer.from([2]), format: "mp3", cached: false });
+    const app = await buildApp(context.repository, {
+      elevenlabs: { cachedSpeech, speech } as unknown as ElevenLabsService,
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/audio/prepare",
+      payload: {
+        itemIds: [cachedItem.publicId, missingItem.publicId],
+        priorityItemId: missingItem.publicId,
+        language: "en",
+        provider: "elevenlabs",
+        voiceId: "voice-id",
+        modelId: "eleven_multilingual_v2",
+        speed: 1,
+      },
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toMatchObject({ total: 2, ready: 1, initialCached: 1 });
+    expect(response.json().items[0].itemId).toBe(missingItem.publicId);
+    expect(speech).toHaveBeenCalledWith(expect.objectContaining({ text: missingItem.target, voiceId: "voice-id" }));
+    const status = await app.inject({ method: "GET", url: `/api/audio/prepare/${response.json().jobId}` });
+    expect(status.statusCode).toBe(200);
+    expect(status.json()).toMatchObject({ total: 2, ready: 2, status: "ready" });
+    await app.close();
+  });
+
+  it("rejects a preparation priority outside the requested stack", async () => {
+    const item = context.repository.items.save({ language: "en", cue: "Cue", target: "Card." });
+    const app = await buildApp(context.repository);
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/audio/prepare",
+      payload: {
+        itemIds: [item.publicId],
+        priorityItemId: "outside-stack",
+        language: "en",
+        provider: "openai",
+      },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "AUDIO_PRIORITY_ITEM_NOT_FOUND" });
+    await app.close();
+  });
+
   it("requires ElevenLabs Flash v2.5 for Vietnamese", async () => {
     context.repository.system.setLanguageEnabled("vi", true);
     const speech = vi.fn().mockResolvedValue({ audio: Buffer.from([1]), cached: false });

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ElevenLabsError } from "../services/elevenlabs.js";
+import { AudioPreparationError } from "../services/audio-preparation.js";
 
 export const toErrorResponse = (error: unknown) => {
   if (error instanceof z.ZodError) {
@@ -40,6 +41,9 @@ export const toErrorResponse = (error: unknown) => {
   }
   if (error instanceof ElevenLabsError) {
     return { statusCode: error.statusCode, body: { error: error.code, message: error.message } };
+  }
+  if (error instanceof AudioPreparationError) {
+    return { statusCode: error.statusCode, body: { error: error.code } };
   }
   if (error && typeof error === "object" && "code" in error && error.code === "FST_CSRF_INVALID_TOKEN") {
     return { statusCode: 403, body: { error: "INVALID_CSRF_TOKEN" } };

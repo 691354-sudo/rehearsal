@@ -269,20 +269,6 @@ export function GlobalSettings(props: {
                       onClick={() => updateElevenLabs("modelId", "eleven_flash_v2_5")} type="button">Fast</button>
                   </div>
                 </div>
-                <div className="simple-voice-tuning">
-                  {([
-                    ["stability", "Stability"],
-                    ["similarityBoost", "Similarity"],
-                    ["style", "Style"],
-                  ] as const).map(([key, label]) => <label key={key}>
-                    <span>{label}<strong>{props.playback.elevenlabs[key].toFixed(2)}</strong></span>
-                    <input max="1" min="0" onChange={(event) => updateElevenLabs(key, Number(event.target.value))}
-                      aria-label={label} name={`elevenlabs-${key}`} step="0.01" type="range" value={props.playback.elevenlabs[key]} />
-                  </label>)}
-                  <div className="simple-speaker-boost"><span>Speaker boost</span><button aria-label="Speaker boost" aria-pressed={props.playback.elevenlabs.speakerBoost}
-                    className={props.playback.elevenlabs.speakerBoost ? "is-active" : ""}
-                    onClick={() => updateElevenLabs("speakerBoost", !props.playback.elevenlabs.speakerBoost)} type="button"><i /></button></div>
-                </div>
                 <a className="simple-voice-page" href={`https://elevenlabs.io/app/voice-library?voiceId=${activeVoice.id}`} rel="noreferrer" target="_blank">Open voice page</a>
               </div>
             </details>
@@ -310,10 +296,7 @@ export function GlobalSettings(props: {
             <label className="simple-global-setting simple-global-speed"><span>Speed <strong>{props.playback.speed.toFixed(2)}×</strong></span>
               <input aria-label="Playback speed" max={speedRange.max} min={speedRange.min} name="playback-speed" onChange={(event) => applyPlayback({ ...props.playback, speed: Number(event.target.value) })}
                 step="0.05" type="range" value={props.playback.speed} /></label>
-            <div className="simple-global-setting"><label>Pause</label><div>
-              {[500, 1500, 3000].map((value) => <button className={props.playback.pauseMs === value ? "is-active" : ""}
-                key={value} onClick={() => applyPlayback({ ...props.playback, pauseMs: value })} type="button">{value / 1000}s</button>)}
-            </div></div>
+            <div className="simple-global-setting simple-adaptive-pause"><label>Pause</label><strong>Adaptive · audio length + 0.5s</strong></div>
           </div>
         </section>
 

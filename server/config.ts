@@ -56,10 +56,6 @@ export const config = {
   elevenLabsViVoiceId: process.env.ELEVENLABS_VI_VOICE_ID?.trim() || "ueSxRO0nLF1bj93J2hVt",
   elevenLabsViVoiceName: process.env.ELEVENLABS_VI_VOICE_NAME?.trim() || "Trung Caha",
   elevenLabsModel: process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
-  elevenLabsStability: numberFromEnv(process.env.ELEVENLABS_STABILITY, 0.45),
-  elevenLabsSimilarityBoost: numberFromEnv(process.env.ELEVENLABS_SIMILARITY_BOOST, 0.6),
-  elevenLabsStyle: numberFromEnv(process.env.ELEVENLABS_STYLE, 0.02),
-  elevenLabsSpeakerBoost: booleanFromEnv(process.env.ELEVENLABS_SPEAKER_BOOST, true),
   elevenLabsSpeed: numberFromEnv(process.env.ELEVENLABS_SPEED, 1.05),
 };
 

@@ -5,6 +5,7 @@ import { ElevenLabsService } from "../services/elevenlabs.js";
 import { genericLearnerPersona, learnerPersonaForProfile } from "../services/learner-persona.js";
 import { OpenAIService } from "../services/openai.js";
 import { TutorService } from "../services/tutor.js";
+import { AudioPreparationService } from "../services/audio-preparation.js";
 
 export type HttpContext = {
   profileId: ProfileId | null;
@@ -12,6 +13,7 @@ export type HttpContext = {
   openai: OpenAIService;
   elevenlabs: ElevenLabsService;
   tutor: TutorService;
+  audioPreparation: AudioPreparationService;
 };
 
 export type HttpDependencies = {
@@ -41,6 +43,7 @@ const makeContext = (
     openai,
     elevenlabs,
     tutor: new TutorService(repository, openai),
+    audioPreparation: new AudioPreparationService(repository, openai, elevenlabs),
   };
 };
 
