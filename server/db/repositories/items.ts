@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "../database.js";
 import type { LanguageCode, LearningItem, LearningItemInput, SearchResult } from "../../types.js";
+import { normalizeNfc } from "../../../contracts/text.js";
 import {
   cosineSimilarity,
   logChange,
@@ -64,8 +65,8 @@ export class ItemsRepository {
       input.language,
       input.kind || "phrase",
       input.cue.trim(),
-      input.target.trim(),
-      JSON.stringify(input.acceptedAnswers || []),
+      normalizeNfc(input.target.trim()),
+      JSON.stringify((input.acceptedAnswers || []).map((answer) => normalizeNfc(answer.trim()))),
       input.note?.trim() || "",
       input.source?.trim() || "",
       input.status || "new",
@@ -139,6 +140,7 @@ export class ItemsRepository {
   }
 
   search(query: string, language: LanguageCode, embedding?: number[], limit = 20): SearchResult[] {
+    query = normalizeNfc(query.trim());
     const keywordScores = new Map<string, number>();
     const itemById = new Map<string, LearningItem>();
     const ftsQuery = makeFtsQuery(query);

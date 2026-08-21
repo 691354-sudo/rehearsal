@@ -1,14 +1,18 @@
 import type { StepUnit } from "ts-fsrs";
 import { z } from "zod";
 import type { SchedulerSettings } from "../services/scheduler.js";
+import { languageCodes } from "../../contracts/api.js";
+import { normalizeNfc } from "../../contracts/text.js";
 
-export const languageSchema = z.enum(["en", "lv"]);
+export const languageSchema = z.enum(languageCodes as [typeof languageCodes[number], ...typeof languageCodes]);
 
 export const voiceOptions = [
   "alloy", "echo", "fable", "nova", "onyx", "shimmer",
 ] as const;
 
 export const elevenLabsModelOptions = ["eleven_multilingual_v2", "eleven_flash_v2_5"] as const;
+
+export const nfcText = (maximum: number) => z.string().trim().min(1).max(maximum).transform(normalizeNfc);
 
 const stepSchema = z.custom<StepUnit>(
   (value) => typeof value === "string" && /^\d+(?:\.\d+)?[mhd]$/.test(value),
@@ -34,7 +38,7 @@ export const schedulerSettingsSchema = z.object({
 
 export const itemBodySchema = z.object({
   language: languageSchema,
-  target: z.string().trim().min(1).max(2_000),
+  target: nfcText(2_000),
   cue: z.string().trim().min(1).max(2_000),
   note: z.string().trim().max(2_000).optional(),
   kind: z.enum(["phrase", "island_line", "correction", "story_line"]).optional(),
@@ -44,7 +48,7 @@ export const itemBodySchema = z.object({
 
 export const reviewCandidateSelectionSchema = z.object({
   id: z.string().uuid(),
-  target: z.string().trim().min(1).max(2_000),
+  target: nfcText(2_000),
   cue: z.string().trim().min(1).max(2_000),
   note: z.string().trim().max(2_000),
   category: z.string().trim().max(80),

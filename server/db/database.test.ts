@@ -4,6 +4,8 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import { openDatabase } from "./database.js";
+import { RehearsalRepository } from "./repository.js";
+import { seedDatabase } from "./seed.js";
 
 describe("database migrations", () => {
   it("upgrades legacy review rows without losing their due date", () => {
@@ -67,11 +69,11 @@ describe("database migrations", () => {
     expect(item.preference).toBe("neutral");
     expect(item.frequency_band).toBe("common");
     expect(item.practice_enabled).toBe(1);
-    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(4);
+    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(5);
 
     migrated.close();
     const reopened = openDatabase(databasePath);
-    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(4);
+    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(5);
     expect(reopened.pragma("foreign_keys", { simple: true })).toBe(1);
 
     reopened.close();
@@ -184,6 +186,63 @@ describe("database migrations", () => {
     expect(inspected.prepare("SELECT id FROM schema_migrations WHERE id = ?").get("001-review-batches-capture"))
       .toBeUndefined();
     inspected.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("adds disabled Vietnamese without changing existing data counters", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rehearsal-vietnamese-migration-"));
+    const databasePath = path.join(tempDir, "legacy.sqlite");
+    const prepared = openDatabase(databasePath);
+    const repository = new RehearsalRepository(prepared);
+    seedDatabase(repository);
+    repository.capture.createText({ language: "en", transcript: "A saved capture" });
+    repository.reviews.create({
+      language: "en", kind: "vocab", title: "Saved review", candidates: [],
+    });
+    const countedTables = [
+      "sources", "items", "items_fts", "islands", "island_items", "attempts", "review_state",
+      "chat_threads", "chat_messages", "review_batches", "capture_notes", "change_events",
+      "app_settings", "audio_cache",
+    ];
+    const before = Object.fromEntries(countedTables.map((table) => [table,
+      (prepared.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count,
+    ]));
+
+    prepared.pragma("foreign_keys = OFF");
+    prepared.transaction(() => {
+      prepared.exec(`
+        CREATE TABLE languages_legacy (
+          code TEXT PRIMARY KEY CHECK (code IN ('en', 'lv')),
+          name TEXT NOT NULL,
+          locale TEXT NOT NULL,
+          cue_locale TEXT NOT NULL DEFAULT 'ru-RU',
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO languages_legacy(code, name, locale, cue_locale, created_at)
+        SELECT code, name, locale, cue_locale, created_at FROM languages WHERE code IN ('en', 'lv');
+        DROP TABLE languages;
+        ALTER TABLE languages_legacy RENAME TO languages;
+        DELETE FROM schema_migrations WHERE id = '005-vietnamese-language';
+      `);
+    })();
+    prepared.pragma("foreign_keys = ON");
+    prepared.close();
+
+    const migrated = openDatabase(databasePath);
+    const after = Object.fromEntries(countedTables.map((table) => [table,
+      (migrated.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count,
+    ]));
+    expect(after).toEqual(before);
+    expect(migrated.prepare("SELECT code, name, locale, enabled FROM languages ORDER BY code").all())
+      .toEqual([
+        { code: "en", name: "English", locale: "en-US", enabled: 1 },
+        { code: "lv", name: "Latviešu", locale: "lv-LV", enabled: 1 },
+        { code: "vi", name: "Vietnamese", locale: "vi-VN", enabled: 0 },
+      ]);
+    expect(migrated.pragma("foreign_key_check")).toEqual([]);
+    expect(migrated.pragma("quick_check", { simple: true })).toBe("ok");
+
+    migrated.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 });

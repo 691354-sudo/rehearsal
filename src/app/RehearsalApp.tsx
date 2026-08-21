@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Moon, Settings2, Sun, UserRound } from "lucide-react";
-import type { ProfileSummary } from "../../contracts/api";
+import { isLanguageCode, type LanguageOption, type ProfileSummary } from "../../contracts/api";
 import { usePlaybackController } from "../features/audio/usePlaybackController";
 import { LibraryPage } from "../features/library/LibraryPage";
 import { PracticePage } from "../features/practice/PracticePage";
@@ -17,6 +17,7 @@ import {
 } from "../lib/appRoute";
 import {
   defaultSchedulerSettings,
+  languageHasAudio,
   languageCopy,
 } from "../shared/config";
 import { apiFetch } from "../shared/api";
@@ -28,13 +29,17 @@ import type {
 } from "../shared/contracts";
 import { AppLink } from "./AppLink";
 
-export function RehearsalApp({ profile, onSwitchProfile }: {
+export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
+  availableLanguages: LanguageOption[];
   profile: ProfileSummary;
   onSwitchProfile: () => void;
 }) {
   const storageKey = (name: string) => `rehearsal:${profile.id}:${name}`;
-  const savedLanguage: Language = window.localStorage.getItem(storageKey("language")) === "lv" ? "lv" : "en";
-  const { route, goTo } = useAppRoute(savedLanguage);
+  const availableCodes = useMemo(() => availableLanguages.map((option) => option.code), [availableLanguages]);
+  const storedLanguage = window.localStorage.getItem(storageKey("language"));
+  const savedLanguage: Language = isLanguageCode(storedLanguage) && availableCodes.includes(storedLanguage)
+    ? storedLanguage : availableCodes[0] || "en";
+  const { route, goTo } = useAppRoute(savedLanguage, availableCodes);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -111,7 +116,8 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
   const sectionLabel = route.section === "practice" ? "Practice" : route.section === "tutor" ? "Tutor" : "Library";
   const practiceRoute = (mode: PracticeRoute["mode"] = "recall") => ({ ...defaultPracticeRoute(language), mode });
   const changeLanguage = (nextLanguage: Language) => {
-    const next: AppRoute = route.section === "practice" && nextLanguage === "lv" && route.mode === "listen"
+    if (!availableCodes.includes(nextLanguage)) return;
+    const next: AppRoute = route.section === "practice" && !languageHasAudio(nextLanguage) && route.mode === "listen"
       ? { ...route, language: nextLanguage, mode: "recall" }
       : { ...route, language: nextLanguage };
     goTo(next);
@@ -140,7 +146,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
         <label className="simple-language"><span>{languageCopy[language].short}</span>
           <strong>{languageCopy[language].label}</strong><ChevronDown size={15} />
           <select aria-label="Language" name="language" onChange={(event) => changeLanguage(event.target.value as Language)} value={language}>
-            <option value="en">English</option><option value="lv">Latviešu</option>
+            {availableLanguages.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}
           </select>
         </label>
         <button className="simple-profile-button" onClick={onSwitchProfile} title="Switch profile" type="button">
@@ -159,7 +165,7 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       {mobileMenuOpen ? <><button aria-label="Close app menu" className="simple-mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} type="button" />
         <div className="simple-mobile-menu" ref={mobileMenuRef}>
           <label><span>Language</span><select name="mobile-language" onChange={(event) => { changeLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
-            <option value="en">English</option><option value="lv">Latviešu</option></select></label>
+            {availableLanguages.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
           <button onClick={() => { setMobileMenuOpen(false); onSwitchProfile(); }} type="button"><UserRound size={17} />{profile.name}</button>
           <button onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")} type="button">
             {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}{theme === "dark" ? "Light theme" : "Dark theme"}</button>
@@ -171,10 +177,18 @@ export function RehearsalApp({ profile, onSwitchProfile }: {
       <span><strong>Server unavailable.</strong> Loaded cards stay on this screen; changes will work again after reconnecting.</span>
       <button onClick={() => void Promise.all([learning.loadItems(language), loadConfig()])} type="button">Try again</button>
     </div> : null}
+    {audio.playbackError && !(route.section === "practice" && route.mode === "listen") && !route.settings
+      ? <div className="simple-offline simple-audio-error" role="alert">
+        <span><strong>Audio stopped.</strong> {audio.playbackError}</span>
+        <div><button onClick={() => void audio.retryPlayback().catch(() => undefined)} type="button">Retry</button>
+          <button onClick={audio.dismissPlaybackError} type="button">Dismiss</button></div>
+      </div> : null}
     {route.settings ? <GlobalSettings
+      language={language}
       onClose={closeSettings}
       onPlayback={audio.updatePlayback}
-      onPreview={() => audio.playTarget("This is how your tutor will sound.", { repetitions: 1 }, true)}
+      onPreview={() => audio.playTarget(language === "vi"
+        ? "Đây là giọng nói của gia sư của bạn." : "This is how your tutor will sound.", { repetitions: 1 }, true)}
       onSaveScheduler={saveSchedulerSettings}
       elevenLabs={audio.elevenLabsConfig}
       playback={audio.playback}

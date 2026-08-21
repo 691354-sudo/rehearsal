@@ -1,4 +1,20 @@
-export type LanguageCode = "en" | "lv";
+export type LanguageCode = "en" | "lv" | "vi";
+export type LanguageOption = {
+  code: LanguageCode;
+  label: string;
+  locale: string;
+  capabilities: { audio: boolean };
+};
+
+export const languageCatalog = {
+  en: { code: "en", label: "English", locale: "en-US", capabilities: { audio: true } },
+  lv: { code: "lv", label: "Latviešu", locale: "lv-LV", capabilities: { audio: false } },
+  vi: { code: "vi", label: "Vietnamese", locale: "vi-VN", capabilities: { audio: true } },
+} as const satisfies Record<LanguageCode, LanguageOption>;
+
+export const languageCodes = Object.keys(languageCatalog) as LanguageCode[];
+export const isLanguageCode = (value: unknown): value is LanguageCode =>
+  typeof value === "string" && Object.hasOwn(languageCatalog, value);
 export type ItemKind = "phrase" | "island_line" | "correction" | "story_line";
 export type ItemStatus = "new" | "learning" | "strong";
 export type ItemPreference = "like" | "neutral" | "dislike";
@@ -143,4 +159,8 @@ export type DailyProgress = { recall: number; shadow: number; pattern: number };
 
 export type ProfileId = "roman" | "oliver";
 export type ProfileSummary = { id: ProfileId; name: string };
-export type AuthSession = { profile: ProfileSummary; csrfToken: string };
+export type AuthSession = {
+  profile: ProfileSummary;
+  csrfToken: string;
+  availableLanguages: LanguageOption[];
+};

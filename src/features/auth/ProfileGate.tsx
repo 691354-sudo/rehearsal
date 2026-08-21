@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { LoaderCircle, LockKeyhole } from "lucide-react";
-import type { AuthSession, ProfileId, ProfileSummary } from "../../../contracts/api";
+import { languageCatalog, type AuthSession, type LanguageOption, type ProfileId, type ProfileSummary } from "../../../contracts/api";
 import { RehearsalApp } from "../../app/RehearsalApp";
 import { apiFetch, setCsrfToken } from "../../shared/api";
 
 export function ProfileGate() {
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
+  const [availableLanguages, setAvailableLanguages] = useState<LanguageOption[]>([]);
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [selected, setSelected] = useState<ProfileId>("roman");
   const [pin, setPin] = useState(import.meta.env.DEV ? import.meta.env.VITE_CODEX_PROFILE_PIN || "" : "");
@@ -13,6 +14,12 @@ export function ProfileGate() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const pinRef = useRef<HTMLInputElement>(null);
+  const applySession = (session: AuthSession) => {
+    setCsrfToken(session.csrfToken);
+    setProfile(session.profile);
+    setAvailableLanguages(session.availableLanguages?.length
+      ? session.availableLanguages : [languageCatalog.en, languageCatalog.lv]);
+  };
 
   const loadProfiles = async () => {
     const response = await apiFetch("/api/auth/profiles");
@@ -28,8 +35,7 @@ export function ProfileGate() {
         const response = await apiFetch("/api/auth/session");
         if (response.ok) {
           const session = await response.json() as AuthSession;
-          setCsrfToken(session.csrfToken);
-          setProfile(session.profile);
+          applySession(session);
           return;
         }
         await loadProfiles();
@@ -63,9 +69,8 @@ export function ProfileGate() {
         return;
       }
       const session = await response.json() as AuthSession;
-      setCsrfToken(session.csrfToken);
+      applySession(session);
       setPin("");
-      setProfile(session.profile);
     } catch {
       setError("Could not sign in.");
     } finally {
@@ -79,6 +84,7 @@ export function ProfileGate() {
     } finally {
       setCsrfToken("");
       setProfile(null);
+      setAvailableLanguages([]);
       setPin("");
       setError("");
       if (!profiles.length) await loadProfiles().catch(() => setError("Profiles are unavailable."));
@@ -86,7 +92,8 @@ export function ProfileGate() {
   };
 
   if (loading) return <main className="profile-gate"><LoaderCircle className="simple-spin" size={24} /><span>Opening Rehearsal…</span></main>;
-  if (profile) return <RehearsalApp key={profile.id} onSwitchProfile={() => void switchProfile()} profile={profile} />;
+  if (profile) return <RehearsalApp availableLanguages={availableLanguages} key={profile.id}
+    onSwitchProfile={() => void switchProfile()} profile={profile} />;
 
   return <main className="profile-gate" id="main-content">
     <section className="profile-card">

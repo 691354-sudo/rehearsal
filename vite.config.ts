@@ -19,7 +19,7 @@ export default defineConfig({
         id: base,
         name: "Rehearsal",
         short_name: "Rehearsal",
-        description: "Personal sentence practice for English and Latvian",
+        description: "Personal sentence practice for English, Latvian, and Vietnamese",
         start_url: base,
         scope: base,
         display: "standalone",

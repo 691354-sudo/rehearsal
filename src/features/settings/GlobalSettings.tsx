@@ -8,6 +8,7 @@ import type {
   ElevenLabsPreferences,
   ElevenLabsVoiceStatus,
   ItemPreference,
+  Language,
   PlaybackPreferences,
   PlaybackResult,
   SchedulerSettings,
@@ -17,6 +18,7 @@ import type { AppRoute } from "../../lib/appRoute";
 
 export function GlobalSettings(props: {
   elevenLabs: ElevenLabsConfig;
+  language: Language;
   onClose: () => void;
   onPlayback: (playback: PlaybackPreferences) => void;
   onPreview: () => Promise<PlaybackResult>;
@@ -203,6 +205,8 @@ export function GlobalSettings(props: {
   const voiceDetails = [activeVoice.labels.accent, activeVoice.labels.use_case, activeVoice.labels.gender]
     .filter(Boolean).map(humanizeLabel).join(" · ") || "ElevenLabs voice";
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
+  const availableProviders: TtsProvider[] = props.language === "vi"
+    ? ["elevenlabs"] : ["openai", "elevenlabs"];
 
   return <dialog className="simple-settings-overlay" onMouseDown={(event) => {
     if (event.target === event.currentTarget) requestClose();
@@ -219,7 +223,7 @@ export function GlobalSettings(props: {
         <section className="simple-settings-section">
           <div className="simple-settings-section-title"><h3>Voice</h3></div>
           <div className="simple-provider-switch" role="group" aria-label="Voice provider">
-            {(["openai", "elevenlabs"] as TtsProvider[]).map((provider) => <button
+            {availableProviders.map((provider) => <button
               className={props.playback.provider === provider ? "is-active" : ""}
               key={provider}
               onClick={() => applyPlayback({ ...props.playback, provider })}
@@ -259,8 +263,8 @@ export function GlobalSettings(props: {
                 </div>
                 <div className="simple-model-choice">
                   <span>Model</span><div>
-                    <button className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
-                      onClick={() => updateElevenLabs("modelId", "eleven_multilingual_v2")} type="button">Quality</button>
+                    {props.language !== "vi" ? <button className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
+                      onClick={() => updateElevenLabs("modelId", "eleven_multilingual_v2")} type="button">Quality</button> : null}
                     <button className={props.playback.elevenlabs.modelId === "eleven_flash_v2_5" ? "is-active" : ""}
                       onClick={() => updateElevenLabs("modelId", "eleven_flash_v2_5")} type="button">Fast</button>
                   </div>

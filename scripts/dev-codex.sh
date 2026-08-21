@@ -11,4 +11,7 @@ set -a
 source "$env_file"
 set +a
 
+# Browser QA must never inherit paid API credentials from the parent shell.
+unset OPENAI_API_KEY ELEVENLABS_API_KEY
+
 exec npm run dev

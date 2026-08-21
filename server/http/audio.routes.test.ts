@@ -21,13 +21,16 @@ describe("audio API", () => {
       voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
       voices: [
         { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
+        { id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" },
         { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
         { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
         { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
         { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
-        { id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" },
       ],
       speedRange: { min: 0.7, max: 1.2 },
+      languageDefaults: {
+        vi: { voiceId: "ueSxRO0nLF1bj93J2hVt", voiceName: "Trung Caha", modelId: "eleven_flash_v2_5" },
+      },
     });
     await app.close();
   });
@@ -106,6 +109,32 @@ describe("audio API", () => {
     expect(speech).toHaveBeenCalledWith(expect.objectContaining({
       voiceId: "kdnRe2koJdOK4Ovxn2DI",
     }));
+    await app.close();
+  });
+
+  it("requires ElevenLabs Flash v2.5 for Vietnamese", async () => {
+    context.repository.system.setLanguageEnabled("vi", true);
+    const speech = vi.fn().mockResolvedValue({ audio: Buffer.from([1]), cached: false });
+    const app = await buildApp(context.repository, {
+      elevenlabs: { speech } as unknown as ElevenLabsService,
+    });
+    const unsupportedProvider = await app.inject({
+      method: "POST", url: "/api/audio/speech",
+      payload: { text: "Xin chào", language: "vi", provider: "openai" },
+    });
+    const unsupportedModel = await app.inject({
+      method: "POST", url: "/api/audio/speech",
+      payload: { text: "Xin chào", language: "vi", provider: "elevenlabs", modelId: "eleven_multilingual_v2" },
+    });
+    const supported = await app.inject({
+      method: "POST", url: "/api/audio/speech",
+      payload: { text: "Xin chào", language: "vi", provider: "elevenlabs", modelId: "eleven_flash_v2_5", voiceId: "vi-voice" },
+    });
+
+    expect(unsupportedProvider.json().error).toBe("VIETNAMESE_ELEVENLABS_REQUIRED");
+    expect(unsupportedModel.json().error).toBe("VIETNAMESE_MODEL_UNSUPPORTED");
+    expect(supported.statusCode).toBe(200);
+    expect(speech).toHaveBeenCalledWith(expect.objectContaining({ language: "vi", modelId: "eleven_flash_v2_5" }));
     await app.close();
   });
 });

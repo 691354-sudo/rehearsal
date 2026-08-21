@@ -1,4 +1,6 @@
-export type LanguageCode = "en" | "lv";
+import type { LanguageCode as SharedLanguageCode } from "../../contracts/api";
+
+export type LanguageCode = SharedLanguageCode;
 
 export type PracticeMode = "recall" | "shadow" | "listen";
 

@@ -9,6 +9,7 @@ import type {
   Language,
   LearningItem,
 } from "../../shared/contracts";
+import { normalizeNfc } from "../../../contracts/text";
 
 type LearningSnapshot = {
   items: LearningItem[];
@@ -24,29 +25,29 @@ const emptySnapshot = (): LearningSnapshot => ({
 
 export const useLearningData = (language: Language) => {
   const [attempts, setAttempts] = useState<Record<string, AttemptDraft>>({});
-  const [snapshots, setSnapshots] = useState<Record<Language, LearningSnapshot>>(() => ({
-    en: emptySnapshot(),
-    lv: emptySnapshot(),
-  }));
+  const [snapshots, setSnapshots] = useState<Partial<Record<Language, LearningSnapshot>>>({});
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const activeLanguageRef = useRef(language);
   activeLanguageRef.current = language;
-  const { items, dueItemIds, dailyProgress } = snapshots[language];
+  const { items, dueItemIds, dailyProgress } = snapshots[language] || emptySnapshot();
 
   const updateSnapshot = useCallback((targetLanguage: Language, update: (snapshot: LearningSnapshot) => LearningSnapshot) => {
-    setSnapshots((current) => ({ ...current, [targetLanguage]: update(current[targetLanguage]) }));
+    setSnapshots((current) => ({
+      ...current,
+      [targetLanguage]: update(current[targetLanguage] || emptySnapshot()),
+    }));
   }, []);
   const setAvailabilityFor = useCallback((targetLanguage: Language, online: boolean) => {
     if (activeLanguageRef.current === targetLanguage) setApiOnline(online);
   }, []);
 
-  const loadItems = useCallback(async (nextLanguage: Language) => {
+  const loadItems = useCallback(async (nextLanguage: Language, signal?: AbortSignal) => {
     try {
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
       const [libraryResponse, dueResponse, progressResponse] = await Promise.all([
-        apiFetch(`/api/items?language=${nextLanguage}&limit=2000&includeSchedule=true`),
-        apiFetch(`/api/practice/due?language=${nextLanguage}&limit=100`),
-        apiFetch(`/api/practice/progress?language=${nextLanguage}&since=${encodeURIComponent(startOfDay.toISOString())}`),
+        apiFetch(`/api/items?language=${nextLanguage}&limit=2000&includeSchedule=true`, { signal }),
+        apiFetch(`/api/practice/due?language=${nextLanguage}&limit=100`, { signal }),
+        apiFetch(`/api/practice/progress?language=${nextLanguage}&since=${encodeURIComponent(startOfDay.toISOString())}`, { signal }),
       ]);
       if (!libraryResponse.ok || !dueResponse.ok || !progressResponse.ok) throw new Error("API unavailable");
       const library = await libraryResponse.json() as { items: LearningItem[] };
@@ -65,6 +66,7 @@ export const useLearningData = (language: Language) => {
       setAvailabilityFor(nextLanguage, true);
       return true;
     } catch {
+      if (signal?.aborted) return false;
       setAvailabilityFor(nextLanguage, false);
       return false;
     }
@@ -72,7 +74,9 @@ export const useLearningData = (language: Language) => {
 
   useEffect(() => {
     setAttempts({});
-    void loadItems(language);
+    const controller = new AbortController();
+    void loadItems(language, controller.signal);
+    return () => controller.abort();
   }, [language, loadItems]);
 
   const setAnswer = (itemId: string, answer: string) => {
@@ -81,7 +85,7 @@ export const useLearningData = (language: Language) => {
 
   const checkAnswer = (itemId: string) => {
     const practiceItem = items.find((candidate) => candidate.publicId === itemId);
-    const answer = attempts[itemId]?.answer.trim();
+    const answer = normalizeNfc(attempts[itemId]?.answer.trim() || "");
     if (!practiceItem || !answer) return;
     const local = evaluateAttempt({
       id: practiceItem.publicId,

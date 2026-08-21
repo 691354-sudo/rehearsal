@@ -2,7 +2,7 @@
 
 ## Outcome
 
-Rehearsal builds automatic English and Latvian around each learner's real life. Fluency is treated as a performance skill: useful language is prepared and recalled until delivery no longer requires conscious grammar calculation; supported English material is also heard and spoken aloud.
+Rehearsal builds automatic target-language use around each learner's real life. English and Latvian remain available to both profiles; neutral contemporary Vietnamese (`vi-VN`) may be enabled per profile. The interface stays English and every card keeps the direction Russian cue → selected target language. Fluency is treated as a performance skill: useful language is prepared and recalled until delivery no longer requires conscious grammar calculation; material with an approved audio capability is also heard and spoken aloud.
 
 ## Content model
 
@@ -38,7 +38,7 @@ Before upload, the browser stores one pending recording per profile and language
 
 Recall opens on the complete current FSRS due queue. The compact Topic and count controls are optional adjustments, not a required setup step: the selected Russian prompts are visible immediately below them, and the learner may start without making a choice. The queue may be narrowed to one Topic, 10, 20, 50, or all matching cards, or explicitly switched to Library practice. On desktop, every visible prompt has its own written-answer field and the list reveals more cards in small batches. Focus mode remains available for one finite session. On phones, Recall keeps the one-card focused session because a list of simultaneous text fields is not touch-efficient.
 
-The card shows a natural Russian cue. The learner types the complete target-language version and presses Enter. Comparison is local and immediate. For English, checking also plays the natural answer for spoken repetition; this automatic playback is enabled by default and may be disabled in Settings. English Focus mode keeps a compact Voice settings action beneath the active card; it reveals only the shared Voice, Speed, Repeats, and Pause controls without leaving the session. The same card shows the submitted answer, the natural answer, their differences, and a manual Play action; an FSRS grade then schedules it. A second Enter accepts the selected grade and advances.
+The card shows a natural Russian cue. The learner types the complete target-language version and presses Enter. Comparison is local and immediate. Unicode input is normalized to NFC for persistence and comparison, so canonically equivalent Vietnamese input matches while a missing or incorrect tone remains an error. For languages with approved audio, checking also plays the natural answer for spoken repetition; this automatic playback is enabled by default and may be disabled in Settings. Focus mode keeps a compact Voice settings action beneath the active card; it reveals only the shared Voice, Speed, Repeats, and Pause controls without leaving the session. The same card shows the submitted answer, the natural answer, their differences, and a manual Play action; an FSRS grade then schedules it. A second Enter accepts the selected grade and advances.
 
 Within the current session, `Again` returns the card after one other card and `Hard` returns it after several others. `Good` and `Easy` complete it for the session. These positions provide immediate reinforcement and do not replace the server's FSRS due date. A failed grade request keeps the answer, comparison, and selected grade available for retry.
 
@@ -50,9 +50,9 @@ Listen & Repeat is the second and only other Practice mode. It also opens on the
 
 Once Listen & Repeat starts, Voice settings sit with the transport controls so playback can be adjusted without leaving the active card. The settings remain available before playback for initial setup.
 
-Listen & Repeat is currently available for English only. Latvian stays written-only in Practice and Library until a voice provider is good enough for it; the product does not silently substitute an unsuitable Latvian voice.
+Listen & Repeat is available for English and enabled Vietnamese. Latvian stays written-only in Practice and Library until a voice provider is good enough for it. Vietnamese uses the configured ElevenLabs voice with Flash v2.5 and does not fall back to an English-optimized or random voice. A Vietnamese playback failure keeps the current card and queue in place and exposes Retry.
 
-Every card is requested and played as a separate MP3 through one persistent browser audio element. Individual files are cached on the server, so the same text and voice settings do not spend provider credits twice. Global Voice and Playback settings are the single source of truth. The ElevenLabs choices are loaded from the account's saved `My Voices`; a built-in list keeps the known voices usable if that lookup is temporarily unavailable. Provider-specific limits are enforced before playback, including ElevenLabs `0.7–1.2×`. If the selected AI provider is unavailable, the complete queue may use browser speech instead. Listening activity never changes FSRS.
+Every card is requested and played as a separate MP3 through one persistent browser audio element. Individual files are cached on the server, so the same text, language, and voice settings do not spend provider credits twice. Voice and Playback settings are scoped by profile and language. The ElevenLabs choices are loaded from the account's saved `My Voices`; a built-in list keeps the known voices usable if that lookup is temporarily unavailable. Provider-specific limits are enforced before playback, including ElevenLabs `0.7–1.2×`. English may retain its existing provider and browser fallbacks; Vietnamese never uses them automatically. Listening activity never changes FSRS.
 
 ### Learned
 

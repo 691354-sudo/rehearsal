@@ -176,7 +176,7 @@ export class LibraryRepository {
   }
 
   backfillTopicsFromTags(language?: LanguageCode) {
-    const languages = language ? [language] : ["en", "lv"] as const;
+    const languages = language ? [language] : ["en", "lv", "vi"] as const;
     let created = 0; let attached = 0;
     const transaction = this.db.transaction(() => {
       for (const languageCode of languages) {

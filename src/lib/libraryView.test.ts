@@ -29,4 +29,19 @@ describe("Library view", () => {
     expect(filterLibraryItems([item("new"), scheduled], { query: "", status: "all", sort: "due", topicItemIds: null })[0])
       .toBe(scheduled);
   });
+
+  it("normalizes Vietnamese search and uses vi-VN collation for A–Z", () => {
+    const targets = ["ư", "ơ", "ô", "o", "ê", "e", "đ", "b", "â", "ă", "a"];
+    const items = targets.map((target) => item(target, { language: "vi", target }));
+    expect(filterLibraryItems(items, {
+      query: "cà phê".normalize("NFD"), status: "all", sort: "recent", topicItemIds: null, language: "vi",
+    })).toEqual([]);
+    const coffee = item("coffee", { language: "vi", target: "Tôi uống cà phê" });
+    expect(filterLibraryItems([coffee], {
+      query: "cà phê".normalize("NFD"), status: "all", sort: "recent", topicItemIds: null, language: "vi",
+    })).toEqual([coffee]);
+    expect(filterLibraryItems(items, {
+      query: "", status: "all", sort: "az", topicItemIds: null, language: "vi",
+    }).map((value) => value.target)).toEqual(["a", "ă", "â", "b", "đ", "e", "ê", "o", "ô", "ơ", "ư"]);
+  });
 });

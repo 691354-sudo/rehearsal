@@ -97,14 +97,22 @@ export const registerProfileAuth = (
     limiter.clear(key);
     reply.setCookie(sessionCookieName, sessionValue(body.profileId), cookieOptions);
     const csrfToken = reply.generateCsrf();
-    return { profile: profiles.listProfiles().find((profile) => profile.id === body.profileId), csrfToken };
+    return {
+      profile: profiles.listProfiles().find((profile) => profile.id === body.profileId),
+      csrfToken,
+      availableLanguages: profiles.get(body.profileId).repository.system.listLanguages(),
+    };
   });
 
   app.get("/api/auth/session", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const context = dependencies.forRequest(request);
     const profile = profiles.listProfiles().find((candidate) => candidate.id === context.profileId);
-    return { profile, csrfToken: reply.generateCsrf() };
+    return {
+      profile,
+      csrfToken: reply.generateCsrf(),
+      availableLanguages: context.repository.system.listLanguages(),
+    };
   });
 
   app.post("/api/auth/logout", async (_request, reply) => {

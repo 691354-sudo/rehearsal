@@ -1,5 +1,7 @@
 import type { LibrarySort, LibraryStatus } from "./libraryView";
 import type { Language } from "../shared/contracts";
+import { isLanguageCode } from "../../contracts/api";
+import { languageHasAudio } from "../shared/config";
 
 export type PracticeCardCount = "all" | "10" | "20" | "50";
 export type PracticeScopeRoute = "due" | "library";
@@ -75,11 +77,12 @@ export function parseAppRoute(
   location: Pick<Location, "pathname" | "search">,
   baseUrl: string,
   fallbackLanguage: Language = "en",
+  availableLanguages: readonly Language[] = ["en", "lv", "vi"],
 ): AppRoute {
   const params = new URLSearchParams(location.search);
-  const language: Language = params.get("lang") === "lv" ? "lv"
-    : params.get("lang") === "en" ? "en"
-      : fallbackLanguage;
+  const requestedLanguage = params.get("lang");
+  const language: Language = isLanguageCode(requestedLanguage)
+    && availableLanguages.includes(requestedLanguage) ? requestedLanguage : fallbackLanguage;
   const settings = params.get("settings") === "1";
   const path = routePath(location, baseUrl);
 
@@ -116,7 +119,7 @@ export function parseAppRoute(
   const review = valueOrNull(params, "review");
   return {
     section: "practice",
-    mode: path === "practice/listen" && language === "en" ? "listen" : "recall",
+    mode: path === "practice/listen" && languageHasAudio(language) ? "listen" : "recall",
     scope: review || params.get("scope") === "library" ? "library" : "due",
     topic: valueOrNull(params, "topic") || "",
     cards: cardCounts.has(count) ? count : "all",

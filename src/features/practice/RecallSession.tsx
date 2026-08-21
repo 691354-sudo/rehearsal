@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from
 import { Check, ChevronLeft, ChevronRight, Settings2, Volume2 } from "lucide-react";
 import { recallKeyAction, recallSessionReducer, initialRecallSession } from "../../lib/recallSession";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
-import { capitalize, languageCopy } from "../../shared/config";
+import { capitalize, languageCopy, languageHasAudio } from "../../shared/config";
 import type { AttemptDraft, ElevenLabsConfig, IslandSummary, Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
 import { PlaybackSettings } from "./PlaybackSettings";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
@@ -89,7 +89,7 @@ export function RecallSession(props: {
   const check = () => {
     if (!current || !attempt.answer.trim()) return;
     props.onCheck(current.publicId);
-    if (props.language === "en" && props.playback.playAfterRecall) {
+    if (languageHasAudio(props.language) && props.playback.playAfterRecall) {
       void props.onPlay(current.target, props.playback).catch(() => undefined);
     }
   };
@@ -144,14 +144,14 @@ export function RecallSession(props: {
         <span>{attempt.evaluation.verdict === "exact" ? "Correct" : "Compare"}</span>
         {attempt.evaluation.verdict !== "exact" ? <p className="recall-own-answer" lang={props.language}>{attempt.answer}</p> : null}
         <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>{attempt.evaluation.naturalAnswer}</p>
-          {props.language === "en" ? <button aria-label="Play natural answer" onClick={() => { void props.onPlay(current.target, props.playback); }} title="Play" type="button"><Volume2 size={16} /></button> : null}</div>
+          {languageHasAudio(props.language) ? <button aria-label="Play natural answer" onClick={() => { void props.onPlay(current.target, props.playback); }} title="Play" type="button"><Volume2 size={16} /></button> : null}</div>
         <div className="recall-grades" aria-label="Memory grade">{reviewRatings.map((rating) => <button aria-pressed={state.selectedRating === rating}
           disabled={state.saving} key={rating} onClick={() => void save(rating)} type="button"><span>{capitalize(rating)}</span><small>{formatInterval(current.schedule?.options[rating].intervalSeconds)}</small></button>)}</div>
         {state.error ? <p className="recall-save-error" role="alert">{state.error}</p> : null}
         <small className="recall-key-hint">← → choose · Enter confirm</small>
       </div> : <small className="recall-key-hint">Enter to check</small>}
     </article>
-    {props.language === "en" ? <div className="recall-session-settings">
+    {languageHasAudio(props.language) ? <div className="recall-session-settings">
       <button aria-expanded={showPlaybackSettings} className={showPlaybackSettings ? "is-active" : ""}
         onClick={() => setShowPlaybackSettings((shown) => !shown)} type="button"><Settings2 size={16} />Voice settings</button>
       {showPlaybackSettings ? <div aria-label="Voice settings" className="recall-session-playback-settings">

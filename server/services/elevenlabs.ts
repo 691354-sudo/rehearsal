@@ -128,8 +128,18 @@ export class ElevenLabsService {
   async speech(input: ElevenLabsSpeechInput) {
     if (!this.configured) throw new Error("ELEVENLABS_NOT_CONFIGURED");
 
-    const voiceId = input.voiceId || config.elevenLabsVoiceId;
-    const modelId = input.modelId || config.elevenLabsModel as NonNullable<ElevenLabsSpeechInput["modelId"]>;
+    const voiceId = input.voiceId || (input.language === "vi"
+      ? config.elevenLabsViVoiceId : config.elevenLabsVoiceId);
+    const modelId = input.modelId || (input.language === "vi"
+      ? "eleven_flash_v2_5"
+      : config.elevenLabsModel as NonNullable<ElevenLabsSpeechInput["modelId"]>);
+    if (input.language === "vi" && modelId !== "eleven_flash_v2_5") {
+      throw new ElevenLabsError(
+        "Vietnamese playback requires Eleven Flash v2.5.",
+        400,
+        "VIETNAMESE_MODEL_UNSUPPORTED",
+      );
+    }
     const text = input.text.trim().normalize("NFC");
     const settings = {
       stability: clamp(input.stability, config.elevenLabsStability, 0, 1),

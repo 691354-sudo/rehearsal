@@ -10,6 +10,13 @@ import type {
 import type { ItemsRepository } from "./items.js";
 import type { LibraryRepository } from "./library.js";
 import { logChange, mapReviewBatch, type ReviewBatchRow } from "./shared.js";
+import { normalizeNfc } from "../../../contracts/text.js";
+
+const normalizeCandidate = (candidate: ReviewCandidate): ReviewCandidate => ({
+  ...candidate,
+  target: normalizeNfc(candidate.target.trim()),
+  focusTerms: candidate.focusTerms.map((term) => normalizeNfc(term.trim())),
+});
 
 export class ReviewsRepository {
   constructor(
@@ -37,7 +44,7 @@ export class ReviewsRepository {
       input.kind,
       input.title.trim(),
       input.sourceText || "",
-      JSON.stringify(input.candidates),
+      JSON.stringify(input.candidates.map(normalizeCandidate)),
       input.sourceThreadPublicId || null,
     );
     const batch = this.get(publicId)!;
@@ -58,11 +65,12 @@ export class ReviewsRepository {
   replaceCandidate(batchPublicId: string, candidateId: string, candidate: ReviewCandidate) {
     const batch = this.get(batchPublicId);
     if (!batch || batch.status !== "draft") return null;
-    const candidates = batch.candidates.map((current) => current.id === candidateId ? candidate : current);
+    const candidates = batch.candidates.map((current) => current.id === candidateId
+      ? normalizeCandidate(candidate) : current);
     if (!batch.candidates.some((current) => current.id === candidateId)) return null;
     this.db.prepare(
       "UPDATE review_batches SET candidates = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?",
-    ).run(JSON.stringify(candidates), batchPublicId);
+    ).run(JSON.stringify(candidates.map(normalizeCandidate)), batchPublicId);
     return this.get(batchPublicId);
   }
 
@@ -71,7 +79,7 @@ export class ReviewsRepository {
     if (!batch || batch.status !== "draft") return null;
     this.db.prepare(
       "UPDATE review_batches SET candidates = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?",
-    ).run(JSON.stringify(candidates), batchPublicId);
+    ).run(JSON.stringify(candidates.map(normalizeCandidate)), batchPublicId);
     const updated = this.get(batchPublicId)!;
     logChange(this.db, "user", "revise", "review_batch", batchPublicId, batch, {
       ...updated,
@@ -90,7 +98,7 @@ export class ReviewsRepository {
       if (!original) throw new Error("UNKNOWN_REVIEW_CANDIDATE");
       return {
         ...original,
-        target: edited.target.trim(),
+        target: normalizeNfc(edited.target.trim()),
         cue: edited.cue.trim(),
         note: edited.note.trim(),
         category: edited.category.trim(),

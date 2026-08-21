@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw, RotateCcw, Shuffle, X } from "lucide-react";
 import { apiFetch } from "../../shared/api";
+import type { Language } from "../../shared/contracts";
 
 export type ReviewCandidate = {
   id: string;
@@ -20,6 +21,7 @@ export type ReviewCandidate = {
 
 export type ReviewBatch = {
   publicId: string;
+  language: Language;
   title: string;
   kind: "chat_review" | "vocab" | "text_import" | "pattern_drill" | "capture";
   candidates: ReviewCandidate[];
@@ -152,7 +154,7 @@ export function ReviewBatchPanel(props: {
           </button>
         </div>
         <div className="simple-review-fields">
-          <input aria-label="Target phrase" autoComplete="off" name={`review-target-${candidate.id}`} onChange={(event) => update(candidate.id, { target: event.target.value })} value={candidate.target} />
+          <input aria-label="Target phrase" autoComplete="off" lang={props.batch.language} name={`review-target-${candidate.id}`} onChange={(event) => update(candidate.id, { target: event.target.value })} value={candidate.target} />
           <input aria-label="Russian cue" autoComplete="off" className="is-cue" lang="ru" name={`review-cue-${candidate.id}`} onChange={(event) => update(candidate.id, { cue: event.target.value })} value={candidate.cue} />
           <div className="simple-review-meta"><input aria-label="Category" autoComplete="off" name={`review-category-${candidate.id}`} onChange={(event) => update(candidate.id, { category: event.target.value })} value={candidate.category} />
             <span>{candidate.disposition || "active"}</span><span>{candidate.frequencyBand}</span><span>{candidate.currency}</span></div>

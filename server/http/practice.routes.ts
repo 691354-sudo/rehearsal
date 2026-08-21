@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { HttpDependencies } from "./dependencies.js";
 import { languageSchema } from "./schemas.js";
+import { nfcText } from "./schemas.js";
 
 const scoreByRating = { again: 0, hard: 0.7, good: 0.85, easy: 1 } as const;
 
@@ -31,7 +32,7 @@ export const registerPracticeRoutes = (app: FastifyInstance, dependencies: HttpD
     const { repository, openai } = dependencies.forRequest(request);
     const body = z.object({
       itemId: z.string().min(1),
-      answer: z.string().trim().min(1).max(4_000),
+      answer: nfcText(4_000),
       mode: z.enum(["recall", "shadow", "listen"]).default("recall"),
       rating: z.enum(["again", "hard", "good", "easy"]).optional(),
     }).parse(request.body);

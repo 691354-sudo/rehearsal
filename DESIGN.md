@@ -34,6 +34,11 @@ typography:
     fontFamily: '"Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     fontSize: "24px"
     fontWeight: 600
+  target-vietnamese:
+    fontFamily: '"Noto Sans Variable", "Noto Sans", sans-serif'
+    fontSize: "15px"
+    fontWeight: 400
+    lineHeight: 1.5
   body:
     fontFamily: '"Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     fontSize: "15px"
@@ -82,7 +87,7 @@ Green is reserved for learned/success, amber for notes or warnings, and red for 
 
 ## Typography
 
-Golos Text Variable is the product typeface for interface and learning content. The system stack in the tokens is the only fallback chain.
+Golos Text Variable is the product typeface for the English interface, Russian cues, and existing English/Latvian learning content. Vietnamese target-language parts use the locally bundled Vietnamese and Latin subsets of Noto Sans Variable and carry `lang="vi"`; the document language remains English.
 
 - Page titles: 24–25px, weight 680, tight tracking.
 - Russian recall cues: 24–31px, weight 600; this is the strongest practice text.
