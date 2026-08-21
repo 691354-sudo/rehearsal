@@ -43,17 +43,12 @@ export type TtsProvider = "openai" | "elevenlabs";
 export type ElevenLabsPreferences = {
   voiceId: string;
   modelId: "eleven_multilingual_v2" | "eleven_flash_v2_5";
-  stability: number;
-  similarityBoost: number;
-  style: number;
-  speakerBoost: boolean;
 };
 
 export type PlaybackPreferences = {
   provider: TtsProvider;
   repetitions: number;
   speed: number;
-  pauseMs: number;
   playAfterRecall: boolean;
   voice: string;
   elevenlabs: ElevenLabsPreferences;

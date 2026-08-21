@@ -48,10 +48,6 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
             defaults: {
               voiceId: config.elevenLabsVoiceId,
               modelId: config.elevenLabsModel,
-              stability: config.elevenLabsStability,
-              similarityBoost: config.elevenLabsSimilarityBoost,
-              style: config.elevenLabsStyle,
-              speakerBoost: config.elevenLabsSpeakerBoost,
               speed: config.elevenLabsSpeed,
             },
             languageDefaults: {

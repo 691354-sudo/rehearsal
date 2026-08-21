@@ -106,6 +106,7 @@ export class OpenAIService {
   private readonly client = openAIConfigured
     ? new OpenAI({ apiKey: config.openaiApiKey })
     : null;
+  private readonly inflightSpeech = new Map<string, Promise<{ format: string; audio: Buffer }>>();
 
   constructor(
     private readonly repository: OpenAIRepositories,
@@ -181,29 +182,44 @@ export class OpenAIService {
     speed?: number;
   }) {
     if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
-    const voice = input.voice || config.ttsVoice;
-    const speed = Math.max(0.5, Math.min(1.5, input.speed || 1));
-    const cacheKey = createHash("sha256")
-      .update([config.ttsModel, voice, speed, input.language, input.text].join("\0"))
-      .digest("hex");
+    const cacheKey = this.speechCacheKey(input);
     const cached = this.repository.audio.get(cacheKey);
     if (cached) return { ...cached, cached: true };
-    const response = await this.client.audio.speech.create({
+    const pending = this.inflightSpeech.get(cacheKey);
+    if (pending) return { ...await pending, cached: true };
+    const voice = input.voice || config.ttsVoice;
+    const speed = Math.max(0.5, Math.min(1.5, input.speed || 1));
+    const generation = this.client.audio.speech.create({
       model: config.ttsModel,
       voice,
-      input: input.text,
+      input: input.text.trim().normalize("NFC"),
       speed,
       response_format: "mp3",
-    });
-    const audio = Buffer.from(await response.arrayBuffer());
-    this.repository.audio.save({
-      cacheKey,
-      model: config.ttsModel,
-      voice,
-      format: "mp3",
-      audio,
-    });
-    return { format: "mp3", audio, cached: false };
+    }).then(async (response) => {
+      const audio = Buffer.from(await response.arrayBuffer());
+      this.repository.audio.save({
+        cacheKey,
+        model: config.ttsModel,
+        voice,
+        format: "mp3",
+        audio,
+      });
+      return { format: "mp3", audio };
+    }).finally(() => this.inflightSpeech.delete(cacheKey));
+    this.inflightSpeech.set(cacheKey, generation);
+    return { ...await generation, cached: false };
+  }
+
+  cachedSpeech(input: { text: string; language: LanguageCode | "ru"; voice?: string; speed?: number }) {
+    return this.repository.audio.get(this.speechCacheKey(input));
+  }
+
+  private speechCacheKey(input: { text: string; language: LanguageCode | "ru"; voice?: string; speed?: number }) {
+    const voice = input.voice || config.ttsVoice;
+    const speed = Math.max(0.5, Math.min(1.5, input.speed || 1));
+    return createHash("sha256")
+      .update(["openai", config.ttsModel, voice, speed, input.language, input.text.trim().normalize("NFC")].join("\0"))
+      .digest("hex");
   }
 
   private async prepareBatch(input: {

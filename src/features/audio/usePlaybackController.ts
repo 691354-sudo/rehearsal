@@ -16,6 +16,7 @@ import type {
   PlaybackPreferences,
   PlaybackResult,
 } from "../../shared/contracts";
+import { adaptivePauseMs, type PreparedAudio } from "./listenAudio";
 
 type AudioConfig = {
   openai?: { defaultVoice?: string; voices?: string[] };
@@ -37,19 +38,19 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
       ) as Partial<PlaybackPreferences>;
       const defaults = defaultPlaybackForLanguage(targetLanguage, config);
       return {
-        ...defaults,
-        ...saved,
         provider: targetLanguage === "vi" ? "elevenlabs" : saved.provider || defaults.provider,
-        elevenlabs: {
-          ...defaults.elevenlabs,
-          ...saved.elevenlabs,
-          modelId: targetLanguage === "vi" ? "eleven_flash_v2_5" : saved.elevenlabs?.modelId || defaults.elevenlabs.modelId,
-        },
+        repetitions: saved.repetitions ?? defaults.repetitions,
         speed: clampPlaybackSpeed(
           targetLanguage === "vi" || saved.provider === "elevenlabs" ? "elevenlabs" : "openai",
           saved.speed ?? defaults.speed,
           config.speedRange,
         ),
+        playAfterRecall: saved.playAfterRecall ?? defaults.playAfterRecall,
+        voice: saved.voice || defaults.voice,
+        elevenlabs: {
+          voiceId: saved.elevenlabs?.voiceId || defaults.elevenlabs.voiceId,
+          modelId: targetLanguage === "vi" ? "eleven_flash_v2_5" : saved.elevenlabs?.modelId || defaults.elevenlabs.modelId,
+        },
       };
     } catch { return defaultPlaybackForLanguage(targetLanguage, config); }
   };
@@ -184,6 +185,139 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     else window.speechSynthesis?.resume();
   }, []);
 
+  const resolvePlayback = (overrides: Partial<PlaybackPreferences>) => ({
+    ...playback,
+    ...overrides,
+    elevenlabs: { ...playback.elevenlabs, ...overrides.elevenlabs },
+  });
+
+  const fetchTargetAudio = async (
+    text: string,
+    overrides: Partial<PlaybackPreferences> = {},
+    strictProvider = true,
+  ): Promise<PreparedAudio> => {
+    const nextPlayback = resolvePlayback(overrides);
+    const request = async (provider: "openai" | "elevenlabs") => {
+      const response = await apiFetch("/api/audio/speech", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          language,
+          provider,
+          speed: nextPlayback.speed,
+          voice: nextPlayback.voice,
+          ...nextPlayback.elevenlabs,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null) as { message?: string } | null;
+        throw new Error(error?.message || "TTS unavailable");
+      }
+      const cacheHeader = response.headers.get("X-Audio-Cache");
+      return {
+        blob: await response.blob(),
+        cache: cacheHeader === "HIT" || cacheHeader === "MISS" ? cacheHeader : null,
+        provider,
+      } satisfies PreparedAudio;
+    };
+    const provider = language === "vi" ? "elevenlabs" : nextPlayback.provider;
+    try {
+      return await request(provider);
+    } catch (error) {
+      if (!strictProvider && language !== "vi" && provider === "elevenlabs") {
+        return request("openai");
+      }
+      const message = error instanceof Error ? error.message : "Audio is unavailable.";
+      setPlaybackError(message);
+      throw error;
+    }
+  };
+
+  const playPreparedAudio = async (url: string, repetitions = 1) => {
+    stopPlayback();
+    const sequence = audioSequenceRef.current;
+    const audio = audioElementRef.current || new Audio();
+    audio.preload = "auto";
+    audioElementRef.current = audio;
+    audio.src = url;
+    let durationMs = 0;
+    try {
+      for (let repetition = 0; repetition < repetitions; repetition += 1) {
+        if (sequence !== audioSequenceRef.current) break;
+        audio.currentTime = 0;
+        await new Promise<void>((resolve, reject) => {
+          let settled = false;
+          const finish = (error?: Error) => {
+            if (settled) return;
+            settled = true;
+            audio.removeEventListener("ended", onEnded);
+            audio.removeEventListener("error", onError);
+            if (audioCancelRef.current === cancel) {
+              audioCancelRef.current = null;
+              audioPauseRef.current = null;
+              audioResumeRef.current = null;
+            }
+            if (error) reject(error); else resolve();
+          };
+          const cancel = () => finish();
+          const onEnded = () => finish();
+          const onError = () => finish(new Error("Audio playback failed."));
+          audioCancelRef.current = cancel;
+          audioPauseRef.current = () => audio.pause();
+          audioResumeRef.current = () => { void audio.play().catch(() => finish(new Error("Audio playback failed."))); };
+          audio.addEventListener("ended", onEnded, { once: true });
+          audio.addEventListener("error", onError, { once: true });
+          void audio.play().catch(() => finish(new Error("Audio playback failed.")));
+        });
+        durationMs = Number.isFinite(audio.duration) ? audio.duration * 1_000 : durationMs;
+        if (repetition < repetitions - 1 && sequence === audioSequenceRef.current) {
+          await waitForAudioPause(adaptivePauseMs(durationMs), sequence);
+        }
+      }
+    } finally {
+      if (sequence === audioSequenceRef.current) {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+      }
+    }
+    return durationMs;
+  };
+
+  const waitForAudioPause = (pauseMs: number, sequence: number) => new Promise<void>((resolve) => {
+    let remaining = pauseMs;
+    let startedAt = Date.now();
+    let timer = window.setTimeout(finish, remaining);
+    let running = true;
+    let settled = false;
+    function finish() {
+      if (settled) return;
+      settled = true;
+      running = false;
+      window.clearTimeout(timer);
+      if (audioCancelRef.current === cancel) {
+        audioCancelRef.current = null;
+        audioPauseRef.current = null;
+        audioResumeRef.current = null;
+      }
+      resolve();
+    }
+    const cancel = finish;
+    audioCancelRef.current = cancel;
+    audioPauseRef.current = () => {
+      if (!running || sequence !== audioSequenceRef.current) return;
+      running = false;
+      window.clearTimeout(timer);
+      remaining = Math.max(0, remaining - (Date.now() - startedAt));
+    };
+    audioResumeRef.current = () => {
+      if (running || settled || sequence !== audioSequenceRef.current) return;
+      running = true;
+      startedAt = Date.now();
+      timer = window.setTimeout(finish, remaining);
+    };
+  });
+
   const playTarget = async (
     text: string,
     overrides: Partial<PlaybackPreferences> = {},
@@ -191,135 +325,20 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
   ) => {
     lastPlaybackRef.current = { text, overrides, strictProvider };
     setPlaybackError("");
-    stopPlayback();
-    const sequence = audioSequenceRef.current;
-    const nextPlayback = {
-      ...playback,
-      ...overrides,
-      elevenlabs: { ...playback.elevenlabs, ...overrides.elevenlabs },
-    };
-    const playAudioResponse = async (response: Response) => {
-      const cacheHeader = response.headers.get("X-Audio-Cache");
-      const cache = cacheHeader === "HIT" || cacheHeader === "MISS" ? cacheHeader : null;
-      const url = URL.createObjectURL(await response.blob());
-      if (sequence !== audioSequenceRef.current) {
-        URL.revokeObjectURL(url);
-        return cache;
-      }
-      const audio = audioElementRef.current || new Audio();
-      audio.preload = "auto";
-      audioElementRef.current = audio;
-      audio.src = url;
-      try {
-        for (let repetition = 0; repetition < nextPlayback.repetitions; repetition += 1) {
-          if (sequence !== audioSequenceRef.current) break;
-          audio.currentTime = 0;
-          await new Promise<void>((resolve, reject) => {
-            let settled = false;
-            const finish = (error?: Error) => {
-              if (settled) return;
-              settled = true;
-              audio.removeEventListener("ended", onEnded);
-              audio.removeEventListener("error", onError);
-              if (audioCancelRef.current === cancel) {
-                audioCancelRef.current = null;
-                audioPauseRef.current = null;
-                audioResumeRef.current = null;
-              }
-              if (error) reject(error); else resolve();
-            };
-            const cancel = () => finish();
-            const onEnded = () => finish();
-            const onError = () => finish(new Error("Audio playback failed."));
-            audioCancelRef.current = cancel;
-            audioPauseRef.current = () => audio.pause();
-            audioResumeRef.current = () => { void audio.play().catch(() => finish(new Error("Audio playback failed."))); };
-            audio.addEventListener("ended", onEnded, { once: true });
-            audio.addEventListener("error", onError, { once: true });
-            void audio.play().catch(() => finish(new Error("Audio playback failed.")));
-          });
-          if (repetition < nextPlayback.repetitions - 1 && sequence === audioSequenceRef.current) {
-            await new Promise<void>((resolve) => {
-              let remaining = nextPlayback.pauseMs;
-              let startedAt = Date.now();
-              let timer = window.setTimeout(finish, remaining);
-              let running = true;
-              let settled = false;
-              function finish() {
-                if (settled) return;
-                settled = true;
-                running = false;
-                window.clearTimeout(timer);
-                if (audioCancelRef.current === cancel) {
-                  audioCancelRef.current = null;
-                  audioPauseRef.current = null;
-                  audioResumeRef.current = null;
-                }
-                resolve();
-              }
-              const cancel = finish;
-              audioCancelRef.current = cancel;
-              audioPauseRef.current = () => {
-                if (!running) return;
-                running = false;
-                window.clearTimeout(timer);
-                remaining = Math.max(0, remaining - (Date.now() - startedAt));
-              };
-              audioResumeRef.current = () => {
-                if (running || settled) return;
-                running = true;
-                startedAt = Date.now();
-                timer = window.setTimeout(finish, remaining);
-              };
-            });
-          }
-        }
-      } finally {
-        if (sequence === audioSequenceRef.current) {
-          audio.pause();
-          audio.removeAttribute("src");
-          audio.load();
-        }
-        URL.revokeObjectURL(url);
-      }
-      return cache;
-    };
+    const nextPlayback = resolvePlayback(overrides);
     if (openaiConfigured || elevenLabsConfig.configured) {
       try {
-        const provider = language === "vi" ? "elevenlabs"
-          : !strictProvider && language === "lv" && nextPlayback.provider === "elevenlabs"
-          ? "openai" : nextPlayback.provider;
-        const response = await apiFetch("/api/audio/speech", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text,
-            language,
-            provider,
-            speed: nextPlayback.speed,
-            voice: nextPlayback.voice,
-            ...nextPlayback.elevenlabs,
-          }),
-        });
-        if (!response.ok) {
-          const error = await response.json().catch(() => null) as { message?: string } | null;
-          throw new Error(error?.message || "TTS unavailable");
+        const prepared = await fetchTargetAudio(text, overrides, strictProvider);
+        const url = URL.createObjectURL(prepared.blob);
+        try {
+          await playPreparedAudio(url, nextPlayback.repetitions);
+        } finally {
+          URL.revokeObjectURL(url);
         }
-        return { provider, cache: await playAudioResponse(response) } satisfies PlaybackResult;
+        return { provider: prepared.provider, cache: prepared.cache } satisfies PlaybackResult;
       } catch (error) {
-        if (strictProvider || language === "vi") {
-          const message = error instanceof Error ? error.message : "Vietnamese audio is unavailable.";
-          setPlaybackError(message);
-          throw error;
-        }
-        if (nextPlayback.provider === "elevenlabs") {
-          try {
-            const response = await apiFetch("/api/audio/speech", {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text, language, provider: "openai", speed: nextPlayback.speed, voice: nextPlayback.voice }),
-            });
-            if (response.ok) return { provider: "openai", cache: await playAudioResponse(response) } satisfies PlaybackResult;
-          } catch { /* Browser speech is the final fallback. */ }
-        }
+        if (strictProvider || language === "vi") throw error;
+        setPlaybackError("");
       }
     }
     if (language === "vi") {
@@ -333,7 +352,7 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
       locale: languageCopy[language].locale,
       rate: nextPlayback.speed,
       repetitions: nextPlayback.repetitions,
-      pauseMs: nextPlayback.pauseMs,
+      pauseMs: adaptivePauseMs(Math.max(1_000, text.trim().split(/\s+/).length * 350 / nextPlayback.speed)),
     });
     audioPauseRef.current = null;
     audioResumeRef.current = null;
@@ -352,6 +371,8 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     pausePlayback,
     playback,
     playbackError,
+    fetchTargetAudio,
+    playPreparedAudio,
     playTarget,
     retryPlayback,
     dismissPlaybackError: () => setPlaybackError(""),

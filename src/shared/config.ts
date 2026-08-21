@@ -10,16 +10,11 @@ export const defaultPlayback: PlaybackPreferences = {
   provider: "openai",
   repetitions: 2,
   speed: 1,
-  pauseMs: 1500,
   playAfterRecall: true,
   voice: "onyx",
   elevenlabs: {
     voiceId: "1YGgSmpRGVzkcaI7zhbX",
     modelId: "eleven_multilingual_v2",
-    stability: 0.45,
-    similarityBoost: 0.6,
-    style: 0.02,
-    speakerBoost: true,
   },
 };
 

@@ -17,6 +17,7 @@ import type {
   PlaybackResult,
 } from "../../shared/contracts";
 import { languageHasAudio } from "../../shared/config";
+import type { PreparedAudio } from "../audio/listenAudio";
 
 export function PracticePage(props: {
   attempts: Record<string, AttemptDraft>;
@@ -34,8 +35,14 @@ export function PracticePage(props: {
   onRoute: (route: PracticeRoute, historyMode?: HistoryMode) => void;
   onPausePlayback: () => void;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
+  onPlayPrepared: (url: string, repetitions: number) => Promise<number>;
   onPlayback: (playback: PlaybackPreferences) => void;
   onPracticeEnabled: (itemId: string, practiceEnabled: boolean) => Promise<boolean>;
+  onPrepareAudio: (
+    text: string,
+    playback: Partial<PlaybackPreferences>,
+    strictProvider: boolean,
+  ) => Promise<PreparedAudio>;
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
   onResumePlayback: () => void;
   onStopPlayback: () => void;
@@ -88,6 +95,7 @@ export function PracticePage(props: {
     /> : <ListenRepeat count={props.route.cards} dueItemIds={props.dueItemIds} emptyAction={<AppLink route={defaultLibraryRoute(props.language)}>Browse Library</AppLink>}
       elevenLabs={props.elevenLabs} items={props.items} language={props.language}
       onEdit={setEditingItem} onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
+      onPlayPrepared={props.onPlayPrepared} onPrepareAudio={props.onPrepareAudio}
       onCount={(cards) => props.onRoute({ ...props.route, cards }, "replace")}
       onPlayback={props.onPlayback} onResume={props.onResumePlayback} onStop={props.onStopPlayback}
       onPracticeEnabled={props.onPracticeEnabled}

@@ -5,6 +5,15 @@ import { elevenLabsModelOptions, languageSchema, voiceOptions } from "./schemas.
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
 
 export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
+  const speechSettingsSchema = z.object({
+    language: z.union([languageSchema, z.literal("ru")]),
+    provider: z.enum(["openai", "elevenlabs"]).default("openai"),
+    voice: z.enum(voiceOptions).optional(),
+    voiceId: z.string().trim().min(1).max(100).optional(),
+    modelId: z.enum(elevenLabsModelOptions).optional(),
+    speed: z.number().min(0.5).max(1.5).optional(),
+  });
+
   app.get("/api/audio/elevenlabs/status", async (request) => {
     const { elevenlabs } = dependencies.forRequest(request);
     const query = z.object({
@@ -18,17 +27,7 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const { openai, elevenlabs } = dependencies.forRequest(request);
     const body = z.object({
       text: z.string().trim().min(1).max(4_096),
-      language: z.union([languageSchema, z.literal("ru")]),
-      provider: z.enum(["openai", "elevenlabs"]).default("openai"),
-      voice: z.enum(voiceOptions).optional(),
-      voiceId: z.string().trim().min(1).max(100).optional(),
-      modelId: z.enum(elevenLabsModelOptions).optional(),
-      stability: z.number().min(0).max(1).optional(),
-      similarityBoost: z.number().min(0).max(1).optional(),
-      style: z.number().min(0).max(1).optional(),
-      speakerBoost: z.boolean().optional(),
-      speed: z.number().min(0.5).max(1.5).optional(),
-    }).parse(request.body);
+    }).and(speechSettingsSchema).parse(request.body);
     if (body.language === "vi" && body.provider !== "elevenlabs") {
       return reply.code(400).send({
         error: "VIETNAMESE_ELEVENLABS_REQUIRED",
@@ -54,5 +53,43 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
       .header("X-Audio-Cache", result.cached ? "HIT" : "MISS")
       .type("audio/mpeg")
       .send(result.audio);
+  });
+
+  app.post("/api/audio/prepare", async (request, reply) => {
+    const { audioPreparation } = dependencies.forRequest(request);
+    const body = z.object({
+      itemIds: z.array(z.string().trim().min(1).max(100)).min(1).max(50)
+        .transform((itemIds) => [...new Set(itemIds)]),
+      priorityItemId: z.string().trim().min(1).max(100).optional(),
+    }).and(speechSettingsSchema.omit({ language: true }).extend({ language: languageSchema })).parse(request.body);
+    if (body.priorityItemId && !body.itemIds.includes(body.priorityItemId)) {
+      return reply.code(400).send({ error: "AUDIO_PRIORITY_ITEM_NOT_FOUND" });
+    }
+    if (body.language === "vi" && body.provider !== "elevenlabs") {
+      return reply.code(400).send({ error: "VIETNAMESE_ELEVENLABS_REQUIRED" });
+    }
+    if (body.language === "vi" && body.modelId !== "eleven_flash_v2_5") {
+      return reply.code(400).send({ error: "VIETNAMESE_MODEL_UNSUPPORTED" });
+    }
+    if (body.provider === "elevenlabs" && body.speed !== undefined
+      && (body.speed < elevenLabsSpeedRange.min || body.speed > elevenLabsSpeedRange.max)) {
+      return reply.code(400).send({ error: "INVALID_ELEVENLABS_SPEED" });
+    }
+    const job = audioPreparation.prepare(body.itemIds, body, body.priorityItemId);
+    return reply.code(job.status === "ready" ? 200 : 202).send(job);
+  });
+
+  app.get("/api/audio/prepare/:jobId", async (request, reply) => {
+    const { audioPreparation } = dependencies.forRequest(request);
+    const { jobId } = z.object({ jobId: z.string().uuid() }).parse(request.params);
+    const job = audioPreparation.get(jobId);
+    return job ? job : reply.code(404).send({ error: "AUDIO_PREPARATION_NOT_FOUND" });
+  });
+
+  app.delete("/api/audio/prepare/:jobId", async (request, reply) => {
+    const { audioPreparation } = dependencies.forRequest(request);
+    const { jobId } = z.object({ jobId: z.string().uuid() }).parse(request.params);
+    const job = audioPreparation.cancel(jobId);
+    return job ? job : reply.code(404).send({ error: "AUDIO_PREPARATION_NOT_FOUND" });
   });
 };

@@ -23,7 +23,7 @@ describe("ElevenLabsService", () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it("sends voice tuning and caches generated audio", async () => {
+  it("sends fixed voice tuning and caches generated audio", async () => {
     const request = vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
     vi.stubGlobal("fetch", request);
     const service = new ElevenLabsService(repository, "test-key");
@@ -32,10 +32,6 @@ describe("ElevenLabsService", () => {
       language: "en" as const,
       voiceId: "voice-id",
       modelId: "eleven_multilingual_v2" as const,
-      stability: 0.45,
-      similarityBoost: 0.6,
-      style: 0.02,
-      speakerBoost: true,
       speed: 1.05,
     };
 
@@ -49,14 +45,36 @@ describe("ElevenLabsService", () => {
     expect(JSON.parse(String(options.body))).toMatchObject({
       model_id: "eleven_multilingual_v2",
       voice_settings: {
-        stability: 0.45,
-        similarity_boost: 0.6,
+        stability: 1,
+        similarity_boost: 1,
         style: 0.02,
         use_speaker_boost: true,
         speed: 1.05,
       },
     });
     expect(JSON.parse(String(options.body))).not.toHaveProperty("language_code");
+  });
+
+  it("stores speed, voice, and model variants under distinct cache keys", async () => {
+    const request = vi.fn().mockImplementation(async () =>
+      new Response(new Uint8Array([1]), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    const service = new ElevenLabsService(repository, "test-key");
+    const base = {
+      text: "  Keep this exact audio.  ",
+      language: "en" as const,
+      voiceId: "voice-a",
+      modelId: "eleven_multilingual_v2" as const,
+      speed: 1,
+    };
+
+    await service.speech(base);
+    await service.speech({ ...base, text: "Keep this exact audio." });
+    await service.speech({ ...base, speed: 1.1 });
+    await service.speech({ ...base, voiceId: "voice-b" });
+    await service.speech({ ...base, modelId: "eleven_flash_v2_5" });
+
+    expect(request).toHaveBeenCalledTimes(4);
   });
 
   it("coalesces concurrent identical requests into one paid generation", async () => {

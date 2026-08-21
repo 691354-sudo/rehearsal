@@ -205,6 +205,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
       onRoute={(next, historyMode) => { goTo(next, historyMode); learning.resetAttempts(); }} onRecallReview={learning.commitRecall}
       onPracticeEnabled={learning.updatePracticeEnabled}
       onPausePlayback={audio.pausePlayback} onPlay={audio.playTarget} onPlayback={audio.updatePlayback}
+      onPlayPrepared={audio.playPreparedAudio} onPrepareAudio={audio.fetchTargetAudio}
       onResumePlayback={audio.resumePlayback} onStopPlayback={audio.stopPlayback}
       playback={audio.playback} voices={audio.voices} />}
     {route.section === "tutor" && <TutorPage language={language} profileId={profile.id} route={route}

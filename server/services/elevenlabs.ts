@@ -8,10 +8,6 @@ export type ElevenLabsSpeechInput = {
   language: LanguageCode | "ru";
   voiceId?: string;
   modelId?: "eleven_multilingual_v2" | "eleven_flash_v2_5";
-  stability?: number;
-  similarityBoost?: number;
-  style?: number;
-  speakerBoost?: boolean;
   speed?: number;
 };
 
@@ -44,6 +40,12 @@ const clamp = (value: number | undefined, fallback: number, min: number, max: nu
   Math.max(min, Math.min(max, value ?? fallback));
 
 export const elevenLabsSpeedRange = { min: 0.7, max: 1.2 } as const;
+export const elevenLabsVoiceSettings = {
+  stability: 1,
+  similarity_boost: 1,
+  style: 0.02,
+  use_speaker_boost: true,
+} as const;
 
 const voiceStatusTtlMs = 10 * 60 * 1_000;
 const voiceListTtlMs = 10 * 60 * 1_000;
@@ -127,12 +129,8 @@ export class ElevenLabsService {
 
   async speech(input: ElevenLabsSpeechInput) {
     if (!this.configured) throw new Error("ELEVENLABS_NOT_CONFIGURED");
-
-    const voiceId = input.voiceId || (input.language === "vi"
-      ? config.elevenLabsViVoiceId : config.elevenLabsVoiceId);
-    const modelId = input.modelId || (input.language === "vi"
-      ? "eleven_flash_v2_5"
-      : config.elevenLabsModel as NonNullable<ElevenLabsSpeechInput["modelId"]>);
+    const resolved = this.resolveSpeech(input);
+    const { voiceId, modelId, text, settings, cacheKey } = resolved;
     if (input.language === "vi" && modelId !== "eleven_flash_v2_5") {
       throw new ElevenLabsError(
         "Vietnamese playback requires Eleven Flash v2.5.",
@@ -140,17 +138,6 @@ export class ElevenLabsService {
         "VIETNAMESE_MODEL_UNSUPPORTED",
       );
     }
-    const text = input.text.trim().normalize("NFC");
-    const settings = {
-      stability: clamp(input.stability, config.elevenLabsStability, 0, 1),
-      similarity_boost: clamp(input.similarityBoost, config.elevenLabsSimilarityBoost, 0, 1),
-      style: clamp(input.style, config.elevenLabsStyle, 0, 1),
-      use_speaker_boost: input.speakerBoost ?? config.elevenLabsSpeakerBoost,
-      speed: clamp(input.speed, config.elevenLabsSpeed, elevenLabsSpeedRange.min, elevenLabsSpeedRange.max),
-    };
-    const cacheKey = createHash("sha256")
-      .update(["elevenlabs", modelId, voiceId, JSON.stringify(settings), input.language, text].join("\0"))
-      .digest("hex");
     const cached = this.repository.audio.get(cacheKey);
     if (cached) return { ...cached, cached: true };
 
@@ -161,6 +148,27 @@ export class ElevenLabsService {
       .finally(() => this.inflightSpeech.delete(cacheKey));
     this.inflightSpeech.set(cacheKey, generation);
     return { ...await generation, cached: false };
+  }
+
+  cachedSpeech(input: ElevenLabsSpeechInput) {
+    return this.repository.audio.get(this.resolveSpeech(input).cacheKey);
+  }
+
+  private resolveSpeech(input: ElevenLabsSpeechInput) {
+    const voiceId = input.voiceId || (input.language === "vi"
+      ? config.elevenLabsViVoiceId : config.elevenLabsVoiceId);
+    const modelId = input.modelId || (input.language === "vi"
+      ? "eleven_flash_v2_5"
+      : config.elevenLabsModel as NonNullable<ElevenLabsSpeechInput["modelId"]>);
+    const text = input.text.trim().normalize("NFC");
+    const settings = {
+      ...elevenLabsVoiceSettings,
+      speed: clamp(input.speed, config.elevenLabsSpeed, elevenLabsSpeedRange.min, elevenLabsSpeedRange.max),
+    };
+    const cacheKey = createHash("sha256")
+      .update(["elevenlabs", modelId, voiceId, JSON.stringify(settings), input.language, text].join("\0"))
+      .digest("hex");
+    return { voiceId, modelId, text, settings, cacheKey };
   }
 
   private async fetchVoices() {

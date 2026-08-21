@@ -20,7 +20,7 @@ Set different local profile PINs and a random `SESSION_SECRET` in the untracked 
 - API health: `http://127.0.0.1:8787/health`
 - Isolated Codex browser environment: `npm run dev:codex`
 
-The installed PWA and API use the same origin and deployment base path. OpenAI and ElevenLabs are optional: Recall comparison and FTS search stay local, while audio falls back to browser speech.
+The installed PWA and API use the same origin and deployment base path. OpenAI and ElevenLabs are optional: Recall comparison and FTS search stay local, and ordinary previews may fall back to browser speech. Listen & Repeat keeps its selected server voice strict so a failed ElevenLabs card is never silently pronounced by another provider.
 
 ## AI and speech
 

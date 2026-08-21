@@ -32,7 +32,6 @@ export function PlaybackSettings(props: {
       onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })} step="0.05" type="range" value={props.playback.speed} /></label>
     <label><span>Repeats</span><select name="practice-repetitions" onChange={(event) => props.onPlayback({ ...props.playback, repetitions: Number(event.target.value) })} value={props.playback.repetitions}>
       {[1, 2, 3, 5].map((value) => <option key={value} value={value}>{value}×</option>)}</select></label>
-    <label><span>Pause</span><select name="practice-pause" onChange={(event) => props.onPlayback({ ...props.playback, pauseMs: Number(event.target.value) })} value={props.playback.pauseMs}>
-      {[500, 1500, 3000].map((value) => <option key={value} value={value}>{value / 1000}s</option>)}</select></label>
+    <div className="practice-adaptive-pause"><span>Pause</span><strong>Adaptive · audio length + 0.5s</strong></div>
   </div>;
 }
