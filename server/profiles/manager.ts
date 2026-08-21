@@ -5,7 +5,8 @@ import Database from "better-sqlite3";
 import { openDatabase, type RehearsalDatabase } from "../db/database.js";
 import { RehearsalRepository } from "../db/repository.js";
 
-export const profileIds = ["roman", "oliver"] as const;
+const baseProfileIds = ["roman", "oliver"] as const;
+export const profileIds = [...baseProfileIds, "zanna"] as const;
 export type ProfileId = typeof profileIds[number];
 
 type ProfileRecord = {
@@ -19,6 +20,12 @@ type ProfileRecord = {
 type ProfileRegistry = {
   version: 1;
   profiles: ProfileRecord[];
+};
+
+type AdditionalProfileRegistry = {
+  version: 1;
+  state: "initializing" | "ready";
+  profile: ProfileRecord;
 };
 
 export type ProfileContext = {
@@ -38,7 +45,9 @@ export type ProfileManagerOptions = {
 
 const pinPattern = /^\d{4,12}$/;
 const registryName = "registry.json";
+const additionalRegistryName = "additional-registry.json";
 const migrationReportName = "migration.json";
+const profileNames: Record<ProfileId, string> = { roman: "Roman", oliver: "Oliver", zanna: "Zanna" };
 
 const writePrivateJson = (destination: string, value: unknown) => {
   const temporary = `${destination}.${process.pid}.tmp`;
@@ -73,34 +82,69 @@ const assertHealthyCopy = (databasePath: string, expected: Record<string, number
   }
 };
 
+const createProfileRecord = (profilesDir: string, id: ProfileId, pin: string): ProfileRecord => {
+  if (!pinPattern.test(pin)) throw new Error(`${id.toUpperCase()}_PROFILE_PIN must contain 4-12 digits`);
+  const salt = randomBytes(16);
+  return {
+    id,
+    name: profileNames[id],
+    databasePath: path.join(profilesDir, `${id}.sqlite`),
+    pinSalt: salt.toString("base64"),
+    pinHash: scryptSync(pin, salt, 64).toString("base64"),
+  };
+};
+
 const createRegistry = (profilesDir: string, pins: Record<ProfileId, string>): ProfileRegistry => ({
   version: 1,
-  profiles: profileIds.map((id) => {
-    const pin = pins[id];
-    if (!pinPattern.test(pin)) throw new Error(`${id.toUpperCase()}_PROFILE_PIN must contain 4-12 digits`);
-    const salt = randomBytes(16);
-    return {
-      id,
-      name: id === "roman" ? "Roman" : "Oliver",
-      databasePath: path.join(profilesDir, `${id}.sqlite`),
-      pinSalt: salt.toString("base64"),
-      pinHash: scryptSync(pin, salt, 64).toString("base64"),
-    };
-  }),
+  profiles: baseProfileIds.map((id) => createProfileRecord(profilesDir, id, pins[id])),
 });
 
 const readRegistry = (registryPath: string): ProfileRegistry => {
   const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8")) as ProfileRegistry;
-  if (parsed.version !== 1 || parsed.profiles.length !== profileIds.length) {
+  if (parsed.version !== 1 || parsed.profiles.length !== baseProfileIds.length) {
     throw new Error("Unsupported or incomplete profile registry");
   }
-  for (const id of profileIds) {
+  for (const id of baseProfileIds) {
     const profile = parsed.profiles.find((candidate) => candidate.id === id);
     if (!profile || path.basename(profile.databasePath) !== `${id}.sqlite`) {
       throw new Error(`Invalid ${id} profile registry entry`);
     }
   }
   return parsed;
+};
+
+const ensureAdditionalProfile = (profilesDir: string, pins: Record<ProfileId, string>) => {
+  const registryPath = path.join(profilesDir, additionalRegistryName);
+  const databasePath = path.join(profilesDir, "zanna.sqlite");
+  if (!fs.existsSync(registryPath)) {
+    if (fs.existsSync(databasePath)) {
+      throw new Error("Zanna database exists without its profile registry; restore or remove both together");
+    }
+    writePrivateJson(registryPath, {
+      version: 1,
+      state: "initializing",
+      profile: createProfileRecord(profilesDir, "zanna", pins.zanna),
+    } satisfies AdditionalProfileRegistry);
+  }
+
+  const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8")) as AdditionalProfileRegistry;
+  if (parsed.version !== 1 || parsed.profile?.id !== "zanna"
+    || path.basename(parsed.profile.databasePath) !== "zanna.sqlite"
+    || !["initializing", "ready"].includes(parsed.state)) {
+    throw new Error("Invalid additional profile registry");
+  }
+  if (parsed.state === "ready" && !fs.existsSync(parsed.profile.databasePath)) {
+    throw new Error(
+      "Profile database missing after initialization: zanna. Stop the API and restore the named profile from a verified backup.",
+    );
+  }
+  if (parsed.state === "initializing") {
+    const db = openDatabase(parsed.profile.databasePath);
+    db.close();
+    parsed.state = "ready";
+    writePrivateJson(registryPath, parsed);
+  }
+  return parsed.profile;
 };
 
 const initializeProfileDatabases = async (
@@ -196,25 +240,27 @@ export class ProfileManager {
     fs.chmodSync(profilesDir, 0o700);
     const registryPath = path.join(profilesDir, registryName);
     const registryCreated = !fs.existsSync(registryPath);
+    let registry: ProfileRegistry;
     if (registryCreated) {
       const existingProfileFiles = profileIds.filter((id) => fs.existsSync(path.join(profilesDir, `${id}.sqlite`)));
       if (existingProfileFiles.length) {
         throw new Error("Profile registry is missing while profile databases exist; restore registry.json before starting");
       }
-      const registry = createRegistry(profilesDir, options.pins);
+      registry = createRegistry(profilesDir, options.pins);
       try {
         await initializeProfileDatabases(options, registry, true);
         writePrivateJson(registryPath, registry);
-        return new ProfileManager(registry);
       } catch (error) {
         for (const profile of registry.profiles) fs.rmSync(profile.databasePath, { force: true });
         fs.rmSync(path.join(profilesDir, migrationReportName), { force: true });
         throw error;
       }
+    } else {
+      registry = readRegistry(registryPath);
+      await initializeProfileDatabases(options, registry, false);
     }
-    const registry = readRegistry(registryPath);
-    await initializeProfileDatabases(options, registry, false);
-    return new ProfileManager(registry);
+    const additionalProfile = ensureAdditionalProfile(profilesDir, options.pins);
+    return new ProfileManager({ version: 1, profiles: [...registry.profiles, additionalProfile] });
   }
 
   listProfiles() {

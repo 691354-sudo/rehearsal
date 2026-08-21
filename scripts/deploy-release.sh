@@ -26,6 +26,7 @@ for required_path in \
   "${APP_ROOT}/.env.elevenlabs" \
   "${APP_ROOT}/secrets/roman_profile_pin" \
   "${APP_ROOT}/secrets/oliver_profile_pin" \
+  "${APP_ROOT}/secrets/zanna_profile_pin" \
   "${APP_ROOT}/secrets/session_secret"; do
   if [[ ! -e "${required_path}" ]]; then
     echo "Required production path is missing: ${required_path}" >&2

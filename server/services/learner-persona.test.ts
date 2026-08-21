@@ -8,6 +8,7 @@ describe("learner-specific AI context", () => {
   it("keeps Roman's configured context out of Oliver's prompts", () => {
     const romanTutor = tutorInstructions(learnerPersonaForProfile("roman"), "en");
     const oliverTutor = tutorInstructions(learnerPersonaForProfile("oliver"), "en");
+    const zannaTutor = tutorInstructions(learnerPersonaForProfile("zanna"), "en");
     const oliverMaterial = materialInstructions(
       learnerPersonaForProfile("oliver"),
       "en",
@@ -21,6 +22,8 @@ describe("learner-specific AI context", () => {
     expect(oliverTutor).not.toContain("1992");
     expect(oliverMaterial).not.toContain("Riga");
     expect(oliverMaterial).toContain(String(new Date().getFullYear()));
+    expect(zannaTutor).toContain("Zanna");
+    expect(zannaTutor).not.toContain("Roman");
   });
 
   it("keeps the newest whole Tutor messages inside the character budget", () => {

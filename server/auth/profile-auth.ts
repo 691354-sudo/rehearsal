@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { HttpDependencies } from "../http/dependencies.js";
-import type { ProfileId } from "../profiles/manager.js";
+import { profileIds, type ProfileId } from "../profiles/manager.js";
 import { LoginRateLimiter } from "./rate-limit.js";
 
 export const sessionCookieName = "rehearsal_session";
@@ -82,7 +82,7 @@ export const registerProfileAuth = (
   app.post("/api/auth/login", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const body = z.object({
-      profileId: z.enum(["roman", "oliver"]),
+      profileId: z.enum(profileIds),
       pin: z.string().regex(/^\d{4,12}$/),
     }).parse(request.body);
     const key = `${request.ip}:${body.profileId}`;

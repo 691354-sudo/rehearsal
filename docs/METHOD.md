@@ -20,7 +20,7 @@ Good material is:
 
 Every generated candidate records a frequency band (`core`, `common`, `specific`, `rare`), currency (`current`, `contextual`, `dated`, `uncertain`), personal fit, naturalness, and commonness. Uncertain slang, idioms, and regional wording may be verified with a low-context web search before being proposed.
 
-Personalization is profile-specific. Roman keeps the established context: a Russian-speaking adult born in 1992 with direct, casual, thoughtful language and familiar life anchors when they genuinely fit. Oliver is configured only as a Russian-speaking adult; the model must not invent his age, interests, work, relationships, location, or lifestyle. Conversation facts supplied by either learner may be used within that conversation.
+Personalization is profile-specific. Roman keeps the established context: a Russian-speaking adult born in 1992 with direct, casual, thoughtful language and familiar life anchors when they genuinely fit. Oliver and Zanna are configured only as Russian-speaking adults; the model must not invent their age, interests, work, relationships, location, or lifestyle. Conversation facts supplied by any learner may be used within that conversation.
 
 ## Daily loop
 

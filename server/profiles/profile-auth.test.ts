@@ -10,7 +10,7 @@ import { RehearsalRepository } from "../db/repository.js";
 import { seedDatabase } from "../db/seed.js";
 import { ProfileManager, type ProfileId } from "./manager.js";
 
-const pins = { roman: "1234", oliver: "5678" };
+const pins = { roman: "1234", oliver: "5678", zanna: "2345" };
 const sessionSecret = "test-session-secret-with-more-than-thirty-two-bytes";
 
 type LoginSession = { cookie: string; csrfToken: string };
@@ -91,6 +91,7 @@ describe("profile authentication and database isolation", () => {
   it("copies and verifies the legacy database for both profiles without exposing data in health", async () => {
     expect(manager.get("roman").repository.items.list("en", 500)).toHaveLength(initialEnglishItems);
     expect(manager.get("oliver").repository.items.list("en", 500)).toHaveLength(initialEnglishItems);
+    expect(manager.get("zanna").repository.items.list("en", 500)).toEqual([]);
     expect(manager.get("roman").repository.system.isLanguageEnabled("vi")).toBe(false);
     expect(manager.get("oliver").repository.system.isLanguageEnabled("vi")).toBe(false);
     expect(fs.readdirSync(backupDir).some((name) => name.startsWith("legacy-before-profiles-"))).toBe(true);
@@ -111,6 +112,7 @@ describe("profile authentication and database isolation", () => {
     expect(health.json().profiles).toEqual([
       { id: "roman", ok: true },
       { id: "oliver", ok: true },
+      { id: "zanna", ok: true },
     ]);
     expect(JSON.stringify(health.json())).not.toContain("drawn to");
   });
@@ -217,7 +219,7 @@ describe("profile authentication and database isolation", () => {
       dataDir,
       backupDir,
       legacyDatabasePath: legacyPath,
-      pins: { roman: "", oliver: "" },
+      pins: { roman: "", oliver: "", zanna: "" },
     });
     app = await buildApp(manager, { sessionSecret, cookieSecure: true });
     expect(manager.get("oliver").repository.items.get("en-drawn-to")?.target).toBe("Persistent Oliver edit.");
@@ -236,7 +238,7 @@ describe("profile authentication and database isolation", () => {
     })).rejects.toThrow("Profile database missing after initialization: oliver");
   });
 
-  it("creates both empty profile databases and records a fresh initialization", async () => {
+  it("creates all empty profile databases and records a fresh base initialization", async () => {
     await app.close();
     manager.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -250,10 +252,19 @@ describe("profile authentication and database isolation", () => {
 
     expect(manager.get("roman").repository.items.list("en", 500)).toEqual([]);
     expect(manager.get("oliver").repository.items.list("en", 500)).toEqual([]);
+    expect(manager.get("zanna").repository.items.list("en", 500)).toEqual([]);
     const migration = JSON.parse(fs.readFileSync(path.join(dataDir, "profiles", "migration.json"), "utf8")) as {
       mode: string; source: string | null; profiles: ProfileId[];
     };
     expect(migration).toMatchObject({ mode: "fresh", source: null, profiles: ["roman", "oliver"] });
+  });
+
+  it("adds Zanna with an empty database beside an existing base registry", async () => {
+    const zannaLogin = await login(app, "zanna");
+    expect(zannaLogin.response.statusCode).toBe(200);
+    expect(zannaLogin.response.json().profile).toEqual({ id: "zanna", name: "Zanna" });
+    expect(manager.get("zanna").repository.items.list("en", 500)).toEqual([]);
+    expect(fs.existsSync(path.join(dataDir, "profiles", "additional-registry.json"))).toBe(true);
   });
 
   it("enables Vietnamese only for Oliver and preserves its data when disabled", async () => {

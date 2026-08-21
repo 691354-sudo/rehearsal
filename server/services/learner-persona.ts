@@ -18,6 +18,12 @@ const personas: Record<ProfileId, LearnerPersona> = {
       "Oliver is a Russian-speaking adult. No other personal facts are configured. " +
       "Do not infer his age, interests, work, relationships, location, or lifestyle.",
   },
+  zanna: {
+    name: "Zanna",
+    context:
+      "Zanna is a Russian-speaking adult. No other personal facts are configured. " +
+      "Do not infer her age, interests, work, relationships, location, or lifestyle.",
+  },
 };
 
 export const genericLearnerPersona: LearnerPersona = {

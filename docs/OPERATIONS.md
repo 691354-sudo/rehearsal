@@ -39,12 +39,12 @@ Required repository secrets:
 - `DEPLOY_SSH_KEY`
 - `DEPLOY_KNOWN_HOSTS`
 - `PRODUCTION_URL` (the application base URL, currently `https://7662n.cc/rehearsal/`)
-- `ROMAN_PROFILE_PIN` and `OLIVER_PROFILE_PIN` (4–12 digits);
+- `ROMAN_PROFILE_PIN`, `OLIVER_PROFILE_PIN`, and `ZANNA_PROFILE_PIN` (4–12 digits);
 - `SESSION_SECRET` (a random value of at least 32 bytes).
 
 `deploy/rehearsal-backup.cron` creates a consistent SQLite backup nightly and removes backups older than 30 days. Model availability is checked only by an operator running `npm run models:check` before a deliberate model configuration change. The deployment script removes the retired `/etc/cron.d/rehearsal-model-check` job after a healthy rollout.
 
-The workflow installs the three profile/session values as mode-`0600` files under `/opt/apps/rehearsal/secrets`; Compose mounts that directory read-only. Provider credentials remain in `/opt/apps/rehearsal/.env` and `.env.elevenlabs`.
+The workflow installs the profile/session values as mode-`0600` files under `/opt/apps/rehearsal/secrets`; Compose mounts that directory read-only. Provider credentials remain in `/opt/apps/rehearsal/.env` and `.env.elevenlabs`.
 
 Do not rotate profile PINs by changing the GitHub secret after the registry exists: the registry holds the salted scrypt hashes and remains authoritative. A deliberate PIN-rotation tool is not part of this release. Changing `SESSION_SECRET` invalidates every active browser session at the next deployment.
 
@@ -54,12 +54,13 @@ Profile state lives only under the persistent data volume:
 
 - `/opt/apps/rehearsal/data/profiles/roman.sqlite`;
 - `/opt/apps/rehearsal/data/profiles/oliver.sqlite`;
-- `/opt/apps/rehearsal/data/profiles/registry.json` (names, database paths, PIN salts and hashes);
+- `/opt/apps/rehearsal/data/profiles/zanna.sqlite`;
+- `/opt/apps/rehearsal/data/profiles/registry.json` and `additional-registry.json` (names, database paths, PIN salts and hashes);
 - `/opt/apps/rehearsal/data/profiles/migration.json` (private migration evidence).
 
-On the first profile-aware start, the application creates Roman and Oliver as one set. If a legacy `rehearsal.sqlite` exists, it is archived and copied completely to both databases, followed by `quick_check` and counter comparison. Without legacy data, both empty databases are created before the registry is published.
+On the first profile-aware start, the application creates Roman and Oliver as one set. If a legacy `rehearsal.sqlite` exists, it is archived and copied completely to both databases, followed by `quick_check` and counter comparison. Without legacy data, both empty databases are created before the registry is published. Zanna is added separately with a new empty database; the additive registry keeps rollback to the preceding two-profile release safe.
 
-After `registry.json` exists, a missing Roman or Oliver database is a recovery incident: startup fails and names the profile that must be restored. The application never silently creates an empty replacement or copies legacy data into a missing initialized profile. A missing registry alongside existing profile databases also fails closed.
+After a profile is marked ready in its registry, a missing database is a recovery incident: startup fails and names the profile that must be restored. The application never silently creates an empty replacement or copies legacy data into a missing initialized profile. A missing registry alongside existing profile databases also fails closed.
 
 SQLite structure changes are ordered in `server/db/database.ts` and recorded once in `schema_migrations`. Each pending migration runs transactionally and checks foreign-key integrity before its marker is committed. A migration failure closes the database and fails startup; restore a verified backup or correct the migration rather than editing production tables manually.
 
@@ -78,6 +79,7 @@ Backup creates one verified file per profile under `backups/profiles`:
 npm run db:backup
 CONFIRM_RESTORE=1 npm run db:restore -- --profile roman /absolute/path/to/roman-backup.sqlite
 CONFIRM_RESTORE=1 npm run db:restore -- --profile oliver /absolute/path/to/oliver-backup.sqlite
+CONFIRM_RESTORE=1 npm run db:restore -- --profile zanna /absolute/path/to/zanna-backup.sqlite
 ```
 
 Stop the API before restore. Restore validates the candidate with SQLite `quick_check` and creates a safety copy of only the selected profile database before replacement. Never restore one profile's file into the other profile without an explicit data-recovery decision.
@@ -107,14 +109,14 @@ Before the first Vietnamese enablement, run `npm run db:backup` and retain both 
 
 ## Production verification
 
-Every release builds the new image, creates separate Roman and Oliver database backups with that image, replaces the container, and then verifies:
+Every release builds the new image, creates separate backups for all currently registered profile databases, replaces the container, and then verifies:
 
 ```bash
 curl -fsS http://127.0.0.1:8788/health
 curl -fsS https://7662n.cc/rehearsal/health
 ```
 
-`/health` runs `quick_check` for both profile databases and returns only their availability, never counts or user content. During the first rollout, also inspect the private migration report and confirm that both copies have the source counters recorded immediately before migration.
+`/health` runs `quick_check` for every profile database and returns only availability, never counts or user content. During the first rollout, also inspect the private migration report and confirm that both legacy copies have the source counters recorded immediately before migration.
 
 ## Secrets
 

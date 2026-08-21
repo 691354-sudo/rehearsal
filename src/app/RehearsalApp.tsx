@@ -117,7 +117,9 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
   const practiceRoute = (mode: PracticeRoute["mode"] = "recall") => ({ ...defaultPracticeRoute(language), mode });
   const changeLanguage = (nextLanguage: Language) => {
     if (!availableCodes.includes(nextLanguage)) return;
-    const next: AppRoute = route.section === "practice" && !languageHasAudio(nextLanguage) && route.mode === "listen"
+    const next: AppRoute = route.section === "tutor" && route.mode === "chat"
+      ? { ...route, language: nextLanguage, thread: null }
+      : route.section === "practice" && !languageHasAudio(nextLanguage) && route.mode === "listen"
       ? { ...route, language: nextLanguage, mode: "recall" }
       : { ...route, language: nextLanguage };
     goTo(next);
