@@ -102,7 +102,7 @@ export function ProfileGate() {
       <div className="profile-options" role="group" aria-label="Profiles">
         {profiles.map((candidate) => <button className={selected === candidate.id ? "is-active" : ""}
           key={candidate.id} onClick={() => { setSelected(candidate.id); setError(""); }} type="button">
-          <strong>{candidate.name}</strong><span>{candidate.id === "roman" ? "R" : "O"}</span>
+          <strong>{candidate.name}</strong><span>{candidate.name.slice(0, 1).toUpperCase()}</span>
         </button>)}
       </div>
       <form noValidate onSubmit={submit}>

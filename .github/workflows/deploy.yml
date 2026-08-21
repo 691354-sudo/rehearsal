@@ -96,6 +96,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           ROMAN_PROFILE_PIN: ${{ secrets.ROMAN_PROFILE_PIN }}
           OLIVER_PROFILE_PIN: ${{ secrets.OLIVER_PROFILE_PIN }}
+          ZANNA_PROFILE_PIN: ${{ secrets.ZANNA_PROFILE_PIN }}
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
         run: |
           umask 077
@@ -103,6 +104,7 @@ jobs:
           install -d -m 700 "$secret_stage"
           printf '%s' "$ROMAN_PROFILE_PIN" > "$secret_stage/roman_profile_pin"
           printf '%s' "$OLIVER_PROFILE_PIN" > "$secret_stage/oliver_profile_pin"
+          printf '%s' "$ZANNA_PROFILE_PIN" > "$secret_stage/zanna_profile_pin"
           printf '%s' "$SESSION_SECRET" > "$secret_stage/session_secret"
           remote_stage="/tmp/rehearsal-secrets-${GITHUB_RUN_ID}"
           ssh -i ~/.ssh/rehearsal_deploy "${DEPLOY_USER}@${DEPLOY_HOST}" \
@@ -113,10 +115,11 @@ jobs:
             "set -e
              install -m 600 '$remote_stage/roman_profile_pin' /opt/apps/rehearsal/secrets/roman_profile_pin
              install -m 600 '$remote_stage/oliver_profile_pin' /opt/apps/rehearsal/secrets/oliver_profile_pin
+             install -m 600 '$remote_stage/zanna_profile_pin' /opt/apps/rehearsal/secrets/zanna_profile_pin
              install -m 600 '$remote_stage/session_secret' /opt/apps/rehearsal/secrets/session_secret
-             rm -f '$remote_stage/roman_profile_pin' '$remote_stage/oliver_profile_pin' '$remote_stage/session_secret'
+             rm -f '$remote_stage/roman_profile_pin' '$remote_stage/oliver_profile_pin' '$remote_stage/zanna_profile_pin' '$remote_stage/session_secret'
              rmdir '$remote_stage'"
-          rm -f "$secret_stage/roman_profile_pin" "$secret_stage/oliver_profile_pin" "$secret_stage/session_secret"
+          rm -f "$secret_stage/roman_profile_pin" "$secret_stage/oliver_profile_pin" "$secret_stage/zanna_profile_pin" "$secret_stage/session_secret"
           rmdir "$secret_stage"
 
       - name: Upload release

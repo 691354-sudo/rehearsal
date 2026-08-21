@@ -35,6 +35,7 @@ export const config = {
   backupDir: path.resolve(root, process.env.BACKUP_DIR || "backups"),
   romanProfilePin: secretFromEnv("ROMAN_PROFILE_PIN"),
   oliverProfilePin: secretFromEnv("OLIVER_PROFILE_PIN"),
+  zannaProfilePin: secretFromEnv("ZANNA_PROFILE_PIN"),
   sessionSecret: secretFromEnv("SESSION_SECRET"),
   sessionCookieSecure: booleanFromEnv(
     process.env.SESSION_COOKIE_SECURE,

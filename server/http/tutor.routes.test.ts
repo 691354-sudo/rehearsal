@@ -26,7 +26,7 @@ describe("Tutor and review API", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/chat",
-      payload: { language: "en", message: "Help me practice small talk" },
+      payload: { language: "en", message: "Help me practice small talk", threadId: null },
     });
     expect(response.json()).toMatchObject({ mode: "setup" });
     const threadId = response.json().threadId as string;

@@ -4,7 +4,7 @@
 
 - React + Vite web client on port 4173.
 - Fastify API on port 8787.
-- Two isolated SQLite databases in `.data/profiles/roman.sqlite` and `.data/profiles/oliver.sqlite`, both using WAL and FTS5.
+- Three isolated SQLite databases in `.data/profiles/roman.sqlite`, `.data/profiles/oliver.sqlite`, and `.data/profiles/zanna.sqlite`, all using WAL and FTS5.
 - OpenAI is optional at startup. The API reports capability state via `/health` and `/api/config`.
 
 The Vite dev server proxies `/api` and `/health`. In production, Fastify serves `dist`; the installed PWA and API therefore share one origin and the same Vite deployment base path. Client requests go through one base-path helper, and separate client/API origins are not supported.
@@ -29,7 +29,7 @@ Styles follow the same ownership boundaries under `src/styles`. `base.css` owns 
 
 `server/app.ts` is only the Fastify composition root. Request parsing and responses are grouped by domain in `server/http`; SQL and business state never live in route modules. Persistence is split into `items`, `practice`, `reviews`, `tutor`, `library`, `capture`, `audio`, and `system` repositories under `server/db/repositories`. Services receive only the repository capabilities they use.
 
-`server/profiles` owns the fixed Roman/Oliver registry and database lifecycle. A verified signed cookie binds every non-auth `/api` request to one profile context; the server then selects that profile's repository. Client input can never select a database path. Once the registry exists, a missing profile database fails startup with a restore instruction; it is never silently recreated or copied. A first-ever initialization creates both databases as one set before publishing the registry. `server/auth` owns PIN verification, login throttling, cookie sessions, logout, and CSRF enforcement.
+`server/profiles` owns the fixed Roman/Oliver/Zanna registries and database lifecycle. A verified signed cookie binds every non-auth `/api` request to one profile context; the server then selects that profile's repository. Client input can never select a database path. Once a registry marks a profile ready, a missing database fails startup with a restore instruction; it is never silently recreated or copied. A first-ever base initialization creates Roman and Oliver as one set before publishing their backward-compatible registry; Zanna is then added through a resumable additive registry with a new empty database. `server/auth` owns PIN verification, login throttling, cookie sessions, logout, and CSRF enforcement.
 
 Active `.ts` and `.tsx` files are limited to 450 lines and CSS files to 800 lines. `npm run check:architecture` enforces the boundary in CI. Generated-data exceptions require an explicit, documented allowlist entry; there are currently no exceptions.
 
@@ -75,7 +75,7 @@ Routine answer comparison is deterministic and local, so pressing Enter feels im
 
 `POST /api/items/:itemId/rewrite` accepts the current editor draft and one bounded learner comment, then returns a rewritten target, Russian cue, and optional note. It never mutates the item. The client places the proposal back into the existing Edit dialog, and only the ordinary authenticated item patch persists it, preserving the explicit approval boundary and all existing Topic and FSRS state.
 
-Workload roles are pinned: Sol for Tutor conversation, Terra for material generation and review, and Luna for small utility tasks. Model changes are manual and may be canary-checked with `npm run models:check`; runtime configuration is never rewritten automatically. Roman receives the existing personal context, while Oliver receives only a neutral Russian-speaking-adult persona and an instruction not to invent personal facts. Source text, Tutor history, individual messages, and model output are bounded before provider calls.
+Workload roles are pinned: Sol for Tutor conversation, Terra for material generation and review, and Luna for small utility tasks. Model changes are manual and may be canary-checked with `npm run models:check`; runtime configuration is never rewritten automatically. Roman receives the existing personal context, while Oliver and Zanna receive neutral Russian-speaking-adult personas and an instruction not to invent personal facts. Source text, Tutor history, individual messages, and model output are bounded before provider calls.
 
 Capture Reality records with `MediaRecorder`; it chooses an iPhone-compatible MIME type through `MediaRecorder.isTypeSupported` and uploads multipart audio to Fastify. An unsent recording stays in profile-and-language-scoped IndexedDB until the server accepts its client-generated UUID; retrying that UUID is idempotent. The server enforces the 25 MB limit and sends completed recordings to `OPENAI_TRANSCRIBE_MODEL` (`gpt-transcribe` by default). `POST /api/captures/text` creates an equivalent ready note without transcription. Browser dictation is never used.
 
@@ -107,4 +107,4 @@ The installed PWA precaches only the versioned application shell and static buil
 
 ## Backup and rollback
 
-`npm run db:backup` uses SQLite's online backup API and writes separate Roman and Oliver backups. Restore requires an explicit `--profile`, requires `CONFIRM_RESTORE=1`, validates the candidate, and preserves only the selected profile database as `pre-restore-<profile>-*.sqlite` first.
+`npm run db:backup` uses SQLite's online backup API and writes a separate backup for every registered profile. Restore requires an explicit `--profile`, requires `CONFIRM_RESTORE=1`, validates the candidate, and preserves only the selected profile database as `pre-restore-<profile>-*.sqlite` first.

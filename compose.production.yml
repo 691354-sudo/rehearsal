@@ -16,6 +16,7 @@ services:
       BACKUP_DIR: /backups
       ROMAN_PROFILE_PIN_FILE: /run/rehearsal-secrets/roman_profile_pin
       OLIVER_PROFILE_PIN_FILE: /run/rehearsal-secrets/oliver_profile_pin
+      ZANNA_PROFILE_PIN_FILE: /run/rehearsal-secrets/zanna_profile_pin
       SESSION_SECRET_FILE: /run/rehearsal-secrets/session_secret
       SESSION_COOKIE_SECURE: "true"
       TRUST_PROXY: 127.0.0.1

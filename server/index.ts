@@ -10,12 +10,12 @@ const profiles = await ProfileManager.create({
   dataDir: config.dataDir,
   backupDir: config.backupDir,
   legacyDatabasePath: config.databasePath,
-  pins: { roman: config.romanProfilePin, oliver: config.oliverProfilePin },
+  pins: { roman: config.romanProfilePin, oliver: config.oliverProfilePin, zanna: config.zannaProfilePin },
 });
 
 for (const profileId of profileIds) {
   const repository = profiles.get(profileId).repository;
-  if (!repository.items.list("en", 1).length && !repository.items.list("lv", 1).length) {
+  if (profileId !== "zanna" && !repository.items.list("en", 1).length && !repository.items.list("lv", 1).length) {
     seedDatabase(repository);
   }
 }

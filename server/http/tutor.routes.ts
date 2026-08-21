@@ -14,6 +14,7 @@ const reviewResolutionSchema = z.object({
   const acceptedIds = new Set(accepted.map((candidate) => candidate.id));
   return revisions.every((candidate) => !acceptedIds.has(candidate.id));
 }, "A candidate cannot be accepted and revised together");
+const optionalThreadIdSchema = z.string().uuid().nullish().transform((value) => value || undefined);
 
 export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   app.get("/api/chat/threads", async (request) => {
@@ -56,7 +57,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const body = z.object({
       language: languageSchema,
       message: z.string().trim().min(1).max(aiLimits.tutorMessageCharacters),
-      threadId: z.string().uuid().optional(),
+      threadId: optionalThreadIdSchema,
     }).parse(request.body);
     return tutor.chat({ language: body.language, message: body.message, threadPublicId: body.threadId });
   });
@@ -106,7 +107,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
       language: languageSchema,
       title: z.string().trim().min(1).max(300).default("Vocabulary review"),
       text: z.string().trim().min(1).max(aiLimits.sourceCharacters),
-      threadId: z.string().uuid().optional(),
+      threadId: optionalThreadIdSchema,
     }).parse(request.body);
     const thread = repository.tutor.getOrCreateThread(body.threadId, body.language);
     repository.tutor.addMessage(thread.id, "user", body.text);
