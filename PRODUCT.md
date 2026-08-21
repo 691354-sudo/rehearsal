@@ -12,7 +12,7 @@ Rehearsal is a private language-learning tool for Roman and Oliver. They use it 
 
 ## Product Purpose
 
-Rehearsal turns Russian notes and real personal material into reviewed English or Latvian sentence cards. Success means moving through Capture → Review → Library → Listen & Repeat → Recall → Learned with little interface friction while preserving deliberate approval and FSRS scheduling.
+Rehearsal turns Russian notes and real personal material into reviewed target-language sentence cards. English and Latvian are standard; Vietnamese may be enabled per profile. Success means moving through Capture → Review → Library → Listen & Repeat → Recall → Learned with little interface friction while preserving deliberate approval and FSRS scheduling.
 
 ## Positioning
 
@@ -23,7 +23,7 @@ The product rehearses the users' own language and situations rather than a gener
 - Desktop supports efficient keyboard-driven review and library management.
 - Narrow-phone use must remain complete through visible touch controls.
 - Listen & Repeat may continue during walking or background listening.
-- English supports speech playback; Latvian currently uses Recall without application TTS.
+- English and profile-enabled Vietnamese support speech playback; Latvian uses Recall without application TTS.
 - GitHub is the source of truth and production receives CI-checked commits only.
 
 ## Capabilities and Constraints

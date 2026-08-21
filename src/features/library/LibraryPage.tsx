@@ -16,6 +16,7 @@ import { CardEditorDialog } from "./CardEditorDialog";
 import { TopicsManager } from "./TopicsManager";
 import { apiFetch } from "../../shared/api";
 import type { Island, IslandSummary, Language, LearningItem } from "../../shared/contracts";
+import { languageHasAudio } from "../../shared/config";
 import { filterLibraryItems, type LibrarySort, type LibraryStatus } from "../../lib/libraryView";
 import type { AppRoute, HistoryMode, LibraryRoute } from "../../lib/appRoute";
 
@@ -196,8 +197,8 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   };
   const topicItemSet = useMemo(() => new Set(topicItemIds), [topicItemIds]);
   const visibleItems = useMemo(() => filterLibraryItems(items, {
-    query, status, sort, topicItemIds: topic === "all" ? null : topicItemSet,
-  }), [items, query, sort, status, topic, topicItemSet]);
+    query, status, sort, topicItemIds: topic === "all" ? null : topicItemSet, language,
+  }), [items, language, query, sort, status, topic, topicItemSet]);
   const displayedItems = visibleItems.slice(0, visibleCount);
   const selectedVisibleCount = displayedItems.filter((item) => selectedItemIds.has(item.publicId)).length;
   const allVisibleSelected = Boolean(displayedItems.length) && selectedVisibleCount === displayedItems.length;
@@ -263,7 +264,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onDismiss={() => { setBatch(null); setNotice(""); }} onCommitted={() => {
       setBatch(null); setAdded(true); void onItemsReload();
     }} /> : null}
-    {added ? <div className="capture-added"><strong>Added to Library</strong><div>{language === "en" ? <button onClick={onListen} type="button">Listen now</button> : null}</div></div> : null}
+    {added ? <div className="capture-added"><strong>Added to Library</strong><div>{languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}</div></div> : null}
     {notice ? <p className="simple-library-notice" aria-live="polite">{notice}</p> : null}
 
     <section className="simple-library-panel simple-library-panel--main">
@@ -293,7 +294,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
             disabled={deletingSelected} onChange={() => toggleItem(item.publicId)} type="checkbox" /></label> : null}
           <div className="simple-phrase-copy"><strong lang={language}>{item.target}</strong><small lang="ru">{item.cue}</small></div>
           <div className="simple-row-actions">
-            {language === "en" ? <button aria-label="Play" onClick={() => onPlay(item.target)} title="Play" type="button"><Volume2 size={15} /></button> : null}
+            {languageHasAudio(language) ? <button aria-label="Play" onClick={() => onPlay(item.target)} title="Play" type="button"><Volume2 size={15} /></button> : null}
             {item.practiceEnabled
               ? <button aria-label={`Mark ${item.target} as learned`} onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Learned</button>
               : <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Reactivate</button>}

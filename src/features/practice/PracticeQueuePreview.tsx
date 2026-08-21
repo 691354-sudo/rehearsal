@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { Pencil, Volume2 } from "lucide-react";
 import type { ReviewRating } from "../../lib/sessionQueue";
 import { recallItemIdsAfter } from "../../lib/recallSession";
-import type { AttemptDraft, LearningItem } from "../../shared/contracts";
+import type { AttemptDraft, Language, LearningItem } from "../../shared/contracts";
+import { languageHasAudio } from "../../shared/config";
 import { InlineRecallAnswer } from "./InlineRecallAnswer";
 import type { PracticeScope } from "./practiceSelection";
 
@@ -11,7 +12,7 @@ export function PracticeQueuePreview(props: {
   items: LearningItem[];
   attempts?: Record<string, AttemptDraft>;
   emptyAction?: ReactNode;
-  language: "en" | "lv";
+  language: Language;
   mode: "listen" | "recall";
   playAfterRecall?: boolean;
   onAnswer?: (itemId: string, value: string) => void;
@@ -51,7 +52,7 @@ export function PracticeQueuePreview(props: {
               playAfterCheck={Boolean(props.playAfterRecall)} /> : null}
         </div>
         <div className="practice-queue-actions">
-          {props.language === "en" ? <button aria-label={`Play ${item.target}`} onClick={() => void props.onPlay(item)} title="Play" type="button"><Volume2 size={15} /></button> : null}
+          {languageHasAudio(props.language) ? <button aria-label={`Play ${item.target}`} onClick={() => void props.onPlay(item)} title="Play" type="button"><Volume2 size={15} /></button> : null}
           <button aria-label={`Edit ${item.target}`} onClick={() => props.onEdit(item)} title="Edit" type="button"><Pencil size={15} /></button>
         </div>
       </li>)}

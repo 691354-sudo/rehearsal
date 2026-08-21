@@ -29,6 +29,9 @@ export const toErrorResponse = (error: unknown) => {
   if (error instanceof Error && error.message === "TOPIC_ITEM_DUPLICATE") {
     return { statusCode: 400, body: { error: "TOPIC_ITEM_DUPLICATE" } };
   }
+  if (error instanceof Error && error.message === "THREAD_LANGUAGE_MISMATCH") {
+    return { statusCode: 409, body: { error: "THREAD_LANGUAGE_MISMATCH" } };
+  }
   const statusCode = typeof error === "object" && error && "statusCode" in error
     ? Number((error as { statusCode?: number }).statusCode)
     : 0;

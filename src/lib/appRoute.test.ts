@@ -52,4 +52,13 @@ describe("app routes", () => {
   it("canonicalizes Latvian listening to Recall", () => {
     expect(parseAppRoute(location("/practice/listen", "?lang=lv"), "/")).toMatchObject({ section: "practice", mode: "recall", language: "lv" });
   });
+
+  it("supports Vietnamese listening and rejects a disabled deep link before data loads", () => {
+    expect(parseAppRoute(location("/practice/listen", "?lang=vi"), "/", "en", ["en", "lv", "vi"]))
+      .toMatchObject({ section: "practice", mode: "listen", language: "vi" });
+    expect(parseAppRoute(location("/library", "?lang=vi"), "/", "lv", ["en", "lv"]))
+      .toMatchObject({ section: "library", language: "lv" });
+    expect(parseAppRoute(location("/library", "?lang=toString"), "/", "en", ["en", "lv"]))
+      .toMatchObject({ section: "library", language: "en" });
+  });
 });

@@ -5,6 +5,7 @@ import type {
   IslandSummary,
   ItemPreference,
   LanguageCode,
+  LanguageOption,
   LearningItem,
   SchedulerSettings,
 } from "../../contracts/api";
@@ -16,6 +17,7 @@ export type {
   Island,
   IslandSummary,
   ItemPreference,
+  LanguageOption,
   LearningItem,
   SchedulerSettings,
 };
@@ -64,6 +66,11 @@ export type ElevenLabsConfig = {
   models: ElevenLabsPreferences["modelId"][];
   speedRange: { min: number; max: number };
   defaults: ElevenLabsPreferences & { speed: number };
+  languageDefaults: Partial<Record<Language, {
+    voiceId: string;
+    voiceName: string;
+    modelId: ElevenLabsPreferences["modelId"];
+  }>>;
   note: string;
 };
 export type ElevenLabsVoiceStatus = {

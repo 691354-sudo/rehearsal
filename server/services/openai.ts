@@ -18,6 +18,7 @@ import {
 } from "./material-generation.js";
 import { genericLearnerPersona, type LearnerPersona } from "./learner-persona.js";
 import { rewriteLibraryItem as rewriteLibraryItemService } from "./library-item-rewrite.js";
+import { normalizeNfc } from "../../contracts/text.js";
 
 const evaluationSchema = z.object({
   score: z.number().min(0).max(1),
@@ -47,7 +48,7 @@ const currencyCheckSchema = z.object({
 export type AttemptEvaluation = z.infer<typeof evaluationSchema>;
 
 const normalize = (value: string) =>
-  value
+  normalizeNfc(value)
     .toLocaleLowerCase()
     .replace(/[’‘]/g, "'")
     .replace(/[^\p{L}\p{N}'\s]/gu, " ")

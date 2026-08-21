@@ -12,6 +12,7 @@ import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { PlaybackSettings } from "./PlaybackSettings";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 import type { PracticeCardCount } from "../../lib/appRoute";
+import { languageCopy } from "../../shared/config";
 
 type PlayerStatus = "playing" | "paused" | "error";
 
@@ -87,7 +88,7 @@ export function ListenRepeat(props: {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: item.target,
         artist: "Rehearsal · Listen & Repeat",
-        album: props.language === "en" ? "English" : "Latviešu",
+        album: languageCopy[props.language].label,
       });
     }
     try {

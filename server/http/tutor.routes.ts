@@ -75,7 +75,11 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const audio = await upload.toBuffer();
     if (!audio.byteLength) return reply.code(422).send({ error: "EMPTY_AUDIO" });
     try {
-      const languages = query.language === "en" ? ["en", "ru"] : ["lv", "ru", "en"];
+      const languages = {
+        en: ["en", "ru"],
+        lv: ["lv", "ru", "en"],
+        vi: ["vi", "ru", "en"],
+      }[query.language];
       const transcript = await openai.transcribe({
         audio,
         audioMime: mime,

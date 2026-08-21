@@ -54,15 +54,19 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
               speakerBoost: config.elevenLabsSpeakerBoost,
               speed: config.elevenLabsSpeed,
             },
+            languageDefaults: {
+              vi: {
+                voiceId: config.elevenLabsViVoiceId,
+                voiceName: config.elevenLabsViVoiceName,
+                modelId: "eleven_flash_v2_5",
+              },
+            },
             note: "Generated MP3 files are cached on this server. Identical requests reuse the cached audio.",
           },
         },
       },
       scheduler: { algorithm: "FSRS-6", ...repository.practice.getSettings() },
-      languages: [
-        { code: "en", label: "English", locale: "en-US" },
-        { code: "lv", label: "Latviešu", locale: "lv-LV" },
-      ],
+      languages: repository.system.listLanguages(),
     };
   });
 

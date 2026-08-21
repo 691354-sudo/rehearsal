@@ -53,6 +53,8 @@ export const config = {
   elevenLabsApiKey: process.env.ELEVENLABS_API_KEY?.trim() || "",
   elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID || "1YGgSmpRGVzkcaI7zhbX",
   elevenLabsVoiceName: process.env.ELEVENLABS_VOICE_NAME || "Christopher",
+  elevenLabsViVoiceId: process.env.ELEVENLABS_VI_VOICE_ID?.trim() || "ueSxRO0nLF1bj93J2hVt",
+  elevenLabsViVoiceName: process.env.ELEVENLABS_VI_VOICE_NAME?.trim() || "Trung Caha",
   elevenLabsModel: process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
   elevenLabsStability: numberFromEnv(process.env.ELEVENLABS_STABILITY, 0.45),
   elevenLabsSimilarityBoost: numberFromEnv(process.env.ELEVENLABS_SIMILARITY_BOOST, 0.6),
@@ -66,9 +68,9 @@ export const elevenLabsConfigured = Boolean(config.elevenLabsApiKey);
 
 export const elevenLabsVoices = Array.from(new Map([
   { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName },
+  { id: config.elevenLabsViVoiceId, name: config.elevenLabsViVoiceName },
   { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
   { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
   { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
   { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
-  { id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" },
 ].map((voice) => [voice.id, voice])).values());

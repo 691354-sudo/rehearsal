@@ -6,6 +6,13 @@ import type { LanguageCode } from "../types.js";
 import { aiLimits, recentMessagesWithinBudget } from "./ai-limits.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import type { OpenAIService } from "./openai.js";
+import { targetLanguageName } from "./material-generation.js";
+
+const tutorLanguageGuidance: Record<LanguageCode, string> = {
+  en: "Use natural contemporary English.",
+  lv: "Use natural contemporary Latvian.",
+  vi: "Use neutral contemporary standard Vietnamese and avoid strongly regional wording unless requested.",
+};
 
 const searchArguments = z.object({ query: z.string().min(1), limit: z.number().int().min(1).max(20) });
 const dueArguments = z.object({ limit: z.number().int().min(1).max(30) });
@@ -41,8 +48,9 @@ const tools: OpenAI.Responses.Tool[] = [
 ];
 
 export const tutorInstructions = (learner: LearnerPersona, language: LanguageCode) => `
-You are ${learner.name}'s personal ${language === "en" ? "English" : "Latvian"} tutor inside a private learning system.
+You are ${learner.name}'s personal ${targetLanguageName(language)} tutor inside a private learning system.
 ${learner.context}
+${tutorLanguageGuidance[language]}
 
 Your job is to help the learner speak naturally and automatically, not to teach theory for its own sake.
 - Chat as comfortably and intelligently as a normal ChatGPT conversation.

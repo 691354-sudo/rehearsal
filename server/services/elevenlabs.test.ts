@@ -181,4 +181,21 @@ describe("ElevenLabsService", () => {
         code: "paid_plan_required",
       }));
   });
+
+  it("uses Flash v2.5 with Vietnamese language metadata and a distinct cache entry", async () => {
+    const request = vi.fn().mockImplementation(async () =>
+      new Response(new Uint8Array([1, 2]), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    const service = new ElevenLabsService(repository, "test-key");
+
+    await service.speech({ text: "Xin chào", language: "vi", voiceId: "vi-voice" });
+    await service.speech({ text: "Xin chào", language: "en", voiceId: "vi-voice", modelId: "eleven_flash_v2_5" });
+
+    expect(request).toHaveBeenCalledTimes(2);
+    const vietnameseBody = JSON.parse(String((request.mock.calls[0][1] as RequestInit).body));
+    expect(vietnameseBody).toMatchObject({ model_id: "eleven_flash_v2_5", language_code: "vi" });
+    await expect(service.speech({
+      text: "Xin chào", language: "vi", modelId: "eleven_multilingual_v2",
+    })).rejects.toMatchObject({ code: "VIETNAMESE_MODEL_UNSUPPORTED", statusCode: 400 });
+  });
 });

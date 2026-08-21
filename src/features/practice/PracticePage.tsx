@@ -16,6 +16,7 @@ import type {
   PlaybackPreferences,
   PlaybackResult,
 } from "../../shared/contracts";
+import { languageHasAudio } from "../../shared/config";
 
 export function PracticePage(props: {
   attempts: Record<string, AttemptDraft>;
@@ -44,7 +45,7 @@ export function PracticePage(props: {
   const [editingItem, setEditingItem] = useState<LearningItem | null>(null);
   const onTopic = useCallback((topic: string) => props.onRoute({ ...props.route, topic, review: null }, "replace"), [props.onRoute, props.route]);
   const { selectedTopicItems, topics } = usePracticeTopics(props.language, props.route.topic, onTopic);
-  const listeningAvailable = props.language === "en";
+  const listeningAvailable = languageHasAudio(props.language);
 
   return <main className="simple-main simple-main--practice" id="main-content">
     <header className="practice-header">

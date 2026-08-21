@@ -7,7 +7,8 @@ This file contains only current state and follow-up work. Start with [AGENTS.md]
 - Roman and Oliver authenticate through fixed PIN profiles with independent SQLite databases, Library data, Tutor history, scheduling, settings, audio cache, and backups.
 - An initialized registry fails closed if either profile database disappears. Ordered schema migrations run once through `schema_migrations`.
 - LLM roles are pinned to Sol, Terra, and Luna. Roman retains the established personal context; Oliver receives a neutral persona. Prompt and output budgets are enforced, and model checks are manual.
-- ElevenLabs remains the primary configured English voice. OpenAI fallback uses `tts-1-hd` with `onyx`; browser speech remains the last fallback.
+- English and Latvian remain enabled by default. Vietnamese support is profile-gated and migrates in disabled; the first intended enablement is Oliver only.
+- ElevenLabs remains the primary configured English voice. Vietnamese requires its configured ElevenLabs voice with Flash v2.5 and has no automatic English or browser fallback.
 - The PWA keeps already loaded cards visible during network loss and stores one unsent Capture recording per profile and language in IndexedDB until server confirmation.
 - Library supports checkbox multi-selection with atomic batch deletion. Tutor Chat supports transient voice transcription with in-page Retry/Delete recovery and an upward-resizing composer. Active Listen & Repeat keeps Voice settings with its transport controls.
 - The client shell delegates learning data and audio playback to feature hooks. Server tests are split by domain, legacy repository wrappers are gone, and TypeScript rejects unused locals and parameters.
@@ -42,6 +43,6 @@ The focused API suites cover authorization, profile isolation, Practice, Tutor, 
 
 ## Next coordinated work
 
-1. Deliver the cleanup through a ready PR, green CI, squash merge, and the production gate in [OPERATIONS.md](OPERATIONS.md).
-2. Run the physical iPhone acceptance gate for pending-recording recovery and long locked-screen Listen & Repeat playback.
-3. Keep the archived legacy database until Roman and Oliver complete production acceptance.
+1. After the Vietnamese-capable release is healthy, configure the existing Vietnamese ElevenLabs voice, obtain separate approval for one paid smoke test, and only then enable `vi` for Oliver with the documented command.
+2. Run the physical iPhone acceptance gate for the Vietnamese keyboard, diacritics, Recall, Safari/Home Screen playback, Media Session, locked-screen audio, and network-error recovery.
+3. Keep the archived legacy database and pre-enable profile backups until Roman and Oliver complete production acceptance.

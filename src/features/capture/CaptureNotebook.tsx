@@ -9,6 +9,7 @@ import {
   supportedRecordingMimeType,
 } from "../../shared/audioRecording";
 import type { Language } from "../../shared/contracts";
+import { languageHasAudio } from "../../shared/config";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 import {
   deletePendingRecording,
@@ -336,7 +337,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
       setBatch(null); setRemaining(0); setNotice(""); setAdded(true); void refresh();
     }} /> : null}
     {added ? <div className="capture-added"><strong>Added to Library</strong><div>
-      {language === "en" ? <button onClick={onListen} type="button">Listen now</button> : null}
+      {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}
       <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
   </section>;
 }

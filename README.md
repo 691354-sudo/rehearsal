@@ -1,8 +1,8 @@
 # Rehearsal
 
-Private English and Latvian practice for Roman and Oliver. Each fixed PIN profile has its own SQLite database, Library, Tutor history, settings, review schedule, audio cache, and backups.
+Private English, Latvian, and profile-enabled Vietnamese practice for Roman and Oliver. Each fixed PIN profile has its own SQLite database, Library, Tutor history, settings, review schedule, audio cache, and backups. The interface remains English; learning cards use Russian cues and the selected target language.
 
-The main loop is `Capture → Review → Library → Listen & Repeat → Recall → Learned`. Russian notes become reviewed target-language cards; FSRS schedules recall, while Listen & Repeat handles spoken English practice.
+The main loop is `Capture → Review → Library → Listen & Repeat → Recall → Learned`. Russian notes become reviewed target-language cards; FSRS schedules recall, while Listen & Repeat handles languages with an approved audio capability.
 
 ## Local development
 
@@ -32,7 +32,7 @@ Server-side defaults are deliberately pinned by workload:
 - `text-embedding-3-small` — semantic search;
 - `gpt-transcribe` — Russian voice-note transcription;
 - `tts-1-hd` with `onyx` — OpenAI speech fallback;
-- ElevenLabs — primary high-quality English voice when configured.
+- ElevenLabs — primary high-quality English voice and the required Vietnamese voice when configured.
 
 Model changes are manual. After deliberately changing model environment variables, run `npm run models:check`; the command makes small canary requests but never rewrites application configuration.
 

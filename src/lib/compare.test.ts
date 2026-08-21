@@ -29,4 +29,16 @@ describe("evaluateAttempt", () => {
     expect(result.expectedTokens.some((token) => token.status === "missing")).toBe(true);
     expect(result.verdict).not.toBe("exact");
   });
+
+  it("treats NFC and NFD Vietnamese as the same answer without ignoring tones", () => {
+    const vietnamese: PracticeItem = {
+      ...item,
+      language: "vi",
+      target: "Tôi muốn uống cà phê.",
+      acceptedAnswers: [],
+    };
+    expect(evaluateAttempt(vietnamese, vietnamese.target.normalize("NFD")).verdict).toBe("exact");
+    expect(evaluateAttempt(vietnamese, "Toi muon uong ca phe").verdict).not.toBe("exact");
+    expect(evaluateAttempt(vietnamese, "Tối muốn uống cà phê.").verdict).not.toBe("exact");
+  });
 });

@@ -2,6 +2,16 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { LanguageCode, ReviewCandidate } from "../types.js";
 import type { LearnerPersona } from "./learner-persona.js";
+import { normalizeNfc } from "../../contracts/text.js";
+
+const targetLanguages: Record<LanguageCode, { name: string; guidance: string }> = {
+  en: { name: "English", guidance: "Use natural contemporary English." },
+  lv: { name: "Latvian", guidance: "Use natural contemporary Latvian." },
+  vi: {
+    name: "Vietnamese",
+    guidance: "Use neutral contemporary standard Vietnamese. Avoid strongly regional wording unless the source requires it.",
+  },
+};
 
 export const generatedCandidateSchema = z.object({
   target: z.string().min(1).max(2_000),
@@ -22,12 +32,13 @@ export const generatedMaterialSchema = z.object({
   items: z.array(generatedCandidateSchema).max(100),
 });
 
-export const targetLanguageName = (language: LanguageCode) => language === "en" ? "English" : "Latvian";
+export const targetLanguageName = (language: LanguageCode) => targetLanguages[language].name;
 
 export const materialInstructions = (learner: LearnerPersona, language: LanguageCode, task: string) => `
 You prepare optional learning cards for ${learner.name}, who is learning ${targetLanguageName(language)}.
 ${learner.context}
 ${task}
+${targetLanguages[language].guidance}
 
 Content policy:
 - Match the learner's known speaking style when it is supplied. Prefer neutral adult conversational language and useful collocations.
@@ -53,6 +64,7 @@ Metadata:
 
 export const toCandidate = (item: z.infer<typeof generatedCandidateSchema>): ReviewCandidate => ({
   ...item,
+  target: normalizeNfc(item.target.trim()),
   id: randomUUID(),
   focusTerms: item.focusTerms.slice(0, 8),
   pattern: item.pattern || undefined,

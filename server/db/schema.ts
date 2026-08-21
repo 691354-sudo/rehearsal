@@ -2,10 +2,11 @@ export const schema = `
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS languages (
-  code TEXT PRIMARY KEY CHECK (code IN ('en', 'lv')),
+  code TEXT PRIMARY KEY CHECK (code IN ('en', 'lv', 'vi')),
   name TEXT NOT NULL,
   locale TEXT NOT NULL,
   cue_locale TEXT NOT NULL DEFAULT 'ru-RU',
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

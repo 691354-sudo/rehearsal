@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { HttpDependencies } from "./dependencies.js";
-import { elevenLabsModelOptions, voiceOptions } from "./schemas.js";
+import { elevenLabsModelOptions, languageSchema, voiceOptions } from "./schemas.js";
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
 
 export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
@@ -18,7 +18,7 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const { openai, elevenlabs } = dependencies.forRequest(request);
     const body = z.object({
       text: z.string().trim().min(1).max(4_096),
-      language: z.enum(["en", "lv", "ru"]),
+      language: z.union([languageSchema, z.literal("ru")]),
       provider: z.enum(["openai", "elevenlabs"]).default("openai"),
       voice: z.enum(voiceOptions).optional(),
       voiceId: z.string().trim().min(1).max(100).optional(),
@@ -29,6 +29,18 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
       speakerBoost: z.boolean().optional(),
       speed: z.number().min(0.5).max(1.5).optional(),
     }).parse(request.body);
+    if (body.language === "vi" && body.provider !== "elevenlabs") {
+      return reply.code(400).send({
+        error: "VIETNAMESE_ELEVENLABS_REQUIRED",
+        message: "Vietnamese playback requires the configured ElevenLabs voice.",
+      });
+    }
+    if (body.language === "vi" && body.modelId !== "eleven_flash_v2_5") {
+      return reply.code(400).send({
+        error: "VIETNAMESE_MODEL_UNSUPPORTED",
+        message: "Vietnamese playback requires Eleven Flash v2.5.",
+      });
+    }
     if (body.provider === "elevenlabs" && body.speed !== undefined
       && (body.speed < elevenLabsSpeedRange.min || body.speed > elevenLabsSpeedRange.max)) {
       return reply.code(400).send({

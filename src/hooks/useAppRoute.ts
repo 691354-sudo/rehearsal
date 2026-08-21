@@ -4,16 +4,20 @@ import type { Language } from "../shared/contracts";
 
 const baseUrl = import.meta.env.BASE_URL;
 
-export function useAppRoute(fallbackLanguage: Language) {
-  const [route, setRoute] = useState<AppRoute>(() => parseAppRoute(window.location, baseUrl, fallbackLanguage));
+export function useAppRoute(fallbackLanguage: Language, availableLanguages: readonly Language[]) {
+  const [route, setRoute] = useState<AppRoute>(() => parseAppRoute(
+    window.location, baseUrl, fallbackLanguage, availableLanguages,
+  ));
   const routeRef = useRef(route);
 
   useEffect(() => { routeRef.current = route; }, [route]);
 
   useEffect(() => {
-    const onRouteChange = () => setRoute(parseAppRoute(window.location, baseUrl, fallbackLanguage));
+    const onRouteChange = () => setRoute(parseAppRoute(
+      window.location, baseUrl, fallbackLanguage, availableLanguages,
+    ));
     const onPopState = () => {
-      const next = parseAppRoute(window.location, baseUrl, fallbackLanguage);
+      const next = parseAppRoute(window.location, baseUrl, fallbackLanguage, availableLanguages);
       const beforeNavigate = new CustomEvent("app-before-navigate", { cancelable: true, detail: { route: next } });
       if (window.dispatchEvent(beforeNavigate)) {
         setRoute(next);
@@ -27,7 +31,7 @@ export function useAppRoute(fallbackLanguage: Language) {
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener("app-routechange", onRouteChange);
     };
-  }, [fallbackLanguage]);
+  }, [availableLanguages, fallbackLanguage]);
 
   useEffect(() => {
     const canonical = serializeAppRoute(route, baseUrl);

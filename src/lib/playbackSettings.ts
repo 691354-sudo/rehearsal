@@ -1,3 +1,5 @@
+import type { LanguageCode, ProfileId } from "../../contracts/api";
+
 export type PlaybackProvider = "openai" | "elevenlabs";
 
 export type SpeedRange = { min: number; max: number };
@@ -18,3 +20,13 @@ export const clampPlaybackSpeed = (
   const range = speedRangeForProvider(provider, elevenLabsRange);
   return Math.max(range.min, Math.min(range.max, speed));
 };
+
+export const playbackStorageKey = (profileId: ProfileId, language: LanguageCode) =>
+  `rehearsal:${profileId}:playback:${language}`;
+
+export const storedPlaybackValue = (
+  storage: Pick<Storage, "getItem">,
+  profileId: ProfileId,
+  language: LanguageCode,
+) => storage.getItem(playbackStorageKey(profileId, language))
+  || (language === "en" ? storage.getItem(`rehearsal:${profileId}:playback`) : null);

@@ -20,7 +20,7 @@ const normalized = (value: string) => value.toLocaleLowerCase()
 
 export const libraryReplacementSchema = z.object({
   version: z.literal(1),
-  language: z.enum(["en", "lv"]),
+  language: z.enum(["en", "lv", "vi"]),
   title: z.string().trim().min(1).max(300),
   generatedAt: z.string().datetime(),
   cards: z.array(replacementCardSchema).min(1).max(2_000),

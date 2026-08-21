@@ -26,6 +26,7 @@ import {
   supportedRecordingMimeType,
 } from "../../shared/audioRecording";
 import type { ChatMessage, ChatThread, Language } from "../../shared/contracts";
+import { languageHasAudio } from "../../shared/config";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
 import { TutorMarkdownMessage } from "./TutorMarkdownMessage";
 
@@ -397,7 +398,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             <span>{message.role === "user" ? "You" : "Tutor"}</span><TutorMarkdownMessage content={message.content} /></article>)}
           {reviewBatch ? <ReviewBatchPanel batch={reviewBatch} onBatch={setReviewBatch} onCommitted={() => { setReviewBatch(null); setAdded(true); }} /> : null}
           {added ? <div className="simple-tutor-added"><strong>Added to Library</strong><div>
-            {language === "en" ? <button onClick={onListen} type="button">Listen now</button> : null}
+            {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}
             <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
           {sending && <div className="simple-chat-loading" role="status"><LoaderCircle className="simple-spin" size={17} />Tutor is thinking…</div>}
         </div>

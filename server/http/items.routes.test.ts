@@ -90,4 +90,34 @@ describe("Item API", () => {
     expect(context.repository.items.get(original.publicId)).toEqual(original);
     await app.close();
   });
+
+  it("stores and searches Vietnamese target text in NFC", async () => {
+    context.repository.system.setLanguageEnabled("vi", true);
+    const app = await buildApp(context.repository);
+    const target = "Tôi muốn uống cà phê.";
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/items",
+      payload: { language: "vi", cue: "Я хочу выпить кофе.", target: target.normalize("NFD") },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json().item.target).toBe(target);
+
+    const saved = context.repository.items.save({
+      language: "vi",
+      cue: "Привет.",
+      target: "Xin chào".normalize("NFD"),
+      acceptedAnswers: ["Chào bạn".normalize("NFD")],
+    });
+    expect(saved.target).toBe("Xin chào");
+    expect(saved.acceptedAnswers).toEqual(["Chào bạn"]);
+
+    const search = await app.inject({
+      method: "GET",
+      url: `/api/search?language=vi&q=${encodeURIComponent("cà phê".normalize("NFD"))}`,
+    });
+    expect(search.statusCode).toBe(200);
+    expect(search.json().items.map((item: { target: string }) => item.target)).toContain(target);
+    await app.close();
+  });
 });

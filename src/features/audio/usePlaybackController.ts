@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ProfileId } from "../../../contracts/api";
 import { useSpeech } from "../../hooks/useSpeech";
-import { clampPlaybackSpeed } from "../../lib/playbackSettings";
+import { clampPlaybackSpeed, playbackStorageKey, storedPlaybackValue } from "../../lib/playbackSettings";
 import { apiFetch } from "../../shared/api";
 import {
   defaultElevenLabsConfig,
-  defaultPlayback,
+  defaultPlaybackForLanguage,
   defaultVoices,
   languageCopy,
 } from "../../shared/config";
@@ -23,21 +23,53 @@ type AudioConfig = {
 };
 
 export const usePlaybackController = (profileId: ProfileId, language: Language) => {
-  const storageKey = `rehearsal:${profileId}:playback`;
-  const [playback, setPlayback] = useState<PlaybackPreferences>(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(storageKey) || "{}") as Partial<PlaybackPreferences>;
-      return {
-        ...defaultPlayback,
-        ...saved,
-        elevenlabs: { ...defaultPlayback.elevenlabs, ...saved.elevenlabs },
-        speed: clampPlaybackSpeed(saved.provider === "elevenlabs" ? "elevenlabs" : "openai", saved.speed ?? 1),
-      };
-    } catch { return defaultPlayback; }
-  });
+  const storageKey = playbackStorageKey(profileId, language);
+  const hadSavedPlaybackAtMountRef = useRef(Boolean(
+    storedPlaybackValue(window.localStorage, profileId, language),
+  ));
   const [openaiConfigured, setOpenaiConfigured] = useState(false);
   const [voices, setVoices] = useState(defaultVoices);
   const [elevenLabsConfig, setElevenLabsConfig] = useState(defaultElevenLabsConfig);
+  const readPlayback = (targetLanguage: Language, config: ElevenLabsConfig) => {
+    try {
+      const saved = JSON.parse(
+        storedPlaybackValue(window.localStorage, profileId, targetLanguage) || "{}",
+      ) as Partial<PlaybackPreferences>;
+      const defaults = defaultPlaybackForLanguage(targetLanguage, config);
+      return {
+        ...defaults,
+        ...saved,
+        provider: targetLanguage === "vi" ? "elevenlabs" : saved.provider || defaults.provider,
+        elevenlabs: {
+          ...defaults.elevenlabs,
+          ...saved.elevenlabs,
+          modelId: targetLanguage === "vi" ? "eleven_flash_v2_5" : saved.elevenlabs?.modelId || defaults.elevenlabs.modelId,
+        },
+        speed: clampPlaybackSpeed(
+          targetLanguage === "vi" || saved.provider === "elevenlabs" ? "elevenlabs" : "openai",
+          saved.speed ?? defaults.speed,
+          config.speedRange,
+        ),
+      };
+    } catch { return defaultPlaybackForLanguage(targetLanguage, config); }
+  };
+  const [playbackByLanguage, setPlaybackByLanguage] = useState<Partial<Record<Language, PlaybackPreferences>>>(() => ({
+    [language]: readPlayback(language, defaultElevenLabsConfig),
+  }));
+  const playback = playbackByLanguage[language] || readPlayback(language, elevenLabsConfig);
+  const setPlayback = useCallback((update: PlaybackPreferences | ((current: PlaybackPreferences) => PlaybackPreferences)) => {
+    setPlaybackByLanguage((current) => {
+      const existing = current[language] || readPlayback(language, elevenLabsConfig);
+      const next = typeof update === "function" ? update(existing) : update;
+      return { ...current, [language]: next };
+    });
+  }, [elevenLabsConfig, language, profileId]);
+  const [playbackError, setPlaybackError] = useState("");
+  const lastPlaybackRef = useRef<{
+    text: string;
+    overrides: Partial<PlaybackPreferences>;
+    strictProvider: boolean;
+  } | null>(null);
   const { speak, stop } = useSpeech();
   const audioSequenceRef = useRef(0);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
@@ -57,9 +89,14 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
   const updatePlayback = useCallback((next: PlaybackPreferences) => {
     setPlayback({
       ...next,
-      speed: clampPlaybackSpeed(next.provider, next.speed, elevenLabsConfig.speedRange),
+      provider: language === "vi" ? "elevenlabs" : next.provider,
+      elevenlabs: {
+        ...next.elevenlabs,
+        modelId: language === "vi" ? "eleven_flash_v2_5" : next.elevenlabs.modelId,
+      },
+      speed: clampPlaybackSpeed(language === "vi" ? "elevenlabs" : next.provider, next.speed, elevenLabsConfig.speedRange),
     });
-  }, [elevenLabsConfig.speedRange]);
+  }, [elevenLabsConfig.speedRange, language, setPlayback]);
 
   const applyAudioConfig = useCallback((configured: boolean, audio?: AudioConfig) => {
     setOpenaiConfigured(configured);
@@ -72,14 +109,32 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     }
     if (audio?.elevenlabs) {
       setElevenLabsConfig(audio.elevenlabs);
-      setPlayback((current) => audio.elevenlabs?.voices.some(
-        (voice) => voice.id === current.elevenlabs.voiceId,
-      ) ? current : {
-        ...current,
-        elevenlabs: { ...current.elevenlabs, voiceId: audio.elevenlabs?.voice.id || current.elevenlabs.voiceId },
+      const languageDefault = audio.elevenlabs.languageDefaults[language];
+      setPlayback((current) => {
+        if (language === "vi" && languageDefault && !hadSavedPlaybackAtMountRef.current) {
+          return {
+            ...current,
+            provider: "elevenlabs",
+            elevenlabs: {
+              ...current.elevenlabs,
+              voiceId: languageDefault.voiceId,
+              modelId: "eleven_flash_v2_5",
+            },
+          };
+        }
+        return audio.elevenlabs?.voices.some((voice) => voice.id === current.elevenlabs.voiceId)
+          ? current : {
+              ...current,
+              elevenlabs: {
+                ...current.elevenlabs,
+                voiceId: languageDefault?.voiceId
+                  || audio.elevenlabs?.voice.id || current.elevenlabs.voiceId,
+              },
+            };
       });
       if (audio.elevenlabs.configured) {
-        void apiFetch("/api/audio/elevenlabs/status").then(async (response) => {
+        const statusVoiceId = languageDefault?.voiceId || playback.elevenlabs.voiceId;
+        void apiFetch(`/api/audio/elevenlabs/status?voiceId=${encodeURIComponent(statusVoiceId)}`).then(async (response) => {
           if (!response.ok) return;
           const status = await response.json() as ElevenLabsVoiceStatus;
           if (status.reachable) setElevenLabsConfig((current) => ({
@@ -91,7 +146,7 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
         }).catch(() => { /* Settings exposes provider retry without blocking the app. */ });
       }
     }
-  }, []);
+  }, [language, playback.elevenlabs.voiceId, setPlayback]);
 
   const stopPlayback = useCallback(() => {
     audioSequenceRef.current += 1;
@@ -109,6 +164,8 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
   }, [stop]);
 
   useEffect(() => {
+    setPlaybackError("");
+    lastPlaybackRef.current = null;
     stopPlayback();
   }, [language, profileId, stopPlayback]);
 
@@ -132,6 +189,8 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     overrides: Partial<PlaybackPreferences> = {},
     strictProvider = false,
   ) => {
+    lastPlaybackRef.current = { text, overrides, strictProvider };
+    setPlaybackError("");
     stopPlayback();
     const sequence = audioSequenceRef.current;
     const nextPlayback = {
@@ -155,27 +214,29 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
         for (let repetition = 0; repetition < nextPlayback.repetitions; repetition += 1) {
           if (sequence !== audioSequenceRef.current) break;
           audio.currentTime = 0;
-          await new Promise<void>((resolve) => {
+          await new Promise<void>((resolve, reject) => {
             let settled = false;
-            const finish = () => {
+            const finish = (error?: Error) => {
               if (settled) return;
               settled = true;
-              audio.removeEventListener("ended", finish);
-              audio.removeEventListener("error", finish);
+              audio.removeEventListener("ended", onEnded);
+              audio.removeEventListener("error", onError);
               if (audioCancelRef.current === cancel) {
                 audioCancelRef.current = null;
                 audioPauseRef.current = null;
                 audioResumeRef.current = null;
               }
-              resolve();
+              if (error) reject(error); else resolve();
             };
-            const cancel = finish;
+            const cancel = () => finish();
+            const onEnded = () => finish();
+            const onError = () => finish(new Error("Audio playback failed."));
             audioCancelRef.current = cancel;
             audioPauseRef.current = () => audio.pause();
-            audioResumeRef.current = () => { void audio.play().catch(finish); };
-            audio.addEventListener("ended", finish, { once: true });
-            audio.addEventListener("error", finish, { once: true });
-            void audio.play().catch(finish);
+            audioResumeRef.current = () => { void audio.play().catch(() => finish(new Error("Audio playback failed."))); };
+            audio.addEventListener("ended", onEnded, { once: true });
+            audio.addEventListener("error", onError, { once: true });
+            void audio.play().catch(() => finish(new Error("Audio playback failed.")));
           });
           if (repetition < nextPlayback.repetitions - 1 && sequence === audioSequenceRef.current) {
             await new Promise<void>((resolve) => {
@@ -225,13 +286,14 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     };
     if (openaiConfigured || elevenLabsConfig.configured) {
       try {
-        const provider = !strictProvider && language === "lv" && nextPlayback.provider === "elevenlabs"
+        const provider = language === "vi" ? "elevenlabs"
+          : !strictProvider && language === "lv" && nextPlayback.provider === "elevenlabs"
           ? "openai" : nextPlayback.provider;
         const response = await apiFetch("/api/audio/speech", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             text,
-            language: strictProvider && nextPlayback.provider === "elevenlabs" ? "en" : language,
+            language,
             provider,
             speed: nextPlayback.speed,
             voice: nextPlayback.voice,
@@ -244,7 +306,11 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
         }
         return { provider, cache: await playAudioResponse(response) } satisfies PlaybackResult;
       } catch (error) {
-        if (strictProvider) throw error;
+        if (strictProvider || language === "vi") {
+          const message = error instanceof Error ? error.message : "Vietnamese audio is unavailable.";
+          setPlaybackError(message);
+          throw error;
+        }
         if (nextPlayback.provider === "elevenlabs") {
           try {
             const response = await apiFetch("/api/audio/speech", {
@@ -255,6 +321,11 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
           } catch { /* Browser speech is the final fallback. */ }
         }
       }
+    }
+    if (language === "vi") {
+      const error = new Error("Vietnamese audio requires the configured ElevenLabs voice.");
+      setPlaybackError(error.message);
+      throw error;
     }
     audioPauseRef.current = () => window.speechSynthesis?.pause();
     audioResumeRef.current = () => window.speechSynthesis?.resume();
@@ -269,12 +340,21 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     return { provider: "browser", cache: null } satisfies PlaybackResult;
   };
 
+  const retryPlayback = async () => {
+    const last = lastPlaybackRef.current;
+    if (!last) throw new Error("Nothing to retry");
+    return playTarget(last.text, last.overrides, last.strictProvider);
+  };
+
   return {
     applyAudioConfig,
     elevenLabsConfig,
     pausePlayback,
     playback,
+    playbackError,
     playTarget,
+    retryPlayback,
+    dismissPlaybackError: () => setPlaybackError(""),
     resumePlayback,
     stopPlayback,
     updatePlayback,

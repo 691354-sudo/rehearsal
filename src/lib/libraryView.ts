@@ -1,4 +1,7 @@
 import type { LearningItem } from "../shared/contracts";
+import type { Language } from "../shared/contracts";
+import { languageCopy } from "../shared/config";
+import { normalizeNfc } from "../../contracts/text";
 
 export type LibraryStatus = "all" | "new" | "learning" | "learned";
 export type LibrarySort = "recent" | "oldest" | "due" | "az";
@@ -13,8 +16,9 @@ export const filterLibraryItems = (items: LearningItem[], options: {
   status: LibraryStatus;
   sort: LibrarySort;
   topicItemIds: Set<string> | null;
+  language?: Language;
 }) => {
-  const query = options.query.trim().toLocaleLowerCase();
+  const query = normalizeNfc(options.query.trim()).toLocaleLowerCase();
   const filtered = items.filter((item) =>
     (!query || [item.target, item.cue, item.note].some((value) => value.toLocaleLowerCase().includes(query)))
     && (options.status === "all" || libraryStatusOf(item) === options.status)
@@ -23,7 +27,9 @@ export const filterLibraryItems = (items: LearningItem[], options: {
     if (options.sort === "oldest") return timeOf(left.createdAt) - timeOf(right.createdAt);
     if (options.sort === "due") return timeOf(left.schedule?.dueAt, Number.POSITIVE_INFINITY)
       - timeOf(right.schedule?.dueAt, Number.POSITIVE_INFINITY);
-    if (options.sort === "az") return left.target.localeCompare(right.target);
+    if (options.sort === "az") return new Intl.Collator(
+      languageCopy[options.language || left.language].locale,
+    ).compare(left.target, right.target);
     return timeOf(right.createdAt) - timeOf(left.createdAt);
   });
 };

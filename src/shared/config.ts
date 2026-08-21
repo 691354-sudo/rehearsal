@@ -3,6 +3,7 @@ import type {
   PlaybackPreferences,
   SchedulerSettings,
 } from "./contracts";
+import { languageCatalog, languageCodes } from "../../contracts/api";
 import { defaultElevenLabsSpeedRange } from "../lib/playbackSettings";
 
 export const defaultPlayback: PlaybackPreferences = {
@@ -22,6 +23,19 @@ export const defaultPlayback: PlaybackPreferences = {
   },
 };
 
+export const defaultPlaybackForLanguage = (
+  language: keyof typeof languageCatalog,
+  elevenLabs = defaultElevenLabsConfig,
+): PlaybackPreferences => language === "vi" ? {
+  ...defaultPlayback,
+  provider: "elevenlabs",
+  elevenlabs: {
+    ...defaultPlayback.elevenlabs,
+    voiceId: elevenLabs.languageDefaults.vi?.voiceId || "ueSxRO0nLF1bj93J2hVt",
+    modelId: "eleven_flash_v2_5",
+  },
+} : defaultPlayback;
+
 export const defaultElevenLabsConfig: ElevenLabsConfig = {
   configured: false,
   voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
@@ -36,6 +50,9 @@ export const defaultElevenLabsConfig: ElevenLabsConfig = {
   models: ["eleven_multilingual_v2", "eleven_flash_v2_5"],
   speedRange: defaultElevenLabsSpeedRange,
   defaults: { ...defaultPlayback.elevenlabs, speed: 1.05 },
+  languageDefaults: {
+    vi: { voiceId: "ueSxRO0nLF1bj93J2hVt", voiceName: "Trung Caha", modelId: "eleven_flash_v2_5" },
+  },
   note: "Generated MP3 files are cached on this server.",
 };
 
@@ -55,10 +72,13 @@ export const defaultVoices = [
   "alloy", "echo", "fable", "nova", "onyx", "shimmer",
 ];
 
-export const languageCopy = {
-  en: { short: "EN", label: "English", locale: "en-US" },
-  lv: { short: "LV", label: "Latviešu", locale: "lv-LV" },
-} as const;
+export const languageCopy = Object.fromEntries(languageCodes.map((code) => [code, {
+  ...languageCatalog[code],
+  short: code.toUpperCase(),
+}])) as Record<keyof typeof languageCatalog, typeof languageCatalog[keyof typeof languageCatalog] & { short: string }>;
+
+export const languageHasAudio = (language: keyof typeof languageCatalog) =>
+  languageCopy[language].capabilities.audio;
 
 export const apiPath = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\//, "")}`;
 

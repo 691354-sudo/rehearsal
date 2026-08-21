@@ -94,6 +94,17 @@ CONFIRM_REPLACE_LIBRARY=roman:en npm run db:replace-library -- --profile roman -
 
 The replacement validates duplicate targets and cues before opening the mutation transaction. Existing cards and Topics for only the selected language are deleted, then every new card and Topic is created in one SQLite transaction. The command finishes with `foreign_key_check` and `quick_check`; retain the pre-import backup until the learner has inspected the result in production.
 
+## Profile language availability
+
+Languages are enabled independently inside each profile database. Preview the exact change first; changing availability requires a profile-language-value confirmation and never deletes language data:
+
+```bash
+npm run db:set-language -- --profile oliver --language vi --enabled true --dry-run
+CONFIRM_LANGUAGE_CHANGE=oliver:vi:true npm run db:set-language -- --profile oliver --language vi --enabled true
+```
+
+Before the first Vietnamese enablement, run `npm run db:backup` and retain both verified profile backups. Deploy the schema and application with Vietnamese disabled, configure `ELEVENLABS_VI_VOICE_ID` and `ELEVENLABS_VI_VOICE_NAME`, then run one separately authorized paid Flash v2.5 smoke test. Only after that acceptance may `vi` be enabled for Oliver. Rollback disables `vi` for Oliver and restores the prior application release; it does not remove Vietnamese cards, history, Topics, statistics, or cached audio.
+
 ## Production verification
 
 Every release builds the new image, creates separate Roman and Oliver database backups with that image, replaces the container, and then verifies:

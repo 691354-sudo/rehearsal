@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { PwaUpdatePrompt } from "./app/PwaUpdatePrompt";
 import { ProfileGate } from "./features/auth/ProfileGate";
 import "./styles/index.css";
+import "./styles/vietnamese-font.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

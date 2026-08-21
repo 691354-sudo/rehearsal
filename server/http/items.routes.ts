@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { aiLimits } from "../services/ai-limits.js";
 import type { HttpDependencies } from "./dependencies.js";
-import { itemBodySchema, languageSchema } from "./schemas.js";
+import { itemBodySchema, languageSchema, nfcText } from "./schemas.js";
 
 export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   app.get("/api/items", async (request) => {
@@ -45,7 +45,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     const { repository } = dependencies.forRequest(request);
     const params = z.object({ itemId: z.string().min(1) }).parse(request.params);
     const body = z.object({
-      target: z.string().trim().min(1).max(2_000).optional(),
+      target: nfcText(2_000).optional(),
       cue: z.string().trim().min(1).max(2_000).optional(),
       note: z.string().trim().max(2_000).optional(),
       tags: z.array(z.string().trim().min(1).max(40)).max(12).optional(),
@@ -61,7 +61,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     const { repository, openai } = dependencies.forRequest(request);
     const params = z.object({ itemId: z.string().min(1) }).parse(request.params);
     const body = z.object({
-      target: z.string().trim().min(1).max(2_000),
+      target: nfcText(2_000),
       cue: z.string().trim().min(1).max(2_000),
       note: z.string().trim().max(2_000),
       feedback: z.string().trim().min(1).max(1_000),
@@ -93,7 +93,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   app.get("/api/search", async (request) => {
     const { repository, openai } = dependencies.forRequest(request);
     const query = z.object({
-      q: z.string().trim().min(1).max(500),
+      q: nfcText(500),
       language: languageSchema.default("en"),
       limit: z.coerce.number().int().min(1).max(50).default(20),
     }).parse(request.query);

@@ -18,8 +18,9 @@ export class TutorRepository {
   getOrCreateThread(publicId: string | undefined, language: LanguageCode) {
     if (publicId) {
       const found = this.db.prepare(
-        "SELECT id, public_id FROM chat_threads WHERE public_id = ?",
-      ).get(publicId) as { id: number; public_id: string } | undefined;
+        "SELECT id, public_id, language_code FROM chat_threads WHERE public_id = ?",
+      ).get(publicId) as { id: number; public_id: string; language_code: LanguageCode } | undefined;
+      if (found && found.language_code !== language) throw new Error("THREAD_LANGUAGE_MISMATCH");
       if (found) return { id: found.id, publicId: found.public_id };
     }
     const nextPublicId = randomUUID();

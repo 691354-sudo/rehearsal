@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LoaderCircle, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { apiFetch } from "../../shared/api";
 import type { Language, LearningItem } from "../../shared/contracts";
+import { normalizeNfc } from "../../../contracts/text";
 
 type TopicSummary = {
   publicId: string;
@@ -143,9 +144,9 @@ export function TopicsManager({ initialTopicId, language, onClose, onEdit, onTop
     return items.filter((item) => !current.has(item.publicId));
   }, [items, topic?.items]);
   const matchingItems = useMemo(() => {
-    const normalized = itemSearch.trim().toLocaleLowerCase();
+    const normalized = normalizeNfc(itemSearch.trim()).toLocaleLowerCase();
     if (!normalized) return availableItems;
-    return availableItems.filter((item) => `${item.target} ${item.cue}`.toLocaleLowerCase().includes(normalized));
+    return availableItems.filter((item) => normalizeNfc(`${item.target} ${item.cue}`).toLocaleLowerCase().includes(normalized));
   }, [availableItems, itemSearch]);
   const visibleItems = itemSearch.trim() ? matchingItems.slice(0, visibleItemCount) : [];
 

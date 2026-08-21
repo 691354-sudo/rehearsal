@@ -24,8 +24,8 @@ export function PlaybackSettings(props: {
       } : { ...props.playback, provider, voice });
     }} value={props.playback.provider === "elevenlabs"
       ? `elevenlabs:${selectedElevenLabsVoice.id}` : `openai:${props.playback.voice}`}>
-      {props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>)}
-      {props.elevenLabs.configured && props.language === "en" ? props.elevenLabs.voices.map((voice) =>
+      {props.language !== "vi" ? props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>) : null}
+      {props.elevenLabs.configured || props.language === "vi" ? props.elevenLabs.voices.map((voice) =>
         <option key={voice.id} value={`elevenlabs:${voice.id}`}>ElevenLabs · {voice.name}</option>) : null}
     </select></label>
     <label><span>Speed · {props.playback.speed.toFixed(2)}×</span><input aria-label="Speed" max={speedRange.max} min={speedRange.min} name="practice-speed"

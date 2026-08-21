@@ -1,7 +1,8 @@
 import type { AttemptEvaluation, DiffToken, PracticeItem } from "../types/practice";
+import { normalizeNfc } from "../../contracts/text";
 
 const normalise = (value: string) =>
-  value
+  normalizeNfc(value)
     .toLocaleLowerCase()
     .replace(/[’‘]/g, "'")
     .replace(/[^\p{L}\p{N}']+/gu, " ")

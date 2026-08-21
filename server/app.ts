@@ -12,6 +12,7 @@ import { registerCaptureRoutes } from "./http/capture.routes.js";
 import { createHttpDependencies, type ServiceOverrides } from "./http/dependencies.js";
 import { toErrorResponse } from "./http/errors.js";
 import { registerItemRoutes } from "./http/items.routes.js";
+import { registerLanguageAccess } from "./http/language-access.js";
 import { registerPracticeRoutes } from "./http/practice.routes.js";
 import { registerSystemRoutes } from "./http/system.routes.js";
 import { registerTutorRoutes } from "./http/tutor.routes.js";
@@ -87,6 +88,7 @@ export const buildApp = async (
   });
 
   registerProfileAuth(app, dependencies, { cookieSecure });
+  registerLanguageAccess(app, dependencies);
   registerSystemRoutes(app, dependencies);
   registerItemRoutes(app, dependencies);
   registerPracticeRoutes(app, dependencies);

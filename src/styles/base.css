@@ -65,6 +65,12 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   text-rendering: optimizeLegibility;
 }
 
+.simple-app :lang(vi) {
+  font-family: "Noto Sans Variable", "Noto Sans", sans-serif;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .simple-app--dark {
   --stage-canvas: #2b2c2e;
   --script-surface: #353638;

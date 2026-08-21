@@ -91,6 +91,8 @@ describe("profile authentication and database isolation", () => {
   it("copies and verifies the legacy database for both profiles without exposing data in health", async () => {
     expect(manager.get("roman").repository.items.list("en", 500)).toHaveLength(initialEnglishItems);
     expect(manager.get("oliver").repository.items.list("en", 500)).toHaveLength(initialEnglishItems);
+    expect(manager.get("roman").repository.system.isLanguageEnabled("vi")).toBe(false);
+    expect(manager.get("oliver").repository.system.isLanguageEnabled("vi")).toBe(false);
     expect(fs.readdirSync(backupDir).some((name) => name.startsWith("legacy-before-profiles-"))).toBe(true);
     const migration = JSON.parse(fs.readFileSync(path.join(dataDir, "profiles", "migration.json"), "utf8")) as {
       profiles: ProfileId[];
@@ -252,6 +254,79 @@ describe("profile authentication and database isolation", () => {
       mode: string; source: string | null; profiles: ProfileId[];
     };
     expect(migration).toMatchObject({ mode: "fresh", source: null, profiles: ["roman", "oliver"] });
+  });
+
+  it("enables Vietnamese only for Oliver and preserves its data when disabled", async () => {
+    manager.get("oliver").repository.system.setLanguageEnabled("vi", true);
+    const romanLogin = await login(app, "roman");
+    const oliverLogin = await login(app, "oliver");
+    const roman = romanLogin.session!;
+    const oliver = oliverLogin.session!;
+
+    expect(romanLogin.response.json().availableLanguages.map((language: { code: string }) => language.code))
+      .toEqual(["en", "lv"]);
+    expect(oliverLogin.response.json().availableLanguages.map((language: { code: string }) => language.code))
+      .toEqual(["en", "lv", "vi"]);
+    expect((await read(app, roman, "/api/config")).json().languages.map((language: { code: string }) => language.code))
+      .toEqual(["en", "lv"]);
+    expect((await read(app, oliver, "/api/config")).json().languages.map((language: { code: string }) => language.code))
+      .toEqual(["en", "lv", "vi"]);
+
+    for (const url of [
+      "/api/items?language=vi", "/api/practice/due?language=vi",
+      "/api/practice/progress?language=vi&since=2000-01-01T00:00:00.000Z",
+      "/api/islands?language=vi", "/api/chat/threads?language=vi", "/api/captures?language=vi",
+    ]) {
+      const response = await read(app, roman, url);
+      expect(response.statusCode, url).toBe(403);
+      expect(response.json()).toEqual({ error: "LANGUAGE_NOT_ENABLED" });
+    }
+
+    const createdItem = await mutate(app, oliver, {
+      method: "POST", url: "/api/items",
+      payload: { language: "vi", cue: "Я хочу кофе.", target: "Tôi muốn uống cà phê." },
+    });
+    const itemId = createdItem.json().item.publicId as string;
+    const createdIsland = await mutate(app, oliver, {
+      method: "POST", url: "/api/islands",
+      payload: { language: "vi", title: "Quán cà phê", itemIds: [itemId] },
+    });
+    const islandId = createdIsland.json().island.publicId as string;
+    const createdThread = await mutate(app, oliver, {
+      method: "POST", url: "/api/chat",
+      payload: { language: "vi", message: "Giúp tôi luyện câu này." },
+    });
+    const threadId = createdThread.json().threadId as string;
+    const createdCapture = await mutate(app, oliver, {
+      method: "POST", url: "/api/captures/text",
+      payload: { language: "vi", transcript: "Хочу заказать кофе по-вьетнамски." },
+    });
+    const captureId = createdCapture.json().note.publicId as string;
+    const batch = manager.get("oliver").repository.reviews.create({
+      language: "vi", kind: "vocab", title: "Vietnamese review", candidates: [],
+    });
+    const beforeDisable = manager.get("oliver").repository.system.stats();
+
+    manager.get("oliver").repository.system.setLanguageEnabled("vi", false);
+    const blockedResources = [
+      { method: "PATCH", url: `/api/items/${itemId}`, payload: { target: "Xin chào" } },
+      { method: "POST", url: "/api/attempts/evaluate", payload: { itemId, answer: "Xin chào", mode: "recall" } },
+      { method: "POST", url: "/api/reviews", payload: { itemId, mode: "shadow", rating: "good" } },
+      { method: "GET", url: `/api/islands/${islandId}` },
+      { method: "GET", url: `/api/chat/${threadId}/messages` },
+      { method: "GET", url: `/api/review-batches/${batch.publicId}` },
+      { method: "PATCH", url: `/api/captures/${captureId}`, payload: { transcript: "Сохранить" } },
+    ] as const;
+    for (const request of blockedResources) {
+      const response = request.method === "GET"
+        ? await read(app, oliver, request.url)
+        : await mutate(app, oliver, request);
+      expect(response.statusCode, request.url).toBe(403);
+      expect(response.json()).toEqual({ error: "LANGUAGE_NOT_ENABLED" });
+    }
+    expect(manager.get("oliver").repository.system.stats()).toEqual(beforeDisable);
+    expect(manager.get("oliver").repository.items.get(itemId)?.target).toBe("Tôi muốn uống cà phê.");
+    expect(manager.get("roman").repository.items.get(itemId)).toBeNull();
   });
 
   it("refuses to recreate a missing registry beside existing profile data", async () => {
