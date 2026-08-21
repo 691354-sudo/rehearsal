@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { config, elevenLabsConfigured, elevenLabsVoices, openAIConfigured } from "../config.js";
+import { config, elevenLabsConfigured, openAIConfigured } from "../config.js";
 import type { HttpDependencies } from "./dependencies.js";
 import { elevenLabsModelOptions, schedulerSettingsSchema, voiceOptions } from "./schemas.js";
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
@@ -26,7 +26,8 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
   });
 
   app.get("/api/config", async (request) => {
-    const { repository } = dependencies.forRequest(request);
+    const { elevenlabs, repository } = dependencies.forRequest(request);
+    const elevenLabsVoices = await elevenlabs.listVoices();
     return {
       openaiConfigured: openAIConfigured,
       tts: {

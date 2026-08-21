@@ -46,6 +46,7 @@ const clamp = (value: number | undefined, fallback: number, min: number, max: nu
 export const elevenLabsSpeedRange = { min: 0.7, max: 1.2 } as const;
 
 const voiceStatusTtlMs = 10 * 60 * 1_000;
+const voiceListTtlMs = 10 * 60 * 1_000;
 
 const readElevenLabsError = async (response: Response) => {
   const payload = await response.json().catch(() => null) as {
@@ -60,6 +61,8 @@ const readElevenLabsError = async (response: Response) => {
 
 export class ElevenLabsService {
   private readonly inflightSpeech = new Map<string, Promise<{ format: string; audio: Buffer }>>();
+  private voiceListCache: { fetchedAt: number; voices: { id: string; name: string }[] } | null = null;
+  private voiceListRequest: Promise<{ id: string; name: string }[]> | null = null;
   private readonly voiceStatusCache = new Map<string, ElevenLabsVoiceStatus>();
   private readonly voiceStatusRequests = new Map<string, Promise<ElevenLabsVoiceStatus>>();
 
@@ -70,6 +73,25 @@ export class ElevenLabsService {
 
   get configured() {
     return Boolean(this.apiKey);
+  }
+
+  async listVoices(refresh = false) {
+    if (!this.configured) return elevenLabsVoices;
+    if (!refresh && this.voiceListCache
+      && Date.now() - this.voiceListCache.fetchedAt < voiceListTtlMs) {
+      return this.voiceListCache.voices;
+    }
+    if (!refresh && this.voiceListRequest) return this.voiceListRequest;
+
+    const request = this.fetchVoices().then((voices) => {
+      if (!voices.length) return elevenLabsVoices;
+      this.voiceListCache = { fetchedAt: Date.now(), voices };
+      return voices;
+    }).catch(() => elevenLabsVoices).finally(() => {
+      this.voiceListRequest = null;
+    });
+    this.voiceListRequest = request;
+    return request;
   }
 
   async voiceStatus(refresh = false, voiceId = config.elevenLabsVoiceId): Promise<ElevenLabsVoiceStatus> {
@@ -129,6 +151,42 @@ export class ElevenLabsService {
       .finally(() => this.inflightSpeech.delete(cacheKey));
     this.inflightSpeech.set(cacheKey, generation);
     return { ...await generation, cached: false };
+  }
+
+  private async fetchVoices() {
+    const voices: { id: string; name: string }[] = [];
+    let nextPageToken = "";
+
+    do {
+      const query = new URLSearchParams({
+        voice_type: "saved",
+        page_size: "100",
+        include_total_count: "false",
+        sort: "name",
+        sort_direction: "asc",
+      });
+      if (nextPageToken) query.set("next_page_token", nextPageToken);
+      const response = await fetch(`https://api.elevenlabs.io/v2/voices?${query}`, {
+        headers: { Accept: "application/json", "xi-api-key": this.apiKey },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!response.ok) throw new Error(`ElevenLabs returned ${response.status}`);
+      const payload = await response.json() as {
+        voices?: { voice_id?: string; name?: string }[];
+        has_more?: boolean;
+        next_page_token?: string | null;
+      };
+      for (const voice of payload.voices || []) {
+        if (voice.voice_id && voice.name) voices.push({ id: voice.voice_id, name: voice.name });
+      }
+      if (!payload.has_more) break;
+      if (!payload.next_page_token || payload.next_page_token === nextPageToken) {
+        throw new Error("ElevenLabs voice pagination stopped unexpectedly");
+      }
+      nextPageToken = payload.next_page_token;
+    } while (nextPageToken);
+
+    return Array.from(new Map(voices.map((voice) => [voice.id, voice])).values());
   }
 
   private async fetchVoiceStatus(fallbackVoice: ElevenLabsVoiceStatus["voice"]): Promise<ElevenLabsVoiceStatus> {

@@ -118,6 +118,46 @@ describe("ElevenLabsService", () => {
     expect(options.headers).toMatchObject({ "xi-api-key": "test-key" });
   });
 
+  it("lists and caches every saved ElevenLabs voice across pages", async () => {
+    const request = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        voices: [{ voice_id: "voice-b", name: "Beta" }],
+        has_more: true,
+        next_page_token: "next-page",
+      }), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        voices: [{ voice_id: "voice-a", name: "Alpha" }],
+        has_more: false,
+      }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", request);
+    const service = new ElevenLabsService(repository, "test-key");
+
+    const first = await service.listVoices();
+    const second = await service.listVoices();
+
+    expect(first).toEqual([
+      { id: "voice-b", name: "Beta" },
+      { id: "voice-a", name: "Alpha" },
+    ]);
+    expect(second).toEqual(first);
+    expect(request).toHaveBeenCalledTimes(2);
+    const firstUrl = new URL(String(request.mock.calls[0][0]));
+    const secondUrl = new URL(String(request.mock.calls[1][0]));
+    expect(firstUrl.searchParams.get("voice_type")).toBe("saved");
+    expect(firstUrl.searchParams.get("page_size")).toBe("100");
+    expect(secondUrl.searchParams.get("next_page_token")).toBe("next-page");
+  });
+
+  it("falls back to built-in voices when ElevenLabs cannot list My Voices", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("Unavailable", { status: 503 })));
+    const service = new ElevenLabsService(repository, "test-key");
+
+    await expect(service.listVoices()).resolves.toContainEqual({
+      id: "ueSxRO0nLF1bj93J2hVt",
+      name: "Trung Caha",
+    });
+  });
+
   it("clamps ElevenLabs speed to its documented API range", async () => {
     const request = vi.fn().mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
     vi.stubGlobal("fetch", request);

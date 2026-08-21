@@ -69,4 +69,6 @@ export const elevenLabsVoices = Array.from(new Map([
   { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
   { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
   { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
+  { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
+  { id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" },
 ].map((voice) => [voice.id, voice])).values());
