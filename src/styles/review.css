@@ -451,13 +451,6 @@
   padding-bottom: 18px;
 }
 
-.simple-phrase-meta {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  text-align: right;
-}
-
 .simple-row-actions button {
   display: grid;
   width: auto;

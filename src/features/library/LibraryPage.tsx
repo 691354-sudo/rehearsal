@@ -16,7 +16,7 @@ import { CardEditorDialog } from "./CardEditorDialog";
 import { TopicsManager } from "./TopicsManager";
 import { apiFetch } from "../../shared/api";
 import type { Island, IslandSummary, Language, LearningItem } from "../../shared/contracts";
-import { filterLibraryItems, libraryStatusOf, type LibrarySort, type LibraryStatus } from "../../lib/libraryView";
+import { filterLibraryItems, type LibrarySort, type LibraryStatus } from "../../lib/libraryView";
 import type { AppRoute, HistoryMode, LibraryRoute } from "../../lib/appRoute";
 
 export function LibraryPage({ items, language, route, onRoute, onItemDeleted, onItemUpdated, onItemsReload, onListen, onPlay, onPracticeEnabled, onReview }: {
@@ -292,25 +292,24 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
           {selectionMode ? <label className="simple-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} name={`select-card-${item.publicId}`}
             disabled={deletingSelected} onChange={() => toggleItem(item.publicId)} type="checkbox" /></label> : null}
           <div className="simple-phrase-copy"><strong lang={language}>{item.target}</strong><small lang="ru">{item.cue}</small></div>
-          <div className="simple-row-actions"><em className="simple-phrase-meta">{item.tags[0] || libraryStatusOf(item)}</em>
-            <div className="simple-row-action-buttons">
-              {language === "en" ? <button aria-label="Play" onClick={() => onPlay(item.target)} title="Play" type="button"><Volume2 size={15} /></button> : null}
-              {item.practiceEnabled
-                ? <button aria-label={`Mark ${item.target} as learned`} onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Learned</button>
-                : <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Reactivate</button>}
-              <button aria-label={`Edit ${item.target}`} onClick={() => patchRoute({ edit: item.publicId }, "push")} title="Edit" type="button"><Pencil size={16} /></button>
-              <div className="simple-row-more" data-library-actions={item.publicId} onBlur={(event) => {
+          <div className="simple-row-actions">
+            {language === "en" ? <button aria-label="Play" onClick={() => onPlay(item.target)} title="Play" type="button"><Volume2 size={15} /></button> : null}
+            {item.practiceEnabled
+              ? <button aria-label={`Mark ${item.target} as learned`} onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Learned</button>
+              : <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Reactivate</button>}
+            <button aria-label={`Edit ${item.target}`} onClick={() => patchRoute({ edit: item.publicId }, "push")} title="Edit" type="button"><Pencil size={16} /></button>
+            <div className="simple-row-more" data-library-actions={item.publicId} onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null);
-              }}>
-                <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-label={`More actions for ${item.target}`}
-                  onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)} title="More actions" type="button"><MoreHorizontal size={17} /></button>
-                {openActionsId === item.publicId ? <div className="simple-row-more-panel" id={`card-actions-${item.publicId}`}>
-                  {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} type="button">Review now</button> : null}
-                  <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} type="button">Pattern drill</button>
-                  <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} type="button"><Trash2 size={15} />Delete</button>
-                </div> : null}
-              </div>
-            </div></div>
+            }}>
+              <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-label={`More actions for ${item.target}`}
+                onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)} title="More actions" type="button"><MoreHorizontal size={17} /></button>
+              {openActionsId === item.publicId ? <div className="simple-row-more-panel" id={`card-actions-${item.publicId}`}>
+                {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} type="button">Review now</button> : null}
+                <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} type="button">Pattern drill</button>
+                <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} type="button"><Trash2 size={15} />Delete</button>
+              </div> : null}
+            </div>
+          </div>
         </article>)}
         {displayedItems.length < visibleItems.length ? <div className="simple-library-load-more"><span>{visibleItems.length - displayedItems.length} more cards</span>
           <button onClick={() => patchRoute({ page: route.page + 1 })} type="button">Load more</button></div> : null}

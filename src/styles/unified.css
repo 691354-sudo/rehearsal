@@ -324,29 +324,15 @@
 }
 
 .simple-row-actions {
-  display: grid !important;
-  gap: 6px !important;
-  justify-items: end;
+  flex-wrap: nowrap;
   max-width: none;
   padding-bottom: 0;
 }
 
-.simple-row-action-buttons > button,
+.simple-row-actions > button,
 .simple-row-more > button {
   min-width: 44px;
   height: 44px;
-}
-
-.simple-row-action-buttons {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.simple-phrase-meta {
-  position: static;
-  line-height: 1.2;
-  text-align: right;
 }
 
 .simple-library-selection.is-idle {
@@ -566,8 +552,7 @@
     z-index: 1;
   }
   .simple-phrase-row.is-selecting .simple-phrase-copy > strong { padding-inline-start: 32px; }
-  .simple-row-actions { grid-column: 1; justify-content: flex-start; justify-items: start; }
-  .simple-phrase-meta { font-size: 12px; }
+  .simple-row-actions { grid-column: 1; justify-content: flex-start; }
   .simple-row-more-panel { right: 0; left: auto; transform-origin: top right; }
   .simple-main .simple-primary,
   .simple-main .simple-import-card button,
