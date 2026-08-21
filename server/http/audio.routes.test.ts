@@ -24,9 +24,27 @@ describe("audio API", () => {
         { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
         { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
         { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
+        { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
+        { id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" },
       ],
       speedRange: { min: 0.7, max: 1.2 },
     });
+    await app.close();
+  });
+
+  it("exposes the saved voices returned by ElevenLabs", async () => {
+    const listVoices = vi.fn().mockResolvedValue([
+      { id: "saved-voice", name: "Saved Voice" },
+    ]);
+    const app = await buildApp(context.repository, {
+      elevenlabs: { listVoices } as unknown as ElevenLabsService,
+    });
+    const response = await app.inject({ method: "GET", url: "/api/config" });
+
+    expect(response.json().tts.providers.elevenlabs.voices).toEqual([
+      { id: "saved-voice", name: "Saved Voice" },
+    ]);
+    expect(listVoices).toHaveBeenCalledOnce();
     await app.close();
   });
 

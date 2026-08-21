@@ -30,6 +30,8 @@ export const defaultElevenLabsConfig: ElevenLabsConfig = {
     { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
     { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
     { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
+    { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
+    { id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" },
   ],
   models: ["eleven_multilingual_v2", "eleven_flash_v2_5"],
   speedRange: defaultElevenLabsSpeedRange,
