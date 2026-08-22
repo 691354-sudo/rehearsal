@@ -202,6 +202,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
     <div className={`simple-workspace simple-workspace--${workspaceMode}`}>
     {route.section === "practice" && <PracticePage attempts={learning.attempts} key={language}
       dueItemIds={learning.dueItemIds} items={learning.items} language={language} route={route} dailyProgress={learning.dailyProgress}
+      recommended={learning.recommended}
       elevenLabs={audio.elevenLabsConfig}
       onAnswer={learning.setAnswer} onCheck={learning.checkAnswer} onListened={learning.commitListening}
       onModeSelected={learning.resetAttempts}
@@ -221,7 +222,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
       onItemDeleted={learning.removeItem} onItemUpdated={learning.updateItem}
       onItemsReload={() => learning.loadItems(language)}
       onListen={() => { goTo(practiceRoute("listen")); void learning.loadItems(language); }}
-      onPlay={(text) => void audio.playTarget(text)} onPracticeEnabled={learning.updatePracticeEnabled}
+      onListened={learning.commitListening} onPlay={audio.playTarget} onPracticeEnabled={learning.updatePracticeEnabled}
       onReview={(itemId) => goTo({ ...practiceRoute("recall"), scope: "library", review: itemId })} />}
     </div>
   </div>;

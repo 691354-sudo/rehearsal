@@ -3,6 +3,8 @@ import { Check, Volume2 } from "lucide-react";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { capitalize, languageCopy, languageHasAudio } from "../../shared/config";
 import type { AttemptDraft, Language, LearningItem } from "../../shared/contracts";
+import { FocusedText } from "../progress/FocusedText";
+import { AnswerDiff } from "./AnswerDiff";
 
 const formatInterval = (seconds?: number) => {
   if (seconds === undefined) return "";
@@ -21,6 +23,7 @@ export function InlineRecallAnswer(props: {
   onAnswer: (value: string) => void;
   onCheck: () => void;
   onCompleted: () => void;
+  onAutoPlay: () => Promise<unknown>;
   onPlay: () => Promise<unknown>;
   onReview: (rating: ReviewRating) => Promise<boolean>;
 }) {
@@ -36,7 +39,7 @@ export function InlineRecallAnswer(props: {
   const check = () => {
     if (!props.attempt.answer.trim() || props.attempt.evaluation) return;
     props.onCheck();
-    if (languageHasAudio(props.language) && props.playAfterCheck) void props.onPlay().catch(() => undefined);
+    if (languageHasAudio(props.language) && props.playAfterCheck) void props.onAutoPlay().catch(() => undefined);
   };
   const save = async (nextRating = rating) => {
     if (!props.attempt.evaluation || saving) return;
@@ -63,9 +66,11 @@ export function InlineRecallAnswer(props: {
     </div>
     {props.attempt.evaluation ? <div aria-live="polite" className={`practice-inline-result recall-result--${props.attempt.evaluation.verdict}`}>
       <span>{props.attempt.evaluation.verdict === "exact" ? "Correct" : "Compare"}</span>
-      {props.attempt.evaluation.verdict !== "exact" ? <p className="recall-own-answer" lang={props.language}>{props.attempt.answer}</p> : null}
-      <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>{props.attempt.evaluation.naturalAnswer}</p>
+      <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>
+        <FocusedText focusTerms={props.item.focusTerms} text={props.attempt.evaluation.naturalAnswer} /></p>
         {languageHasAudio(props.language) ? <button aria-label="Play natural answer" onClick={() => void props.onPlay()} type="button"><Volume2 size={15} /></button> : null}</div>
+      {props.attempt.evaluation.verdict !== "exact" ? <AnswerDiff answerTokens={props.attempt.evaluation.answerTokens}
+        expectedTokens={props.attempt.evaluation.expectedTokens} language={props.language} /> : null}
       <div className="practice-inline-grades" aria-label="Memory grade">{reviewRatings.map((value) => <button aria-pressed={rating === value}
         disabled={saving} key={value} onClick={() => void save(value)} type="button"><span>{capitalize(value)}</span><small>{formatInterval(props.item.schedule?.options[value].intervalSeconds)}</small></button>)}</div>
       {error ? <p className="recall-save-error" role="alert">{error}</p> : null}

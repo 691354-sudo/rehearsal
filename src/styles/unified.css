@@ -329,6 +329,13 @@
   padding-bottom: 0;
 }
 
+.simple-row-side {
+  display: grid;
+  gap: 7px;
+  justify-items: end;
+  align-content: start;
+}
+
 .simple-row-actions > button,
 .simple-row-more > button {
   min-width: 44px;
@@ -544,6 +551,7 @@
     z-index: 1;
   }
   .simple-phrase-row.is-selecting .simple-phrase-copy > strong { padding-inline-start: 32px; }
+  .simple-row-side { grid-column: 1; justify-self: start; justify-items: start; }
   .simple-row-actions { grid-column: 1; justify-content: flex-start; }
   .simple-row-more-panel { right: 0; left: auto; transform-origin: top right; }
   .simple-main .simple-primary,

@@ -44,6 +44,7 @@ export const itemBodySchema = z.object({
   kind: z.enum(["phrase", "island_line", "correction", "story_line"]).optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(12).optional(),
   frequencyBand: z.enum(["core", "common", "specific", "rare"]).optional(),
+  focusTerms: z.array(nfcText(100)).max(8).optional(),
 });
 
 export const reviewCandidateSelectionSchema = z.object({

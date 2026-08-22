@@ -789,3 +789,10 @@
     min-height: 40px;
   }
 }
+.practice-recommended-note {
+  display: block;
+  margin-top: 8px;
+  color: var(--script-support);
+  font-size: 11px;
+  line-height: 1.45;
+}

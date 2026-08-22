@@ -73,6 +73,8 @@ export type DueItemRow = ItemRow & {
   review_lapses: number | null;
   review_state: number | null;
   review_last_review: string | null;
+  recall_count: number | null;
+  listen_count: number | null;
 };
 
 export const parseArray = (value: string): string[] => {
@@ -108,6 +110,27 @@ export const mapItem = (row: ItemRow): LearningItem => ({
   practiceEnabled: Boolean(row.practice_enabled),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  progress: {
+    stage: row.practice_enabled ? "new" : "learned",
+    recalls: 0,
+    listens: 0,
+  },
+});
+
+export const mapItemProgress = (row: DueItemRow, now = new Date()): LearningItem["progress"] => {
+  const recalls = row.recall_count || 0;
+  const listens = row.listen_count || 0;
+  const stage = !row.practice_enabled ? "learned"
+    : recalls === 0 ? "new"
+      : row.review_state === 1 || row.review_state === 3 ? "learning"
+        : row.review_due_at && new Date(row.review_due_at) <= now ? "due"
+          : "strong";
+  return { stage, recalls, listens };
+};
+
+export const mapItemWithProgress = (row: DueItemRow, now = new Date()): LearningItem => ({
+  ...mapItem(row),
+  progress: mapItemProgress(row, now),
 });
 
 export const mapReviewBatch = (row: ReviewBatchRow): ReviewBatch => ({

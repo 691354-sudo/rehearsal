@@ -5,7 +5,11 @@ import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/s
 import { capitalize, languageCopy, languageHasAudio } from "../../shared/config";
 import type { AttemptDraft, ElevenLabsConfig, IslandSummary, Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
 import { PlaybackSettings } from "./PlaybackSettings";
+import { AnswerDiff } from "./AnswerDiff";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
+import { FocusedText } from "../progress/FocusedText";
+import { LearningProgressBadge } from "../progress/LearningProgress";
+import { TopicProgressPicker } from "./TopicProgressPicker";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 import type { PracticeCardCount } from "../../lib/appRoute";
 
@@ -29,6 +33,7 @@ export function RecallSession(props: {
   language: Language;
   listeningAvailable: boolean;
   manualReviewItemId: string | null;
+  recommended: { due: number; new: number };
   selectedTopicItems: Set<string> | null;
   topics: IslandSummary[];
   topicId: string;
@@ -37,6 +42,7 @@ export function RecallSession(props: {
   onCount: (count: PracticeCardCount) => void;
   onEdit: (item: LearningItem) => void;
   onListenMode: () => void;
+  onListened: (itemId: string) => Promise<void>;
   onManualReviewStarted: () => void;
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<unknown>;
@@ -103,15 +109,14 @@ export function RecallSession(props: {
     <section className="recall-setup" aria-label="Recall setup">
       {props.manualReviewItemId ? <><p className="recall-manual-label">Manual review · stays Learned</p>{startButton}</> : <>
         <div className="practice-scope-switch" role="group" aria-label="Recall source">
-          <button aria-pressed={props.scope === "due"} onClick={() => props.onScope("due")} type="button">Due now</button>
+          <button aria-pressed={props.scope === "due"} onClick={() => props.onScope("due")} type="button">Recommended now</button>
           <button aria-pressed={props.scope === "custom"} onClick={() => props.onScope("custom")} type="button">All Library</button>
         </div>
+        {props.scope === "due" ? <small className="practice-recommended-note">FSRS puts due and relearning first, then up to your daily limit of new cards · {props.recommended.due} due · {props.recommended.new} new</small> : null}
         <div className="recall-setup-fields">
-          <label><span>Topic</span><select name="recall-topic" onChange={(event) => props.onTopic(event.target.value)} value={props.topicId}>
-            <option value="">All Topics</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}
-          </select></label>
+          <label><span>Topic</span><TopicProgressPicker onChange={props.onTopic} topics={props.topics} value={props.topicId} /></label>
           <label><span>Cards</span><select name="recall-count" onChange={(event) => props.onCount(event.target.value as PracticeCardCount)} value={props.count}>
-            <option value="all">All {props.scope === "due" ? "due" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+            <option value="all">All {props.scope === "due" ? "recommended" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
           </select></label>
           {startButton}
         </div>
@@ -119,6 +124,7 @@ export function RecallSession(props: {
     </section>
     <PracticeQueuePreview attempts={props.attempts} emptyAction={props.emptyAction} items={sessionItems} language={props.language} mode="recall"
       onAnswer={props.onAnswer} onCheck={props.onCheck} onEdit={props.onEdit}
+      onListened={props.onListened}
       onPlay={(item) => props.onPlay(item.target, props.playback)} onRecallReview={props.onRecallReview}
       playAfterRecall={props.playback.playAfterRecall} scope={props.scope} />
   </div>;
@@ -134,6 +140,7 @@ export function RecallSession(props: {
     <header><button aria-label="End session" onClick={() => dispatch({ type: "reset" })} type="button"><ChevronLeft size={16} />End</button>
       <span>{Math.min(position, state.initialTotal)} / {state.initialTotal}</span></header>
     <article className="recall-card">
+      <LearningProgressBadge progress={current.progress} />
       <p className="recall-cue" lang="ru">{current.cue}</p>
       <div className="recall-answer-row"><input aria-label={`Type in ${languageCopy[props.language].label}`} autoComplete="off" lang={props.language} name="recall-answer"
         onChange={(event) => { if (!attempt.evaluation) props.onAnswer(current.publicId, event.target.value); }}
@@ -142,9 +149,13 @@ export function RecallSession(props: {
       </div>
       {attempt.evaluation ? <div aria-live="polite" className={`recall-result recall-result--${attempt.evaluation.verdict}`}>
         <span>{attempt.evaluation.verdict === "exact" ? "Correct" : "Compare"}</span>
-        {attempt.evaluation.verdict !== "exact" ? <p className="recall-own-answer" lang={props.language}>{attempt.answer}</p> : null}
-        <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>{attempt.evaluation.naturalAnswer}</p>
-          {languageHasAudio(props.language) ? <button aria-label="Play natural answer" onClick={() => { void props.onPlay(current.target, props.playback); }} title="Play" type="button"><Volume2 size={16} /></button> : null}</div>
+        <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>
+          <FocusedText focusTerms={current.focusTerms} text={attempt.evaluation.naturalAnswer} /></p>
+          {languageHasAudio(props.language) ? <button aria-label="Play natural answer" onClick={() => {
+            void props.onPlay(current.target, props.playback).then(() => props.onListened(current.publicId));
+          }} title="Play" type="button"><Volume2 size={16} /></button> : null}</div>
+        {attempt.evaluation.verdict !== "exact" ? <AnswerDiff answerTokens={attempt.evaluation.answerTokens}
+          expectedTokens={attempt.evaluation.expectedTokens} language={props.language} /> : null}
         <div className="recall-grades" aria-label="Memory grade">{reviewRatings.map((rating) => <button aria-pressed={state.selectedRating === rating}
           disabled={state.saving} key={rating} onClick={() => void save(rating)} type="button"><span>{capitalize(rating)}</span><small>{formatInterval(current.schedule?.options[rating].intervalSeconds)}</small></button>)}</div>
         {state.error ? <p className="recall-save-error" role="alert">{state.error}</p> : null}

@@ -86,6 +86,18 @@ export type ReviewSchedule = {
   options: Record<ReviewRating, { dueAt: string; intervalSeconds: number }>;
 };
 
+export type LearningStage = "new" | "learning" | "due" | "strong" | "learned";
+export type LearningProgress = {
+  stage: LearningStage;
+  recalls: number;
+  listens: number;
+};
+export type LearningProgressSummary = Record<LearningStage, number> & {
+  dueNow: number;
+  recalls: number;
+  listens: number;
+};
+
 export type LearningItem = Required<Pick<LearningItemInput, "language" | "cue" | "target">> & {
   id?: number;
   publicId: string;
@@ -108,6 +120,7 @@ export type LearningItem = Required<Pick<LearningItemInput, "language" | "cue" |
   createdAt?: string;
   updatedAt?: string;
   schedule?: ReviewSchedule;
+  progress: LearningProgress;
 };
 
 export type IslandSummary = {
@@ -116,6 +129,7 @@ export type IslandSummary = {
   title: string;
   description: string;
   itemCount: number;
+  progress: LearningProgressSummary;
   createdAt: string;
   updatedAt: string;
 };

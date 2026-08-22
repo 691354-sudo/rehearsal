@@ -34,7 +34,8 @@ export type PracticeSettings = {
 
 export type DiffToken = {
   value: string;
-  status: "match" | "missing" | "extra";
+  status: "match" | "missing" | "extra" | "changed";
+  parts?: Array<{ value: string; status: "match" | "changed" }>;
 };
 
 export type AttemptEvaluation = {

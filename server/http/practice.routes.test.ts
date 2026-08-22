@@ -15,7 +15,7 @@ describe("practice and library API", () => {
       .toMatch(/follow(?:ing)? through/);
   });
 
-  it("records recall and shadowing while changing only the recall schedule", async () => {
+  it("records recall and listening while changing only the recall schedule", async () => {
     const app = await buildApp(context.repository);
     const recall = await app.inject({
       method: "POST",
@@ -34,7 +34,7 @@ describe("practice and library API", () => {
     const shadow = await app.inject({
       method: "POST",
       url: "/api/reviews",
-      payload: { itemId: "en-drawn-to", mode: "shadow", rating: "hard" },
+      payload: { itemId: "en-drawn-to", mode: "listen", rating: "hard" },
     });
     expect(shadow.statusCode).toBe(200);
     expect(shadow.json().review.schedule).toBeNull();
@@ -44,6 +44,72 @@ describe("practice and library API", () => {
       url: "/api/practice/progress?language=en&since=2000-01-01T00:00:00.000Z",
     });
     expect(progress.json()).toMatchObject({ completed: 1, recall: 1, shadow: 1, pattern: 0 });
+    const inventory = await app.inject({
+      method: "GET", url: "/api/items?language=en&limit=500&includeSchedule=true",
+    });
+    expect(inventory.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to").progress)
+      .toMatchObject({ recalls: 1, listens: 1, stage: "strong" });
+    const topic = context.repository.library.createIsland({
+      language: "en", title: "Progress topic", itemPublicIds: ["en-drawn-to"],
+    });
+    expect(context.repository.library.getIsland(topic.publicId)?.progress)
+      .toMatchObject({ strong: 1, recalls: 1, listens: 1 });
+    await app.close();
+  });
+
+  it("derives every visible learning stage from FSRS and the Learned flag", () => {
+    const reviewedAt = new Date("2026-08-20T12:00:00.000Z");
+    const newItem = context.repository.items.save({ language: "en", cue: "Новая", target: "New stage." });
+    const learningItem = context.repository.items.save({ language: "en", cue: "Учится", target: "Learning stage." });
+    const strongItem = context.repository.items.save({ language: "en", cue: "Сильная", target: "Strong stage." });
+    const dueItem = context.repository.items.save({ language: "en", cue: "Пора", target: "Due stage." });
+    const learnedItem = context.repository.items.save({ language: "en", cue: "Выучена", target: "Learned stage." });
+    context.repository.practice.recordAttempt({ itemPublicId: learningItem.publicId, mode: "recall", answer: learningItem.target,
+      score: 0.85, verdict: "good", feedback: {}, rating: "good", reviewedAt });
+    context.repository.practice.recordAttempt({ itemPublicId: strongItem.publicId, mode: "recall", answer: strongItem.target,
+      score: 1, verdict: "easy", feedback: {}, rating: "easy", reviewedAt });
+    context.repository.practice.recordAttempt({ itemPublicId: dueItem.publicId, mode: "recall", answer: dueItem.target,
+      score: 1, verdict: "easy", feedback: {}, rating: "easy", reviewedAt: new Date("2020-01-01T00:00:00.000Z") });
+    context.repository.items.update(learnedItem.publicId, { practiceEnabled: false });
+
+    const inventory = context.repository.practice.listInventory("en", 500, reviewedAt);
+    const stage = (publicId: string) => inventory.find((item) => item.publicId === publicId)?.progress.stage;
+    expect(stage(newItem.publicId)).toBe("new");
+    expect(stage(learningItem.publicId)).toBe("learning");
+    expect(stage(strongItem.publicId)).toBe("strong");
+    expect(stage(dueItem.publicId)).toBe("due");
+    expect(stage(learnedItem.publicId)).toBe("learned");
+  });
+
+  it("returns the full ordered recommendation queue beyond one hundred cards", async () => {
+    for (let index = 0; index < 105; index += 1) {
+      const item = context.repository.items.save({ language: "en", cue: `Очередь ${index}`, target: `Queue card ${index}.` });
+      context.repository.practice.recordAttempt({ itemPublicId: item.publicId, mode: "recall", answer: item.target,
+        score: 1, verdict: "easy", feedback: {}, rating: "easy", reviewedAt: new Date("2020-01-01T00:00:00.000Z") });
+    }
+    const app = await buildApp(context.repository);
+    const response = await app.inject({ method: "GET", url: "/api/practice/due?language=en&limit=2000&newLimit=0" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().items.length).toBeGreaterThanOrEqual(105);
+    expect(response.json().composition).toMatchObject({ new: 0 });
+    expect(response.json().composition.due).toBe(response.json().items.length);
+    await app.close();
+  });
+
+  it("validates an explicit focus phrase against the target", async () => {
+    const app = await buildApp(context.repository);
+    const invalid = await app.inject({
+      method: "POST", url: "/api/items",
+      payload: { language: "en", cue: "Я справлюсь.", target: "I can pull through.", focusTerms: ["bounce back"] },
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect(invalid.json().error).toBe("FOCUS_TERM_NOT_FOUND");
+    const valid = await app.inject({
+      method: "POST", url: "/api/items",
+      payload: { language: "en", cue: "Я справлюсь.", target: "I can pull through.", focusTerms: ["pull through"] },
+    });
+    expect(valid.statusCode).toBe(201);
+    expect(valid.json().item.focusTerms).toEqual(["pull through"]);
     await app.close();
   });
 

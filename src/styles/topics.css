@@ -125,9 +125,17 @@
 }
 
 .topics-layout > nav button span {
+  display: grid;
+  gap: 5px;
   overflow: hidden;
   color: inherit;
   font-size: 13px;
+  white-space: normal;
+}
+
+.topics-layout > nav button b {
+  overflow: hidden;
+  font-weight: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

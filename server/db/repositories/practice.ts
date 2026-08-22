@@ -13,7 +13,7 @@ import {
 } from "../../services/scheduler.js";
 import {
   logChange,
-  mapItem,
+  mapItemWithProgress,
   mapJoinedReviewState,
   mapReviewState,
   type DueItemRow,
@@ -141,7 +141,8 @@ export class PracticeRepository {
     ).all(language, since) as Array<{ mode: string; count: number }>;
     const counts = { recall: 0, shadow: 0, pattern: 0 };
     for (const row of rows) {
-      if (row.mode in counts) counts[row.mode as keyof typeof counts] = row.count;
+      if (row.mode === "listen" || row.mode === "shadow") counts.shadow += row.count;
+      else if (row.mode in counts) counts[row.mode as keyof typeof counts] = row.count;
     }
     return counts;
   }
@@ -159,14 +160,22 @@ export class PracticeRepository {
               r.repetitions AS review_repetitions,
               r.lapses AS review_lapses,
               r.state AS review_state,
-              r.last_review AS review_last_review
+              r.last_review AS review_last_review,
+              COALESCE(a.recall_count, 0) AS recall_count,
+              COALESCE(a.listen_count, 0) AS listen_count
        FROM items i LEFT JOIN review_state r ON r.item_id = i.id
+       LEFT JOIN (
+         SELECT item_id,
+           SUM(CASE WHEN mode = 'recall' THEN 1 ELSE 0 END) AS recall_count,
+           SUM(CASE WHEN mode IN ('listen', 'shadow') THEN 1 ELSE 0 END) AS listen_count
+         FROM attempts GROUP BY item_id
+       ) a ON a.item_id = i.id
        WHERE i.language_code = ?
        ORDER BY i.updated_at DESC, i.id DESC
        LIMIT ?`,
     ).all(language, limit) as DueItemRow[];
     return rows.map((row) => {
-      const item = mapItem(row);
+      const item = mapItemWithProgress(row, now);
       const stored = mapJoinedReviewState(row);
       if (!stored) return item;
       return {
@@ -193,8 +202,16 @@ export class PracticeRepository {
               r.repetitions AS review_repetitions,
               r.lapses AS review_lapses,
               r.state AS review_state,
-              r.last_review AS review_last_review
-       FROM items i LEFT JOIN review_state r ON r.item_id = i.id`;
+              r.last_review AS review_last_review,
+              COALESCE(a.recall_count, 0) AS recall_count,
+              COALESCE(a.listen_count, 0) AS listen_count
+       FROM items i LEFT JOIN review_state r ON r.item_id = i.id
+       LEFT JOIN (
+         SELECT item_id,
+           SUM(CASE WHEN mode = 'recall' THEN 1 ELSE 0 END) AS recall_count,
+           SUM(CASE WHEN mode IN ('listen', 'shadow') THEN 1 ELSE 0 END) AS listen_count
+         FROM attempts GROUP BY item_id
+       ) a ON a.item_id = i.id`;
     const scheduled = this.db.prepare(
       `${select}
        WHERE i.language_code = ? AND i.practice_enabled = 1
@@ -214,7 +231,7 @@ export class PracticeRepository {
        LIMIT ?`,
     ).all(language, freshLimit) as DueItemRow[] : [];
     return [...scheduled, ...fresh].map((row) => ({
-      ...mapItem(row),
+      ...mapItemWithProgress(row, now),
       schedule: previewReview(
         cardFromStoredState(mapJoinedReviewState(row), now),
         now,

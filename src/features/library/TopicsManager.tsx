@@ -1,16 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoaderCircle, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { apiFetch } from "../../shared/api";
-import type { Language, LearningItem } from "../../shared/contracts";
+import type { IslandSummary, Language, LearningItem } from "../../shared/contracts";
 import { normalizeNfc } from "../../../contracts/text";
+import { FocusedText } from "../progress/FocusedText";
+import { LearningProgressBadge, TopicProgress } from "../progress/LearningProgress";
 
-type TopicSummary = {
-  publicId: string;
-  language: Language;
-  title: string;
-  description: string;
-  itemCount: number;
-};
+type TopicSummary = IslandSummary;
 type Topic = TopicSummary & { items: LearningItem[] };
 
 export function TopicsManager({ initialTopicId, language, onClose, onEdit, onTopic }: {
@@ -47,7 +43,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onEdit, onTop
   const load = async (preferredId?: string) => {
     const [topicResponse, itemResponse] = await Promise.all([
       apiFetch(`/api/islands?language=${language}`),
-      apiFetch(`/api/items?language=${language}&limit=2000`),
+      apiFetch(`/api/items?language=${language}&limit=2000&includeSchedule=true`),
     ]);
     if (!topicResponse.ok || !itemResponse.ok) throw new Error("Topics could not be loaded.");
     const topicData = await topicResponse.json() as { islands: TopicSummary[] };
@@ -159,7 +155,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onEdit, onTop
     <div className="topics-layout">
       <nav aria-label="Topics">{topics.map((candidate) => <button className={candidate.publicId === topic?.publicId ? "is-active" : ""}
         key={candidate.publicId} onClick={() => void loadTopic(candidate.publicId)} ref={candidate.publicId === topic?.publicId ? activeTopicRef : undefined}
-        type="button"><span>{candidate.title}</span><small>{candidate.itemCount}</small></button>)}</nav>
+        type="button"><span><b>{candidate.title}</b><TopicProgress progress={candidate.progress} /></span><small>{candidate.itemCount}</small></button>)}</nav>
       <div className="topic-detail">
         {!topic ? <div className="topic-empty">Create or select a Topic.</div> : <>
           <div className="topic-detail-heading">{renaming ? <div className="topic-title-edit"><input aria-label="Topic name" autoComplete="off" name="topic-name" onChange={(event) => setTitle(event.target.value)} value={title} />
@@ -195,7 +191,8 @@ export function TopicsManager({ initialTopicId, language, onClose, onEdit, onTop
           <div className="topic-items">{topic.items.length ? topic.items.map((item) => <article className={selectionMode ? "is-selecting" : ""} key={item.publicId}>
             {selectionMode ? <label className="topic-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} disabled={saving}
               onChange={() => toggleSelected(item.publicId)} type="checkbox" /></label> : null}
-            <div className="topic-item-copy"><strong lang={language}>{item.target}</strong><span lang="ru">{item.cue}</span></div>
+            <div className="topic-item-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><span lang="ru">{item.cue}</span>
+              <LearningProgressBadge progress={item.progress} /></div>
             <button aria-label={`Edit ${item.target}`} className="topic-card-edit" onClick={() => onEdit(item.publicId)} title="Edit card" type="button"><Pencil size={15} /></button></article>)
             : <p className="topic-items-empty">No cards in this Topic.</p>}</div>
         </>}
