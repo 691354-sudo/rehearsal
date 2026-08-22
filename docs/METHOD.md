@@ -20,7 +20,9 @@ Good material is:
 
 Every generated candidate records a frequency band (`core`, `common`, `specific`, `rare`), currency (`current`, `contextual`, `dated`, `uncertain`), personal fit, naturalness, and commonness. Uncertain slang, idioms, and regional wording may be verified with a low-context web search before being proposed.
 
-Personalization is profile-specific. Roman keeps the established context: a Russian-speaking adult born in 1992 with direct, casual, thoughtful language and familiar life anchors when they genuinely fit. Oliver and Zanna are configured only as Russian-speaking adults; the model must not invent their age, interests, work, relationships, location, or lifestyle. Conversation facts supplied by any learner may be used within that conversation.
+Personalization is profile-specific. Roman keeps the established context: a Russian-speaking adult born in 1992 with direct, casual, thoughtful language and familiar life anchors when they genuinely fit. Oliver, Zanna, and invited learners are configured only as Russian-speaking adults; the model must not invent their age, interests, work, relationships, location, or lifestyle. Conversation facts supplied by any learner may be used within that conversation.
+
+An authenticated learner may create a one-time, non-expiring invitation in Settings. The recipient chooses a unique display name, one learning language, and a 4–10 digit PIN. The new profile starts with an empty isolated database and only the selected language enabled. Rehearsal has no open registration or profile administration surface.
 
 ## Daily loop
 
@@ -105,4 +107,4 @@ These role assignments are pinned. `npm run models:check` can manually verify th
 
 ## Deferred on purpose
 
-Pronunciation scoring, App Store distribution, fully native mobile rewrites, offline packs, public account registration, and administration are not current requirements. The phone delivery is the installed Home Screen PWA in standalone mode; interaction and layout rules live in `docs/MOBILE_APP_DIRECTION.md`.
+Pronunciation scoring, App Store distribution, fully native mobile rewrites, offline packs, open public registration, and profile administration are not current requirements. The phone delivery is the installed Home Screen PWA in standalone mode; interaction and layout rules live in `docs/MOBILE_APP_DIRECTION.md`.

@@ -1,0 +1,145 @@
+import { createHash, randomBytes } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { languageCodes, type LanguageCode } from "../../contracts/api.js";
+import { openDatabase } from "../db/database.js";
+
+export type InvitedProfileRecord<ProfileRecord> = {
+  state: "initializing" | "ready";
+  language: LanguageCode;
+  invitationHash: string;
+  profile: ProfileRecord;
+};
+
+export type InvitedProfileRegistry<ProfileRecord> = {
+  version: 1;
+  profiles: Array<InvitedProfileRecord<ProfileRecord>>;
+};
+
+export type InvitationRecord = {
+  hash: string;
+  createdAt: string;
+  createdByProfileId: string;
+  usedAt: string | null;
+  usedByProfileId: string | null;
+};
+
+export type InvitationRegistry = {
+  version: 1;
+  invitations: InvitationRecord[];
+};
+
+export const invitedRegistryName = "invited-registry.json";
+export const invitationRegistryName = "profile-invites.json";
+const invitedProfileIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const inviteAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+const writePrivateJson = (destination: string, value: unknown) => {
+  const temporary = `${destination}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+  fs.renameSync(temporary, destination);
+  fs.chmodSync(destination, 0o600);
+};
+
+export const saveInvitedProfiles = <ProfileRecord>(
+  profilesDir: string,
+  registry: InvitedProfileRegistry<ProfileRecord>,
+) => writePrivateJson(path.join(profilesDir, invitedRegistryName), registry);
+
+export const saveInvitations = (profilesDir: string, registry: InvitationRegistry) =>
+  writePrivateJson(path.join(profilesDir, invitationRegistryName), registry);
+
+export const readInvitedProfiles = <ProfileRecord extends { id: string; databasePath: string }>(
+  profilesDir: string,
+): InvitedProfileRegistry<ProfileRecord> => {
+  const registryPath = path.join(profilesDir, invitedRegistryName);
+  if (!fs.existsSync(registryPath)) return { version: 1, profiles: [] };
+  const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8")) as InvitedProfileRegistry<ProfileRecord>;
+  if (parsed.version !== 1 || !Array.isArray(parsed.profiles)) throw new Error("Invalid invited profile registry");
+  const ids = new Set<string>();
+  for (const entry of parsed.profiles) {
+    const profile = entry.profile;
+    if (!profile || !invitedProfileIdPattern.test(profile.id) || ids.has(profile.id)
+      || path.basename(profile.databasePath) !== `${profile.id}.sqlite`
+      || !["initializing", "ready"].includes(entry.state)
+      || !languageCodes.includes(entry.language)) {
+      throw new Error("Invalid invited profile registry entry");
+    }
+    ids.add(profile.id);
+  }
+  return parsed;
+};
+
+export const readInvitations = (profilesDir: string): InvitationRegistry => {
+  const registryPath = path.join(profilesDir, invitationRegistryName);
+  if (!fs.existsSync(registryPath)) return { version: 1, invitations: [] };
+  const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8")) as InvitationRegistry;
+  if (parsed.version !== 1 || !Array.isArray(parsed.invitations)) throw new Error("Invalid profile invitation registry");
+  return parsed;
+};
+
+const normalizedInvite = (token: string) => token.replaceAll("-", "").trim().toUpperCase();
+export const hashInvite = (token: string) =>
+  createHash("sha256").update(normalizedInvite(token)).digest("base64url");
+
+export const createInviteToken = (invitations: InvitationRegistry) => {
+  let token = "";
+  do {
+    const bytes = randomBytes(5);
+    let value = 0n;
+    for (const byte of bytes) value = (value << 8n) | BigInt(byte);
+    let encoded = "";
+    for (let index = 0; index < 8; index += 1) {
+      encoded = inviteAlphabet[Number(value & 31n)] + encoded;
+      value >>= 5n;
+    }
+    token = `${encoded.slice(0, 4)}-${encoded.slice(4)}`;
+  } while (invitations.invitations.some((invite) => invite.hash === hashInvite(token)));
+  return token;
+};
+
+export const inviteAvailable = (invitations: InvitationRegistry, token: string) => {
+  const normalized = normalizedInvite(token);
+  if (!/^[0-9A-HJKMNP-TV-Z]{8}$/.test(normalized)) return false;
+  return invitations.invitations.some((invite) => invite.hash === hashInvite(normalized) && !invite.usedAt);
+};
+
+export const initializeInvitedDatabase = <ProfileRecord extends { id: string; databasePath: string }>(
+  entry: InvitedProfileRecord<ProfileRecord>,
+) => {
+  const db = openDatabase(entry.profile.databasePath);
+  try {
+    if (!db.prepare("SELECT 1 FROM languages WHERE code = ?").get(entry.language)) {
+      throw new Error(`Unknown language for invited profile: ${entry.language}`);
+    }
+    db.prepare("UPDATE languages SET enabled = CASE WHEN code = ? THEN 1 ELSE 0 END").run(entry.language);
+    const items = db.prepare("SELECT COUNT(*) AS count FROM items").get() as { count: number };
+    if (items.count !== 0) throw new Error(`Invited profile database is not empty: ${entry.profile.id}`);
+    if ((db.pragma("quick_check", { simple: true }) as string) !== "ok") {
+      throw new Error(`SQLite quick_check failed for invited profile: ${entry.profile.id}`);
+    }
+  } finally {
+    db.close();
+  }
+};
+
+export const finishPendingInvitedProfiles = <ProfileRecord extends { id: string; databasePath: string }>(
+  profilesDir: string,
+  registry: InvitedProfileRegistry<ProfileRecord>,
+) => {
+  let changed = false;
+  for (const entry of registry.profiles) {
+    if (entry.state === "ready") {
+      if (!fs.existsSync(entry.profile.databasePath)) {
+        throw new Error(
+          `Profile database missing after initialization: ${entry.profile.id}. Stop the API and restore the named profile from a verified backup.`,
+        );
+      }
+      continue;
+    }
+    initializeInvitedDatabase(entry);
+    entry.state = "ready";
+    changed = true;
+  }
+  if (changed) saveInvitedProfiles(profilesDir, registry);
+};

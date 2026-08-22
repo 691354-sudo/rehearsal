@@ -8,7 +8,7 @@ web
 
 ## Users
 
-Rehearsal is a private language-learning tool for Roman and Oliver. They use it in short daily sessions on desktop and as an installed phone PWA, often moving between capture, listening, written recall, and library maintenance.
+Rehearsal is a private language-learning tool for a small invited group. Learners use it in short daily sessions on desktop and as an installed phone PWA, often moving between capture, listening, written recall, and library maintenance.
 
 ## Product Purpose
 
@@ -28,7 +28,7 @@ The product rehearses the users' own language and situations rather than a gener
 
 ## Capabilities and Constraints
 
-- Two fixed PIN profiles have isolated databases, settings, Tutor history, schedules, audio cache, and backups.
+- Every PIN profile has isolated data, settings, Tutor history, schedules, audio cache, and backups; new profiles require a one-time invitation.
 - FSRS owns future due dates; the focused queue may repeat Again and Hard cards within the current session.
 - Tutor and ingestion produce drafts that require explicit user approval before Library mutation.
 - One audio element and cached responses support playback; browser speech is the fallback.

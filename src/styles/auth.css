@@ -28,20 +28,23 @@
 }
 
 .profile-gate button,
-.profile-gate input {
+.profile-gate input,
+.profile-gate select {
   font: inherit;
   touch-action: manipulation;
 }
 
 .profile-gate button,
-.profile-gate input { min-height: 44px; }
+.profile-gate input,
+.profile-gate select { min-height: 44px; }
 
 .profile-gate button {
   cursor: pointer;
 }
 
 .profile-gate button:focus-visible,
-.profile-gate input:focus-visible {
+.profile-gate input:focus-visible,
+.profile-gate select:focus-visible {
   outline: 2px solid var(--profile-action);
   outline-offset: 2px;
 }
@@ -202,6 +205,40 @@
 .profile-submit:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.profile-card--join {
+  width: min(100%, 460px);
+}
+
+.profile-join-form {
+  display: grid;
+  gap: 7px;
+  margin-top: 28px;
+}
+
+.profile-join-form > label {
+  margin-top: 8px;
+  color: var(--profile-support);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.profile-join-form > input,
+.profile-join-form > select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 13px;
+  color: var(--profile-ink);
+  font-size: 16px;
+  background: #e6e0d7;
+  border: 1px solid var(--profile-rule);
+  border-radius: 9px;
+}
+
+.profile-join-form > small {
+  color: var(--profile-support);
+  font-size: 12px;
 }
 
 @media (max-width: 520px) {

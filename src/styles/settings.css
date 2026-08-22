@@ -39,6 +39,58 @@
   margin: 0;
 }
 
+.simple-invite-section > p {
+  margin: 0;
+  color: var(--script-support);
+  font-size: 13px;
+}
+
+.simple-invite-create,
+.simple-invite-result button {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 13px;
+  color: var(--script-ink);
+  font-size: 12px;
+  font-weight: 620;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.simple-invite-create {
+  width: max-content;
+  color: var(--cue-on-action);
+  background: var(--cue-action);
+  border-color: var(--cue-action);
+}
+
+.simple-invite-result {
+  display: grid;
+  gap: 8px;
+}
+
+.simple-invite-result > input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 11px;
+  color: var(--script-ink);
+  font-size: 13px;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.simple-invite-result > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .simple-advanced-settings {
   overflow: hidden;
   border: 1px solid var(--script-rule);

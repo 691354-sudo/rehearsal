@@ -105,7 +105,7 @@ Practice and Library use ordinary document framing until work begins. Tutor Chat
 
 At 900px the shell tightens. At 720px Tutor and Topics recompose for one column, Settings becomes a full-width drawer, and horizontal topic navigation is allowed. At 560px the fixed bottom navigation becomes the primary route switcher, controls stack, gutters reduce to 16px plus safe-area insets, and active Recall hides page/setup chrome to protect the card workspace. Dynamic viewport units keep full-height surfaces clear of mobile browser chrome.
 
-**Stable URL surfaces.** The visible routes are `/practice/recall`, `/practice/listen`, `/tutor/chat`, `/tutor/notebook`, `/library`, and `/library/topics`. Route-specific filters and state remain addressable through query parameters: language; practice scope, topic, count, and review; Tutor thread; and Library search, status, topic, sort, page, import, and editor. Navigation is `BASE_URL`-safe. Browser Back closes Settings, Import, and Card Editor before leaving the underlying surface; guarded editors do not discard unsaved work silently.
+**Stable URL surfaces.** The visible routes are `/join`, `/practice/recall`, `/practice/listen`, `/tutor/chat`, `/tutor/notebook`, `/library`, and `/library/topics`. Route-specific filters and state remain addressable through query parameters: invitation; language; practice scope, topic, count, and review; Tutor thread; and Library search, status, topic, sort, page, import, and editor. Navigation is `BASE_URL`-safe. Browser Back closes Settings, Import, and Card Editor before leaving the underlying surface; guarded editors do not discard unsaved work silently.
 
 ## Elevation & Depth
 

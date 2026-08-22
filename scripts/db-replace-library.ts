@@ -3,7 +3,7 @@ import path from "node:path";
 import { config } from "../server/config.js";
 import { openDatabase } from "../server/db/database.js";
 import { libraryReplacementSchema, replaceLibrary } from "../server/db/library-replacement.js";
-import { profileIds, type ProfileId } from "../server/profiles/manager.js";
+import { registeredProfilesFromDisk, type ProfileId } from "../server/profiles/manager.js";
 
 const argument = (name: string) => {
   const index = process.argv.indexOf(name);
@@ -13,11 +13,12 @@ const profile = argument("--profile") as ProfileId | undefined;
 const inputPath = argument("--input");
 const dryRun = process.argv.includes("--dry-run");
 
-if (!profile || !profileIds.includes(profile) || !inputPath || !path.isAbsolute(inputPath)) {
+const registeredProfile = registeredProfilesFromDisk(config.dataDir).find((candidate) => candidate.id === profile);
+if (!profile || !registeredProfile || !inputPath || !path.isAbsolute(inputPath)) {
   console.error("Usage: npm run db:replace-library -- --profile roman --input /absolute/path/import.json [--dry-run]");
   process.exit(1);
 }
-const databasePath = path.join(config.dataDir, "profiles", `${profile}.sqlite`);
+const databasePath = registeredProfile.databasePath;
 if (!fs.existsSync(databasePath)) throw new Error(`Profile database does not exist: ${profile}`);
 const input = libraryReplacementSchema.parse(JSON.parse(fs.readFileSync(inputPath, "utf8")));
 const db = openDatabase(databasePath);
