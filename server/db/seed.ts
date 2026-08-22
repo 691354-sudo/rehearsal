@@ -4,7 +4,7 @@ import { openDatabase } from "./database.js";
 import { RehearsalRepository } from "./repository.js";
 import { seedItems } from "../data/seed-content.js";
 import { config } from "../config.js";
-import { profileIds, type ProfileId } from "../profiles/manager.js";
+import { registeredProfilesFromDisk } from "../profiles/manager.js";
 
 export const seedDatabase = (repository: RehearsalRepository) => {
   const sourceFiles = [
@@ -51,11 +51,13 @@ export const seedDatabase = (repository: RehearsalRepository) => {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const profileFlagIndex = process.argv.indexOf("--profile");
   const profileArgument = profileFlagIndex >= 0 ? process.argv[profileFlagIndex + 1] : undefined;
-  if (!profileArgument || !profileIds.includes(profileArgument as ProfileId)) {
+  const registeredProfile = registeredProfilesFromDisk(config.dataDir)
+    .find((profile) => profile.id === profileArgument);
+  if (!profileArgument || !registeredProfile) {
     console.error("Usage: npm run db:seed -- --profile roman");
     process.exit(1);
   }
-  const databasePath = path.join(config.dataDir, "profiles", `${profileArgument}.sqlite`);
+  const databasePath = registeredProfile.databasePath;
   const db = openDatabase(databasePath);
   const repository = new RehearsalRepository(db);
   const count = seedDatabase(repository);

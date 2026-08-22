@@ -1,11 +1,10 @@
 import fs from "node:fs";
-import path from "node:path";
 import Database from "better-sqlite3";
 import { isLanguageCode } from "../contracts/api.js";
 import { config } from "../server/config.js";
 import { openDatabase } from "../server/db/database.js";
 import { RehearsalRepository } from "../server/db/repository.js";
-import { profileIds, type ProfileId } from "../server/profiles/manager.js";
+import { registeredProfilesFromDisk, type ProfileId } from "../server/profiles/manager.js";
 
 const argument = (name: string) => {
   const index = process.argv.indexOf(name);
@@ -17,7 +16,8 @@ const language = argument("--language");
 const enabledValue = argument("--enabled");
 const dryRun = process.argv.includes("--dry-run");
 
-if (!profile || !profileIds.includes(profile) || !isLanguageCode(language)
+const registeredProfile = registeredProfilesFromDisk(config.dataDir).find((candidate) => candidate.id === profile);
+if (!profile || !registeredProfile || !isLanguageCode(language)
   || !["true", "false"].includes(enabledValue || "")) {
   console.error(
     "Usage: npm run db:set-language -- --profile oliver --language vi --enabled true [--dry-run]",
@@ -26,7 +26,7 @@ if (!profile || !profileIds.includes(profile) || !isLanguageCode(language)
 }
 
 const enabled = enabledValue === "true";
-const databasePath = path.join(config.dataDir, "profiles", `${profile}.sqlite`);
+const databasePath = registeredProfile.databasePath;
 if (!fs.existsSync(databasePath)) throw new Error(`Profile database does not exist: ${profile}`);
 const db = dryRun ? new Database(databasePath, { readonly: true }) : openDatabase(databasePath);
 const repository = new RehearsalRepository(db);

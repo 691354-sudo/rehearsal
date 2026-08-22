@@ -4,7 +4,7 @@
 
 - React + Vite web client on port 4173.
 - Fastify API on port 8787.
-- Three isolated SQLite databases in `.data/profiles/roman.sqlite`, `.data/profiles/oliver.sqlite`, and `.data/profiles/zanna.sqlite`, all using WAL and FTS5.
+- One isolated SQLite database per registered profile, all using WAL and FTS5. Roman, Oliver, and Zanna keep their stable filenames; invited profiles use UUID filenames.
 - OpenAI is optional at startup. The API reports capability state via `/health` and `/api/config`.
 
 The Vite dev server proxies `/api` and `/health`. In production, Fastify serves `dist`; the installed PWA and API therefore share one origin and the same Vite deployment base path. Client requests go through one base-path helper, and separate client/API origins are not supported.
@@ -29,7 +29,7 @@ Styles follow the same ownership boundaries under `src/styles`. `base.css` owns 
 
 `server/app.ts` is only the Fastify composition root. Request parsing and responses are grouped by domain in `server/http`; SQL and business state never live in route modules. Persistence is split into `items`, `practice`, `reviews`, `tutor`, `library`, `capture`, `audio`, and `system` repositories under `server/db/repositories`. Services receive only the repository capabilities they use.
 
-`server/profiles` owns the fixed Roman/Oliver/Zanna registries and database lifecycle. A verified signed cookie binds every non-auth `/api` request to one profile context; the server then selects that profile's repository. Client input can never select a database path. Once a registry marks a profile ready, a missing database fails startup with a restore instruction; it is never silently recreated or copied. A first-ever base initialization creates Roman and Oliver as one set before publishing their backward-compatible registry; Zanna is then added through a resumable additive registry with a new empty database. `server/auth` owns PIN verification, login throttling, cookie sessions, logout, and CSRF enforcement.
+`server/profiles` owns the backward-compatible Roman/Oliver/Zanna registries, invited-profile registry, invitation registry, and database lifecycle. A verified signed cookie binds every non-auth `/api` request to one profile context; the server then selects that profile's repository. Client input can never select a database path. Once any registry marks a profile ready, a missing database fails startup with a restore instruction; it is never silently recreated or copied. Invitation tokens are stored only as hashes. Joining reserves a UUID profile, creates and verifies an empty database with only the selected language enabled, marks it ready, consumes the invitation, and establishes the new session. Interrupted `initializing` entries resume on startup. `server/auth` owns PIN verification, login/join throttling, cookie sessions, logout, and CSRF enforcement.
 
 Active `.ts` and `.tsx` files are limited to 450 lines and CSS files to 800 lines. `npm run check:architecture` enforces the boundary in CI. Generated-data exceptions require an explicit, documented allowlist entry; there are currently no exceptions.
 

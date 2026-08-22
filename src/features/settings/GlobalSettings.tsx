@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, LoaderCircle, Play, RefreshCw, X } from "lucide-react";
+import { Check, Copy, LoaderCircle, Play, RefreshCw, Share2, UserPlus, X } from "lucide-react";
 import { speedRangeForProvider } from "../../lib/playbackSettings";
 import { apiFetch } from "../../shared/api";
 import { capitalize, humanizeLabel } from "../../shared/config";
@@ -41,6 +41,8 @@ export function GlobalSettings(props: {
   const [playbackApplied, setPlaybackApplied] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<ElevenLabsVoiceStatus | null>(null);
   const [voiceStatusState, setVoiceStatusState] = useState<"idle" | "checking" | "ready" | "error">("idle");
+  const [inviteState, setInviteState] = useState<"idle" | "creating" | "ready" | "error" | "copied">("idle");
+  const [inviteUrl, setInviteUrl] = useState("");
   const selectedElevenLabsVoice = props.elevenLabs.voices.find(
     (voice) => voice.id === props.playback.elevenlabs.voiceId,
   ) || props.elevenLabs.voice;
@@ -196,6 +198,25 @@ export function GlobalSettings(props: {
     }
   };
 
+  const createInvite = async () => {
+    setInviteState("creating");
+    try {
+      const response = await apiFetch("/api/auth/invites", { method: "POST" });
+      if (!response.ok) throw new Error("Invitation failed");
+      const result = await response.json() as { token: string };
+      const relative = `${import.meta.env.BASE_URL}join?invite=${encodeURIComponent(result.token)}`;
+      setInviteUrl(new URL(relative, window.location.origin).toString());
+      setInviteState("ready");
+    } catch {
+      setInviteState("error");
+    }
+  };
+
+  const copyInvite = async () => {
+    await navigator.clipboard.writeText(inviteUrl);
+    setInviteState("copied");
+  };
+
   const activeVoice = voiceStatus?.reachable && voiceStatus.voice.id === selectedElevenLabsVoice.id ? voiceStatus.voice : {
     ...selectedElevenLabsVoice,
     category: "",
@@ -332,6 +353,26 @@ export function GlobalSettings(props: {
               {saveState === "saving" ? "Saving…" : "Save recall settings"}
             </button>
           </div>
+        </section>
+
+        <section className="simple-settings-section simple-invite-section">
+          <div className="simple-settings-section-title"><h3>Invite someone</h3></div>
+          <p>Create a one-time link for a new, empty profile. The link does not expire.</p>
+          {!inviteUrl ? <button className="simple-invite-create" disabled={inviteState === "creating"}
+            onClick={() => void createInvite()} type="button">
+            {inviteState === "creating" ? <LoaderCircle className="simple-spin" size={15} /> : <UserPlus size={15} />}
+            {inviteState === "creating" ? "Creating…" : "Create invitation"}
+          </button> : <div className="simple-invite-result">
+            <input aria-label="Invitation link" readOnly value={inviteUrl} />
+            <div>
+              <button onClick={() => void copyInvite()} type="button"><Copy size={14} />
+                {inviteState === "copied" ? "Copied" : "Copy"}</button>
+              {navigator.share ? <button onClick={() => void navigator.share({ title: "Join Rehearsal", url: inviteUrl })}
+                type="button"><Share2 size={14} />Share</button> : null}
+              <button onClick={() => { setInviteUrl(""); setInviteState("idle"); }} type="button">Create another</button>
+            </div>
+          </div>}
+          {inviteState === "error" ? <p className="simple-voice-error" role="alert">Couldn’t create an invitation.</p> : null}
         </section>
       </div>
     </section>

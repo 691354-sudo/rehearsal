@@ -2,14 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { config } from "../server/config.js";
-import { profileIds, type ProfileId } from "../server/profiles/manager.js";
+import { registeredProfilesFromDisk, type ProfileId } from "../server/profiles/manager.js";
 
 const profileFlagIndex = process.argv.indexOf("--profile");
 const profileArgument = profileFlagIndex >= 0 ? process.argv[profileFlagIndex + 1] : undefined;
 const sourceArgument = process.argv.find((argument, index) =>
   index > 1 && index !== profileFlagIndex && index !== profileFlagIndex + 1 && !argument.startsWith("--"));
 
-if (!profileArgument || !profileIds.includes(profileArgument as ProfileId) || !sourceArgument) {
+const registeredProfile = registeredProfilesFromDisk(config.dataDir)
+  .find((profile) => profile.id === profileArgument);
+if (!profileArgument || !registeredProfile || !sourceArgument) {
   console.error("Usage: CONFIRM_RESTORE=1 npm run db:restore -- --profile roman /absolute/path/to/backup.sqlite");
   process.exit(1);
 }
@@ -33,7 +35,7 @@ if (check[0]?.quick_check !== "ok") {
   process.exit(1);
 }
 
-const destination = path.join(config.dataDir, "profiles", `${profileId}.sqlite`);
+const destination = registeredProfile.databasePath;
 fs.mkdirSync(path.dirname(destination), { recursive: true });
 fs.mkdirSync(config.backupDir, { recursive: true });
 if (fs.existsSync(destination)) {

@@ -5,7 +5,7 @@ export type LearnerPersona = {
   context: string;
 };
 
-const personas: Record<ProfileId, LearnerPersona> = {
+const personas: Partial<Record<ProfileId, LearnerPersona>> = {
   roman: {
     name: "Roman",
     context:
@@ -31,4 +31,8 @@ export const genericLearnerPersona: LearnerPersona = {
   context: "The learner is a Russian-speaking adult. Do not invent personal facts that were not supplied in the conversation.",
 };
 
-export const learnerPersonaForProfile = (profileId: ProfileId) => personas[profileId];
+export const learnerPersonaForProfile = (profileId: ProfileId, name?: string): LearnerPersona => personas[profileId] || {
+  name: name || genericLearnerPersona.name,
+  context: `${name || "The learner"} is a Russian-speaking adult. `
+    + "Do not invent personal facts that were not supplied in the conversation.",
+};

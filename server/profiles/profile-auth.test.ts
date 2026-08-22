@@ -8,7 +8,7 @@ import { buildApp } from "../app.js";
 import { openDatabase } from "../db/database.js";
 import { RehearsalRepository } from "../db/repository.js";
 import { seedDatabase } from "../db/seed.js";
-import { ProfileManager, type ProfileId } from "./manager.js";
+import { ProfileManager, registeredProfilesFromDisk, type ProfileId } from "./manager.js";
 
 const pins = { roman: "1234", oliver: "5678", zanna: "2345" };
 const sessionSecret = "test-session-secret-with-more-than-thirty-two-bytes";
@@ -18,12 +18,12 @@ type LoginSession = { cookie: string; csrfToken: string };
 const cookieHeader = (response: InjectResponse) =>
   response.cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
 
-const login = async (app: FastifyInstance, profileId: ProfileId, pin = pins[profileId]) => {
+const login = async (app: FastifyInstance, profileId: ProfileId, pin?: string) => {
   const response = await app.inject({
     method: "POST",
     url: "/api/auth/login",
     headers: { "x-rehearsal-client": "web" },
-    payload: { profileId, pin },
+    payload: { profileId, pin: pin ?? pins[profileId as keyof typeof pins] ?? "" },
   });
   return {
     response,
@@ -265,6 +265,67 @@ describe("profile authentication and database isolation", () => {
     expect(zannaLogin.response.json().profile).toEqual({ id: "zanna", name: "Zanna" });
     expect(manager.get("zanna").repository.items.list("en", 500)).toEqual([]);
     expect(fs.existsSync(path.join(dataDir, "profiles", "additional-registry.json"))).toBe(true);
+  });
+
+  it("creates a one-time invitation and an empty language-isolated profile that survives restart", async () => {
+    const roman = (await login(app, "roman")).session!;
+    const invitation = await mutate(app, roman, { method: "POST", url: "/api/auth/invites" });
+    expect(invitation.statusCode).toBe(200);
+    const token = invitation.json().token as string;
+    expect(token).toMatch(/^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/);
+
+    const available = await app.inject({ method: "GET", url: `/api/auth/invites/${token}` });
+    expect(available.statusCode).toBe(200);
+    expect(available.json().available).toBe(true);
+    expect(available.json().languages.map((language: { code: string }) => language.code)).toEqual(["en", "lv", "vi"]);
+
+    const shortPin = await app.inject({
+      method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },
+      payload: { token, name: "Maya", pin: "123", language: "vi" },
+    });
+    expect(shortPin.statusCode).toBe(400);
+
+    const joined = await app.inject({
+      method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },
+      payload: { token, name: "Maya", pin: "246810", language: "vi" },
+    });
+    expect(joined.statusCode).toBe(200);
+    const profile = joined.json().profile as { id: string; name: string };
+    expect(profile.name).toBe("Maya");
+    expect(profile.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(joined.json().availableLanguages.map((language: { code: string }) => language.code)).toEqual(["vi"]);
+    expect(manager.get(profile.id).repository.system.stats().items).toEqual([]);
+    expect(manager.get(profile.id).repository.system.isLanguageEnabled("en")).toBe(false);
+    expect(manager.get(profile.id).repository.system.isLanguageEnabled("lv")).toBe(false);
+    expect(manager.get(profile.id).repository.system.isLanguageEnabled("vi")).toBe(true);
+
+    expect((await app.inject({ method: "GET", url: `/api/auth/invites/${token}` })).json().available).toBe(false);
+    const reused = await app.inject({
+      method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },
+      payload: { token, name: "Other", pin: "1234", language: "en" },
+    });
+    expect(reused.statusCode).toBe(410);
+    expect((await login(app, profile.id, "246810")).response.statusCode).toBe(200);
+    expect(registeredProfilesFromDisk(dataDir).map((candidate) => candidate.id)).toContain(profile.id);
+
+    await app.close();
+    manager.close();
+    manager = await ProfileManager.create({ dataDir, backupDir, legacyDatabasePath: legacyPath, pins });
+    app = await buildApp(manager, { sessionSecret, cookieSecure: true });
+    expect(manager.get(profile.id).repository.system.stats().items).toEqual([]);
+    expect((await login(app, profile.id, "246810")).response.statusCode).toBe(200);
+  });
+
+  it("keeps an invitation available when a case-insensitive profile name is rejected", async () => {
+    const roman = (await login(app, "roman")).session!;
+    const invitation = await mutate(app, roman, { method: "POST", url: "/api/auth/invites" });
+    const token = invitation.json().token as string;
+    const duplicate = await app.inject({
+      method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },
+      payload: { token, name: " roman ", pin: "1234", language: "en" },
+    });
+    expect(duplicate.statusCode).toBe(409);
+    expect((await app.inject({ method: "GET", url: `/api/auth/invites/${token}` })).json().available).toBe(true);
   });
 
   it("enables Vietnamese only for Oliver and preserves its data when disabled", async () => {

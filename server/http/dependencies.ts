@@ -32,9 +32,10 @@ const makeContext = (
   repository: RehearsalRepository,
   profileId: ProfileId | null,
   overrides: ServiceOverrides = {},
+  profileName?: string,
 ): HttpContext => {
   repository.library.runTopicBackfillMigration();
-  const learner = profileId ? learnerPersonaForProfile(profileId) : genericLearnerPersona;
+  const learner = profileId ? learnerPersonaForProfile(profileId, profileName) : genericLearnerPersona;
   const openai = overrides.openai || new OpenAIService(repository, learner);
   const elevenlabs = overrides.elevenlabs || new ElevenLabsService(repository);
   return {
@@ -59,7 +60,8 @@ export const createHttpDependencies = (
   const contextForProfile = (profileId: ProfileId) => {
     const existing = profileContexts.get(profileId);
     if (existing) return existing;
-    const context = makeContext(profiles!.get(profileId).repository, profileId);
+    const profile = profiles!.get(profileId);
+    const context = makeContext(profile.repository, profileId, overrides, profile.name);
     profileContexts.set(profileId, context);
     return context;
   };

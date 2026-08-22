@@ -55,10 +55,12 @@ Profile state lives only under the persistent data volume:
 - `/opt/apps/rehearsal/data/profiles/roman.sqlite`;
 - `/opt/apps/rehearsal/data/profiles/oliver.sqlite`;
 - `/opt/apps/rehearsal/data/profiles/zanna.sqlite`;
-- `/opt/apps/rehearsal/data/profiles/registry.json` and `additional-registry.json` (names, database paths, PIN salts and hashes);
+- UUID-named SQLite files for invited profiles;
+- `/opt/apps/rehearsal/data/profiles/registry.json`, `additional-registry.json`, and `invited-registry.json` (names, database paths, PIN salts and hashes);
+- `/opt/apps/rehearsal/data/profiles/profile-invites.json` (hashed one-time invitation state);
 - `/opt/apps/rehearsal/data/profiles/migration.json` (private migration evidence).
 
-On the first profile-aware start, the application creates Roman and Oliver as one set. If a legacy `rehearsal.sqlite` exists, it is archived and copied completely to both databases, followed by `quick_check` and counter comparison. Without legacy data, both empty databases are created before the registry is published. Zanna is added separately with a new empty database; the additive registry keeps rollback to the preceding two-profile release safe.
+On the first profile-aware start, the application creates Roman and Oliver as one set. If a legacy `rehearsal.sqlite` exists, it is archived and copied completely to both databases, followed by `quick_check` and counter comparison. Without legacy data, both empty databases are created before the registry is published. Zanna is added separately with a new empty database. Invited profiles are additive UUID entries, so rolling back to a version that predates invitations leaves existing fixed profiles available while the older release ignores the new registry.
 
 After a profile is marked ready in its registry, a missing database is a recovery incident: startup fails and names the profile that must be restored. The application never silently creates an empty replacement or copies legacy data into a missing initialized profile. A missing registry alongside existing profile databases also fails closed.
 
@@ -80,6 +82,7 @@ npm run db:backup
 CONFIRM_RESTORE=1 npm run db:restore -- --profile roman /absolute/path/to/roman-backup.sqlite
 CONFIRM_RESTORE=1 npm run db:restore -- --profile oliver /absolute/path/to/oliver-backup.sqlite
 CONFIRM_RESTORE=1 npm run db:restore -- --profile zanna /absolute/path/to/zanna-backup.sqlite
+CONFIRM_RESTORE=1 npm run db:restore -- --profile <invited-profile-uuid> /absolute/path/to/profile-backup.sqlite
 ```
 
 Stop the API before restore. Restore validates the candidate with SQLite `quick_check` and creates a safety copy of only the selected profile database before replacement. Never restore one profile's file into the other profile without an explicit data-recovery decision.

@@ -1,6 +1,6 @@
 # Rehearsal
 
-Private English, Latvian, and profile-enabled Vietnamese practice for Roman, Oliver, and Zanna. Each fixed PIN profile has its own SQLite database, Library, Tutor history, settings, review schedule, audio cache, and backups. The interface remains English; learning cards use Russian cues and the selected target language.
+Private English, Latvian, and profile-enabled Vietnamese practice. Every PIN profile has its own SQLite database, Library, Tutor history, settings, review schedule, audio cache, and backups. Existing learners can create a one-time invitation for a new empty profile; there is no open registration. The interface remains English; learning cards use Russian cues and the selected target language.
 
 The main loop is `Capture → Review → Library → Listen & Repeat → Recall → Learned`. Russian notes become reviewed target-language cards; FSRS schedules recall, while Listen & Repeat handles languages with an approved audio capability.
 

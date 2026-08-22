@@ -157,7 +157,7 @@ export type SchedulerSettings = {
 
 export type DailyProgress = { recall: number; shadow: number; pattern: number };
 
-export type ProfileId = "roman" | "oliver" | "zanna";
+export type ProfileId = string;
 export type ProfileSummary = { id: ProfileId; name: string };
 export type AuthSession = {
   profile: ProfileSummary;

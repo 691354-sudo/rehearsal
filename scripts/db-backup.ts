@@ -2,30 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { config } from "../server/config.js";
+import { registeredProfilesFromDisk } from "../server/profiles/manager.js";
 
 const stamp = new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
 const profileBackupDir = path.join(config.backupDir, "profiles");
 fs.mkdirSync(profileBackupDir, { recursive: true });
-const profilesDir = path.join(config.dataDir, "profiles");
-const baseRegistryPath = path.join(profilesDir, "registry.json");
-const additionalRegistryPath = path.join(profilesDir, "additional-registry.json");
-const additionalRegistry = fs.existsSync(additionalRegistryPath)
-  ? JSON.parse(fs.readFileSync(additionalRegistryPath, "utf8")) as {
-      state: "initializing" | "ready"; profile: { id: string };
-    }
-  : null;
-const registeredProfileIds = fs.existsSync(baseRegistryPath)
-  ? [
-      ...(JSON.parse(fs.readFileSync(baseRegistryPath, "utf8")) as { profiles: Array<{ id: string }> }).profiles,
-      ...(additionalRegistry?.state === "ready"
-        || (additionalRegistry && fs.existsSync(path.join(profilesDir, `${additionalRegistry.profile.id}.sqlite`)))
-        ? [additionalRegistry.profile]
-        : []),
-    ].map((profile) => profile.id)
-  : [];
-const profileSources = registeredProfileIds.map((profileId) => ({
-  profileId,
-  source: path.join(profilesDir, `${profileId}.sqlite`),
+const profileSources = registeredProfilesFromDisk(config.dataDir).map((profile) => ({
+  profileId: profile.id,
+  source: profile.databasePath,
 }));
 
 if (!profileSources.length) {

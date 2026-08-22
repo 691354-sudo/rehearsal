@@ -1,13 +1,29 @@
 import fs from "node:fs";
 import path from "node:path";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import Database from "better-sqlite3";
+import { languageCodes, type LanguageCode } from "../../contracts/api.js";
 import { openDatabase, type RehearsalDatabase } from "../db/database.js";
 import { RehearsalRepository } from "../db/repository.js";
+import {
+  createInviteToken,
+  finishPendingInvitedProfiles,
+  hashInvite,
+  initializeInvitedDatabase,
+  inviteAvailable,
+  readInvitations,
+  readInvitedProfiles,
+  saveInvitations,
+  saveInvitedProfiles,
+  type InvitationRegistry,
+  type InvitedProfileRecord,
+  type InvitedProfileRegistry,
+} from "./invited-profiles.js";
 
 const baseProfileIds = ["roman", "oliver"] as const;
 export const profileIds = [...baseProfileIds, "zanna"] as const;
-export type ProfileId = typeof profileIds[number];
+export type StaticProfileId = typeof profileIds[number];
+export type ProfileId = string;
 
 type ProfileRecord = {
   id: ProfileId;
@@ -40,14 +56,15 @@ export type ProfileManagerOptions = {
   dataDir: string;
   backupDir: string;
   legacyDatabasePath: string;
-  pins: Record<ProfileId, string>;
+  pins: Record<StaticProfileId, string>;
 };
 
 const pinPattern = /^\d{4,12}$/;
+const newPinPattern = /^\d{4,10}$/;
 const registryName = "registry.json";
 const additionalRegistryName = "additional-registry.json";
 const migrationReportName = "migration.json";
-const profileNames: Record<ProfileId, string> = { roman: "Roman", oliver: "Oliver", zanna: "Zanna" };
+const profileNames: Record<StaticProfileId, string> = { roman: "Roman", oliver: "Oliver", zanna: "Zanna" };
 
 const writePrivateJson = (destination: string, value: unknown) => {
   const temporary = `${destination}.${process.pid}.tmp`;
@@ -82,21 +99,21 @@ const assertHealthyCopy = (databasePath: string, expected: Record<string, number
   }
 };
 
-const createProfileRecord = (profilesDir: string, id: ProfileId, pin: string): ProfileRecord => {
+const createProfileRecord = (profilesDir: string, id: ProfileId, name: string, pin: string): ProfileRecord => {
   if (!pinPattern.test(pin)) throw new Error(`${id.toUpperCase()}_PROFILE_PIN must contain 4-12 digits`);
   const salt = randomBytes(16);
   return {
     id,
-    name: profileNames[id],
+    name,
     databasePath: path.join(profilesDir, `${id}.sqlite`),
     pinSalt: salt.toString("base64"),
     pinHash: scryptSync(pin, salt, 64).toString("base64"),
   };
 };
 
-const createRegistry = (profilesDir: string, pins: Record<ProfileId, string>): ProfileRegistry => ({
+const createRegistry = (profilesDir: string, pins: Record<StaticProfileId, string>): ProfileRegistry => ({
   version: 1,
-  profiles: baseProfileIds.map((id) => createProfileRecord(profilesDir, id, pins[id])),
+  profiles: baseProfileIds.map((id) => createProfileRecord(profilesDir, id, profileNames[id], pins[id])),
 });
 
 const readRegistry = (registryPath: string): ProfileRegistry => {
@@ -113,7 +130,7 @@ const readRegistry = (registryPath: string): ProfileRegistry => {
   return parsed;
 };
 
-const ensureAdditionalProfile = (profilesDir: string, pins: Record<ProfileId, string>) => {
+const ensureAdditionalProfile = (profilesDir: string, pins: Record<StaticProfileId, string>) => {
   const registryPath = path.join(profilesDir, additionalRegistryName);
   const databasePath = path.join(profilesDir, "zanna.sqlite");
   if (!fs.existsSync(registryPath)) {
@@ -123,7 +140,7 @@ const ensureAdditionalProfile = (profilesDir: string, pins: Record<ProfileId, st
     writePrivateJson(registryPath, {
       version: 1,
       state: "initializing",
-      profile: createProfileRecord(profilesDir, "zanna", pins.zanna),
+      profile: createProfileRecord(profilesDir, "zanna", profileNames.zanna, pins.zanna),
     } satisfies AdditionalProfileRegistry);
   }
 
@@ -145,6 +162,24 @@ const ensureAdditionalProfile = (profilesDir: string, pins: Record<ProfileId, st
     writePrivateJson(registryPath, parsed);
   }
   return parsed.profile;
+};
+
+const normalizeProfileName = (value: string) => value.trim().replace(/\s+/g, " ");
+
+export const registeredProfilesFromDisk = (dataDir: string) => {
+  const profilesDir = path.join(dataDir, "profiles");
+  const records: ProfileRecord[] = [];
+  const basePath = path.join(profilesDir, registryName);
+  if (fs.existsSync(basePath)) records.push(...readRegistry(basePath).profiles);
+  const additionalPath = path.join(profilesDir, additionalRegistryName);
+  if (fs.existsSync(additionalPath)) {
+    const additional = JSON.parse(fs.readFileSync(additionalPath, "utf8")) as AdditionalProfileRegistry;
+    if (additional.state === "ready" || fs.existsSync(additional.profile.databasePath)) records.push(additional.profile);
+  }
+  records.push(...readInvitedProfiles<ProfileRecord>(profilesDir).profiles
+    .filter((entry) => entry.state === "ready" || fs.existsSync(entry.profile.databasePath))
+    .map((entry) => entry.profile));
+  return records;
 };
 
 const initializeProfileDatabases = async (
@@ -220,10 +255,17 @@ const initializeProfileDatabases = async (
 
 export class ProfileManager {
   private readonly contexts = new Map<ProfileId, ProfileContext>();
+  private readonly records = new Map<ProfileId, ProfileRecord>();
 
-  private constructor(private readonly registry: ProfileRegistry) {
-    for (const profile of registry.profiles) {
+  private constructor(
+    profiles: ProfileRecord[],
+    private readonly profilesDir: string,
+    private readonly invitedRegistry: InvitedProfileRegistry<ProfileRecord>,
+    private readonly invitations: InvitationRegistry,
+  ) {
+    for (const profile of profiles) {
       const db = openDatabase(profile.databasePath);
+      this.records.set(profile.id, profile);
       this.contexts.set(profile.id, {
         id: profile.id,
         name: profile.name,
@@ -242,7 +284,7 @@ export class ProfileManager {
     const registryCreated = !fs.existsSync(registryPath);
     let registry: ProfileRegistry;
     if (registryCreated) {
-      const existingProfileFiles = profileIds.filter((id) => fs.existsSync(path.join(profilesDir, `${id}.sqlite`)));
+      const existingProfileFiles = fs.readdirSync(profilesDir).filter((name) => name.endsWith(".sqlite"));
       if (existingProfileFiles.length) {
         throw new Error("Profile registry is missing while profile databases exist; restore registry.json before starting");
       }
@@ -260,20 +302,38 @@ export class ProfileManager {
       await initializeProfileDatabases(options, registry, false);
     }
     const additionalProfile = ensureAdditionalProfile(profilesDir, options.pins);
-    return new ProfileManager({ version: 1, profiles: [...registry.profiles, additionalProfile] });
+    const invitedRegistry = readInvitedProfiles<ProfileRecord>(profilesDir);
+    finishPendingInvitedProfiles(profilesDir, invitedRegistry);
+    const invitations = readInvitations(profilesDir);
+    let invitationsChanged = false;
+    for (const entry of invitedRegistry.profiles.filter((candidate) => candidate.state === "ready")) {
+      const invitation = invitations.invitations.find((candidate) => candidate.hash === entry.invitationHash);
+      if (invitation && !invitation.usedAt) {
+        invitation.usedAt = new Date().toISOString();
+        invitation.usedByProfileId = entry.profile.id;
+        invitationsChanged = true;
+      }
+    }
+    if (invitationsChanged) saveInvitations(profilesDir, invitations);
+    return new ProfileManager(
+      [...registry.profiles, additionalProfile, ...invitedRegistry.profiles.map((entry) => entry.profile)],
+      profilesDir,
+      invitedRegistry,
+      invitations,
+    );
   }
 
   listProfiles() {
-    return this.registry.profiles.map(({ id, name }) => ({ id, name }));
+    return [...this.records.values()].map(({ id, name }) => ({ id, name }));
   }
 
   hasProfile(value: string): value is ProfileId {
-    return profileIds.includes(value as ProfileId);
+    return this.records.has(value);
   }
 
   verifyPin(profileId: ProfileId, pin: string) {
     if (!pinPattern.test(pin)) return false;
-    const profile = this.registry.profiles.find((candidate) => candidate.id === profileId);
+    const profile = this.records.get(profileId);
     if (!profile) return false;
     const actual = scryptSync(pin, Buffer.from(profile.pinSalt, "base64"), 64);
     const expected = Buffer.from(profile.pinHash, "base64");
@@ -286,8 +346,69 @@ export class ProfileManager {
     return context;
   }
 
+  createInvite(createdByProfileId: ProfileId) {
+    if (!this.hasProfile(createdByProfileId)) throw new Error("Profile is unavailable");
+    const token = createInviteToken(this.invitations);
+    this.invitations.invitations.push({
+      hash: hashInvite(token),
+      createdAt: new Date().toISOString(),
+      createdByProfileId,
+      usedAt: null,
+      usedByProfileId: null,
+    });
+    saveInvitations(this.profilesDir, this.invitations);
+    return token;
+  }
+
+  inviteAvailable(token: string) {
+    return inviteAvailable(this.invitations, token);
+  }
+
+  createInvitedProfile(input: { token: string; name: string; pin: string; language: LanguageCode }) {
+    if (!this.inviteAvailable(input.token)) throw new Error("INVITATION_UNAVAILABLE");
+    const name = normalizeProfileName(input.name);
+    if (name.length < 1 || name.length > 40) throw new Error("INVALID_PROFILE_NAME");
+    if ([...this.records.values()].some((profile) => profile.name.localeCompare(name, undefined, { sensitivity: "base" }) === 0)) {
+      throw new Error("PROFILE_NAME_TAKEN");
+    }
+    if (!newPinPattern.test(input.pin)) throw new Error("INVALID_NEW_PROFILE_PIN");
+    if (!languageCodes.includes(input.language)) throw new Error("INVALID_PROFILE_LANGUAGE");
+
+    const id = randomUUID();
+    const hash = hashInvite(input.token);
+    const profile = createProfileRecord(this.profilesDir, id, name, input.pin);
+    const entry: InvitedProfileRecord<ProfileRecord> = {
+      state: "initializing",
+      language: input.language,
+      invitationHash: hash,
+      profile,
+    };
+    this.invitedRegistry.profiles.push(entry);
+    saveInvitedProfiles(this.profilesDir, this.invitedRegistry);
+    initializeInvitedDatabase(entry);
+    entry.state = "ready";
+    saveInvitedProfiles(this.profilesDir, this.invitedRegistry);
+
+    const invitation = this.invitations.invitations.find((candidate) => candidate.hash === hash && !candidate.usedAt);
+    if (!invitation) throw new Error("INVITATION_UNAVAILABLE");
+    invitation.usedAt = new Date().toISOString();
+    invitation.usedByProfileId = id;
+    saveInvitations(this.profilesDir, this.invitations);
+
+    const db = openDatabase(profile.databasePath);
+    this.records.set(id, profile);
+    this.contexts.set(id, {
+      id,
+      name,
+      databasePath: profile.databasePath,
+      db,
+      repository: new RehearsalRepository(db),
+    });
+    return { id, name };
+  }
+
   health() {
-    return profileIds.map((id) => ({ id, ok: this.get(id).repository.system.quickCheck() }));
+    return [...this.contexts].map(([id, context]) => ({ id, ok: context.repository.system.quickCheck() }));
   }
 
   close() {

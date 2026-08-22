@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { LoaderCircle, LockKeyhole } from "lucide-react";
-import { languageCatalog, type AuthSession, type LanguageOption, type ProfileId, type ProfileSummary } from "../../../contracts/api";
+import {
+  languageCatalog,
+  type AuthSession,
+  type LanguageCode,
+  type LanguageOption,
+  type ProfileId,
+  type ProfileSummary,
+} from "../../../contracts/api";
 import { RehearsalApp } from "../../app/RehearsalApp";
 import { apiFetch, setCsrfToken } from "../../shared/api";
 
 export function ProfileGate() {
+  const invitationToken = new URLSearchParams(window.location.search).get("invite")?.trim() || "";
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [availableLanguages, setAvailableLanguages] = useState<LanguageOption[]>([]);
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
@@ -14,6 +22,10 @@ export function ProfileGate() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const pinRef = useRef<HTMLInputElement>(null);
+  const [joinLanguages, setJoinLanguages] = useState<LanguageOption[]>([]);
+  const [joinAvailable, setJoinAvailable] = useState<boolean | null>(invitationToken ? null : false);
+  const [joinName, setJoinName] = useState("");
+  const [joinLanguage, setJoinLanguage] = useState<LanguageCode>("en");
   const applySession = (session: AuthSession) => {
     setCsrfToken(session.csrfToken);
     setProfile(session.profile);
@@ -32,6 +44,15 @@ export function ProfileGate() {
   useEffect(() => {
     void (async () => {
       try {
+        if (invitationToken) {
+          const response = await apiFetch(`/api/auth/invites/${encodeURIComponent(invitationToken)}`);
+          if (!response.ok) throw new Error("Invitation unavailable");
+          const result = await response.json() as { available: boolean; languages: LanguageOption[] };
+          setJoinAvailable(result.available);
+          setJoinLanguages(result.languages);
+          if (result.languages[0]) setJoinLanguage(result.languages[0].code);
+          return;
+        }
         const response = await apiFetch("/api/auth/session");
         if (response.ok) {
           const session = await response.json() as AuthSession;
@@ -46,6 +67,45 @@ export function ProfileGate() {
       }
     })();
   }, []);
+
+  const join = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = joinName.trim().replace(/\s+/g, " ");
+    if (!name || name.length > 40) {
+      setError("Enter a name with up to 40 characters.");
+      return;
+    }
+    if (!/^\d{4,10}$/.test(pin)) {
+      setError("Choose a PIN with 4–10 digits.");
+      pinRef.current?.focus();
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      const response = await apiFetch("/api/auth/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: invitationToken, name, pin, language: joinLanguage }),
+      });
+      if (!response.ok) {
+        const message = response.status === 409 ? "That profile name is already in use."
+          : response.status === 410 ? "This invitation has already been used."
+            : response.status === 429 ? "Too many attempts. Try again in 15 minutes."
+              : "Could not create the profile.";
+        setError(message);
+        return;
+      }
+      const session = await response.json() as AuthSession;
+      window.history.replaceState(null, "", `${import.meta.env.BASE_URL}practice/recall?lang=${joinLanguage}`);
+      applySession(session);
+      setPin("");
+    } catch {
+      setError("Could not create the profile.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -94,6 +154,36 @@ export function ProfileGate() {
   if (loading) return <main className="profile-gate"><LoaderCircle className="simple-spin" size={24} /><span>Opening Rehearsal…</span></main>;
   if (profile) return <RehearsalApp availableLanguages={availableLanguages} key={profile.id}
     onSwitchProfile={() => void switchProfile()} profile={profile} />;
+
+  if (invitationToken) return <main className="profile-gate" id="main-content">
+    <section className="profile-card profile-card--join">
+      <div className="profile-mark">R</div>
+      {joinAvailable ? <>
+        <header><span>Rehearsal</span><h1>Create your profile</h1><p>Your cards, Tutor history, and settings will start empty.</p></header>
+        <form className="profile-join-form" noValidate onSubmit={join}>
+          <label htmlFor="join-name">Name</label>
+          <input autoComplete="name" id="join-name" maxLength={40} onChange={(event) => {
+            setJoinName(event.target.value); setError("");
+          }} placeholder="Your name" value={joinName} />
+          <label htmlFor="join-language">Learning language</label>
+          <select id="join-language" onChange={(event) => setJoinLanguage(event.target.value as LanguageCode)} value={joinLanguage}>
+            {joinLanguages.map((language) => <option key={language.code} value={language.code}>{language.label}</option>)}
+          </select>
+          <label htmlFor="join-pin">PIN</label>
+          <div className="profile-pin"><LockKeyhole size={18} /><input aria-describedby={error ? "join-error" : undefined}
+            aria-invalid={Boolean(error)} autoComplete="new-password" id="join-pin" inputMode="numeric" maxLength={10}
+            minLength={4} onChange={(event) => { setPin(event.target.value.replace(/\D/g, "")); setError(""); }}
+            pattern="[0-9]{4,10}" placeholder="4–10 digits" ref={pinRef} type="password" value={pin} /></div>
+          <small>Use this PIN when you return to Rehearsal.</small>
+          {error ? <p className="profile-error" id="join-error" role="alert">{error}</p> : null}
+          <button className="profile-submit" disabled={submitting} type="submit">
+            {submitting ? <LoaderCircle className="simple-spin" size={17} /> : null}Create profile
+          </button>
+        </form>
+      </> : <header><span>Rehearsal</span><h1>Invitation unavailable</h1>
+        <p>This link has already been used or is not valid. Ask for a new invitation.</p></header>}
+    </section>
+  </main>;
 
   return <main className="profile-gate" id="main-content">
     <section className="profile-card">
