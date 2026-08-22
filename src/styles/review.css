@@ -333,18 +333,12 @@
   gap: 4px;
 }
 
-.simple-review-cue,
-.simple-review-meta {
+.simple-review-cue {
   margin: 0;
   color: var(--script-support);
   font-size: 15px;
   font-weight: 400;
   line-height: 1.4;
-}
-
-.simple-review-meta {
-  color: var(--script-tertiary);
-  font-size: 13px;
 }
 
 .simple-app .simple-review-adjust-toggle {

@@ -17,6 +17,8 @@ body,
   --ink-support: #655e57;
   --ink-faint: #8c857c;
   --accent: #a4573b;
+  --rh-accent: #a4573b;
+  --rh-text: var(--ink);
   --accent-hover: #8e4930;
   --accent-wash: #efe0d7;
   --on-accent: #fff9f4;
@@ -40,6 +42,8 @@ body,
   --ink-support: #aba7a2;
   --ink-faint: #847f7a;
   --accent: #c9825f;
+  --rh-accent: #a4573b;
+  --rh-text: var(--ink);
   --accent-hover: #d9926e;
   --accent-wash: #3b2e28;
   --on-accent: #1e1512;
@@ -220,7 +224,7 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 
 .simple-brand {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   width: max-content;
   min-height: 40px;
@@ -230,22 +234,38 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   border: 0;
 }
 
-.simple-brand > span {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  color: var(--cue-on);
-  font-size: 13px;
-  font-weight: 700;
-  background: var(--cue-action);
-  border-radius: 7px;
+.simple-brand strong {
+  color: var(--rh-text);
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.035em;
 }
 
-.simple-brand strong {
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+.echo-mark {
+  display: block;
+  width: 15px;
+  height: 20px;
+  flex: none;
+  color: var(--rh-accent);
+  overflow: visible;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.6px;
+  transform: translateY(-0.5px);
+}
+
+.echo-lockup {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  width: max-content;
+  color: var(--rh-text);
+}
+
+.echo-lockup strong {
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.035em;
 }
 
 .simple-brand-route,

@@ -8,6 +8,7 @@ import { useLearningData } from "../features/practice/useLearningData";
 import { GlobalSettings } from "../features/settings/GlobalSettings";
 import { TutorPage } from "../features/tutor/TutorPage";
 import { useAppRoute } from "../hooks/useAppRoute";
+import { EchoMark } from "./EchoBrand";
 import {
   defaultLibraryRoute,
   defaultPracticeRoute,
@@ -138,8 +139,8 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
     <a className="simple-skip-link" href="#main-content">Skip to Main Content</a>
     <header className="simple-header">
       <div className="simple-header-rail">
-      <AppLink className="simple-brand" route={practiceRoute()}><span>R</span>
-        <strong className="simple-brand-product">Rehearsal</strong><strong className="simple-brand-route">{sectionLabel}</strong></AppLink>
+      <AppLink className="simple-brand" route={practiceRoute()}><EchoMark />
+        <strong className="simple-brand-product">Echo</strong><strong className="simple-brand-route">{sectionLabel}</strong></AppLink>
       <nav className="simple-nav" aria-label="Main navigation">
         <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>Practice</AppLink>
         <AppLink aria-current={route.section === "tutor" ? "page" : undefined} className={route.section === "tutor" ? "is-active" : ""} route={defaultTutorRoute(language)}>Tutor</AppLink>

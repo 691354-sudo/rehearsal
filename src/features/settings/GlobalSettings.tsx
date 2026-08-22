@@ -365,7 +365,7 @@ export function GlobalSettings(props: {
             <div>
               <button onClick={() => void copyInvite()} type="button"><Copy size={14} />
                 {inviteState === "copied" ? "Copied" : "Copy"}</button>
-              {navigator.share ? <button onClick={() => void navigator.share({ title: "Join Rehearsal", url: inviteUrl })}
+              {navigator.share ? <button onClick={() => void navigator.share({ title: "Join Echo", url: inviteUrl })}
                 type="button"><Share2 size={14} />Share</button> : null}
               <button onClick={() => { setInviteUrl(""); setInviteState("idle"); }} type="button">Create another</button>
             </div>

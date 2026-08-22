@@ -262,7 +262,7 @@ export function ListenRepeat(props: {
     if ("mediaSession" in navigator && "MediaMetadata" in window) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: item.target,
-        artist: "Rehearsal · Listen & Repeat",
+        artist: "Echo · Listen & Repeat",
         album: languageCopy[props.language].label,
       });
     }

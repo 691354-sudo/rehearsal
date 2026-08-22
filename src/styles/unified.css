@@ -382,15 +382,6 @@
   align-content: start;
 }
 
-.simple-row-topic {
-  max-width: 22ch;
-  overflow: hidden;
-  color: var(--script-support);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .simple-phrase-row:hover .simple-row-actions,
 .simple-phrase-row:focus-within .simple-row-actions {
   opacity: 1;

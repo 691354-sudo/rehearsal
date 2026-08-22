@@ -17,8 +17,8 @@ export default defineConfig({
       injectRegister: null,
       manifest: {
         id: base,
-        name: "Rehearsal",
-        short_name: "Rehearsal",
+        name: "Echo",
+        short_name: "Echo",
         description: "Personal sentence practice for English, Latvian, and Vietnamese",
         start_url: base,
         scope: base,

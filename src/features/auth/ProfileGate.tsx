@@ -9,6 +9,7 @@ import {
   type ProfileSummary,
 } from "../../../contracts/api";
 import { RehearsalApp } from "../../app/RehearsalApp";
+import { EchoLockup } from "../../app/EchoBrand";
 import { apiFetch, setCsrfToken } from "../../shared/api";
 
 export function ProfileGate() {
@@ -61,7 +62,7 @@ export function ProfileGate() {
         }
         await loadProfiles();
       } catch {
-        setError("Rehearsal is unavailable right now.");
+        setError("Echo is unavailable right now.");
       } finally {
         setLoading(false);
       }
@@ -151,15 +152,15 @@ export function ProfileGate() {
     }
   };
 
-  if (loading) return <main className="profile-gate"><LoaderCircle className="simple-spin" size={24} /><span>Opening Rehearsal…</span></main>;
+  if (loading) return <main className="profile-gate"><LoaderCircle className="simple-spin" size={24} /><span>Opening Echo…</span></main>;
   if (profile) return <RehearsalApp availableLanguages={availableLanguages} key={profile.id}
     onSwitchProfile={() => void switchProfile()} profile={profile} />;
 
   if (invitationToken) return <main className="profile-gate" id="main-content">
     <section className="profile-card profile-card--join">
-      <div className="profile-mark">R</div>
+      <EchoLockup className="profile-echo-lockup" />
       {joinAvailable ? <>
-        <header><span>Rehearsal</span><h1>Create your profile</h1><p>Your cards, Tutor history, and settings will start empty.</p></header>
+        <header><span>Say it until it’s yours.</span><h1>Create your profile</h1><p>Your cards, Tutor history, and settings will start empty.</p></header>
         <form className="profile-join-form" noValidate onSubmit={join}>
           <label htmlFor="join-name">Name</label>
           <input autoComplete="name" id="join-name" maxLength={40} onChange={(event) => {
@@ -174,21 +175,21 @@ export function ProfileGate() {
             aria-invalid={Boolean(error)} autoComplete="new-password" id="join-pin" inputMode="numeric" maxLength={10}
             minLength={4} onChange={(event) => { setPin(event.target.value.replace(/\D/g, "")); setError(""); }}
             pattern="[0-9]{4,10}" placeholder="4–10 digits" ref={pinRef} type="password" value={pin} /></div>
-          <small>Use this PIN when you return to Rehearsal.</small>
+          <small>Use this PIN when you return to Echo.</small>
           {error ? <p className="profile-error" id="join-error" role="alert">{error}</p> : null}
           <button className="profile-submit" disabled={submitting} type="submit">
             {submitting ? <LoaderCircle className="simple-spin" size={17} /> : null}Create profile
           </button>
         </form>
-      </> : <header><span>Rehearsal</span><h1>Invitation unavailable</h1>
+      </> : <header><span>Say it until it’s yours.</span><h1>Invitation unavailable</h1>
         <p>This link has already been used or is not valid. Ask for a new invitation.</p></header>}
     </section>
   </main>;
 
   return <main className="profile-gate" id="main-content">
     <section className="profile-card">
-      <div className="profile-mark">R</div>
-      <header><span>Rehearsal</span><h1>Choose your profile</h1><p>Your practice, Tutor history, and settings stay separate.</p></header>
+      <EchoLockup className="profile-echo-lockup" />
+      <header><span>Say it until it’s yours.</span><h1>Choose your profile</h1><p>Your practice, Tutor history, and settings stay separate.</p></header>
       <div className="profile-options" role="group" aria-label="Profiles">
         {profiles.map((candidate) => <button className={selected === candidate.id ? "is-active" : ""}
           key={candidate.id} onClick={() => { setSelected(candidate.id); setError(""); }} type="button">

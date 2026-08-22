@@ -1,5 +1,5 @@
 ---
-name: Rehearsal
+name: Echo
 description: "A calm, sentence-led practice workspace in Warm Stone and Graphite Haze."
 colors:
   warm-stone-canvas: "#ece7df"
@@ -62,11 +62,11 @@ spacing:
   region: "32px"
 ---
 
-# Design System: Rehearsal
+# Design System: Echo
 
 ## Overview
 
-**Creative North Star — The Rehearsal Desk.** Rehearsal should feel like one quiet, well-arranged working surface: the sentence is the material, controls are tools placed around it, and the interface never competes for attention.
+**Creative North Star — The Echo Desk.** Echo should feel like one quiet, well-arranged working surface: the sentence is the material, controls are tools placed around it, and the interface never competes for attention.
 
 **The Sentence Leads Rule.** In Practice, Library, Topics, Chat, and Notebook, the user's sentence or thought receives the strongest type and the clearest position. Metadata, translation, scheduling, and controls remain visibly secondary.
 
