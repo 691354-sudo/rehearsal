@@ -105,6 +105,45 @@
   color: var(--cue-light);
 }
 
+.simple-message[data-status="sending"] {
+  opacity: 0.72;
+}
+
+.simple-message-status,
+.simple-message-failed > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--script-tertiary);
+  font-size: 11px;
+}
+
+.simple-message-failed {
+  margin-top: 8px;
+}
+
+.simple-message-failed > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.simple-message-failed button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  color: var(--script-secondary);
+  background: transparent;
+  border: 1px solid var(--script-rule);
+  border-radius: 7px;
+}
+
+.simple-message-failed button:first-child {
+  color: var(--retry);
+}
+
 .simple-chat-loading {
   display: flex;
   gap: 8px;

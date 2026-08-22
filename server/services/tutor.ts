@@ -71,6 +71,12 @@ type TutorRepositories = Pick<RehearsalRepository, "items" | "practice" | "tutor
 
 export class TutorService {
   private readonly client: OpenAI | null;
+  private readonly inFlight = new Map<string, Promise<{
+    threadId: string;
+    content: string;
+    mode: "setup" | "openai";
+    toolCalls: Array<{ name: string; result: unknown }>;
+  }>>();
 
   constructor(
     private readonly repository: TutorRepositories,
@@ -79,15 +85,34 @@ export class TutorService {
     this.client = openaiService.configured ? new OpenAI({ apiKey: config.openaiApiKey }) : null;
   }
 
-  async chat(input: { language: LanguageCode; message: string; threadPublicId?: string }) {
-    const thread = this.repository.tutor.getOrCreateThread(input.threadPublicId, input.language);
-    this.repository.tutor.addMessage(thread.id, "user", input.message);
-    this.repository.tutor.ensureThreadTitle(thread.id, input.message);
+  async chat(input: { language: LanguageCode; message: string; threadPublicId?: string; clientMessageId: string }) {
+    const message = this.repository.tutor.getOrCreateClientMessage({
+      clientMessageId: input.clientMessageId,
+      content: input.message,
+      language: input.language,
+      threadPublicId: input.threadPublicId,
+    });
+    const completed = this.repository.tutor.getCompletedClientExchange(input.clientMessageId);
+    if (completed) return completed;
+    const running = this.inFlight.get(input.clientMessageId);
+    if (running) return running;
+    const request = this.createReply(input, { id: message.thread_id, publicId: message.thread_public_id });
+    this.inFlight.set(input.clientMessageId, request);
+    try { return await request; }
+    finally { this.inFlight.delete(input.clientMessageId); }
+  }
+
+  private async createReply(
+    input: { language: LanguageCode; message: string; clientMessageId: string },
+    thread: { id: number; publicId: string },
+  ) {
 
     if (!this.client) {
       const content =
         "The backend and database are ready, but OpenAI is not connected yet. Add OPENAI_API_KEY to .env and restart the app to enable Tutor replies and read-only Library search.";
-      this.repository.tutor.addMessage(thread.id, "assistant", content, { mode: "setup" });
+      this.repository.tutor.addMessage(thread.id, "assistant", content, {
+        clientMessageId: input.clientMessageId, mode: "setup",
+      });
       return { threadId: thread.publicId, content, mode: "setup" as const, toolCalls: [] };
     }
 
@@ -139,6 +164,8 @@ export class TutorService {
 
     const content = response.output_text.trim() || "Done.";
     this.repository.tutor.addMessage(thread.id, "assistant", content, {
+      clientMessageId: input.clientMessageId,
+      mode: "openai",
       responseId: response.id,
       model,
       toolCalls: toolCalls.map((call) => call.name),

@@ -70,6 +70,8 @@ Tutor behaves like a normal ChatGPT conversation or role-play. It does not inter
 
 Tutor Chat accepts either typed messages or a voice message. A voice message records after an explicit microphone action, is transcribed on the server, and sends the transcript immediately. A failed transcription keeps the recording available in the current page for Retry or Delete rather than silently discarding it.
 
+Pressing Enter clears the composer immediately, puts the learner's message into the conversation with a sending state, and shows a Tutor placeholder. If delivery fails, the message remains in the conversation with explicit Retry, Edit, and Delete actions; its text is never silently returned to the composer. Retry reuses the same delivery identity and cannot create a duplicate Tutor message or vocabulary review batch.
+
 ## Approval boundary
 
 LLM output never enters Library automatically. Tutor conversation review, pasted vocabulary, imported text, pattern drills, and Capture Reality all produce a review batch. Ordinary review candidates start unselected; Capture Reality selects active candidates by default so the notebook remains a batch workflow rather than a one-by-one import. The learner may edit, regenerate, change context, exclude, select, or revise a whole capture package. Only the final add action writes cards to Library, atomically.

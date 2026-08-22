@@ -23,10 +23,11 @@ describe("Tutor and review API", () => {
     const openai = new OpenAIService(context.repository);
     vi.spyOn(openai, "configured", "get").mockReturnValue(false);
     const app = await buildApp(context.repository, { openai });
+    const clientMessageId = "18bbd3da-6538-4f2d-b501-91a934b0bf61";
     const response = await app.inject({
       method: "POST",
       url: "/api/chat",
-      payload: { language: "en", message: "Help me practice small talk", threadId: null },
+      payload: { language: "en", message: "Help me practice small talk", threadId: null, clientMessageId },
     });
     expect(response.json()).toMatchObject({ mode: "setup" });
     const threadId = response.json().threadId as string;
@@ -34,10 +35,87 @@ describe("Tutor and review API", () => {
     expect(threads.json().threads).toEqual([
       expect.objectContaining({ publicId: threadId, title: "Help me practice small talk", messageCount: 2 }),
     ]);
+    const retried = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      payload: { language: "en", message: "Help me practice small talk", threadId: null, clientMessageId },
+    });
+    expect(retried.json()).toMatchObject({ threadId, content: response.json().content, mode: "setup" });
     const history = await app.inject({ method: "GET", url: `/api/chat/${threadId}/messages` });
+    expect(history.json().messages).toHaveLength(2);
     expect(history.json().messages[0]).toEqual({ role: "user", content: "Help me practice small talk" });
     expect((await app.inject({ method: "DELETE", url: `/api/chat/${threadId}` })).statusCode).toBe(204);
     expect((await app.inject({ method: "GET", url: "/api/chat/threads?language=en" })).json().threads).toEqual([]);
+    await app.close();
+  });
+
+  it("requires an idempotency key and rejects reusing it for different content", async () => {
+    const openai = new OpenAIService(context.repository);
+    vi.spyOn(openai, "configured", "get").mockReturnValue(false);
+    const app = await buildApp(context.repository, { openai });
+    const missing = await app.inject({
+      method: "POST", url: "/api/chat", payload: { language: "en", message: "First" },
+    });
+    expect(missing.statusCode).toBe(400);
+
+    const clientMessageId = "bbf405bf-a111-4431-89c8-c983b1954343";
+    expect((await app.inject({
+      method: "POST", url: "/api/chat",
+      payload: { language: "en", message: "First", clientMessageId },
+    })).statusCode).toBe(200);
+    const conflict = await app.inject({
+      method: "POST", url: "/api/chat",
+      payload: { language: "en", message: "Changed", clientMessageId },
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json()).toEqual({ error: "CLIENT_MESSAGE_ID_CONFLICT" });
+    await app.close();
+  });
+
+  it("reuses one Tutor result for parallel requests with the same client message id", async () => {
+    const openai = new OpenAIService(context.repository);
+    vi.spyOn(openai, "configured", "get").mockReturnValue(false);
+    const app = await buildApp(context.repository, { openai });
+    const payload = {
+      language: "en",
+      message: "Practise this once",
+      clientMessageId: "f5d5b77a-7f52-41bb-9800-09693c0cb5c5",
+    };
+    const [first, second] = await Promise.all([
+      app.inject({ method: "POST", url: "/api/chat", payload }),
+      app.inject({ method: "POST", url: "/api/chat", payload }),
+    ]);
+    expect(second.json()).toMatchObject({ threadId: first.json().threadId, content: first.json().content });
+    expect(context.repository.tutor.listThreads("en", 50)[0]).toMatchObject({ messageCount: 2 });
+    await app.close();
+  });
+
+  it("does not duplicate a vocabulary source or review batch when a send is retried", async () => {
+    const openai = new OpenAIService(context.repository);
+    vi.spyOn(openai, "configured", "get").mockReturnValue(false);
+    const app = await buildApp(context.repository, { openai });
+    const beforeSources = (context.db.prepare("SELECT COUNT(*) AS count FROM sources").get() as { count: number }).count;
+    const beforeBatches = (context.db.prepare("SELECT COUNT(*) AS count FROM review_batches").get() as { count: number }).count;
+    const payload = {
+      language: "en",
+      title: "Vocabulary from Tutor",
+      text: "pull through\nbounce back\nfigure out\nturn down\nlook into",
+      clientMessageId: "d81acc22-ae19-43c4-b84f-a4523e620da7",
+    };
+
+    const first = await app.inject({ method: "POST", url: "/api/review-batches/vocab", payload });
+    const retried = await app.inject({ method: "POST", url: "/api/review-batches/vocab", payload });
+
+    expect(retried.json()).toMatchObject({
+      threadId: first.json().threadId,
+      content: first.json().content,
+      batch: { publicId: first.json().batch.publicId },
+    });
+    expect((context.db.prepare("SELECT COUNT(*) AS count FROM sources").get() as { count: number }).count)
+      .toBe(beforeSources + 1);
+    expect((context.db.prepare("SELECT COUNT(*) AS count FROM review_batches").get() as { count: number }).count)
+      .toBe(beforeBatches + 1);
+    expect(context.repository.tutor.listThreads("en", 50)[0]).toMatchObject({ messageCount: 2 });
     await app.close();
   });
 

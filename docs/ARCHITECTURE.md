@@ -99,6 +99,8 @@ Topic APIs are `GET /api/islands`, `GET /api/islands/:id`, `POST /api/islands`, 
 
 Tutor history uses `GET /api/chat/threads`, `GET /api/chat/:threadId/messages`, and `DELETE /api/chat/:threadId`. Deleting a thread cascades to its messages inside the profile database. Loaded history is positioned immediately; smooth scrolling is reserved for new messages and newly prepared review content.
 
+`POST /api/chat` and Tutor vocabulary ingestion require a client-generated UUID. `chat_messages.client_message_id` stores it behind a partial unique index; the server returns the completed exchange for a repeated UUID and rejects reuse with different content, language, or thread. Concurrent chat requests share one in-flight provider call. Vocabulary source and batch IDs derive from the same UUID, so a retry cannot duplicate either artifact. A transcribed voice message enters this identical optimistic and idempotent send path.
+
 The Tutor composer has its own upward resize handle at the right edge; the textarea has no fixed maximum height. On narrow layouts the chat fills the space between the app header and bottom navigation, and a larger composer expands upward before the page itself grows.
 
 The server stores only individual provider MP3 responses; it does not assemble continuous tracks and has no FFmpeg runtime dependency. Listen & Repeat updates Media Session metadata for the current card and registers Play, Pause, Previous, Next, and Stop handlers when the browser exposes that API.
