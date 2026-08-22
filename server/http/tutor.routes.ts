@@ -213,4 +213,20 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     });
     return batch ? { batch } : reply.code(404).send({ error: "REVIEW_CANDIDATE_NOT_FOUND" });
   });
+
+  app.post("/api/review-batches/:batchId/candidates/:candidateId/revise", async (request, reply) => {
+    const { openai } = dependencies.forRequest(request);
+    const params = z.object({ batchId: z.string().uuid(), candidateId: z.string().uuid() }).parse(request.params);
+    const body = z.object({
+      feedback: z.string().trim().min(1).max(1_000),
+      candidate: reviewCandidateSelectionSchema.omit({ id: true }),
+    }).parse(request.body);
+    const batch = await openai.reviseCandidate({
+      batchPublicId: params.batchId,
+      candidateId: params.candidateId,
+      feedback: body.feedback,
+      draft: body.candidate,
+    });
+    return batch ? { batch } : reply.code(404).send({ error: "REVIEW_CANDIDATE_NOT_FOUND" });
+  });
 };

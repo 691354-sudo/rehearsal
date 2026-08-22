@@ -9,7 +9,7 @@
 
 .learning-progress {
   display: inline-flex;
-  gap: 15px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -33,7 +33,7 @@
 
 .learning-counts {
   display: inline-flex;
-  gap: 24px;
+  gap: 10px;
   align-items: center;
   color: var(--script-support);
   font-size: 12px;
@@ -74,6 +74,7 @@
   min-height: 42px;
   justify-content: space-between;
   align-items: center;
+  background: transparent;
   text-align: start;
 }
 
@@ -105,11 +106,15 @@
   padding: 8px 10px;
   align-items: center;
   border: 0;
+  background: transparent;
   text-align: start;
 }
 
 .topic-progress-options > button > span { display: grid; gap: 5px; min-width: 0; }
-.topic-progress-options > button[aria-selected="true"] { background: var(--cue-wash); }
+.topic-progress-options > button[aria-selected="true"] {
+  color: var(--script-ink);
+  box-shadow: inset 3px 0 var(--cue-action);
+}
 
 .answer-diff { display: grid; gap: 6px; margin-top: 10px; }
 .answer-diff p { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; margin: 0; }

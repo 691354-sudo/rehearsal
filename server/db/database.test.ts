@@ -69,11 +69,13 @@ describe("database migrations", () => {
     expect(item.preference).toBe("neutral");
     expect(item.frequency_band).toBe("common");
     expect(item.practice_enabled).toBe(1);
-    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(7);
+    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(8);
+    expect((migrated.prepare("PRAGMA table_info(review_batches)").all() as Array<{ name: string }>)
+      .map((column) => column.name)).toContain("destination_topic_title");
 
     migrated.close();
     const reopened = openDatabase(databasePath);
-    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(7);
+    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(8);
     expect(reopened.pragma("foreign_keys", { simple: true })).toBe(1);
 
     reopened.close();

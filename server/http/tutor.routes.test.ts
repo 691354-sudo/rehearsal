@@ -288,4 +288,42 @@ describe("Tutor and review API", () => {
     expect(after.find((item) => item.target === second.target)?.tags).toEqual(["be drawn to"]);
     await app.close();
   });
+
+  it("revises only the commented review candidate", async () => {
+    const first = reviewCandidate({
+      id: "9ad9bdcb-8309-43cd-8e75-92ed741bb581",
+      target: "The first card stays unchanged.",
+      cue: "Первая карточка не меняется.",
+    });
+    const second = reviewCandidate({
+      id: "9ad9bdcb-8309-43cd-8e75-92ed741bb582",
+      target: "The second card needs work.",
+      cue: "Вторую карточку нужно исправить.",
+    });
+    const batch = context.repository.reviews.create({
+      language: "en", kind: "text_import", title: "Per-card revision", candidates: [first, second],
+    });
+    const openai = new OpenAIService(context.repository);
+    const revise = vi.spyOn(openai, "reviseCandidate").mockImplementation(async ({ candidateId }) =>
+      context.repository.reviews.replaceCandidate(batch.publicId, candidateId, {
+        ...second, target: "The revised second card works.",
+      }));
+    const app = await buildApp(context.repository, { openai });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batch.publicId}/candidates/${second.id}/revise`,
+      payload: {
+        feedback: "Make only this one more natural.",
+        candidate: { target: second.target, cue: second.cue, note: second.note, category: second.category },
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(revise).toHaveBeenCalledWith(expect.objectContaining({ candidateId: second.id }));
+    expect(response.json().batch.candidates).toEqual([
+      expect.objectContaining({ id: first.id, target: first.target }),
+      expect.objectContaining({ id: second.id, target: "The revised second card works." }),
+    ]);
+    await app.close();
+  });
 });

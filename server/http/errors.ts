@@ -30,11 +30,20 @@ export const toErrorResponse = (error: unknown) => {
   if (error instanceof Error && error.message === "TOPIC_ITEM_DUPLICATE") {
     return { statusCode: 400, body: { error: "TOPIC_ITEM_DUPLICATE" } };
   }
+  if (error instanceof Error && error.message === "TOPIC_LANGUAGE_MISMATCH") {
+    return { statusCode: 409, body: { error: "TOPIC_LANGUAGE_MISMATCH" } };
+  }
   if (error instanceof Error && error.message === "THREAD_LANGUAGE_MISMATCH") {
     return { statusCode: 409, body: { error: "THREAD_LANGUAGE_MISMATCH" } };
   }
   if (error instanceof Error && error.message === "CLIENT_MESSAGE_ID_CONFLICT") {
     return { statusCode: 409, body: { error: "CLIENT_MESSAGE_ID_CONFLICT" } };
+  }
+  if (error instanceof Error && ["IMPORT_NO_FRAGMENTS", "IMPORT_TOO_MANY_FRAGMENTS", "IMPORT_FRAGMENT_TOO_LONG"].includes(error.message)) {
+    return { statusCode: 400, body: { error: error.message } };
+  }
+  if (error instanceof Error && ["INCOMPLETE_DELIMITED_IMPORT", "INVALID_IMPORT_FOCUS"].includes(error.message)) {
+    return { statusCode: 502, body: { error: error.message } };
   }
   const statusCode = typeof error === "object" && error && "statusCode" in error
     ? Number((error as { statusCode?: number }).statusCode)

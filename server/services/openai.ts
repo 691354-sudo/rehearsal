@@ -18,6 +18,8 @@ import {
 } from "./material-generation.js";
 import { genericLearnerPersona, type LearnerPersona } from "./learner-persona.js";
 import { rewriteLibraryItem as rewriteLibraryItemService } from "./library-item-rewrite.js";
+import { prepareDelimitedImport } from "./delimited-import.js";
+import { reviseReviewCandidate } from "./review-candidate.js";
 import { normalizeNfc } from "../../contracts/text.js";
 
 const evaluationSchema = z.object({
@@ -277,6 +279,10 @@ export class OpenAIService {
     });
   }
 
+  prepareDelimitedImportedMaterial(input: { language: LanguageCode; title: string; text: string }) {
+    return prepareDelimitedImport({ client: this.client, repository: this.repository, learner: this.learner, ...input });
+  }
+
   prepareVocabBatch(input: { publicId?: string; language: LanguageCode; title: string; text: string;
     sourceThreadPublicId?: string }) {
     return this.prepareBatch({
@@ -309,7 +315,10 @@ export class OpenAIService {
       sourceText,
       task:
         "Turn these Russian personal voice-note transcripts into at most 100 high-value speaking cards. " +
-        "Merge repeated intentions, ignore filler and recording artifacts, and split distinct useful thoughts. " +
+        "Treat descriptions of the situation, words already spoken by someone else, and explanatory meta-text as context only. " +
+        "When a note says 'я хотел ответить/сказать/спросить' or an equivalent phrase, make the card from the intended reply, statement, or question that follows. " +
+        "For example, 'ко мне подошли в зале и спросили: где туалеты? я хотел ответить: вон там, за углом' must produce exactly one card for 'вон там, за углом'; do not translate the story or the other person's question. " +
+        "Merge repeated intentions, ignore filler and recording artifacts, and split only distinct intended utterances. " +
         "Translate intended meaning rather than wording. Prefer direct casual or neutral adult speech, never corporate or bookish phrasing. " +
         `Each active item must be a complete sentence ${this.learner.name} would realistically say. Use one real-life topic in category.`,
     });
@@ -415,32 +424,19 @@ export class OpenAIService {
     return rewriteLibraryItemService({ client: this.client, learner: this.learner, ...input });
   }
 
-  async regenerateCandidate(input: {
+  regenerateCandidate(input: {
     batchPublicId: string;
     candidateId: string;
     instruction: "another" | "different_context";
   }) {
-    const batch = this.repository.reviews.get(input.batchPublicId);
-    const original = batch?.candidates.find((candidate) => candidate.id === input.candidateId);
-    if (!batch || !original) return null;
-    if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
-    const response = await this.client.responses.parse({
-      model: config.balancedModel,
-      reasoning: { effort: "low" },
-      instructions: materialInstructions(
-        this.learner,
-        batch.language,
-        input.instruction === "different_context"
-          ? "Replace the candidate with one natural example using the same focus term in a clearly different relevant context. Return exactly one item."
-          : "Replace the candidate with a better natural personal version that keeps the intended focus and meaning. Return exactly one item.",
-      ),
-      input: JSON.stringify({ batchTitle: batch.title, original }),
-      text: { format: zodTextFormat(generatedMaterialSchema, "replacement_candidate") },
-      max_output_tokens: aiLimits.utilityOutputTokens,
+    return reviseReviewCandidate({ client: this.client, repository: this.repository, learner: this.learner, ...input });
+  }
+
+  reviseCandidate(input: { batchPublicId: string; candidateId: string; feedback: string;
+    draft: Pick<ReviewCandidate, "target" | "cue" | "note" | "category"> }) {
+    return reviseReviewCandidate({
+      client: this.client, repository: this.repository, learner: this.learner,
+      instruction: "feedback", ...input,
     });
-    const generated = response.output_parsed?.items[0];
-    if (!generated) throw new Error("The tutor did not return a replacement");
-    const replacement = { ...toCandidate(generated), id: original.id };
-    return this.repository.reviews.replaceCandidate(batch.publicId, original.id, replacement);
   }
 }

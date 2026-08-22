@@ -33,14 +33,16 @@ export class ReviewsRepository {
     sourceText?: string;
     candidates: ReviewCandidate[];
     sourceThreadPublicId?: string;
+    destinationTopicTitle?: string;
   }) {
     const publicId = input.publicId || randomUUID();
     const existing = input.publicId ? this.get(publicId) : null;
     if (existing) return existing;
     this.db.prepare(
       `INSERT INTO review_batches(
-         public_id, language_code, kind, title, source_text, candidates, source_thread_public_id
-       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+         public_id, language_code, kind, title, source_text, candidates, source_thread_public_id,
+         destination_topic_title
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       publicId,
       input.language,
@@ -49,6 +51,7 @@ export class ReviewsRepository {
       input.sourceText || "",
       JSON.stringify(input.candidates.map(normalizeCandidate)),
       input.sourceThreadPublicId || null,
+      input.destinationTopicTitle?.trim() || null,
     );
     const batch = this.get(publicId)!;
     logChange(this.db, "llm", "create", "review_batch", publicId, null, {
@@ -133,8 +136,10 @@ export class ReviewsRepository {
       relevanceCheckedAt: candidate.currency === "uncertain" ? null : new Date().toISOString(),
       register: "casual",
     }, "user");
-    if (candidate.category) {
-      const topic = this.library.ensureIsland(batch.language, candidate.category, "llm");
+    const topicTitle = batch.destinationTopicTitle || candidate.category;
+    if (topicTitle) {
+      const topic = this.library.ensureIsland(batch.language, topicTitle,
+        batch.destinationTopicTitle ? "user" : "llm");
       this.library.addIslandItem(topic.publicId, item.publicId);
     }
     return item;

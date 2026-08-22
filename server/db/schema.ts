@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS review_batches (
   candidates TEXT NOT NULL DEFAULT '[]',
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'committed')),
   source_thread_public_id TEXT,
+  destination_topic_title TEXT,
   committed_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP

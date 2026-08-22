@@ -189,7 +189,7 @@ export class LibraryRepository {
       .find((island) => normalizeTopicKey(island.title) === normalized) || null;
   }
 
-  ensureIsland(language: LanguageCode, title: string, actor: "llm" | "system" = "system") {
+  ensureIsland(language: LanguageCode, title: string, actor: "user" | "llm" | "system" = "system") {
     return this.findIslandByTitle(language, title)
       || this.createIsland({ language, title: title.trim() }, actor);
   }
