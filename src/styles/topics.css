@@ -89,14 +89,42 @@
 }
 
 .topic-manager-close,
-.topic-delete {
+.topic-overflow > button {
   width: 36px;
   padding: 0 !important;
 }
 
 .topic-delete {
   color: var(--retry) !important;
-  border-color: transparent !important;
+}
+
+.topic-add-toggle {
+  color: var(--cue-on) !important;
+  background: var(--cue-action) !important;
+  border-color: var(--cue-action) !important;
+}
+
+.topic-overflow {
+  position: relative;
+}
+
+.topic-overflow-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  width: 132px;
+  padding: 5px;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule-strong);
+  border-radius: 8px;
+}
+
+.topic-overflow-menu button {
+  justify-content: flex-start;
+  width: 100%;
+  border-color: transparent;
 }
 
 .topics-layout {
@@ -124,7 +152,7 @@
   border-color: transparent;
 }
 
-.topics-layout > nav button span {
+.topics-layout > nav button > span {
   display: grid;
   gap: 5px;
   overflow: hidden;
@@ -133,14 +161,14 @@
   white-space: normal;
 }
 
-.topics-layout > nav button b {
+.topics-layout > nav button > span > b {
   overflow: hidden;
   font-weight: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.topics-layout > nav button small {
+.topics-layout > nav button > small {
   min-width: 22px;
   padding: 1px 6px;
   color: var(--script-tertiary);
@@ -153,8 +181,8 @@
 .topics-layout > nav button.is-active {
   color: var(--script-ink);
   font-weight: 630;
-  background: var(--cue-wash);
-  box-shadow: inset 2px 0 0 var(--cue-light);
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--cue-action);
 }
 
 .topic-detail {
@@ -303,8 +331,8 @@
 }
 
 .topic-items article.is-selecting:has(input:checked) {
-  background: color-mix(in srgb, var(--cue-wash) 28%, transparent);
-  box-shadow: inset 2px 0 0 var(--cue-light);
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--cue-action);
 }
 
 .topic-items-empty {
@@ -314,6 +342,12 @@
   font-size: 13px;
   text-align: center;
   border-bottom: 1px solid var(--script-rule);
+}
+
+.topic-items-empty > div {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
 }
 
 .topic-add-item {
@@ -330,6 +364,11 @@
 
 .topic-add-item > div:first-child {
   justify-content: space-between;
+}
+
+.topic-add-item > div:first-child > button {
+  flex: none;
+  white-space: nowrap;
 }
 
 .topic-add-item > div:first-child > div {
@@ -378,26 +417,34 @@
   text-align: center;
 }
 
-.topic-card-picker > button {
+.simple-main .topics-manager .topic-card-picker > button {
   display: grid;
-  gap: 2px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
   justify-content: stretch;
   justify-items: start;
   width: 100%;
-  min-height: 52px;
+  min-height: 76px;
   padding: 7px 10px;
   text-align: left;
   border-color: transparent;
 }
 
-.topic-card-picker > button strong {
+.topic-picker-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.topic-picker-copy > strong {
   color: var(--script-ink);
   font-size: 14px;
   font-weight: 610;
   line-height: 1.3;
 }
 
-.topic-card-picker > button small {
+.topic-picker-copy > small {
   overflow-wrap: anywhere;
   color: var(--script-tertiary);
   font-size: 12px;
@@ -407,18 +454,64 @@
 
 .topic-card-picker > button.is-selected {
   color: var(--script-ink);
-  background: var(--cue-wash);
-  border-color: var(--cue-light);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: inset 3px 0 0 var(--cue-action);
 }
 
-.topic-card-picker .topic-card-picker-more {
+.topic-picker-check {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  place-items: center;
+  color: var(--cue-on);
+  background: transparent;
+  border: 1px solid var(--script-rule-strong);
+  border-radius: 5px;
+}
+
+.topic-card-picker > button.is-selected .topic-picker-check {
+  background: var(--cue-action);
+  border-color: var(--cue-action);
+}
+
+.topic-picker-progress {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 3px;
+  color: var(--script-support);
+  font-size: 11px;
+}
+
+.topic-picker-progress > span:last-child {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.simple-main .topics-manager .topic-card-picker .topic-card-picker-more {
+  grid-column: 1 / -1;
+  min-height: 40px;
   justify-items: center;
   color: var(--cue-light);
 }
 
-.topic-add-item > button {
+.topic-add-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   min-height: 44px;
-  justify-self: end;
+}
+
+.topic-add-footer > span {
+  color: var(--script-tertiary);
+  font-size: 12px;
+}
+
+.topic-add-footer > button {
+  min-height: 40px;
 }
 
 .topic-empty {
@@ -510,12 +603,6 @@
     padding-inline-end: 44px;
   }
 
-  .topic-detail-heading .topic-delete {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-  }
-
   .topic-detail-heading > div:last-child {
     justify-content: start;
   }
@@ -528,4 +615,9 @@
   .topic-selection-toolbar > label { grid-column: 1 / -1; }
   .topic-selection-toolbar select { width: 100%; margin: 0; }
   .topic-selection-toolbar .topic-remove-selected { grid-column: 1 / -1; }
+
+  .topic-add-footer,
+  .topic-items-empty > div {
+    align-items: stretch;
+  }
 }
