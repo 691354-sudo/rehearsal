@@ -171,8 +171,7 @@
   padding: 2px 6px;
   color: var(--script-tertiary);
   font-size: 12px;
-  font-weight: 650;
-  text-transform: uppercase;
+  font-weight: 550;
   background: var(--script-inset);
   border: 1px solid var(--script-rule);
   border-radius: 999px;

@@ -9,7 +9,7 @@
 
 .simple-settings-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(480px, 100%);
   height: 100%;
   height: 100dvh;
@@ -149,6 +149,25 @@
   overflow-y: auto;
 }
 
+.simple-settings-footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 68px;
+  padding: 12px 22px;
+  background: var(--script-surface);
+  border-top: 1px solid var(--script-rule);
+}
+
+.simple-settings-footer > span {
+  color: var(--script-support);
+  font-size: 13px;
+}
+
+.simple-settings-footer > span.is-error { color: var(--retry); }
+.simple-settings-footer > span.is-saved { color: var(--learned); }
+
 .simple-settings-section {
   display: grid;
   gap: 14px;
@@ -249,13 +268,16 @@
   display: inline-flex;
   gap: 7px;
   align-items: center;
-  width: max-content;
+  width: fit-content;
+  max-width: 100%;
   padding: 0;
   color: var(--cue-light);
   font-size: 12px;
   font-weight: 600;
   background: transparent;
   border: 0;
+  text-align: left;
+  white-space: normal;
 }
 
 .simple-voice-preview:disabled {

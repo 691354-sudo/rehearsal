@@ -56,6 +56,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
   useEffect(() => {
     window.localStorage.setItem(storageKey("theme"), theme);
     document.documentElement.style.colorScheme = theme;
+    document.documentElement.dataset.theme = theme;
   }, [theme]);
   useEffect(() => setMobileMenuOpen(false), [route.section]);
   useEffect(() => {
@@ -133,16 +134,16 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
     goTo({ ...route, settings: false }, "replace");
   }, [goTo, route]);
 
-  return <div className={`simple-app simple-app--${theme}`}>
+  return <div className={`simple-app simple-app--${theme}`} data-theme={theme}>
     <a className="simple-skip-link" href="#main-content">Skip to Main Content</a>
     <header className="simple-header">
       <div className="simple-header-rail">
       <AppLink className="simple-brand" route={practiceRoute()}><span>R</span>
         <strong className="simple-brand-product">Rehearsal</strong><strong className="simple-brand-route">{sectionLabel}</strong></AppLink>
       <nav className="simple-nav" aria-label="Main navigation">
-        <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>Practice</AppLink>
         <AppLink aria-current={route.section === "tutor" ? "page" : undefined} className={route.section === "tutor" ? "is-active" : ""} route={defaultTutorRoute(language)}>Tutor</AppLink>
         <AppLink aria-current={route.section === "library" ? "page" : undefined} className={route.section === "library" ? "is-active" : ""} route={defaultLibraryRoute(language)}>Library</AppLink>
+        <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>Practice</AppLink>
       </nav>
       <div className="simple-header-actions">
         <label className="simple-language"><span>{languageCopy[language].short}</span>

@@ -75,6 +75,10 @@
 .simple-message {
   width: min(720px, 92%);
   margin: 0 0 22px;
+  padding: 13px 15px;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 4px 12px 12px;
 }
 
 .simple-message > span {
@@ -96,9 +100,9 @@
   width: fit-content;
   max-width: min(680px, 84%);
   margin-left: auto;
-  padding: 13px 15px;
   background: var(--cue-wash);
-  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--cue-action) 40%, transparent);
+  border-radius: 12px 4px 12px 12px;
 }
 
 .simple-message--user > span {
@@ -291,9 +295,8 @@
 
 .simple-composer {
   display: grid;
-  grid-template-columns: 40px 42px minmax(0, 1fr) 42px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
-  align-items: end;
   padding: 16px;
   background: var(--script-inset);
   border-top: 1px solid var(--script-rule);
@@ -302,7 +305,7 @@
 .simple-composer textarea {
   box-sizing: border-box;
   width: 100%;
-  min-height: 64px;
+  min-height: 104px;
   max-height: none;
   resize: none;
   padding: 11px 42px 11px 13px;
@@ -332,7 +335,7 @@
 
 .simple-composer button:disabled {
   cursor: default;
-  opacity: 0.45;
+  opacity: 0.55;
 }
 
 .simple-composer-input {
@@ -770,8 +773,8 @@
 }
 
 .simple-tutor-mode button.is-active {
-  color: var(--mode-on);
-  background: var(--mode-action);
+  color: var(--accent-hover);
+  background: var(--cue-wash);
   box-shadow: none;
 }
 

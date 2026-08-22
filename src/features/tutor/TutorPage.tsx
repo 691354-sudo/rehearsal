@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import {
-  Check,
   LoaderCircle,
   Mic,
   MoveDiagonal2,
@@ -12,6 +11,7 @@ import {
   Square,
   Trash2,
   Upload,
+  WandSparkles,
   X,
 } from "lucide-react";
 import { CaptureNotebook } from "../capture/CaptureNotebook";
@@ -26,7 +26,7 @@ import {
   supportedRecordingMimeType,
 } from "../../shared/audioRecording";
 import type { ChatMessage, ChatThread, Language } from "../../shared/contracts";
-import { languageHasAudio } from "../../shared/config";
+import { languageCopy, languageHasAudio } from "../../shared/config";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
 import { TutorChatMessage } from "./TutorChatMessage";
 import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimisticMessages";
@@ -79,7 +79,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const [recording, setRecording] = useState(false); const [transcribing, setTranscribing] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0); const [voiceError, setVoiceError] = useState("");
   const [pendingVoice, setPendingVoice] = useState<PendingTutorRecording | null>(null);
-  const [composerHeight, setComposerHeight] = useState(64);
+  const [composerHeight, setComposerHeight] = useState(104);
   const [isNarrow, setIsNarrow] = useState(() => window.matchMedia("(max-width: 720px)").matches);
   const scrollIntentRef = useRef<"instant" | "smooth" | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null); const recordingStreamRef = useRef<MediaStream | null>(null);
@@ -341,7 +341,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   };
   const resizeComposer = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const start = resizeStartRef.current;
-    if (start) setComposerHeight(Math.max(64, Math.round(start.height + start.clientY - event.clientY)));
+    if (start) setComposerHeight(Math.max(104, Math.round(start.height + start.clientY - event.clientY)));
   };
   const finishComposerResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     resizeStartRef.current = null;
@@ -393,9 +393,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       </aside>
       <div className="simple-chat-pane">
         <div className="simple-chat-toolbar"><strong>{currentThread?.title || "New chat"}</strong>
-          {threadId ? <div><button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
-            {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <Check size={15} />}Finish & review</button>
-            <button aria-label="Delete chat" className="simple-delete-chat" disabled={deletingThread || sending || reviewing}
+          {threadId ? <div><button aria-label="Delete chat" className="simple-delete-chat" disabled={deletingThread || sending || reviewing}
               onClick={() => void deleteChat()} title="Delete chat" type="button">{deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}</button></div> : null}</div>
         <div aria-busy={sending || loadingThread} aria-live="polite" className="simple-chat-messages" ref={messagesRef} role="log">
           {!messages.length && !loadingThread && !sending ? <div className="simple-chat-empty"><strong>Start with something from real life</strong>
@@ -405,7 +403,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
           {messages.map((message) => <TutorChatMessage key={message.id} message={message}
             onDelete={(failed) => setMessages((current) => current.filter((currentMessage) => currentMessage.id !== failed.id))}
             onEdit={editFailedMessage}
-            onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} />)}
+            onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} tutorLabel={`${languageCopy[language].label} · roleplay`} />)}
           {reviewBatch ? <ReviewBatchPanel batch={reviewBatch} onBatch={setReviewBatch} onCommitted={() => { setReviewBatch(null); setAdded(true); }} /> : null}
           {added ? <div className="simple-tutor-added"><strong>Added to Library</strong><div>
             {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}
@@ -418,26 +416,32 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
           {pendingVoice && !transcribing ? <div><button onClick={() => void transcribeVoice(pendingVoice)} type="button"><RefreshCw size={14} />Retry</button>
             <button onClick={() => { setPendingVoice(null); setVoiceError(""); }} type="button"><Trash2 size={14} />Delete recording</button></div> : null}
         </div> : null}
-        <div className="simple-composer"><label aria-disabled={sending || recording || transcribing} className="simple-composer-upload" title="Upload a text file"><Upload size={17} /><input accept=".txt,text/plain" aria-label="Upload a text file" name="tutor-file"
-          disabled={sending || recording || transcribing} onChange={async (event) => {
-          const file = event.target.files?.[0]; if (file) setDraft(await file.text()); event.target.value = "";
-        }} type="file" /></label>
-          <button aria-label={recording ? "Stop and send voice message" : "Record and send voice message"}
-            className={`simple-composer-record${recording ? " is-recording" : ""}`}
-            disabled={sending || transcribing || Boolean(pendingVoice)} onClick={recording ? stopVoiceRecording : () => void startVoiceRecording()}
-            title={recording ? "Stop and send" : "Voice message"} type="button">
-            {recording ? <Square fill="currentColor" size={15} /> : transcribing ? <LoaderCircle className="simple-spin" size={17} /> : <Mic size={18} />}
-          </button>
+        <div className="simple-composer">
           <div className="simple-composer-input"><label className="simple-visually-hidden" htmlFor="tutor-message">Message your tutor</label><textarea autoComplete="off" id="tutor-message" name="tutor-message" onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }}
             placeholder="Message your tutor…" ref={composerRef} rows={2} style={{ height: `${composerHeight}px` }} value={draft} />
             <button aria-label="Resize message field" className="simple-composer-resize" onKeyDown={(event) => {
               if (event.key === "ArrowUp") { event.preventDefault(); setComposerHeight((height) => height + 40); }
-              if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(64, height - 40)); }
+              if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(104, height - 40)); }
             }} onPointerCancel={finishComposerResize} onPointerDown={beginComposerResize} onPointerMove={resizeComposer}
               onPointerUp={finishComposerResize} title="Drag up to enlarge" type="button"><MoveDiagonal2 size={14} /></button></div>
-          <button aria-label="Send" className="simple-composer-send" disabled={!draft.trim() || sending || recording || transcribing}
-            onClick={() => void send()} type="button"><Send size={18} /></button></div>
+          <div className="simple-composer-controls"><div className="simple-composer-tools">
+            <label aria-disabled={sending || recording || transcribing} className="simple-composer-upload" title="Upload a text file"><Upload size={17} /><input accept=".txt,text/plain" aria-label="Upload a text file" name="tutor-file"
+              disabled={sending || recording || transcribing} onChange={async (event) => {
+              const file = event.target.files?.[0]; if (file) setDraft(await file.text()); event.target.value = "";
+            }} type="file" /></label>
+            <button aria-label={recording ? "Stop and send voice message" : "Record and send voice message"}
+              className={`simple-composer-record${recording ? " is-recording" : ""}`}
+              disabled={sending || transcribing || Boolean(pendingVoice)} onClick={recording ? stopVoiceRecording : () => void startVoiceRecording()}
+              title={recording ? "Stop and send" : "Voice message"} type="button">
+              {recording ? <Square fill="currentColor" size={15} /> : transcribing ? <LoaderCircle className="simple-spin" size={17} /> : <Mic size={18} />}
+            </button>
+            {threadId ? <button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
+              {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Finish &amp; make cards</button> : null}
+          </div><div className="simple-composer-send-group"><span>Enter to send</span>
+            <button aria-label="Send" className="simple-composer-send" disabled={!draft.trim() || sending || recording || transcribing}
+              onClick={() => void send()} title="Send" type="button"><Send size={18} /></button></div></div>
+        </div>
       </div>
     </section>}
   </main>;
