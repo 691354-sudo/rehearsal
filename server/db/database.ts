@@ -141,6 +141,36 @@ const migrateVietnameseLanguage = (db: Database.Database) => {
   `);
 };
 
+const migrateNorwegianLanguage = (db: Database.Database) => {
+  const table = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'languages'",
+  ).get() as { sql: string } | undefined;
+  if (!table) throw new Error("Languages table is unavailable");
+  if (table.sql.includes("'no'")) {
+    db.prepare(
+      `INSERT OR IGNORE INTO languages(code, name, locale, cue_locale, enabled)
+       VALUES ('no', 'Norwegian', 'nb-NO', 'ru-RU', 1)`,
+    ).run();
+    return;
+  }
+  db.exec(`
+    CREATE TABLE languages_next (
+      code TEXT PRIMARY KEY CHECK (code IN ('en', 'lv', 'vi', 'no')),
+      name TEXT NOT NULL,
+      locale TEXT NOT NULL,
+      cue_locale TEXT NOT NULL DEFAULT 'ru-RU',
+      enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    INSERT INTO languages_next(code, name, locale, cue_locale, enabled, created_at)
+    SELECT code, name, locale, cue_locale, enabled, created_at FROM languages;
+    DROP TABLE languages;
+    ALTER TABLE languages_next RENAME TO languages;
+    INSERT INTO languages(code, name, locale, cue_locale, enabled)
+    VALUES ('no', 'Norwegian', 'nb-NO', 'ru-RU', 1);
+  `);
+};
+
 type SchemaMigration = {
   id: string;
   run: (db: Database.Database) => void;
@@ -153,6 +183,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "003-review-state-fsrs", run: migrateReviewState },
   { id: "004-remove-saturation-storage", run: removeLegacyContinuousTrackStorage },
   { id: "005-vietnamese-language", run: migrateVietnameseLanguage, requiresForeignKeysOff: true },
+  { id: "006-norwegian-language", run: migrateNorwegianLanguage, requiresForeignKeysOff: true },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {
@@ -206,6 +237,9 @@ export const openDatabase = (databasePath = config.databasePath) => {
     db.prepare(
       "INSERT OR IGNORE INTO languages(code, name, locale, enabled) VALUES (?, ?, ?, ?)",
     ).run("vi", "Vietnamese", "vi-VN", 0);
+    db.prepare(
+      "INSERT OR IGNORE INTO languages(code, name, locale, enabled) VALUES (?, ?, ?, ?)",
+    ).run("no", "Norwegian", "nb-NO", 1);
     return db;
   } catch (error) {
     db.close();

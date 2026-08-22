@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { config, elevenLabsVoices } from "../config.js";
+import { config, elevenLabsVoices, type ElevenLabsVoiceOption } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode } from "../types.js";
 
@@ -50,6 +50,25 @@ export const elevenLabsVoiceSettings = {
 const voiceStatusTtlMs = 10 * 60 * 1_000;
 const voiceListTtlMs = 10 * 60 * 1_000;
 
+const normalizeVoiceLanguage = (value: string): LanguageCode | null => {
+  const code = value.trim().toLowerCase().split(/[-_]/)[0];
+  if (code === "nb" || code === "nn") return "no";
+  return ["en", "lv", "vi", "no"].includes(code) ? code as LanguageCode : null;
+};
+
+const mergeVoices = (voices: ElevenLabsVoiceOption[]) => {
+  const merged = new Map<string, ElevenLabsVoiceOption>();
+  for (const voice of voices) {
+    const existing = merged.get(voice.id);
+    if (!existing) {
+      merged.set(voice.id, { ...voice, languages: [...voice.languages] });
+      continue;
+    }
+    existing.languages = [...new Set([...existing.languages, ...voice.languages])];
+  }
+  return [...merged.values()];
+};
+
 const readElevenLabsError = async (response: Response) => {
   const payload = await response.json().catch(() => null) as {
     detail?: string | { code?: string; message?: string; status?: string };
@@ -63,8 +82,8 @@ const readElevenLabsError = async (response: Response) => {
 
 export class ElevenLabsService {
   private readonly inflightSpeech = new Map<string, Promise<{ format: string; audio: Buffer }>>();
-  private voiceListCache: { fetchedAt: number; voices: { id: string; name: string }[] } | null = null;
-  private voiceListRequest: Promise<{ id: string; name: string }[]> | null = null;
+  private voiceListCache: { fetchedAt: number; voices: ElevenLabsVoiceOption[] } | null = null;
+  private voiceListRequest: Promise<ElevenLabsVoiceOption[]> | null = null;
   private readonly voiceStatusCache = new Map<string, ElevenLabsVoiceStatus>();
   private readonly voiceStatusRequests = new Map<string, Promise<ElevenLabsVoiceStatus>>();
 
@@ -86,14 +105,41 @@ export class ElevenLabsService {
     if (!refresh && this.voiceListRequest) return this.voiceListRequest;
 
     const request = this.fetchVoices().then((voices) => {
-      if (!voices.length) return elevenLabsVoices;
-      this.voiceListCache = { fetchedAt: Date.now(), voices };
-      return voices;
+      const compatible = mergeVoices([...voices, ...elevenLabsVoices])
+        .filter((voice) => voice.languages.length > 0);
+      const result = compatible.length ? compatible : elevenLabsVoices;
+      this.voiceListCache = { fetchedAt: Date.now(), voices: result };
+      return result;
     }).catch(() => elevenLabsVoices).finally(() => {
       this.voiceListRequest = null;
     });
     this.voiceListRequest = request;
     return request;
+  }
+
+  async voicesByLanguage(refresh = false) {
+    const voices = await this.listVoices(refresh);
+    return Object.fromEntries(["en", "lv", "vi", "no"].map((language) => [
+      language,
+      voices.filter((voice) => voice.languages.includes(language as LanguageCode))
+        .map(({ id, name }) => ({ id, name })),
+    ])) as Record<LanguageCode, Array<{ id: string; name: string }>>;
+  }
+
+  async compatibleVoiceId(language: LanguageCode, requestedVoiceId?: string) {
+    const defaultVoiceId = language === "vi" ? config.elevenLabsViVoiceId
+      : language === "no" ? config.elevenLabsNoVoiceId : config.elevenLabsVoiceId;
+    const voiceId = requestedVoiceId || defaultVoiceId;
+    if (!voiceId) throw new ElevenLabsError(
+      `No compatible ElevenLabs voice is configured for ${language}.`, 400, "VOICE_LANGUAGE_MISMATCH",
+    );
+    const voices = await this.voicesByLanguage();
+    if (!voices[language].some((voice) => voice.id === voiceId)) {
+      throw new ElevenLabsError(
+        `The selected voice is not verified for ${language}.`, 400, "VOICE_LANGUAGE_MISMATCH",
+      );
+    }
+    return voiceId;
   }
 
   async voiceStatus(refresh = false, voiceId = config.elevenLabsVoiceId): Promise<ElevenLabsVoiceStatus> {
@@ -131,11 +177,11 @@ export class ElevenLabsService {
     if (!this.configured) throw new Error("ELEVENLABS_NOT_CONFIGURED");
     const resolved = this.resolveSpeech(input);
     const { voiceId, modelId, text, settings, cacheKey } = resolved;
-    if (input.language === "vi" && modelId !== "eleven_flash_v2_5") {
+    if (["vi", "no"].includes(input.language) && modelId !== "eleven_flash_v2_5") {
       throw new ElevenLabsError(
-        "Vietnamese playback requires Eleven Flash v2.5.",
+        `${input.language === "vi" ? "Vietnamese" : "Norwegian"} playback requires Eleven Flash v2.5.`,
         400,
-        "VIETNAMESE_MODEL_UNSUPPORTED",
+        input.language === "vi" ? "VIETNAMESE_MODEL_UNSUPPORTED" : "NORWEGIAN_MODEL_UNSUPPORTED",
       );
     }
     const cached = this.repository.audio.get(cacheKey);
@@ -155,9 +201,9 @@ export class ElevenLabsService {
   }
 
   private resolveSpeech(input: ElevenLabsSpeechInput) {
-    const voiceId = input.voiceId || (input.language === "vi"
-      ? config.elevenLabsViVoiceId : config.elevenLabsVoiceId);
-    const modelId = input.modelId || (input.language === "vi"
+    const voiceId = input.voiceId || (input.language === "vi" ? config.elevenLabsViVoiceId
+      : input.language === "no" ? config.elevenLabsNoVoiceId : config.elevenLabsVoiceId);
+    const modelId = input.modelId || (["vi", "no"].includes(input.language)
       ? "eleven_flash_v2_5"
       : config.elevenLabsModel as NonNullable<ElevenLabsSpeechInput["modelId"]>);
     const text = input.text.trim().normalize("NFC");
@@ -172,7 +218,7 @@ export class ElevenLabsService {
   }
 
   private async fetchVoices() {
-    const voices: { id: string; name: string }[] = [];
+    const voices: ElevenLabsVoiceOption[] = [];
     let nextPageToken = "";
 
     do {
@@ -190,12 +236,25 @@ export class ElevenLabsService {
       });
       if (!response.ok) throw new Error(`ElevenLabs returned ${response.status}`);
       const payload = await response.json() as {
-        voices?: { voice_id?: string; name?: string }[];
+        voices?: Array<{
+          voice_id?: string;
+          name?: string;
+          verified_languages?: Array<{ language?: string }>;
+          labels?: Record<string, string>;
+        }>;
         has_more?: boolean;
         next_page_token?: string | null;
       };
       for (const voice of payload.voices || []) {
-        if (voice.voice_id && voice.name) voices.push({ id: voice.voice_id, name: voice.name });
+        if (!voice.voice_id || !voice.name) continue;
+        const verified = (voice.verified_languages || [])
+          .map((entry) => normalizeVoiceLanguage(entry.language || "")).filter(Boolean) as LanguageCode[];
+        const labelLanguage = normalizeVoiceLanguage(voice.labels?.language || "");
+        voices.push({
+          id: voice.voice_id,
+          name: voice.name,
+          languages: [...new Set([...verified, ...(labelLanguage ? [labelLanguage] : [])])],
+        });
       }
       if (!payload.has_more) break;
       if (!payload.next_page_token || payload.next_page_token === nextPageToken) {
@@ -204,7 +263,7 @@ export class ElevenLabsService {
       nextPageToken = payload.next_page_token;
     } while (nextPageToken);
 
-    return Array.from(new Map(voices.map((voice) => [voice.id, voice])).values());
+    return mergeVoices(voices);
   }
 
   private async fetchVoiceStatus(fallbackVoice: ElevenLabsVoiceStatus["voice"]): Promise<ElevenLabsVoiceStatus> {

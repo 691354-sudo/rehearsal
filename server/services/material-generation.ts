@@ -11,6 +11,10 @@ const targetLanguages: Record<LanguageCode, { name: string; guidance: string }> 
     name: "Vietnamese",
     guidance: "Use neutral contemporary standard Vietnamese. Avoid strongly regional wording unless the source requires it.",
   },
+  no: {
+    name: "Norwegian Bokmål",
+    guidance: "Use natural contemporary Norwegian Bokmål. Avoid dialect-specific or Nynorsk forms unless the source requires them.",
+  },
 };
 
 export const generatedCandidateSchema = z.object({

@@ -277,7 +277,7 @@ describe("profile authentication and database isolation", () => {
     const available = await app.inject({ method: "GET", url: `/api/auth/invites/${token}` });
     expect(available.statusCode).toBe(200);
     expect(available.json().available).toBe(true);
-    expect(available.json().languages.map((language: { code: string }) => language.code)).toEqual(["en", "lv", "vi"]);
+    expect(available.json().languages.map((language: { code: string }) => language.code)).toEqual(["en", "lv", "vi", "no"]);
 
     const shortPin = await app.inject({
       method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },
@@ -298,6 +298,7 @@ describe("profile authentication and database isolation", () => {
     expect(manager.get(profile.id).repository.system.isLanguageEnabled("en")).toBe(false);
     expect(manager.get(profile.id).repository.system.isLanguageEnabled("lv")).toBe(false);
     expect(manager.get(profile.id).repository.system.isLanguageEnabled("vi")).toBe(true);
+    expect(manager.get(profile.id).repository.system.isLanguageEnabled("no")).toBe(false);
 
     expect((await app.inject({ method: "GET", url: `/api/auth/invites/${token}` })).json().available).toBe(false);
     const reused = await app.inject({
@@ -336,13 +337,13 @@ describe("profile authentication and database isolation", () => {
     const oliver = oliverLogin.session!;
 
     expect(romanLogin.response.json().availableLanguages.map((language: { code: string }) => language.code))
-      .toEqual(["en", "lv"]);
+      .toEqual(["en", "lv", "no"]);
     expect(oliverLogin.response.json().availableLanguages.map((language: { code: string }) => language.code))
-      .toEqual(["en", "lv", "vi"]);
+      .toEqual(["en", "lv", "vi", "no"]);
     expect((await read(app, roman, "/api/config")).json().languages.map((language: { code: string }) => language.code))
-      .toEqual(["en", "lv"]);
+      .toEqual(["en", "lv", "no"]);
     expect((await read(app, oliver, "/api/config")).json().languages.map((language: { code: string }) => language.code))
-      .toEqual(["en", "lv", "vi"]);
+      .toEqual(["en", "lv", "vi", "no"]);
 
     for (const url of [
       "/api/items?language=vi", "/api/practice/due?language=vi",

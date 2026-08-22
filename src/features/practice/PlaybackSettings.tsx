@@ -9,9 +9,10 @@ export function PlaybackSettings(props: {
   voices: string[];
 }) {
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
-  const selectedElevenLabsVoice = props.elevenLabs.voices.find(
+  const compatibleElevenLabsVoices = props.elevenLabs.voicesByLanguage[props.language] || [];
+  const selectedElevenLabsVoice = compatibleElevenLabsVoices.find(
     (voice) => voice.id === props.playback.elevenlabs.voiceId,
-  ) || props.elevenLabs.voice;
+  ) || compatibleElevenLabsVoices[0] || { id: "", name: "No compatible voice" };
 
   return <div className="practice-playback-settings">
     <label><span>Voice</span><select aria-label="Voice" name="practice-voice" onChange={(event) => {
@@ -24,9 +25,10 @@ export function PlaybackSettings(props: {
       } : { ...props.playback, provider, voice });
     }} value={props.playback.provider === "elevenlabs"
       ? `elevenlabs:${selectedElevenLabsVoice.id}` : `openai:${props.playback.voice}`}>
-      {props.language !== "vi" ? props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>) : null}
-      {props.elevenLabs.configured || props.language === "vi" ? props.elevenLabs.voices.map((voice) =>
-        <option key={voice.id} value={`elevenlabs:${voice.id}`}>ElevenLabs · {voice.name}</option>) : null}
+      {props.language !== "vi" && props.language !== "no" ? props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>) : null}
+      {!compatibleElevenLabsVoices.length ? <option value="elevenlabs:" disabled>No compatible voice configured</option> : null}
+      {compatibleElevenLabsVoices.map((voice) =>
+        <option key={voice.id} value={`elevenlabs:${voice.id}`}>ElevenLabs · {voice.name}</option>)}
     </select></label>
     <label><span>Speed · {props.playback.speed.toFixed(2)}×</span><input aria-label="Speed" max={speedRange.max} min={speedRange.min} name="practice-speed"
       onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })} step="0.05" type="range" value={props.playback.speed} /></label>

@@ -139,12 +139,12 @@ describe("ElevenLabsService", () => {
   it("lists and caches every saved ElevenLabs voice across pages", async () => {
     const request = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        voices: [{ voice_id: "voice-b", name: "Beta" }],
+        voices: [{ voice_id: "voice-b", name: "Beta", verified_languages: [{ language: "vi" }] }],
         has_more: true,
         next_page_token: "next-page",
       }), { status: 200, headers: { "Content-Type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        voices: [{ voice_id: "voice-a", name: "Alpha" }],
+        voices: [{ voice_id: "voice-a", name: "Alpha", verified_languages: [{ language: "nb-NO" }] }],
         has_more: false,
       }), { status: 200, headers: { "Content-Type": "application/json" } }));
     vi.stubGlobal("fetch", request);
@@ -153,10 +153,10 @@ describe("ElevenLabsService", () => {
     const first = await service.listVoices();
     const second = await service.listVoices();
 
-    expect(first).toEqual([
-      { id: "voice-b", name: "Beta" },
-      { id: "voice-a", name: "Alpha" },
-    ]);
+    expect(first).toEqual(expect.arrayContaining([
+      { id: "voice-b", name: "Beta", languages: ["vi"] },
+      { id: "voice-a", name: "Alpha", languages: ["no"] },
+    ]));
     expect(second).toEqual(first);
     expect(request).toHaveBeenCalledTimes(2);
     const firstUrl = new URL(String(request.mock.calls[0][0]));
@@ -173,7 +173,30 @@ describe("ElevenLabsService", () => {
     await expect(service.listVoices()).resolves.toContainEqual({
       id: "ueSxRO0nLF1bj93J2hVt",
       name: "Trung Caha",
+      languages: ["vi"],
     });
+  });
+
+  it("rejects a voice verified for another learning language", async () => {
+    const service = new ElevenLabsService(repository, "");
+
+    await expect(service.compatibleVoiceId("en", "ueSxRO0nLF1bj93J2hVt")).rejects.toMatchObject({
+      statusCode: 400,
+      code: "VOICE_LANGUAGE_MISMATCH",
+    });
+  });
+
+  it("sends the required language code for Norwegian Flash playback", async () => {
+    const request = vi.fn().mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    const service = new ElevenLabsService(repository, "test-key");
+
+    await service.speech({
+      text: "God morgen.", language: "no", voiceId: "no-voice", modelId: "eleven_flash_v2_5",
+    });
+
+    const options = request.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(options.body))).toMatchObject({ model_id: "eleven_flash_v2_5", language_code: "no" });
   });
 
   it("clamps ElevenLabs speed to its documented API range", async () => {

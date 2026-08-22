@@ -21,12 +21,13 @@ export const defaultPlayback: PlaybackPreferences = {
 export const defaultPlaybackForLanguage = (
   language: keyof typeof languageCatalog,
   elevenLabs = defaultElevenLabsConfig,
-): PlaybackPreferences => language === "vi" ? {
+): PlaybackPreferences => language === "vi" || language === "no" ? {
   ...defaultPlayback,
   provider: "elevenlabs",
   elevenlabs: {
     ...defaultPlayback.elevenlabs,
-    voiceId: elevenLabs.languageDefaults.vi?.voiceId || "ueSxRO0nLF1bj93J2hVt",
+    voiceId: elevenLabs.languageDefaults[language]?.voiceId
+      || (language === "vi" ? "ueSxRO0nLF1bj93J2hVt" : ""),
     modelId: "eleven_flash_v2_5",
   },
 } : defaultPlayback;
@@ -34,14 +35,17 @@ export const defaultPlaybackForLanguage = (
 export const defaultElevenLabsConfig: ElevenLabsConfig = {
   configured: false,
   voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
-  voices: [
-    { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
-    { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
-    { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
-    { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
-    { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
-    { id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" },
-  ],
+  voicesByLanguage: {
+    en: [
+      { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
+      { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
+      { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
+      { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
+      { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
+    ],
+    vi: [{ id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" }],
+    no: [],
+  },
   models: ["eleven_multilingual_v2", "eleven_flash_v2_5"],
   speedRange: defaultElevenLabsSpeedRange,
   defaults: { ...defaultPlayback.elevenlabs, speed: 1.05 },

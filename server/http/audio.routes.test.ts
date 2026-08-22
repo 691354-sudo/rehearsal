@@ -19,14 +19,14 @@ describe("audio API", () => {
     });
     expect(response.json().tts.providers.elevenlabs).toMatchObject({
       voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
-      voices: [
-        { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
-        { id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" },
-        { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
-        { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
-        { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
-        { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
-      ],
+      voicesByLanguage: {
+        en: expect.arrayContaining([
+          { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
+          { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
+        ]),
+        vi: [{ id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" }],
+        no: [],
+      },
       speedRange: { min: 0.7, max: 1.2 },
       languageDefaults: {
         vi: { voiceId: "ueSxRO0nLF1bj93J2hVt", voiceName: "Trung Caha", modelId: "eleven_flash_v2_5" },
@@ -36,18 +36,18 @@ describe("audio API", () => {
   });
 
   it("exposes the saved voices returned by ElevenLabs", async () => {
-    const listVoices = vi.fn().mockResolvedValue([
-      { id: "saved-voice", name: "Saved Voice" },
-    ]);
+    const voicesByLanguage = vi.fn().mockResolvedValue({
+      en: [{ id: "saved-voice", name: "Saved Voice" }], lv: [], vi: [], no: [],
+    });
     const app = await buildApp(context.repository, {
-      elevenlabs: { listVoices } as unknown as ElevenLabsService,
+      elevenlabs: { voicesByLanguage } as unknown as ElevenLabsService,
     });
     const response = await app.inject({ method: "GET", url: "/api/config" });
 
-    expect(response.json().tts.providers.elevenlabs.voices).toEqual([
+    expect(response.json().tts.providers.elevenlabs.voicesByLanguage.en).toEqual([
       { id: "saved-voice", name: "Saved Voice" },
     ]);
-    expect(listVoices).toHaveBeenCalledOnce();
+    expect(voicesByLanguage).toHaveBeenCalledOnce();
     await app.close();
   });
 
@@ -91,8 +91,9 @@ describe("audio API", () => {
 
   it("passes the selected ElevenLabs voice to speech generation", async () => {
     const speech = vi.fn().mockResolvedValue({ audio: Buffer.from([1, 2, 3]), cached: false });
+    const compatibleVoiceId = vi.fn().mockImplementation(async (_language, voiceId) => voiceId);
     const app = await buildApp(context.repository, {
-      elevenlabs: { speech } as unknown as ElevenLabsService,
+      elevenlabs: { compatibleVoiceId, speech } as unknown as ElevenLabsService,
     });
     const response = await app.inject({
       method: "POST",
@@ -118,8 +119,9 @@ describe("audio API", () => {
     const cachedSpeech = vi.fn((input: { text: string }) => input.text === cachedItem.target
       ? { audio: Buffer.from([1]), format: "mp3" } : null);
     const speech = vi.fn().mockResolvedValue({ audio: Buffer.from([2]), format: "mp3", cached: false });
+    const compatibleVoiceId = vi.fn().mockImplementation(async (_language, voiceId) => voiceId);
     const app = await buildApp(context.repository, {
-      elevenlabs: { cachedSpeech, speech } as unknown as ElevenLabsService,
+      elevenlabs: { cachedSpeech, compatibleVoiceId, speech } as unknown as ElevenLabsService,
     });
     const response = await app.inject({
       method: "POST",
@@ -166,8 +168,9 @@ describe("audio API", () => {
   it("requires ElevenLabs Flash v2.5 for Vietnamese", async () => {
     context.repository.system.setLanguageEnabled("vi", true);
     const speech = vi.fn().mockResolvedValue({ audio: Buffer.from([1]), cached: false });
+    const compatibleVoiceId = vi.fn().mockImplementation(async (_language, voiceId) => voiceId);
     const app = await buildApp(context.repository, {
-      elevenlabs: { speech } as unknown as ElevenLabsService,
+      elevenlabs: { compatibleVoiceId, speech } as unknown as ElevenLabsService,
     });
     const unsupportedProvider = await app.inject({
       method: "POST", url: "/api/audio/speech",
@@ -186,6 +189,28 @@ describe("audio API", () => {
     expect(unsupportedModel.json().error).toBe("VIETNAMESE_MODEL_UNSUPPORTED");
     expect(supported.statusCode).toBe(200);
     expect(speech).toHaveBeenCalledWith(expect.objectContaining({ language: "vi", modelId: "eleven_flash_v2_5" }));
+    await app.close();
+  });
+
+  it("requires a compatible ElevenLabs Flash voice for Norwegian", async () => {
+    const speech = vi.fn().mockResolvedValue({ audio: Buffer.from([1]), cached: false });
+    const compatibleVoiceId = vi.fn().mockImplementation(async (_language, voiceId) => voiceId);
+    const app = await buildApp(context.repository, {
+      elevenlabs: { compatibleVoiceId, speech } as unknown as ElevenLabsService,
+    });
+    const unsupportedProvider = await app.inject({
+      method: "POST", url: "/api/audio/speech",
+      payload: { text: "God morgen", language: "no", provider: "openai" },
+    });
+    const supported = await app.inject({
+      method: "POST", url: "/api/audio/speech",
+      payload: { text: "God morgen", language: "no", provider: "elevenlabs", modelId: "eleven_flash_v2_5", voiceId: "no-voice" },
+    });
+
+    expect(unsupportedProvider.json().error).toBe("NORWEGIAN_ELEVENLABS_REQUIRED");
+    expect(supported.statusCode).toBe(200);
+    expect(compatibleVoiceId).toHaveBeenCalledWith("no", "no-voice");
+    expect(speech).toHaveBeenCalledWith(expect.objectContaining({ language: "no", voiceId: "no-voice" }));
     await app.close();
   });
 });

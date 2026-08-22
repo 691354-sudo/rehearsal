@@ -33,7 +33,7 @@ export class SystemRepository {
     const rows = this.db.prepare(
       `SELECT code, name, locale, enabled FROM languages
        ${enabledOnly ? "WHERE enabled = 1" : ""}
-       ORDER BY CASE code WHEN 'en' THEN 0 WHEN 'lv' THEN 1 WHEN 'vi' THEN 2 ELSE 3 END`,
+       ORDER BY CASE code WHEN 'en' THEN 0 WHEN 'lv' THEN 1 WHEN 'vi' THEN 2 WHEN 'no' THEN 3 ELSE 4 END`,
     ).all() as LanguageRow[];
     return rows.map((row) => ({
       code: row.code,
