@@ -1,10 +1,7 @@
 .focused-text {
-  padding: 0 0.08em;
-  border-radius: 3px;
   color: inherit;
-  background: color-mix(in srgb, var(--cue-action) 14%, transparent);
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--cue-action) 68%, transparent);
-  font-weight: 720;
+  background: transparent;
+  font-weight: 600;
 }
 
 .learning-progress {
@@ -15,19 +12,17 @@
 
 .learning-stage {
   width: max-content;
-  padding: 3px 7px;
-  border: 1px solid var(--script-rule);
-  border-radius: 999px;
-  color: var(--script-secondary);
+  padding: 0;
+  color: var(--script-support);
   font-size: 13px;
   font-weight: 550;
   line-height: 1.2;
 }
 
 .learning-stage[data-stage="new"] { color: var(--script-support); }
-.learning-stage[data-stage="learning"] { color: var(--rehearsal-note); }
-.learning-stage[data-stage="due"] { color: var(--retry); }
-.learning-stage[data-stage="strong"],
+.learning-stage[data-stage="learning"],
+.learning-stage[data-stage="due"],
+.learning-stage[data-stage="strong"] { color: var(--script-support); }
 .learning-stage[data-stage="learned"] { color: var(--learned); }
 
 .learning-counts {
@@ -120,11 +115,11 @@
 }
 
 .answer-diff { display: grid; gap: 6px; margin-top: 10px; }
-.answer-diff p { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; margin: 0; }
+.answer-diff p { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 8px; margin: 0; }
 .answer-diff p > small { padding-top: 2px; color: var(--script-support); font-size: 13px; font-weight: 550; }
 .answer-diff p > span { display: flex; flex-wrap: wrap; gap: 0 0.3em; line-height: 1.55; }
-.answer-diff del { color: var(--retry); text-decoration-thickness: 1px; }
+.answer-diff del { color: color-mix(in srgb, var(--retry) 70%, transparent); text-decoration-thickness: 1px; }
 .answer-diff mark { padding: 0; color: inherit; background: transparent; }
-.answer-diff-missing { color: var(--learned) !important; box-shadow: inset 0 -0.35em 0 var(--learned-wash); }
-.answer-diff-changed { color: var(--script-ink); }
-.answer-diff-character { color: var(--retry) !important; box-shadow: inset 0 -0.35em 0 color-mix(in srgb, var(--retry) 18%, transparent); }
+.answer-diff-missing { color: var(--retry) !important; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.answer-diff-changed { color: color-mix(in srgb, var(--retry) 70%, transparent); text-decoration: line-through; text-decoration-thickness: 1px; }
+.answer-diff button { width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; color: var(--script-support); background: transparent; border: 1px solid var(--script-rule); border-radius: 7px; }

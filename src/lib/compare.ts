@@ -31,35 +31,8 @@ const characterDiff = (expected: string, actual: string) => {
       table[i][j] = left[i] === right[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1]);
     }
   }
-  const parts = (source: string[], compare: string[]) => {
-    const partTable = Array.from({ length: source.length + 1 }, () => Array<number>(compare.length + 1).fill(0));
-    for (let sourceIndex = source.length - 1; sourceIndex >= 0; sourceIndex -= 1) {
-      for (let compareIndex = compare.length - 1; compareIndex >= 0; compareIndex -= 1) {
-        partTable[sourceIndex][compareIndex] = source[sourceIndex] === compare[compareIndex]
-          ? partTable[sourceIndex + 1][compareIndex + 1] + 1
-          : Math.max(partTable[sourceIndex + 1][compareIndex], partTable[sourceIndex][compareIndex + 1]);
-      }
-    }
-    const result: NonNullable<DiffToken["parts"]> = [];
-    let i = 0; let j = 0;
-    const push = (value: string, status: "match" | "changed") => {
-      const previous = result.at(-1);
-      if (previous?.status === status) previous.value += value;
-      else result.push({ value, status });
-    };
-    while (i < source.length) {
-      if (j < compare.length && source[i] === compare[j]) { push(source[i], "match"); i += 1; j += 1; }
-      else if (j >= compare.length || partTable[i + 1][j] >= partTable[i][j + 1]) { push(source[i], "changed"); i += 1; }
-      else j += 1;
-    }
-    return result;
-  };
   const matches = table[0][0];
-  return {
-    expectedParts: parts(left, right),
-    answerParts: parts(right, left),
-    similarity: matches / Math.max(left.length, right.length, 1),
-  };
+  return matches / Math.max(left.length, right.length, 1);
 };
 
 const buildDiff = (expected: string[], actual: string[]) => {
@@ -70,7 +43,7 @@ const buildDiff = (expected: string[], actual: string[]) => {
     for (let j = 1; j <= actual.length; j += 1) {
       if (expected[i - 1] === actual[j - 1]) table[i][j] = table[i - 1][j - 1];
       else {
-        const similarity = characterDiff(expected[i - 1], actual[j - 1]).similarity;
+        const similarity = characterDiff(expected[i - 1], actual[j - 1]);
         table[i][j] = Math.min(table[i - 1][j] + 1, table[i][j - 1] + 1, table[i - 1][j - 1] + (similarity >= 0.45 ? 1 : 2));
       }
     }
@@ -86,15 +59,16 @@ const buildDiff = (expected: string[], actual: string[]) => {
       score += 1; i -= 1; j -= 1; continue;
     }
     if (i > 0 && j > 0) {
-      const character = characterDiff(expected[i - 1], actual[j - 1]);
-      if (character.similarity >= 0.45 && table[i][j] === table[i - 1][j - 1] + 1) {
-        expectedTokens.unshift({ value: expected[i - 1], status: "changed", parts: character.expectedParts });
-        answerTokens.unshift({ value: actual[j - 1], status: "changed", parts: character.answerParts });
-        score += character.similarity; i -= 1; j -= 1; continue;
+      const similarity = characterDiff(expected[i - 1], actual[j - 1]);
+      if (similarity >= 0.45 && table[i][j] === table[i - 1][j - 1] + 1) {
+        expectedTokens.unshift({ value: expected[i - 1], status: "changed" });
+        answerTokens.unshift({ value: actual[j - 1], status: "changed" });
+        score += similarity; i -= 1; j -= 1; continue;
       }
     }
     if (i > 0 && (j === 0 || table[i][j] === table[i - 1][j] + 1)) {
-      expectedTokens.unshift({ value: expected[i - 1], status: "missing" }); i -= 1;
+      expectedTokens.unshift({ value: expected[i - 1], status: "missing" });
+      answerTokens.unshift({ value: expected[i - 1], status: "missing" }); i -= 1;
     } else {
       answerTokens.unshift({ value: actual[j - 1], status: "extra" }); j -= 1;
     }

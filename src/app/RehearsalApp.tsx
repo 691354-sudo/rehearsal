@@ -141,9 +141,9 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
       <AppLink className="simple-brand" route={practiceRoute()}><span>R</span>
         <strong className="simple-brand-product">Rehearsal</strong><strong className="simple-brand-route">{sectionLabel}</strong></AppLink>
       <nav className="simple-nav" aria-label="Main navigation">
+        <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>Practice</AppLink>
         <AppLink aria-current={route.section === "tutor" ? "page" : undefined} className={route.section === "tutor" ? "is-active" : ""} route={defaultTutorRoute(language)}>Tutor</AppLink>
         <AppLink aria-current={route.section === "library" ? "page" : undefined} className={route.section === "library" ? "is-active" : ""} route={defaultLibraryRoute(language)}>Library</AppLink>
-        <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>Practice</AppLink>
       </nav>
       <div className="simple-header-actions">
         <label className="simple-language"><span>{languageCopy[language].short}</span>

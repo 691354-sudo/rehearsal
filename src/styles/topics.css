@@ -137,7 +137,7 @@
   max-height: 620px;
   padding: 10px 8px;
   overflow-y: auto;
-  background: var(--script-inset);
+  background: var(--script-surface);
   border-right: 1px solid var(--script-rule);
 }
 
@@ -145,8 +145,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   width: 100%;
-  min-height: 44px;
-  margin-bottom: 2px;
+  min-height: 36px;
+  margin-bottom: 8px;
   padding: 0 10px;
   text-align: left;
   border-color: transparent;
@@ -154,10 +154,10 @@
 
 .topics-layout > nav button > span {
   display: grid;
-  gap: 5px;
+  gap: 3px;
   overflow: hidden;
   color: inherit;
-  font-size: 13px;
+  font-size: 14px;
   white-space: normal;
 }
 
@@ -169,25 +169,66 @@
 }
 
 .topics-layout > nav button > small {
-  min-width: 22px;
-  padding: 1px 6px;
-  color: var(--script-tertiary);
+  display: flex;
+  gap: 3px;
+  align-items: baseline;
+  min-width: 36px;
+  padding: 0;
+  color: var(--script-support);
   font-size: 12px;
-  text-align: center;
-  background: var(--script-surface);
-  border-radius: 999px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.topics-layout > nav button > small > span {
+  font-size: 11px;
+}
+
+.topics-layout > nav button > small > span::before { content: "· "; }
+
+.topic-nav-progress {
+  display: block;
+  width: 100%;
+  height: 2px;
+  overflow: hidden;
+  background: var(--script-rule);
+  border-radius: 99px;
+}
+
+.topic-nav-progress > i {
+  display: block;
+  width: 60%;
+  height: 100%;
+  background: color-mix(in srgb, var(--cue-action) 60%, transparent);
 }
 
 .topics-layout > nav button.is-active {
-  color: var(--script-ink);
+  color: var(--cue-action);
   font-weight: 630;
-  background: transparent;
-  box-shadow: inset 3px 0 0 var(--cue-action);
+  background: var(--cue-wash);
+  box-shadow: none;
 }
+
+.topic-merge {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  color: var(--script-support);
+  font-size: 12px;
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
+}
+
+.topic-merge > span { margin-inline-end: auto; }
+.topic-merge select { min-width: 150px; }
 
 .topic-detail {
   min-width: 0;
   padding: 18px 20px 20px;
+  background: var(--stage-canvas);
 }
 
 .topic-detail-heading {

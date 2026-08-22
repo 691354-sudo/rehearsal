@@ -4,7 +4,7 @@ import { apiFetch } from "../../shared/api";
 import type { IslandSummary, Language, LearningItem } from "../../shared/contracts";
 import { normalizeNfc } from "../../../contracts/text";
 import { FocusedText } from "../progress/FocusedText";
-import { LearningProgressBadge, LearningStageBadge, TopicProgress } from "../progress/LearningProgress";
+import { LearningProgressBadge, LearningStageBadge } from "../progress/LearningProgress";
 
 type TopicSummary = IslandSummary;
 type Topic = TopicSummary & { items: LearningItem[] };
@@ -31,6 +31,8 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [moveTargetId, setMoveTargetId] = useState("");
+  const [merging, setMerging] = useState(false);
+  const [mergeTargetId, setMergeTargetId] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const [visibleItemCount, setVisibleItemCount] = useState(20);
   const activeTopicRef = useRef<HTMLButtonElement>(null);
@@ -40,8 +42,8 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
     const response = await apiFetch(`/api/islands/${publicId}`);
     if (!response.ok) throw new Error("Topic could not be loaded.");
     const data = await response.json() as { island: Topic };
-    setTopic(data.island); setTitle(data.island.title); setRenaming(false); setAddingCard(false); setTopicMenuOpen(false); setSelectionMode(false);
-    setSelectedAddItemIds(new Set()); setSelectedItemIds(new Set()); setMoveTargetId(""); onTopic(data.island.publicId);
+    setTopic(data.island); setTitle(data.island.title); setRenaming(false); setAddingCard(false); setTopicMenuOpen(false); setSelectionMode(false); setMerging(false);
+    setSelectedAddItemIds(new Set()); setSelectedItemIds(new Set()); setMoveTargetId(""); setMergeTargetId(""); onTopic(data.island.publicId);
   };
   const load = async (preferredId?: string) => {
     const [topicResponse, itemResponse] = await Promise.all([
@@ -102,6 +104,31 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
     else setNotice("Topic could not be deleted.");
     setSaving(false);
   };
+  const merge = async () => {
+    if (!topic || !mergeTargetId || saving) return;
+    const destination = topics.find((candidate) => candidate.publicId === mergeTargetId);
+    if (!destination || !window.confirm(`Merge “${topic.title}” into “${destination.title}”? Cards will move and “${topic.title}” will be deleted.`)) return;
+    setSaving(true); setNotice("");
+    try {
+      const targetResponse = await apiFetch(`/api/islands/${mergeTargetId}`);
+      if (!targetResponse.ok) throw new Error("Destination Topic could not be loaded.");
+      const targetData = await targetResponse.json() as { island: Topic };
+      const itemIds = [...new Set([...targetData.island.items.map((item) => item.publicId), ...topic.items.map((item) => item.publicId)])];
+      const updateResponse = await apiFetch(`/api/islands/${mergeTargetId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemIds }),
+      });
+      if (!updateResponse.ok) throw new Error("Topics could not be merged.");
+      const deleteResponse = await apiFetch(`/api/islands/${topic.publicId}`, { method: "DELETE" });
+      if (!deleteResponse.ok) {
+        setNotice(`Cards were added to ${destination.title}, but ${topic.title} could not be deleted.`);
+        await load(topic.publicId);
+      } else {
+        setTopic(null); onTopic(""); await load(destination.publicId);
+        setNotice(`Merged into ${destination.title}.`);
+      }
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Topics could not be merged."); }
+    finally { setSaving(false); }
+  };
   const moveSelected = async () => {
     if (!topic || !moveTargetId || !selectedItemIds.size || saving) return;
     const selectedItems = topic.items.filter((item) => selectedItemIds.has(item.publicId));
@@ -159,9 +186,14 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
       }} placeholder="New Topic…" value={newTitle} /><button disabled={!newTitle.trim() || saving} onClick={() => void create()} type="button"><Plus size={15} />Create</button></div>
         <button aria-label="Close Topic manager" className="topic-manager-close" onClick={onClose} type="button"><X size={16} /></button></div></header>
     <div className="topics-layout">
-      <nav aria-label="Topics">{topics.map((candidate) => <button className={candidate.publicId === topic?.publicId ? "is-active" : ""}
+      <nav aria-label="Topics">{topics.map((candidate) => {
+        const activity = candidate.progress.dueNow + candidate.progress.new;
+        const activityWidth = `${Math.min(100, activity / Math.max(candidate.itemCount, 1) * 100)}%`;
+        return <button className={candidate.publicId === topic?.publicId ? "is-active" : ""}
         key={candidate.publicId} onClick={() => void loadTopic(candidate.publicId)} ref={candidate.publicId === topic?.publicId ? activeTopicRef : undefined}
-        type="button"><span><b>{candidate.title}</b><TopicProgress progress={candidate.progress} /></span><small>{candidate.itemCount}</small></button>)}</nav>
+        title={candidate.title} type="button"><span><b>{candidate.title}</b>{activity ? <i aria-hidden="true" className="topic-nav-progress"><i style={{ width: activityWidth }} /></i> : null}</span>
+          <small>{candidate.itemCount}{activity ? <span>{candidate.progress.dueNow ? `${candidate.progress.dueNow} due` : ""}{candidate.progress.dueNow && candidate.progress.new ? " · " : ""}{candidate.progress.new ? `${candidate.progress.new} new` : ""}</span> : null}</small></button>;
+      })}</nav>
       <div className="topic-detail">
         {!topic ? <div className="topic-empty">Create or select a Topic.</div> : <>
           <div className="topic-detail-heading">{renaming ? <div className="topic-title-edit"><input aria-label="Topic name" autoComplete="off" name="topic-name" onChange={(event) => setTitle(event.target.value)} value={title} />
@@ -173,7 +205,12 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
               <button disabled={!topic.items.length || saving} onClick={() => { setAddingCard(false); setTopicMenuOpen(false); setSelectionMode(true); setSelectedItemIds(new Set()); setMoveTargetId(""); }} type="button">Select</button>
               <div className="topic-overflow"><button aria-expanded={topicMenuOpen} aria-haspopup="menu" aria-label="More Topic actions" onClick={() => setTopicMenuOpen((open) => !open)} ref={topicMenuButtonRef} type="button"><MoreHorizontal size={16} /></button>
                 {topicMenuOpen ? <div className="topic-overflow-menu" onKeyDown={(event) => { if (event.key === "Escape") { setTopicMenuOpen(false); window.requestAnimationFrame(() => topicMenuButtonRef.current?.focus()); } }} role="menu"><button onClick={() => { setAddingCard(false); setTopicMenuOpen(false); setRenaming(true); }} role="menuitem" type="button"><Pencil size={14} />Rename</button>
+                  <button disabled={saving || topics.length < 2} onClick={() => { setTopicMenuOpen(false); setMerging(true); setMergeTargetId(""); }} role="menuitem" type="button">Merge into…</button>
                   <button className="topic-delete" disabled={saving} onClick={() => { setTopicMenuOpen(false); void remove(); }} role="menuitem" type="button"><Trash2 size={14} />Delete</button></div> : null}</div></>}</div> : null}</div>
+          {merging ? <div className="topic-merge"><span>Move every card, then remove this duplicate Topic.</span><select aria-label="Merge into Topic" onChange={(event) => setMergeTargetId(event.target.value)} value={mergeTargetId}>
+            <option value="">Merge into…</option>{topics.filter((candidate) => candidate.publicId !== topic.publicId).map((candidate) => <option key={candidate.publicId} value={candidate.publicId}>{candidate.title}</option>)}</select>
+            <button disabled={!mergeTargetId || saving} onClick={() => void merge()} type="button">Merge</button>
+            <button onClick={() => { setMerging(false); setMergeTargetId(""); }} type="button">Cancel</button></div> : null}
           {addingCard ? <section className="topic-add-item"><div><div><strong>Add cards</strong><span>Choose from Library or create directly in {topic.title}.</span></div>
             <button onClick={onCreateNew} type="button"><Plus size={14} />Create new</button></div>
             <label htmlFor="topic-card-search">Search cards</label>
