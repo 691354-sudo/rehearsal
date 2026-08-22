@@ -12,7 +12,9 @@
 
 .learning-stage {
   width: max-content;
-  padding: 0;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
   color: var(--script-support);
   font-size: 13px;
   font-weight: 550;
@@ -20,9 +22,9 @@
 }
 
 .learning-stage[data-stage="new"] { color: var(--script-support); }
-.learning-stage[data-stage="learning"],
-.learning-stage[data-stage="due"],
-.learning-stage[data-stage="strong"] { color: var(--script-support); }
+.learning-stage[data-stage="learning"] { color: var(--retry); }
+.learning-stage[data-stage="due"] { color: var(--rehearsal-note); }
+.learning-stage[data-stage="strong"],
 .learning-stage[data-stage="learned"] { color: var(--learned); }
 
 .learning-counts {
