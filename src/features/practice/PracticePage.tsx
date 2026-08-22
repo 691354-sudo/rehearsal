@@ -102,7 +102,6 @@ export function PracticePage(props: {
       onPlayPrepared={props.onPlayPrepared} onPrepareAudio={props.onPrepareAudio}
       onSelection={(scope, cards) => props.onRoute({ ...props.route, cards, scope: scope === "custom" ? "library" : "due" }, "replace")}
       onPlayback={props.onPlayback} onResume={props.onResumePlayback} onStop={props.onStopPlayback}
-      onPracticeEnabled={props.onPracticeEnabled}
       onTopic={onTopic}
       playback={props.playback} selectedTopicItems={selectedTopicItems} scope={props.route.scope === "library" ? "custom" : "due"}
       topicId={props.route.topic} topics={topics} voices={props.voices} />}

@@ -16,8 +16,8 @@
 
 .capture-entry button,
 .capture-record {
-  min-height: 36px;
-  height: 36px;
+  min-height: var(--h-tap);
+  height: var(--h-tap);
   color: var(--rh-ink);
   background: var(--rh-inset);
   border: 1px solid var(--rh-rule);
@@ -55,13 +55,20 @@
 
 .capture-list-actions > button {
   flex: none;
-  min-height: 36px;
-  height: 36px;
-  padding: 0 12px;
+  gap: 5px;
+  min-height: var(--h-tap);
+  height: var(--h-tap);
+  padding: 0 9px;
   color: var(--rh-ink);
+  font-size: 12px;
   background: var(--rh-inset);
   border: 1px solid var(--rh-rule);
   border-radius: 8px;
+}
+
+.capture-list-actions > button svg {
+  width: 14px;
+  height: 14px;
 }
 
 .capture-notebook > .simple-review-batch {
@@ -93,8 +100,8 @@
 }
 
 .simple-review-footer-clear {
-  min-height: 32px;
-  height: 32px;
+  min-height: var(--h-chip);
+  height: var(--h-chip);
   padding: 0 2px;
   border: 0;
 }
@@ -112,8 +119,8 @@
 .simple-library-tools .simple-search,
 .simple-library-tools .simple-search input,
 .simple-library-tools select {
-  min-height: 36px;
-  height: 36px;
+  min-height: var(--h-tap);
+  height: var(--h-tap);
 }
 
 .simple-library-tools .simple-search {
@@ -133,8 +140,8 @@
 }
 
 .simple-library-selection button {
-  min-height: 36px;
-  height: 36px;
+  min-height: var(--h-tap);
+  height: var(--h-tap);
   padding: 0 12px;
   font-size: 14px;
   color: var(--rh-ink);
@@ -179,16 +186,16 @@
 .simple-row-more > button {
   width: 32px;
   min-width: 32px;
-  height: 32px;
-  min-height: 32px;
+  height: var(--h-chip);
+  min-height: var(--h-chip);
   padding: 0;
 }
 
 .simple-row-actions .simple-row-more-panel button {
   width: 100%;
   min-width: 0;
-  min-height: 36px;
-  height: 36px;
+  min-height: var(--h-tap);
+  height: var(--h-tap);
 }
 
 .simple-phrase-row.is-selecting { grid-template-columns: 28px minmax(0, 1fr) auto; }
@@ -220,8 +227,8 @@
 
 .topic-create input {
   width: 160px;
-  min-height: 36px;
-  height: 36px;
+  min-height: var(--h-tap);
+  height: var(--h-tap);
   font-size: 14px;
 }
 
@@ -229,8 +236,8 @@
 .topic-manager-close {
   width: 36px;
   min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+  height: var(--h-tap);
+  min-height: var(--h-tap);
   padding: 0;
 }
 
@@ -240,7 +247,7 @@
 
 .topics-layout > nav button {
   grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 44px;
+  min-height: var(--h-control);
   margin: 0 0 4px;
   padding: 6px 10px;
   border-radius: 8px;
@@ -280,8 +287,8 @@
 .topic-detail-heading h3 { font-size: 19px; font-weight: 600; }
 
 .topic-detail-heading button {
-  min-height: 36px;
-  height: 36px;
+  min-height: var(--h-tap);
+  height: var(--h-tap);
 }
 
 .topic-detail-heading .topic-add-toggle {
@@ -307,8 +314,8 @@
 .topic-card-edit {
   width: 32px;
   min-width: 32px;
-  height: 32px;
-  min-height: 32px !important;
+  height: var(--h-chip);
+  min-height: var(--h-chip) !important;
 }
 
 /* Tutor */
@@ -387,9 +394,9 @@
 .simple-app .simple-composer-send {
   width: 40px;
   min-width: 40px;
-  height: 40px;
-  min-height: 40px;
+  height: var(--h-control);
+  min-height: var(--h-control);
   border-radius: 999px;
 }
 
-.simple-app .simple-composer-record { width: 36px; min-width: 36px; height: 36px; min-height: 36px; }
+.simple-app .simple-composer-record { width: 36px; min-width: 36px; height: var(--h-tap); min-height: var(--h-tap); }

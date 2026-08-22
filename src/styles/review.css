@@ -26,7 +26,7 @@
 
 .simple-filter-popover select,
 .simple-library-tools select {
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 9px;
   color: var(--script-ink);
   font: inherit;
@@ -37,7 +37,7 @@
 }
 
 .simple-filter-popover > button {
-  min-height: 40px;
+  min-height: var(--h-control);
   color: var(--cue-light);
   font-size: 12px;
   background: transparent;
@@ -56,7 +56,7 @@
 
 .simple-new-items-setting input {
   width: 72px;
-  height: 40px;
+  height: var(--h-control);
   padding: 0 9px;
   color: var(--script-ink);
   font: inherit;
@@ -72,16 +72,18 @@
 }
 
 .simple-finish-review {
-  display: inline-flex;
+  display: flex;
   gap: 6px;
   align-items: center;
-  min-height: 40px;
-  padding: 0 6px;
-  color: var(--script-support);
+  justify-content: center;
+  width: 100%;
+  min-height: var(--h-control);
+  padding: 0 14px;
+  color: var(--rh-on-accent);
   font-size: 14px;
-  font-weight: 550;
-  background: transparent;
-  border: 0;
+  font-weight: 650;
+  background: var(--rh-accent);
+  border: 1px solid var(--rh-accent);
   border-radius: 8px;
 }
 
@@ -116,7 +118,7 @@
 .simple-composer-upload {
   display: grid;
   width: 40px;
-  height: 40px;
+  height: var(--h-control);
   place-items: center;
   color: var(--script-support);
   cursor: pointer;
@@ -129,7 +131,7 @@
 }
 
 .simple-review-batch {
-  width: min(100%, 760px);
+  width: min(100%, var(--col));
   margin: 22px auto;
   overflow: hidden;
   background: var(--script-surface);
@@ -169,7 +171,7 @@
 .simple-review-header-actions > button {
   display: grid;
   width: 38px;
-  height: 38px;
+  height: var(--h-tap);
   place-items: center;
   color: var(--script-support);
   background: transparent;
@@ -242,7 +244,7 @@
   gap: 5px;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 7px;
   color: var(--script-support);
   font-size: 12px;
@@ -304,7 +306,7 @@
   right: 7px;
   display: grid;
   width: 44px;
-  height: 44px;
+  height: var(--h-control);
   padding: 0;
   place-items: center;
   color: var(--cue-on);
@@ -347,7 +349,7 @@
   align-items: center;
   width: max-content;
   min-width: 0;
-  min-height: 32px;
+  min-height: var(--h-chip);
   padding: 0 4px;
   color: var(--script-support);
   font-size: 14px;
@@ -380,7 +382,7 @@
 .simple-review-adjustment label textarea {
   box-sizing: border-box;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--h-control);
   padding: 10px 12px;
   color: var(--script-ink);
   font: inherit;
@@ -465,7 +467,7 @@
 .simple-review-batch > footer .simple-primary {
   width: max-content;
   min-width: 0;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 20px;
   font-size: 15px;
   font-weight: 600;
@@ -481,7 +483,7 @@
 
 .simple-review-footer-clear {
   min-width: 0;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 8px;
   color: var(--script-support);
   font-size: 14px;
@@ -557,7 +559,7 @@
   gap: 5px;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
+  min-height: var(--h-tap);
   padding: 0 9px;
   color: var(--script-support);
   font-size: 12px;
@@ -584,7 +586,7 @@
 .simple-card-select {
   display: grid;
   min-width: 28px;
-  min-height: 34px;
+  min-height: var(--h-tap);
   cursor: pointer;
   place-items: center;
 }
@@ -604,7 +606,7 @@
   display: grid;
   width: auto;
   min-width: 34px;
-  height: 34px;
+  height: var(--h-tap);
   padding: 0 8px;
   place-items: center;
   color: var(--script-support);
@@ -628,7 +630,7 @@
 }
 
 .simple-library-load-more button {
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 14px;
   color: var(--cue-light);
   font-size: 13px;

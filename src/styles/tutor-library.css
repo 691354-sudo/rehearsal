@@ -51,7 +51,7 @@
 .simple-delete-chat {
   display: grid;
   width: 36px;
-  height: 36px;
+  height: var(--h-tap);
   padding: 0;
   place-items: center;
   color: var(--script-tertiary);
@@ -136,7 +136,7 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  min-height: 36px;
+  min-height: var(--h-tap);
   padding: 0 10px;
   color: var(--script-secondary);
   background: transparent;
@@ -160,7 +160,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 38px;
+  min-height: var(--h-tap);
   padding: 6px 16px;
   color: var(--retry);
   font-size: 12px;
@@ -169,7 +169,7 @@
 }
 
 .simple-composer-error button {
-  min-height: 32px;
+  min-height: var(--h-chip);
   padding: 0 9px;
   color: inherit;
   background: transparent;
@@ -191,7 +191,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 32px;
+  min-height: var(--h-chip);
   padding: 0 8px 8px;
 }
 
@@ -218,7 +218,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 9px;
   color: var(--script-ink);
   font-size: 12px;
@@ -255,7 +255,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--h-control);
   padding: 7px 8px;
   text-align: left;
 }
@@ -284,7 +284,7 @@
 }
 
 .simple-file-button {
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 11px;
   color: var(--script-support);
   white-space: nowrap;
@@ -325,7 +325,7 @@
 .simple-composer-send {
   display: grid;
   width: 42px;
-  height: 42px;
+  height: var(--h-control);
   place-items: center;
   color: var(--cue-on);
   background: var(--cue-action);
@@ -349,7 +349,7 @@
   right: 0;
   display: grid;
   width: 38px;
-  height: 38px;
+  height: var(--h-tap);
   padding: 0;
   place-items: center;
   color: var(--script-tertiary);
@@ -370,7 +370,7 @@
 .simple-composer-record {
   display: grid;
   width: 42px;
-  height: 42px;
+  height: var(--h-control);
   padding: 0;
   place-items: center;
   color: var(--script-support);
@@ -395,7 +395,7 @@
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 6px 16px;
   color: var(--script-tertiary);
   font-size: 12px;
@@ -416,7 +416,7 @@
   display: inline-flex;
   gap: 5px;
   align-items: center;
-  min-height: 32px;
+  min-height: var(--h-chip);
   padding: 0 8px;
   color: inherit;
   background: transparent;
@@ -441,7 +441,7 @@
 
 .simple-library-heading-actions button,
 .simple-library-panel-actions > button:first-child {
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 11px;
   color: var(--script-support);
   background: transparent;
@@ -518,7 +518,7 @@
 .simple-import-card > textarea,
 .simple-search input {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--h-control);
   padding: 11px 12px;
   color: var(--script-ink);
   background: var(--control-fill);
@@ -599,7 +599,7 @@
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-  min-height: 44px;
+  min-height: var(--h-control);
   margin-bottom: 16px;
   padding: 8px 12px;
   color: var(--retry);
@@ -612,7 +612,7 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  min-height: 36px;
+  min-height: var(--h-tap);
   padding: 0 10px;
   color: inherit;
   background: transparent;
@@ -670,7 +670,7 @@
 .simple-phrase-row > button {
   display: grid;
   width: 40px;
-  height: 40px;
+  height: var(--h-control);
   place-items: center;
   color: var(--cue-light);
   background: transparent;
@@ -724,7 +724,7 @@
   gap: 6px;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 12px;
   color: var(--cue-light);
   font-size: 13px;
@@ -765,7 +765,7 @@
 
 .simple-tutor-mode button {
   min-width: 92px;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 15px;
   color: var(--script-support);
   font-size: 14px;
@@ -792,6 +792,6 @@
 
 @media (max-width: 480px) {
   .simple-tutor-mode button {
-    min-height: 44px;
+    min-height: var(--h-control);
   }
 }

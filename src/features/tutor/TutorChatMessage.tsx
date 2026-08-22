@@ -1,6 +1,6 @@
 import { LoaderCircle, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import type { ChatMessage } from "../../shared/contracts";
-import { TutorMarkdownMessage } from "./TutorMarkdownMessage";
+import { splitTutorCorrection, TutorMarkdownMessage } from "./TutorMarkdownMessage";
 
 export function TutorChatMessage({ learnerMessage, message, onDelete, onEdit, onRetry, tutorLabel }: {
   learnerMessage?: string;
@@ -10,8 +10,9 @@ export function TutorChatMessage({ learnerMessage, message, onDelete, onEdit, on
   onRetry: (message: ChatMessage) => void;
   tutorLabel: string;
 }) {
+  const correction = message.role === "assistant" ? splitTutorCorrection(message.content, learnerMessage) : null;
   return <article className={`simple-message simple-message--${message.role}`} data-status={message.status}>
-    {message.role === "assistant" ? <span>{tutorLabel}</span> : null}
+    {message.role === "assistant" && (!correction || correction.reply) ? <span>{tutorLabel}</span> : null}
     {message.status === "placeholder" ? <div className="simple-chat-loading" role="status">
       <LoaderCircle className="simple-spin" size={17} />Tutor is thinking…
     </div> : <TutorMarkdownMessage content={message.content} learnerMessage={learnerMessage} />}

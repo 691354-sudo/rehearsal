@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Moon, Settings2, Sun, UserRound } from "lucide-react";
+import { BookOpen, ChevronDown, Headphones, MessageCircle, Moon, Search, Settings2, Sun, UserRound } from "lucide-react";
 import { isLanguageCode, type LanguageOption, type ProfileSummary } from "../../contracts/api";
 import { usePlaybackController } from "../features/audio/usePlaybackController";
 import { LibraryPage } from "../features/library/LibraryPage";
@@ -142,9 +142,12 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
       <AppLink className="simple-brand" route={practiceRoute()}><EchoMark />
         <strong className="simple-brand-product">Echo</strong><strong className="simple-brand-route">{sectionLabel}</strong></AppLink>
       <nav className="simple-nav" aria-label="Main navigation">
-        <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>Practice</AppLink>
-        <AppLink aria-current={route.section === "tutor" ? "page" : undefined} className={route.section === "tutor" ? "is-active" : ""} route={defaultTutorRoute(language)}>Tutor</AppLink>
-        <AppLink aria-current={route.section === "library" ? "page" : undefined} className={route.section === "library" ? "is-active" : ""} route={defaultLibraryRoute(language)}>Library</AppLink>
+        <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>
+          <Headphones aria-hidden="true" className="simple-nav-icon" size={19} /><span>Practice</span></AppLink>
+        <AppLink aria-current={route.section === "tutor" ? "page" : undefined} className={route.section === "tutor" ? "is-active" : ""} route={defaultTutorRoute(language)}>
+          <MessageCircle aria-hidden="true" className="simple-nav-icon" size={19} /><span>Tutor</span></AppLink>
+        <AppLink aria-current={route.section === "library" ? "page" : undefined} className={route.section === "library" ? "is-active" : ""} route={defaultLibraryRoute(language)}>
+          <BookOpen aria-hidden="true" className="simple-nav-icon" size={19} /><span>Library</span></AppLink>
       </nav>
       <div className="simple-header-actions">
         <label className="simple-language"><span>{languageCopy[language].short}</span>
@@ -164,6 +167,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
         </button>
         <button aria-label="Settings" className="simple-icon-button simple-global-settings-button" onClick={openSettings} title="Settings" type="button"><Settings2 size={18} /></button>
       </div>
+      <AppLink aria-label="Search Library" className="simple-mobile-search" route={defaultLibraryRoute(language)}><Search size={20} /></AppLink>
       <button aria-expanded={mobileMenuOpen} aria-label="App menu" className="simple-mobile-menu-button"
         onClick={() => setMobileMenuOpen((open) => !open)} ref={mobileMenuButtonRef} type="button"><Settings2 size={19} /></button>
       {mobileMenuOpen ? <><button aria-label="Close app menu" className="simple-mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} type="button" />
@@ -171,7 +175,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
           <label><span>Language</span><select name="mobile-language" onChange={(event) => { changeLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
             {availableLanguages.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
           <button onClick={() => { setMobileMenuOpen(false); onSwitchProfile(); }} type="button"><UserRound size={17} />{profile.name}</button>
-          <button onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")} type="button">
+          <button onClick={() => { setTheme((current) => current === "dark" ? "light" : "dark"); setMobileMenuOpen(false); }} type="button">
             {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}{theme === "dark" ? "Light theme" : "Dark theme"}</button>
           <button onClick={() => { setMobileMenuOpen(false); openSettings(); }} type="button"><Settings2 size={17} />Settings</button>
         </div></> : null}

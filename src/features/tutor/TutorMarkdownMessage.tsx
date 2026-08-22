@@ -31,18 +31,35 @@ const renderMarkdownBlocks = (content: string, keyPrefix: string) => {
   return nodes;
 };
 
+const promoteTrailingConversationalReply = (content: string) => {
+  const blocks = content.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
+  const trailing = blocks.at(-1) || "";
+  if (blocks.length < 3 || !/^(?:if you want,\s*)?we can\b|^(?:tell me|what|how|do you|would you|shall we)\b/i.test(trailing)) return null;
+  return { reply: trailing, correction: blocks.slice(0, -1).join("\n\n") };
+};
+
 export const splitTutorCorrection = (content: string, learnerMessage?: string) => {
   const explicitHeading = /^\s*#{1,3}\s+Correction\s*$/im.exec(content);
-  if (explicitHeading?.index !== undefined) return {
-    reply: content.slice(0, explicitHeading.index).trim(),
-    correction: content.slice(explicitHeading.index + explicitHeading[0].length).trim(),
-  };
+  if (explicitHeading?.index !== undefined) {
+    let reply = content.slice(0, explicitHeading.index).trim();
+    let correction = content.slice(explicitHeading.index + explicitHeading[0].length).trim();
+    if (!reply) {
+      const promoted = promoteTrailingConversationalReply(correction);
+      if (promoted) ({ reply, correction } = promoted);
+    }
+    return { reply, correction };
+  }
 
   const legacyMarker = /\b(?:More natural|A natural way to say it is)\s*:\s*/i.exec(content);
   if (legacyMarker?.index === undefined) return null;
-  const correction = content.slice(legacyMarker.index + legacyMarker[0].length).trim();
+  let reply = content.slice(0, legacyMarker.index).trim();
+  let correction = content.slice(legacyMarker.index + legacyMarker[0].length).trim();
+  if (!reply) {
+    const promoted = promoteTrailingConversationalReply(correction);
+    if (promoted) ({ reply, correction } = promoted);
+  }
   return {
-    reply: content.slice(0, legacyMarker.index).trim(),
+    reply,
     correction: learnerMessage?.trim() ? `${learnerMessage.trim()}\n\n${correction}` : correction,
   };
 };

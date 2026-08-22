@@ -1,6 +1,8 @@
 import { speedRangeForProvider } from "../../lib/playbackSettings";
 import type { ElevenLabsConfig, Language, PlaybackPreferences } from "../../shared/contracts";
 
+export const voiceDisplayName = (name: string) => name.split(/\s+-\s+/, 1)[0]?.trim() || name;
+
 export function PlaybackSettings(props: {
   elevenLabs: ElevenLabsConfig;
   language: Language;
@@ -28,7 +30,7 @@ export function PlaybackSettings(props: {
       {props.language !== "vi" && props.language !== "no" ? props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>) : null}
       {!compatibleElevenLabsVoices.length ? <option value="elevenlabs:" disabled>No compatible voice configured</option> : null}
       {compatibleElevenLabsVoices.map((voice) =>
-        <option key={voice.id} value={`elevenlabs:${voice.id}`}>ElevenLabs · {voice.name}</option>)}
+        <option key={voice.id} value={`elevenlabs:${voice.id}`}>ElevenLabs · {voiceDisplayName(voice.name)}</option>)}
     </select></label>
     <label><span>Speed · {props.playback.speed.toFixed(2)}×</span><input aria-label="Speed" max={speedRange.max} min={speedRange.min} name="practice-speed"
       onChange={(event) => props.onPlayback({ ...props.playback, speed: Number(event.target.value) })} step="0.05" type="range" value={props.playback.speed} /></label>

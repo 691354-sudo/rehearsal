@@ -51,7 +51,7 @@
   gap: 7px;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: var(--h-control);
   padding: 0 13px;
   color: var(--script-ink);
   font-size: 12px;
@@ -76,7 +76,7 @@
 .simple-invite-result > input {
   box-sizing: border-box;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--h-control);
   padding: 0 11px;
   color: var(--script-ink);
   font-size: 13px;
@@ -98,7 +98,7 @@
 }
 
 .simple-advanced-settings summary {
-  min-height: 44px;
+  min-height: var(--h-control);
   padding: 11px 12px;
   color: var(--script-support);
   font-size: 12px;
@@ -137,7 +137,7 @@
 .simple-settings-header > button {
   display: grid;
   width: 40px;
-  height: 40px;
+  height: var(--h-control);
   place-items: center;
   color: var(--script-support);
   background: transparent;
@@ -190,7 +190,7 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  min-height: 42px;
+  min-height: var(--h-control);
   padding: 8px 10px;
   cursor: pointer;
   background: var(--script-inset);
@@ -232,7 +232,7 @@
 }
 
 .simple-provider-switch button {
-  min-height: 40px;
+  min-height: var(--h-control);
   color: var(--script-support);
   font-size: 12px;
   font-weight: 600;
@@ -256,7 +256,7 @@
 
 .simple-openai-voice-choice select {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--h-control);
   padding: 0 11px;
   color: var(--script-ink);
   background: var(--script-inset);
@@ -333,7 +333,7 @@
 }
 
 .simple-advanced-voice summary {
-  min-height: 44px;
+  min-height: var(--h-control);
   padding: 11px 12px;
   color: var(--script-support);
   font-size: 12px;
@@ -388,7 +388,7 @@
 .simple-elevenlabs-status button {
   display: grid;
   width: 40px;
-  height: 40px;
+  height: var(--h-control);
   flex: 0 0 auto;
   padding: 0;
   place-items: center;
@@ -408,7 +408,7 @@
   display: inline-flex;
   align-items: center;
   width: max-content;
-  min-height: 44px;
+  min-height: var(--h-control);
   color: var(--cue-light);
   font-size: 12px;
   text-decoration: none;
@@ -430,7 +430,7 @@
 }
 
 .simple-model-choice button {
-  min-height: 40px;
+  min-height: var(--h-control);
   color: var(--script-support);
   font-size: 12px;
   background: var(--script-inset);
@@ -490,7 +490,7 @@
 .simple-global-setting button {
   flex: 1;
   min-width: 28px;
-  height: 40px;
+  height: var(--h-control);
   padding: 0 5px;
   color: var(--script-support);
   font-size: 12px;
@@ -532,12 +532,12 @@
   grid-template-columns: minmax(90px, 1fr) 96px 118px;
   gap: 10px;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--h-control);
   padding: 0 11px;
 }
 
 .simple-fsrs-head {
-  min-height: 40px;
+  min-height: var(--h-control);
   color: var(--script-tertiary);
   font-size: 12px;
   background: var(--script-inset);
@@ -556,7 +556,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  height: 40px;
+  height: var(--h-control);
   padding: 0 7px;
   background: var(--control-fill);
   border: 1px solid var(--control-rule);
@@ -596,7 +596,7 @@
 }
 
 .simple-fsrs-details input {
-  height: 40px;
+  height: var(--h-control);
   padding: 0 10px;
   color: var(--script-ink);
   font: inherit;
@@ -647,7 +647,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 40px;
+  min-height: var(--h-control);
 }
 
 .simple-scheduler-save-row > span {
@@ -664,7 +664,7 @@
 }
 
 .simple-settings-save {
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 14px;
   color: var(--cue-on);
   font-size: 12px;

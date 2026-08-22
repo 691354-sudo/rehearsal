@@ -186,6 +186,10 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
       }} placeholder="New topic…" value={newTitle} /><button aria-label="Create topic" disabled={!newTitle.trim() || saving} onClick={() => void create()} title="Create topic" type="button"><Plus size={17} /></button></div>
         <button aria-label="Close Topic manager" className="topic-manager-close" onClick={onClose} type="button"><X size={16} /></button></div></header>
     <div className="topics-layout">
+      <select aria-label="Choose Topic" className="topic-mobile-select" onChange={(event) => void loadTopic(event.target.value)} value={topic?.publicId || ""}>
+        <option disabled value="">Choose a Topic…</option>
+        {topics.map((candidate) => <option key={candidate.publicId} value={candidate.publicId}>{candidate.title} · {candidate.itemCount}</option>)}
+      </select>
       <nav aria-label="Topics">{topics.map((candidate) => {
         return <button className={candidate.publicId === topic?.publicId ? "is-active" : ""}
         key={candidate.publicId} onClick={() => void loadTopic(candidate.publicId)} ref={candidate.publicId === topic?.publicId ? activeTopicRef : undefined}

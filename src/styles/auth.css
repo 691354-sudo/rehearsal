@@ -1,15 +1,14 @@
 .profile-gate {
-  --profile-canvas: #ede8e0;
-  --profile-surface: #f8f5f0;
-  --profile-inset: #e2dbd1;
-  --profile-ink: #23211f;
-  --profile-support: #655e57;
-  --profile-faint: #8c857c;
-  --profile-rule: #d5ccc0;
-  --profile-action: #a4573b;
-  --profile-action-hover: #8e4930;
-  --profile-wash: #efe0d7;
-  --rh-accent: #a4573b;
+  --profile-canvas: var(--rh-canvas);
+  --profile-surface: var(--rh-surface);
+  --profile-inset: var(--rh-inset);
+  --profile-ink: var(--rh-ink);
+  --profile-support: var(--rh-support);
+  --profile-faint: var(--rh-faint);
+  --profile-rule: var(--rh-rule);
+  --profile-action: var(--rh-accent);
+  --profile-action-hover: var(--rh-accent-hover);
+  --profile-wash: var(--rh-wash);
   --rh-text: var(--profile-ink);
   position: fixed;
   inset: 0;
@@ -41,7 +40,7 @@
 
 .profile-gate button,
 .profile-gate input,
-.profile-gate select { min-height: 44px; }
+.profile-gate select { min-height: var(--h-control); }
 
 .profile-gate button {
   cursor: pointer;
@@ -127,7 +126,7 @@
 }
 
 .profile-options button.is-active span {
-  color: #fff9f4;
+  color: var(--rh-on-accent);
   background: var(--profile-action);
 }
 
@@ -143,7 +142,7 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  min-height: 46px;
+  min-height: var(--h-control);
   padding: 0 13px;
   color: var(--profile-support);
   background: var(--profile-inset);
@@ -175,7 +174,7 @@
 
 .profile-error {
   margin: 9px 0 0;
-  color: #a64f49;
+  color: var(--rh-retry);
   font-size: 13px;
 }
 
@@ -185,9 +184,9 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 46px;
+  min-height: var(--h-control);
   margin-top: 16px;
-  color: #fff9f4;
+  color: var(--rh-on-accent);
   font-weight: 600;
   background: var(--profile-action);
   border: 1px solid var(--profile-action);
