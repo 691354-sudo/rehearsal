@@ -34,7 +34,7 @@ export type LibraryRoute = RouteBase & {
   topic: string;
   sort: LibrarySort;
   page: number;
-  panel: "import" | null;
+  panel: "import" | "create" | null;
   edit: string | null;
 };
 
@@ -43,13 +43,14 @@ export type HistoryMode = "push" | "replace";
 
 export type RouteHistoryState = {
   rehearsal: true;
-  surface: "settings" | "import" | "editor" | null;
+  surface: "settings" | "import" | "create" | "editor" | null;
 };
 
 export function routeHistoryState(route: AppRoute): RouteHistoryState {
   const surface: RouteHistoryState["surface"] = route.settings ? "settings"
     : route.section === "library" && route.edit ? "editor"
       : route.section === "library" && route.panel === "import" ? "import"
+        : route.section === "library" && route.panel === "create" ? "create"
         : null;
   return { rehearsal: true, surface };
 }
@@ -108,7 +109,8 @@ export function parseAppRoute(
       topic: valueOrNull(params, "topic") || "all",
       sort: librarySorts.has(sort) ? sort : "recent",
       page: Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1,
-      panel: path === "library" && params.get("panel") === "import" ? "import" : null,
+      panel: params.get("panel") === "create" ? "create"
+        : path === "library" && params.get("panel") === "import" ? "import" : null,
       edit: valueOrNull(params, "edit"),
       language,
       settings,
@@ -151,7 +153,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
     if (route.topic !== "all") params.set("topic", route.topic);
     if (route.sort !== "recent") params.set("sort", route.sort);
     if (route.page > 1) params.set("page", String(route.page));
-    if (route.view === "cards" && route.panel) params.set("panel", route.panel);
+    if (route.panel) params.set("panel", route.panel);
     if (route.edit) params.set("edit", route.edit);
   }
 

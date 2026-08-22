@@ -183,6 +183,16 @@ const migrateChatClientMessageIds = (db: Database.Database) => {
     ON chat_messages(client_message_id) WHERE client_message_id IS NOT NULL`);
 };
 
+const migrateReviewBatchDestination = (db: Database.Database) => {
+  const columns = new Set(
+    (db.prepare("PRAGMA table_info(review_batches)").all() as Array<{ name: string }>)
+      .map((column) => column.name),
+  );
+  if (!columns.has("destination_topic_title")) {
+    db.exec("ALTER TABLE review_batches ADD COLUMN destination_topic_title TEXT");
+  }
+};
+
 type SchemaMigration = {
   id: string;
   run: (db: Database.Database) => void;
@@ -197,6 +207,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "005-vietnamese-language", run: migrateVietnameseLanguage, requiresForeignKeysOff: true },
   { id: "006-norwegian-language", run: migrateNorwegianLanguage, requiresForeignKeysOff: true },
   { id: "007-chat-client-message-id", run: migrateChatClientMessageIds },
+  { id: "008-review-batch-destination", run: migrateReviewBatchDestination },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {

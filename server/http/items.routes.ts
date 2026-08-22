@@ -21,18 +21,19 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
 
   app.post("/api/items", async (request, reply) => {
     const { repository } = dependencies.forRequest(request);
-    const body = itemBodySchema.parse(request.body);
+    const body = itemBodySchema.extend({ topicId: z.string().uuid().optional() }).parse(request.body);
     if (!focusTermsInTarget(body.target, body.focusTerms || [])) {
       return reply.code(400).send({ error: "FOCUS_TERM_NOT_FOUND" });
     }
-    const item = repository.items.save({
-      ...body,
+    const { topicId, ...itemInput } = body;
+    const item = repository.items.create({
+      ...itemInput,
       source: "Manual entry",
       naturalness: 5,
       commonness: 5,
       status: "new",
       register: "casual",
-    });
+    }, topicId);
     return reply.code(201).send({ item });
   });
 
@@ -118,20 +119,28 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     const body = z.object({
       language: languageSchema,
       title: z.string().trim().min(1).max(300),
-      text: z.string().trim().min(1).max(aiLimits.sourceCharacters),
+      text: z.string().trim().min(1).max(200_099),
+    }).superRefine(({ text }, context) => {
+      if (!text.includes("$") && text.length > aiLimits.sourceCharacters) {
+        context.addIssue({ code: "too_big", origin: "string", maximum: aiLimits.sourceCharacters,
+          inclusive: true, path: ["text"], message: "Ordinary imports exceed the source limit" });
+      }
     }).parse(request.body);
+    const delimited = body.text.includes("$");
     const source = repository.library.saveSource({
       language: body.language,
       title: body.title,
       rawText: body.text,
       kind: "text",
     });
-    const prepared = await openai.prepareImportedMaterial(body);
+    const prepared = delimited
+      ? await openai.prepareDelimitedImportedMaterial(body)
+      : await openai.prepareImportedMaterial(body);
     const previewSentences = body.text
-      .split(/(?<=[.!?])\s+/)
+      .split(delimited ? "$" : /(?<=[.!?])\s+/)
       .map((sentence) => sentence.trim())
       .filter(Boolean)
-      .slice(0, 50);
+      .slice(0, delimited ? 100 : 50);
     return reply.code(201).send({ source, prepared, batch: prepared.batch, previewSentences });
   });
 

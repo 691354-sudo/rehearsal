@@ -32,7 +32,7 @@ The core production cycle is `Capture → Review → Library → Listen & Repeat
 
 Tutor has a Notebook for thoughts the active learner genuinely wants to express. A note can be typed directly in Russian or recorded freely and transcribed by OpenAI. Typed and transcribed notes enter the same ready queue, may be edited, and may accumulate across days.
 
-`Prepare cards` takes the oldest ready notes within a 50,000-character window, removes repetition, separates ideas, and proposes up to 100 complete, natural utterances with one primary Topic. Active proposals are included by default. Each proposal has its own optional comment. Pressing the review action saves selected proposals whose comments are empty and asks the model to replace only the commented proposals. The replacements remain in the same Review for another decision; a failed request preserves every comment and saves nothing from that request.
+`Prepare cards` takes the oldest ready notes within a 50,000-character window, removes repetition, separates ideas, and proposes up to 100 complete, natural utterances with one primary Topic. Situation descriptions, another person's words, and explanatory meta-text are context rather than card content. After wording such as “я хотел ответить/сказать/спросить”, the intended utterance that follows is the card: the gym/toilet example produces only the intended “вон там, за углом” reply. Active proposals are included by default. Each proposal has its own optional comment and `Revise` action; revision replaces only that card and leaves every other proposal unchanged. `Add to Library` saves only the selected, already reviewed proposals. A failed revision preserves its comment and saves nothing.
 
 Before upload, the browser stores one pending recording per profile and language in IndexedDB. It survives a PWA restart and remains available for Retry or Delete. The browser copy is removed only after the server confirms the upload. Server-side source audio is temporary and is deleted as soon as transcription succeeds; a failed transcription retains it only for Retry or Delete.
 
@@ -64,6 +64,10 @@ Library cards may be selected with checkboxes and deleted as one confirmed batch
 
 A saved Library card may be rewritten from its Edit dialog using one optional learner comment such as “too formal” or “keep the context, but I would say it differently.” The model rewrites only the unsaved editor draft. The stored card, Topic membership, and review history remain unchanged until the learner explicitly presses `Save card`; a failed rewrite preserves both the current draft and the comment for retry.
 
+Library also accepts a card written entirely by the learner. Target sentence and Russian cue are required; Focus phrase and Topic are optional, while Note and Frequency remain under `More details`. Creating with a Topic writes the card and membership atomically, and a failed request leaves the draft in the form.
+
+Text Import keeps its ordinary “select useful material” behavior when no delimiter is present. When the source contains `$`, every non-empty whitespace-normalized fragment—including text before the first delimiter—becomes exactly one review candidate in source order. The target wording is immutable during AI preparation; the model supplies only the Russian cue, optional exact focus, and metadata. A named destination Topic is required, at most 100 fragments of 2,000 characters are accepted, and all selected cards enter that one Topic in the commit transaction.
+
 ### Conversation
 
 Tutor behaves like a normal ChatGPT conversation or role-play. It does not interrupt every sentence unless live correction was explicitly requested. Chat and Notebook remain equally visible working modes. Existing chats may be deleted explicitly; opening Tutor restores the active chat at its latest position without replaying an animated scroll through its history. At the end, `Finish & review` analyzes the complete exchange and proposes only meaningful corrections, reusable islands, and patterns.
@@ -74,7 +78,7 @@ Pressing Enter clears the composer immediately, puts the learner's message into 
 
 ## Approval boundary
 
-LLM output never enters Library automatically. Tutor conversation review, pasted vocabulary, imported text, pattern drills, and Capture Reality all produce a review batch. Ordinary review candidates start unselected; Capture Reality selects active candidates by default so the notebook remains a batch workflow rather than a one-by-one import. The learner may edit, regenerate, change context, exclude, select, or revise a whole capture package. Only the final add action writes cards to Library, atomically.
+LLM output never enters Library automatically. Tutor conversation review, pasted vocabulary, imported text, pattern drills, and Capture Reality all produce a review batch. Ordinary review candidates start unselected; Capture Reality selects active candidates by default so the notebook remains a batch workflow rather than a one-by-one import. The learner may edit, regenerate, change context, exclude, select, or revise one candidate at a time. Only the final add action writes selected cards to Library, atomically.
 
 Raw sources and rejected proposals may be retained for recovery and future analysis, but they are not practice material.
 

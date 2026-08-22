@@ -27,6 +27,7 @@ export type ReviewBatch = {
   kind: "chat_review" | "vocab" | "text_import" | "pattern_drill" | "capture";
   candidates: ReviewCandidate[];
   status: "draft" | "committed";
+  destinationTopicTitle: string | null;
 };
 
 const pageSize = 8;
@@ -42,7 +43,9 @@ export function ReviewBatchPanel(props: {
   const [page, setPage] = useState(0);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const [regenerating, setRegenerating] = useState<{ candidateId: string; instruction: "another" | "different_context" } | null>(null);
+  const [regenerating, setRegenerating] = useState<{
+    candidateId: string; instruction: "another" | "different_context" | "revise";
+  } | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
   const candidateSignature = props.batch.candidates
@@ -73,6 +76,11 @@ export function ReviewBatchPanel(props: {
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
+  const allSelected = Boolean(props.batch.candidates.length)
+    && props.batch.candidates.every((candidate) => selected.has(candidate.id));
+  const toggleAll = () => setSelected(allSelected
+    ? new Set()
+    : new Set(props.batch.candidates.map((candidate) => candidate.id)));
   const candidateSelection = (candidate: ReviewCandidate) => ({
     id: candidate.id,
     target: candidate.target,
@@ -92,19 +100,32 @@ export function ReviewBatchPanel(props: {
     } catch { setNotice("Couldn’t generate another version."); }
     finally { setRegenerating(null); }
   };
+  const revise = async (candidate: ReviewCandidate) => {
+    const feedback = comments[candidate.id]?.trim();
+    if (!feedback || regenerating) return;
+    setRegenerating({ candidateId: candidate.id, instruction: "revise" }); setNotice("");
+    try {
+      const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/candidates/${candidate.id}/revise`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback, candidate: candidateSelection(candidate) }),
+      });
+      if (!response.ok) throw new Error("Revision failed");
+      const data = await response.json() as { batch: ReviewBatch };
+      props.onBatch(data.batch);
+      setComments((current) => { const next = { ...current }; delete next[candidate.id]; return next; });
+      setNotice("Card revised. Review it, then keep it selected if you want to save it.");
+    } catch { setNotice("Couldn’t revise this card. Your comment is still here."); }
+    finally { setRegenerating(null); }
+  };
   const resolveReview = async () => {
     if (!selected.size || saving) return;
     const candidates = props.batch.candidates.filter((candidate) => selected.has(candidate.id));
-    const accepted = candidates.filter((candidate) => !comments[candidate.id]?.trim()).map(candidateSelection);
-    const revisions = candidates.filter((candidate) => comments[candidate.id]?.trim()).map((candidate) => ({
-      ...candidateSelection(candidate),
-      feedback: comments[candidate.id].trim(),
-    }));
+    const accepted = candidates.map(candidateSelection);
     setSaving(true); setNotice("");
     try {
       const endpoint = props.batch.kind === "capture" ? "resolve-capture" : "resolve";
       const response = await apiFetch(`/api/review-batches/${props.batch.publicId}/${endpoint}`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accepted, revisions }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accepted, revisions: [] }),
       });
       if (!response.ok) throw new Error("Review failed");
       const data = await response.json() as { batch: ReviewBatch; added: number };
@@ -132,8 +153,6 @@ export function ReviewBatchPanel(props: {
   };
 
   const commentedCount = [...selected].filter((id) => comments[id]?.trim()).length;
-  const acceptedCount = selected.size - commentedCount;
-
   return <section className="simple-review-batch">
     <header><div><strong>{props.batch.title}</strong><span>{props.batch.kind === "pattern_drill"
       ? "The pattern stays fixed; the meaningful slot changes."
@@ -146,6 +165,9 @@ export function ReviewBatchPanel(props: {
           {resetting ? <LoaderCircle className="simple-spin" size={14} /> : <RotateCcw size={14} />}Reset</button> : null}
         {props.onDismiss ? <button aria-label="Close review" onClick={props.onDismiss} type="button"><X size={16} /></button> : null}</div>
     </header>
+    {props.batch.candidates.length ? <div className="simple-review-selection"><button aria-pressed={allSelected} onClick={toggleAll} type="button">
+      <span aria-hidden="true">{allSelected ? <Check size={14} /> : null}</span>{allSelected ? "Clear all" : "Select all"}</button>
+      <small>{selected.size} selected</small></div> : null}
     {!visible.length ? <p className="simple-review-empty">The source is safe, but no study cards were generated. Connect OpenAI or try a clearer sample.</p> : null}
     <div className="simple-review-list">
       {visible.map((candidate, visibleIndex) => <article className={`simple-review-candidate${selected.has(candidate.id) ? " is-selected" : ""}`} key={candidate.id}>
@@ -170,20 +192,24 @@ export function ReviewBatchPanel(props: {
             value={comments[candidate.id] || ""} />
         </div>
         <div className="simple-review-actions">
-          <button disabled={regenerating?.candidateId === candidate.id} onClick={() => void regenerate(candidate.id, "another")} type="button">
+          <button disabled={Boolean(regenerating)} onClick={() => void regenerate(candidate.id, "another")} type="button">
             {regenerating?.candidateId === candidate.id && regenerating.instruction === "another"
               ? <LoaderCircle className="simple-spin" size={13} /> : <RefreshCw size={13} />}Another</button>
-          <button disabled={regenerating?.candidateId === candidate.id} onClick={() => void regenerate(candidate.id, "different_context")} type="button">
+          <button disabled={Boolean(regenerating)} onClick={() => void regenerate(candidate.id, "different_context")} type="button">
             {regenerating?.candidateId === candidate.id && regenerating.instruction === "different_context"
               ? <LoaderCircle className="simple-spin" size={13} /> : <Shuffle size={13} />}Change Context</button>
+          <button className="simple-review-revise" disabled={!comments[candidate.id]?.trim() || Boolean(regenerating)}
+            onClick={() => void revise(candidate)} type="button">
+            {regenerating?.candidateId === candidate.id && regenerating.instruction === "revise"
+              ? <LoaderCircle className="simple-spin" size={13} /> : <RefreshCw size={13} />}Revise</button>
         </div>
       </article>)}
     </div>
-    <footer><span aria-live="polite">{notice}</span><button className="simple-primary" disabled={!selected.size || saving || resetting || props.batch.status === "committed"}
+    <footer><span aria-live="polite">{notice}</span><button className="simple-primary" disabled={!selected.size || commentedCount > 0 || saving || resetting || props.batch.status === "committed"}
       onClick={() => void resolveReview()} type="button">
-      {saving ? <LoaderCircle className="simple-spin" size={15} /> : commentedCount ? <RefreshCw size={15} /> : <Check size={15} />}
+      {saving ? <LoaderCircle className="simple-spin" size={15} /> : <Check size={15} />}
       {props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture"
-        ? commentedCount ? `Revise ${commentedCount} · Add ${acceptedCount}` : `Add to Library${selected.size ? ` (${selected.size})` : ""}`
-        : commentedCount ? `Revise ${commentedCount} · Add ${acceptedCount}` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
+        ? commentedCount ? `Revise ${commentedCount} first` : `Add to Library${selected.size ? ` (${selected.size})` : ""}`
+        : commentedCount ? `Revise ${commentedCount} first` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></footer>
   </section>;
 }

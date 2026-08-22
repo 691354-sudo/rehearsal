@@ -51,6 +51,7 @@ export type ReviewBatch = {
   candidates: ReviewCandidate[];
   status: ReviewBatchStatus;
   sourceThreadPublicId: string | null;
+  destinationTopicTitle: string | null;
   createdAt: string;
   updatedAt: string;
   committedAt: string | null;

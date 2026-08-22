@@ -9,10 +9,11 @@ import { LearningProgressBadge, TopicProgress } from "../progress/LearningProgre
 type TopicSummary = IslandSummary;
 type Topic = TopicSummary & { items: LearningItem[] };
 
-export function TopicsManager({ initialTopicId, language, onClose, onEdit, onTopic }: {
+export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, onEdit, onTopic }: {
   initialTopicId: string;
   language: Language;
   onClose: () => void;
+  onCreateNew: () => void;
   onEdit: (itemId: string) => void;
   onTopic: (topicId: string) => void;
 }) {
@@ -167,7 +168,8 @@ export function TopicsManager({ initialTopicId, language, onClose, onEdit, onTop
               <button onClick={() => { setAddingCard(false); setRenaming(true); }} type="button"><Pencil size={14} />Rename</button>
               <button disabled={!topic.items.length || saving} onClick={() => { setAddingCard(false); setSelectionMode(true); setSelectedItemIds(new Set()); setMoveTargetId(""); }} type="button">Select</button>
               <button aria-label="Delete Topic" className="topic-delete" disabled={saving} onClick={() => void remove()} title="Delete Topic" type="button"><Trash2 size={14} /></button></>}</div> : null}</div>
-          {addingCard ? <section className="topic-add-item"><div><div><strong>Add from Library</strong><span>Choose one card for {topic.title}.</span></div></div>
+          {addingCard ? <section className="topic-add-item"><div><div><strong>Add cards</strong><span>Choose from Library or create directly in {topic.title}.</span></div>
+            <button onClick={onCreateNew} type="button"><Plus size={14} />Create new</button></div>
             <label htmlFor="topic-card-search">Search cards</label>
             <input autoComplete="off" id="topic-card-search" name="topic-card-search" onChange={(event) => { setItemSearch(event.target.value); setVisibleItemCount(20); }}
               placeholder="Search target or Russian cue…" type="search" value={itemSearch} />
@@ -194,7 +196,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onEdit, onTop
             <div className="topic-item-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><span lang="ru">{item.cue}</span>
               <LearningProgressBadge progress={item.progress} /></div>
             <button aria-label={`Edit ${item.target}`} className="topic-card-edit" onClick={() => onEdit(item.publicId)} title="Edit card" type="button"><Pencil size={15} /></button></article>)
-            : <p className="topic-items-empty">No cards in this Topic.</p>}</div>
+            : <div className="topic-items-empty"><p>No cards in this Topic.</p><button onClick={onCreateNew} type="button"><Plus size={14} />Create a card</button></div>}</div>
         </>}
       </div>
     </div>

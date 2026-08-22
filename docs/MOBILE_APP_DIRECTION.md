@@ -81,7 +81,7 @@ not a general offline queue or offline learning store.
 - The canonical routes are `/practice/recall`, `/practice/listen`,
   `/tutor/chat`, `/tutor/notebook`, `/library`, and `/library/topics`. Links must
   preserve the selected `lang` and honor the deployment base path.
-- Settings and editors are modal, contain their own overscroll, restore focus,
+- Settings, card creation, and editors are modal, contain their own overscroll, restore focus,
   and protect unfinished input. Tutor and Notebook drafts are restored from
   profile-scoped session storage after reload or Back.
 

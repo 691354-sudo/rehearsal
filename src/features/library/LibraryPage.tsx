@@ -4,6 +4,7 @@ import {
   LoaderCircle,
   Pencil,
   MoreHorizontal,
+  Plus,
   RefreshCw,
   Search,
   Sparkles,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 import { CardEditorDialog } from "./CardEditorDialog";
+import { CardCreateDialog } from "./CardCreateDialog";
 import { TopicsManager } from "./TopicsManager";
 import { apiFetch } from "../../shared/api";
 import type { Island, IslandSummary, Language, LearningItem } from "../../shared/contracts";
@@ -54,11 +56,12 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   const allowDirtyNavigationRef = useRef(false);
   const showTopics = route.view === "topics";
   const showImport = route.panel === "import";
+  const showCreate = route.panel === "create";
   const editingItem = route.edit ? items.find((item) => item.publicId === route.edit) || null : null;
   const visibleCount = route.page * 20;
   const { query, status, sort, topic } = route;
   const patchRoute = (patch: Partial<LibraryRoute>, historyMode: HistoryMode = "replace") => onRoute({ ...route, ...patch }, historyMode);
-  const closeSurface = (surface: "import" | "editor", patch: Partial<LibraryRoute>) => {
+  const closeSurface = (surface: "import" | "create" | "editor", patch: Partial<LibraryRoute>) => {
     if (window.history.state?.surface === surface) {
       window.history.back();
       return;
@@ -165,6 +168,8 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     if (!text.trim() || importing) return;
     setImporting(true); setNotice(""); setBatch(null); setAdded(false);
     try {
+      const delimited = text.includes("$");
+      if (delimited && !title.trim()) { setNotice("Add a Topic title for this $ import."); return; }
       const response = await apiFetch("/api/import/text", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language, title: title.trim() || "Imported text", text }) });
       if (!response.ok) throw new Error("Import failed");
@@ -199,6 +204,8 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     } catch { setNotice("Couldn’t prepare pattern variants."); }
   };
   const topicItemSet = useMemo(() => new Set(topicItemIds), [topicItemIds]);
+  const delimitedImport = text.includes("$");
+  const importFragmentCount = delimitedImport ? text.split("$").filter((fragment) => fragment.trim()).length : 0;
   const visibleItems = useMemo(() => filterLibraryItems(items, {
     query, status, sort, topicItemIds: topic === "all" ? null : topicItemSet, language,
   }), [items, language, query, sort, status, topic, topicItemSet]);
@@ -244,10 +251,12 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
 
   return <main className="simple-main" id="main-content"><header className="simple-page-heading"><div><h1>Library</h1><p>{items.length} cards</p></div>
     <div className="simple-library-heading-actions"><button onClick={() => patchRoute({ view: showTopics ? "cards" : "topics", panel: null, edit: null }, "push")} type="button">{showTopics ? "Back to cards" : "Manage topics"}</button>
+      <button className="simple-add-card" onClick={() => patchRoute({ panel: "create", edit: null }, "push")} type="button"><Plus size={15} />Add card</button>
       {!showTopics ? <button onClick={() => showImport ? closeSurface("import", { panel: null }) : patchRoute({ panel: "import", edit: null }, "push")} type="button">{showImport ? "Close import" : "Import text"}</button> : null}</div></header>
     {topicsError ? <div className="simple-unavailable" role="alert"><span>Topics unavailable. Your cards are still here.</span><button onClick={() => void refreshTopics()} type="button"><RefreshCw size={14} />Retry</button></div> : null}
     {showTopics ? <div className="simple-library-secondary"><TopicsManager initialTopicId={route.topic === "all" ? "" : route.topic} key={`${language}:${topicsRevision}`} language={language}
       onClose={() => { patchRoute({ view: "cards" }, "replace"); void refreshTopics(); }}
+      onCreateNew={() => patchRoute({ panel: "create", edit: null }, "push")}
       onEdit={(itemId) => patchRoute({ edit: itemId }, "push")}
       onTopic={(topicId) => patchRoute({ topic: topicId || "all" }, "replace")} /></div> : <>
       {showImport ? <section className="simple-import-card simple-library-secondary">
@@ -257,11 +266,12 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
         const file = event.target.files?.[0]; if (!file) return; setTitle(file.name.replace(/\.txt$/i, "")); setText(await file.text());
       }} type="file" /></label>
       <label className="simple-field-label"><span>Text or transcript</span><textarea autoComplete="off" name="import-text" onChange={(event) => setText(event.target.value)} placeholder="Paste text or transcript…" rows={7} value={text} /></label>
+      {delimitedImport ? <p className="simple-import-notice">{importFragmentCount} card fragments · each `$` starts a new card · all selected cards will go to one Topic.</p> : null}
       <div className="simple-library-panel-actions"><button onClick={() => {
         if ((title.trim() || text.trim()) && !window.confirm("Discard this unfinished import?")) return;
         allowDirtyNavigationRef.current = true; setTitle(""); setText(""); closeSurface("import", { panel: null });
         window.setTimeout(() => { allowDirtyNavigationRef.current = false; }, 0);
-      }} type="button">Cancel</button><button className="simple-primary" disabled={!text.trim() || importing} onClick={() => void importText()} type="button">
+      }} type="button">Cancel</button><button className="simple-primary" disabled={!text.trim() || importing || (delimitedImport && !title.trim())} onClick={() => void importText()} type="button">
         {importing ? <LoaderCircle className="simple-spin" size={17} /> : <Sparkles size={17} />}Prepare cards</button></div>
     </section> : null}
     {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onDismiss={() => { setBatch(null); setNotice(""); }} onCommitted={() => {
@@ -325,5 +335,10 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     </>}
     {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => closeSurface("editor", { edit: null })}
       onSaved={(item) => { onItemUpdated(item); if (showTopics) setTopicsRevision((revision) => revision + 1); closeSurface("editor", { edit: null }); }} /> : null}
+    {showCreate ? <CardCreateDialog initialTopicId={route.topic === "all" ? "" : route.topic} language={language} topics={topics}
+      onClose={() => closeSurface("create", { panel: null })} onCreated={() => {
+        closeSurface("create", { panel: null }); void onItemsReload(); void refreshTopics();
+        if (showTopics) setTopicsRevision((revision) => revision + 1);
+      }} /> : null}
   </main>;
 }

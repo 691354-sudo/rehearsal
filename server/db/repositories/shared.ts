@@ -44,6 +44,7 @@ export type ReviewBatchRow = {
   candidates: string;
   status: ReviewBatch["status"];
   source_thread_public_id: string | null;
+  destination_topic_title: string | null;
   created_at: string;
   updated_at: string;
   committed_at: string | null;
@@ -142,6 +143,7 @@ export const mapReviewBatch = (row: ReviewBatchRow): ReviewBatch => ({
   candidates: JSON.parse(row.candidates) as ReviewCandidate[],
   status: row.status,
   sourceThreadPublicId: row.source_thread_public_id,
+  destinationTopicTitle: row.destination_topic_title,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   committedAt: row.committed_at,

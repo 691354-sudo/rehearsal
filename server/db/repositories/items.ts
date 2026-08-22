@@ -30,6 +30,27 @@ export class ItemsRepository {
     return row ? mapItem(row) : null;
   }
 
+  create(input: LearningItemInput, topicPublicId?: string) {
+    if (!topicPublicId) return this.save(input);
+    const topic = this.db.prepare(
+      "SELECT id, language_code FROM islands WHERE public_id = ?",
+    ).get(topicPublicId) as { id: number; language_code: LanguageCode } | undefined;
+    if (!topic) throw new Error("TOPIC_NOT_FOUND");
+    if (topic.language_code !== input.language) throw new Error("TOPIC_LANGUAGE_MISMATCH");
+    return this.db.transaction(() => {
+      const item = this.save(input);
+      const itemRow = this.db.prepare("SELECT id FROM items WHERE public_id = ?")
+        .get(item.publicId) as { id: number };
+      const position = (this.db.prepare(
+        "SELECT COALESCE(MAX(position), -1) + 1 AS position FROM island_items WHERE island_id = ?",
+      ).get(topic.id) as { position: number }).position;
+      this.db.prepare(
+        "INSERT INTO island_items(island_id, item_id, position) VALUES (?, ?, ?)",
+      ).run(topic.id, itemRow.id, position);
+      return item;
+    })();
+  }
+
   save(input: LearningItemInput, actor: "user" | "llm" | "system" = "user") {
     const publicId = input.publicId || randomUUID();
     const existing = this.get(publicId);
