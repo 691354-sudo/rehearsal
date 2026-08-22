@@ -45,7 +45,7 @@
 .simple-card-dialog header > button {
   display: grid;
   width: 40px;
-  height: 40px;
+  height: var(--h-control);
   place-items: center;
   color: var(--script-support);
   background: transparent;
@@ -67,7 +67,7 @@
 .simple-card-dialog-fields select {
   box-sizing: border-box;
   width: 100%;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 9px 10px;
   color: var(--script-ink);
   font: inherit;
@@ -100,7 +100,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 44px;
+  min-height: var(--h-control);
   color: var(--script-support);
   font-size: 13px;
   cursor: pointer;
@@ -117,7 +117,7 @@
   gap: 6px;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 12px;
   color: var(--script-support);
   background: transparent;

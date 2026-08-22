@@ -39,7 +39,7 @@ const contrast = (foreground: string, background: string) => {
 };
 
 describe.each([
-  ["Warm Stone", ":root"],
+  ["Warm Sand", ":root"],
   ["Graphite Haze", ':root[data-theme="dark"]'],
 ])("%s theme contrast", (_name, selector) => {
   const tokens = tokensFor(selector);
@@ -48,9 +48,20 @@ describe.each([
     ["ink", "canvas", 9],
     ["ink", "surface", 9],
     ["ink-support", "surface", 4.5],
-    ["accent-hover", "accent-wash", 4.5],
+    ["ink", "accent-wash", 4.5],
     ["on-accent", "accent", 4.5],
+    ["learned", "surface", 4.5],
+    ["note", "surface", 4.5],
   ])("keeps %s on %s at or above %s:1", (foreground, background, minimum) => {
     expect(contrast(tokens[foreground], tokens[background])).toBeGreaterThanOrEqual(minimum);
+  });
+
+  it("keeps the retry indicator distinct from its surface", () => {
+    expect(contrast(tokens.retry, tokens.surface)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("uses the approved accent", () => {
+    const accent = tokens["rh-accent"]?.replace(/^#/, "").toLowerCase();
+    expect(accent).toBe(selector === ":root" ? "cda56d" : "d8b57f");
   });
 });

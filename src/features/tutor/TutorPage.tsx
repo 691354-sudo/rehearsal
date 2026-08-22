@@ -437,11 +437,11 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
               title={recording ? "Stop and send" : "Voice message"} type="button">
               {recording ? <Square fill="currentColor" size={15} /> : transcribing ? <LoaderCircle className="simple-spin" size={17} /> : <Mic size={18} />}
             </button>
-            {threadId ? <button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
-              {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Finish &amp; make cards</button> : null}
           </div><div className="simple-composer-send-group"><span>Enter to send</span>
             <button aria-label="Send" className="simple-composer-send" disabled={!draft.trim() || sending || recording || transcribing}
               onClick={() => void send()} title="Send" type="button"><Send size={18} /></button></div></div>
+          {threadId ? <button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
+            {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Finish &amp; make cards</button> : null}
         </div>
       </div>
     </section>}

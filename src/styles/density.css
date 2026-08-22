@@ -1,0 +1,26 @@
+:root {
+  --h-control: 40px;
+  --h-chip: 32px;
+  --h-row: 40px;
+  --h-tap: 36px;
+  --h-header: 56px;
+  --h-tabbar: 56px;
+  --pad-x: 20px;
+  --gap: 12px;
+  --fs-body: 15px;
+  --col: 720px;
+}
+
+@media (max-width: 720px), (pointer: coarse) {
+  :root {
+    --h-control: 44px;
+    --h-chip: 36px;
+    --h-row: 44px;
+    --h-tap: 44px;
+    --h-header: 48px;
+    --pad-x: 16px;
+    --gap: 10px;
+    --fs-body: 16px;
+    --col: 100%;
+  }
+}

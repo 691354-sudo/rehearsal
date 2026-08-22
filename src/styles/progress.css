@@ -67,7 +67,7 @@
 .topic-progress-trigger {
   display: flex;
   width: 100%;
-  min-height: 42px;
+  min-height: var(--h-control);
   justify-content: space-between;
   align-items: center;
   padding: 0 12px;
@@ -102,7 +102,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
-  min-height: 48px;
+  min-height: var(--h-control);
   padding: 8px 10px;
   align-items: center;
   border: 0;
@@ -124,4 +124,4 @@
 .answer-diff mark { padding: 0; color: inherit; background: transparent; }
 .answer-diff-missing { color: var(--retry) !important; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .answer-diff-changed { color: color-mix(in srgb, var(--retry) 70%, transparent); text-decoration: line-through; text-decoration-thickness: 1px; }
-.answer-diff button { width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; color: var(--script-support); background: transparent; border: 1px solid var(--script-rule); border-radius: 7px; }
+.answer-diff button { width: 36px; min-width: 36px; height: var(--h-tap); min-height: var(--h-tap); padding: 0; color: var(--script-support); background: transparent; border: 1px solid var(--script-rule); border-radius: 7px; }

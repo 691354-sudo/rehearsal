@@ -16,10 +16,10 @@ body,
   --rh-ink: #23211f;
   --rh-support: #655e57;
   --rh-faint: #8c857c;
-  --rh-accent: #a4573b;
-  --rh-accent-hover: #8e4930;
-  --rh-wash: #efe0d7;
-  --rh-on-accent: #fff9f4;
+  --rh-accent: #cda56d;
+  --rh-accent-hover: #b98f57;
+  --rh-wash: #f0e6d6;
+  --rh-on-accent: #2a2113;
   --rh-learned: #3f7b60;
   --rh-note: #8b5a1c;
   --rh-retry: #a64f49;
@@ -56,10 +56,10 @@ body,
   --rh-ink: #e8e5e1;
   --rh-support: #aba7a2;
   --rh-faint: #847f7a;
-  --rh-accent: #c9825f;
-  --rh-accent-hover: #d9926e;
-  --rh-wash: #3b2e28;
-  --rh-on-accent: #1e1512;
+  --rh-accent: #d8b57f;
+  --rh-accent-hover: #e5c793;
+  --rh-wash: #3a3327;
+  --rh-on-accent: #221b10;
   --rh-learned: #7fb294;
   --rh-note: #d3a469;
   --rh-retry: #d08078;
@@ -105,10 +105,11 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   --notebook-canvas: var(--stage-canvas);
   min-height: 100vh;
   min-height: 100dvh;
+  padding-top: calc(var(--h-header) + env(safe-area-inset-top));
   color: var(--script-ink);
   background: var(--stage-canvas);
   font-family: "Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.5;
   color-scheme: light;
   -webkit-font-smoothing: antialiased;
@@ -146,8 +147,8 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   --mode-action: var(--cue-action);
   --mode-canvas: var(--stage-canvas);
   --mode-on: var(--cue-on);
-  min-height: calc(100vh - 58px);
-  min-height: calc(100dvh - 58px);
+  min-height: calc(100vh - var(--h-header));
+  min-height: calc(100dvh - var(--h-header));
   background: var(--mode-canvas);
 }
 
@@ -218,10 +219,12 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 }
 
 .simple-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  right: 0;
+  left: 0;
   z-index: 30;
-  height: 58px;
+  height: calc(var(--h-header) + env(safe-area-inset-top));
   background: color-mix(in srgb, var(--stage-canvas) 92%, transparent);
   border-bottom: 1px solid var(--script-rule);
   backdrop-filter: blur(16px);
@@ -241,7 +244,7 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   gap: 8px;
   align-items: center;
   width: max-content;
-  min-height: 40px;
+  min-height: var(--h-control);
   color: var(--script-ink);
   text-decoration: none;
   background: transparent;
@@ -283,6 +286,7 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 }
 
 .simple-brand-route,
+.simple-mobile-search,
 .simple-mobile-menu-button,
 .simple-mobile-menu,
 .simple-mobile-menu-backdrop {
@@ -294,10 +298,12 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   gap: 4px;
 }
 
+.simple-nav-icon { display: none; }
+
 .simple-nav a {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 12px;
   color: var(--script-support);
   font-size: 14px;
@@ -343,7 +349,7 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 }
 
 .simple-offline button {
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 12px;
   color: var(--script-ink);
   white-space: nowrap;
@@ -366,7 +372,7 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 
 .simple-profile-button {
   gap: 7px;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 11px;
   font-size: 13px;
   font-weight: 600;
@@ -375,7 +381,7 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 .simple-language {
   position: relative;
   gap: 8px;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 10px;
   cursor: pointer;
   font-size: 13px;
@@ -414,18 +420,18 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 .simple-icon-button {
   justify-content: center;
   width: 40px;
-  height: 40px;
+  height: var(--h-control);
   padding: 0;
 }
 
 .simple-main {
-  width: min(1080px, calc(100% - 48px));
+  width: min(var(--col), calc(100% - (2 * var(--pad-x))));
   margin: 0 auto;
   padding: 30px 0 56px;
 }
 
 .simple-main--practice {
-  width: min(1080px, calc(100% - 48px));
+  width: min(var(--col), calc(100% - (2 * var(--pad-x))));
 }
 
 .simple-page-heading {
@@ -452,7 +458,7 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   gap: 7px;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: var(--h-control);
   padding: 0 13px;
   color: var(--cue-on);
   font-size: 13px;
@@ -501,7 +507,7 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 }
 
 .simple-update-prompt button {
-  min-height: 36px;
+  min-height: var(--h-tap);
   padding: 0 10px;
   color: var(--rh-ink);
   background: var(--rh-inset);

@@ -4,24 +4,6 @@
     padding: 0 18px;
   }
 
-  .simple-nav {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 20;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    height: calc(62px + env(safe-area-inset-bottom));
-    padding: 7px 12px calc(7px + env(safe-area-inset-bottom));
-    background: var(--script-surface);
-    border-top: 1px solid var(--script-rule);
-  }
-
-  .simple-nav button {
-    min-height: 46px;
-  }
-
   .simple-layout {
     grid-template-columns: 1fr;
   }
@@ -42,26 +24,22 @@
     display: none;
   }
 
-  .simple-main {
-    padding-bottom: calc(90px + env(safe-area-inset-bottom));
-  }
-
   .simple-library-heading-actions button,
   .simple-library-panel-actions button,
   .simple-library-tools input,
   .simple-library-tools select,
   .simple-row-actions button {
-    min-height: 44px;
+    min-height: var(--h-control);
   }
 
   .simple-main--practice {
-    width: min(760px, calc(100% - 32px));
+    width: min(var(--col), calc(100% - 32px));
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 720px) {
   .simple-header {
-    height: calc(58px + env(safe-area-inset-top));
+    height: calc(var(--h-header) + env(safe-area-inset-top));
     padding: 0 12px;
     padding-top: env(safe-area-inset-top);
   }
@@ -75,7 +53,7 @@
   }
 
   .simple-brand {
-    min-height: 44px;
+    min-height: var(--h-control);
   }
 
   .simple-header-actions {
@@ -91,7 +69,7 @@
     z-index: 34;
     display: grid;
     width: 44px;
-    height: 44px;
+    height: var(--h-control);
     place-items: center;
     color: var(--script-support);
     background: var(--script-surface);
@@ -127,7 +105,7 @@
     display: flex;
     gap: 9px;
     align-items: center;
-    min-height: 44px;
+    min-height: var(--h-control);
     padding: 0 10px;
     color: var(--script-support);
     font-size: 13px;
@@ -256,7 +234,7 @@
   }
 
   .simple-card-rewrite-actions button {
-    min-height: 44px;
+    min-height: var(--h-control);
   }
 
   .simple-playback-options {
@@ -409,7 +387,7 @@
     gap: 6px;
     align-items: center;
     justify-content: center;
-    min-height: 44px;
+    min-height: var(--h-control);
     padding: 0 9px;
     font-size: 12px;
     border: 1px solid var(--script-rule);
@@ -458,7 +436,7 @@
   .simple-session-rail-heading > button {
     display: grid;
     width: 40px;
-    height: 40px;
+    height: var(--h-control);
     place-items: center;
   }
 
@@ -467,7 +445,7 @@
   }
 
   .simple-message-failed button {
-    min-height: 44px;
+    min-height: var(--h-control);
   }
 
   .simple-chat-toolbar {
@@ -564,7 +542,7 @@
 
   .simple-card-select {
     min-width: 44px;
-    min-height: 44px;
+    min-height: var(--h-control);
   }
 
   .simple-library-selection,
@@ -574,7 +552,7 @@
   }
 
   .simple-library-selection > label {
-    min-height: 44px;
+    min-height: var(--h-control);
   }
 
   .simple-library-selection > div {

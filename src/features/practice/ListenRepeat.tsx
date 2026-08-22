@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  Pause, Play, Repeat2, RotateCcw, Settings2, Shuffle, SkipBack, SkipForward, Square,
+  Pause, Play, Repeat2, Settings2, Shuffle, SkipBack, SkipForward,
 } from "lucide-react";
 import type {
   ElevenLabsConfig,
@@ -24,9 +24,8 @@ import {
   type PreparedAudio,
 } from "../audio/listenAudio";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
-import { PlaybackSettings } from "./PlaybackSettings";
+import { PlaybackSettings, voiceDisplayName } from "./PlaybackSettings";
 import { FocusedText } from "../progress/FocusedText";
-import { LearningProgressBadge } from "../progress/LearningProgress";
 import { TopicProgressPicker } from "./TopicProgressPicker";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 
@@ -47,7 +46,6 @@ export function ListenRepeat(props: {
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
   onPlayPrepared: (url: string, repetitions: number) => Promise<number>;
   onPlayback: (playback: PlaybackPreferences) => void;
-  onPracticeEnabled: (itemId: string, practiceEnabled: boolean) => Promise<boolean>;
   onPrepareAudio: (
     text: string,
     playback: Partial<PlaybackPreferences>,
@@ -76,7 +74,6 @@ export function ListenRepeat(props: {
   const [readyCount, setReadyCount] = useState(0);
   const [preparationTotal, setPreparationTotal] = useState(0);
   const [showPlaybackSettings, setShowPlaybackSettings] = useState(false);
-  const [learnedInSession, setLearnedInSession] = useState<Set<string>>(new Set());
   const runRef = useRef(0);
   const preparationRunRef = useRef(0);
   const memoryRunRef = useRef(0);
@@ -116,6 +113,9 @@ export function ListenRepeat(props: {
   const selectedElevenLabsVoice = compatibleElevenLabsVoices.find(
     (voice) => voice.id === props.playback.elevenlabs.voiceId,
   ) || compatibleElevenLabsVoices[0] || { id: "", name: "No compatible voice" };
+  const selectedVoiceName = voiceDisplayName(props.playback.provider === "elevenlabs"
+    ? selectedElevenLabsVoice.name : props.playback.voice);
+  const selectedTopicName = props.topics.find((topic) => topic.publicId === props.topicId)?.title || "All Topics";
   const playbackSettings = <PlaybackSettings elevenLabs={props.elevenLabs} language={props.language}
     onPlayback={props.onPlayback} playback={props.playback} voices={props.voices} />;
 
@@ -299,7 +299,6 @@ export function ListenRepeat(props: {
     const nextQueue = visibleCandidates;
     if (!nextQueue.length) return;
     listenedRef.current.clear();
-    setLearnedInSession(new Set());
     queueRef.current = nextQueue;
     setQueue(nextQueue);
     setIndex(0);
@@ -326,7 +325,6 @@ export function ListenRepeat(props: {
   };
   const restart = () => {
     listenedRef.current.clear();
-    setLearnedInSession(new Set());
     void playAt(0);
   };
   const previous = () => {
@@ -391,18 +389,18 @@ export function ListenRepeat(props: {
           <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
         </select></label>
       </div>
-      <details className="listen-playback-options">
-        <summary><strong>{props.playback.provider === "elevenlabs" ? selectedElevenLabsVoice.name : props.playback.voice} · {props.playback.speed.toFixed(2)}× · {props.playback.repetitions}× · Adaptive pause</strong><span>Playback settings</span></summary>
-        {playbackSettings}
-      </details>
+      {showPlaybackSettings ? <div className="listen-setup-playback">{playbackSettings}</div> : null}
       <div className="listen-start-options">
         <button aria-label={loop ? "Disable loop" : "Enable loop"} aria-pressed={loop} className={loop ? "is-active" : ""} onClick={() => setLoop((enabled) => !enabled)} title="Loop" type="button"><Repeat2 size={17} /></button>
         <button aria-label="Shuffle cards" onClick={shuffle} title="Shuffle" type="button"><Shuffle size={17} /></button>
+        <button aria-expanded={showPlaybackSettings} aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
+          onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Playback settings" type="button"><Settings2 size={17} /></button>
+        <span>{props.recommended.due} due · {props.recommended.new} new</span>
       </div>
-      <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
-        <Play fill="currentColor" size={15} />Play {visibleCandidates.length || "recommended"} cards
-      </button>
     </section>
+    <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
+      <Play fill="currentColor" size={15} />Play {visibleCandidates.length || "recommended"} cards
+    </button>
     <PracticeQueuePreview emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit}
       onListened={props.onListened} onPlay={(item) => props.onPlay(item.target, props.playback)} scope={props.scope} />
   </div>;
@@ -413,28 +411,27 @@ export function ListenRepeat(props: {
   </section>;
 
   return <section className="listen-player" aria-label="Listen and Repeat player">
-    <header><span>{index + 1} / {queue.length}</span><div>
-      <small role="status">Ready for pocket {readyCount} / {preparationTotal || queue.length}</small>
-      {note ? <small role="status">{note}</small> : null}
-      {current && current.practiceEnabled && !learnedInSession.has(current.publicId) ? <button onClick={async () => {
-        if (await props.onPracticeEnabled(current.publicId, false)) {
-          setLearnedInSession((ids) => new Set(ids).add(current.publicId)); setNote("Moved to Learned");
-        }
-      }} type="button">Move to Learned</button> : null}</div></header>
-    <article>{current ? <LearningProgressBadge progress={current.progress} /> : null}
-      <p lang={props.language}>{current ? <FocusedText focusTerms={current.focusTerms} text={current.target} /> : null}</p>{showRussian ? <span lang="ru">{current?.cue}</span> : null}
+    <header><span>{index + 1} / {queue.length}</span><div aria-hidden="true" className="listen-progress-track"><i style={{ width: `${queue.length ? ((index + 1) / queue.length) * 100 : 0}%` }} /></div>
+      <strong>{selectedTopicName}</strong></header>
+    <span className="simple-visually-hidden" role="status">Ready for pocket {readyCount} / {preparationTotal || queue.length}{note ? `. ${note}` : ""}</span>
+    <article><span className="listen-prompt">Repeat after the speaker</span>
+      <p lang={props.language}>{current ? <FocusedText focusTerms={current.focusTerms} text={current.target} /> : null}</p>{showRussian ? <span className="listen-russian-cue" lang="ru">{current?.cue}</span> : null}
       <button className="listen-russian" onClick={() => setShowRussian((shown) => !shown)} type="button">{showRussian ? "Hide Russian" : "Show Russian"}</button></article>
-    <div className="listen-controls">
-      <button aria-label="Previous" disabled={index === 0 && !loop} onClick={previous} type="button"><SkipBack fill="currentColor" size={17} /></button>
-      <button aria-label="Replay current" onClick={replay} type="button"><RotateCcw size={18} /></button>
-      <button aria-label={status === "paused" ? "Play" : "Pause"} className="listen-main-control" onClick={status === "paused" ? resume : pause} type="button">
-        {status === "paused" ? <Play fill="currentColor" size={19} /> : <Pause fill="currentColor" size={19} />}</button>
-      <button aria-label="Next" onClick={next} type="button"><SkipForward fill="currentColor" size={17} /></button>
-      <button aria-label="Shuffle after this card" onClick={shuffle} type="button"><Shuffle size={18} /></button>
-      <button aria-label={loop ? "Disable loop" : "Enable loop"} aria-pressed={loop} className={loop ? "is-active" : ""} onClick={() => setLoop((enabled) => !enabled)} type="button"><Repeat2 size={18} /></button>
-      <button aria-label="Stop" onClick={stop} type="button"><Square fill="currentColor" size={14} /></button>
-      <button aria-expanded={showPlaybackSettings} aria-label="Voice settings" className={showPlaybackSettings ? "is-active" : ""}
-        onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Voice settings" type="button"><Settings2 size={18} /></button>
+    <div className="listen-player-dock">
+      <div className="listen-controls">
+        <button aria-label="Shuffle after this card" onClick={shuffle} type="button"><Shuffle size={18} /></button>
+        <button aria-label="Previous" disabled={index === 0 && !loop} onClick={previous} type="button"><SkipBack fill="currentColor" size={17} /></button>
+        <button aria-label={status === "paused" ? "Play" : "Pause"} className="listen-main-control" onClick={status === "paused" ? resume : pause} type="button">
+          {status === "paused" ? <Play fill="currentColor" size={19} /> : <Pause fill="currentColor" size={19} />}</button>
+        <button aria-label="Next" onClick={next} type="button"><SkipForward fill="currentColor" size={17} /></button>
+        <button aria-label={loop ? "Disable loop" : "Enable loop"} aria-pressed={loop} className={loop ? "is-active" : ""} onClick={() => setLoop((enabled) => !enabled)} type="button"><Repeat2 size={18} /></button>
+        <button aria-expanded={showPlaybackSettings} aria-label="Voice settings" className={showPlaybackSettings ? "is-active" : ""}
+          onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Voice settings" type="button"><Settings2 size={18} /></button>
+      </div>
+      <div className="listen-player-chips" aria-label="Current playback settings">
+        <span>{props.playback.speed.toFixed(2)}×</span><span>Adaptive pause</span>
+        <span>{selectedVoiceName}</span>
+      </div>
     </div>
     {showPlaybackSettings ? <div className="listen-player-settings" aria-label="Voice settings">
       {playbackSettings}<small>Changes apply to the next card and prepare a new stack variant.</small>
