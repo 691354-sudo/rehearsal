@@ -2,167 +2,112 @@
 name: Echo
 description: "A calm, sentence-led practice workspace in Warm Stone and Graphite Haze."
 colors:
-  warm-stone-canvas: "#ece7df"
-  warm-stone-surface: "#f7f3ed"
-  warm-stone-inset: "#e6e0d7"
-  warm-stone-ink: "#282522"
-  warm-stone-support: "#6f6861"
-  warm-stone-rule: "#d7cfc4"
-  graphite-canvas: "#2b2c2e"
-  graphite-surface: "#353638"
-  graphite-inset: "#252628"
-  graphite-ink: "#f1efec"
-  graphite-support: "#b8b5b0"
-  graphite-rule: "#4c4d50"
-  terracotta-light: "#a4573b"
-  terracotta-dark: "#db906b"
-  accent-on-light: "#fff9f4"
-  accent-on-dark: "#24140e"
+  canvas-light: "#ede8e0"
+  surface-light: "#f8f5f0"
+  inset-light: "#e2dbd1"
+  canvas-dark: "#2a2b2d"
+  surface-dark: "#343639"
+  inset-dark: "#232426"
+  accent-light: "#a4573b"
+  accent-dark: "#c9825f"
   learned-light: "#3f7b60"
-  learned-dark: "#84c5a5"
-  note-light: "#97611f"
-  note-dark: "#e0ad62"
-  retry-light: "#a64f49"
-  retry-dark: "#e28a82"
+  learned-dark: "#7fb294"
 typography:
-  page-title:
-    fontFamily: '"Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    fontSize: "24px"
-    fontWeight: 680
-    letterSpacing: "-0.035em"
-  sentence-cue:
-    fontFamily: '"Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    fontSize: "24px"
-    fontWeight: 600
-  target-vietnamese:
-    fontFamily: '"Noto Sans Variable", "Noto Sans", sans-serif'
-    fontSize: "15px"
-    fontWeight: 400
-    lineHeight: 1.5
-  body:
-    fontFamily: '"Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    fontSize: "15px"
-    fontWeight: 400
-    lineHeight: 1.5
-  label:
-    fontFamily: '"Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    fontSize: "13px"
-    fontWeight: 600
+  family: '"Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  page-title: "24px/680"
+  sentence: "16px/550"
+  recall-cue: "26-31px/600"
 rounded:
+  message-corner: "4px"
   compact: "7px"
   control: "8px"
   overlay: "10px"
   surface: "12px"
+  pill: "999px"
 spacing:
-  micro: "4px"
-  compact: "8px"
-  control: "12px"
-  section: "16px"
-  panel: "24px"
-  region: "32px"
+  scale: "4px 8px 12px 16px 20px 24px 32px"
 ---
 
-# Design System: Echo
+# Echo — правила дизайна для любых новых фич
 
-## Overview
+Короткий рабочий свод. Применяется к **каждой** новой кнопке, панели, экрану — без отдельного согласования.
+Полные числа и экраны — в [`docs/THEME_REFRESH_SPEC.md`](docs/THEME_REFRESH_SPEC.md).
 
-**Creative North Star — The Echo Desk.** Echo should feel like one quiet, well-arranged working surface: the sentence is the material, controls are tools placed around it, and the interface never competes for attention.
+---
 
-**The Sentence Leads Rule.** In Practice, Library, Topics, Chat, and Notebook, the user's sentence or thought receives the strongest type and the clearest position. Metadata, translation, scheduling, and controls remain visibly secondary.
+## Принцип
 
-The built system has four durable characteristics:
+Echo — тихий рабочий стол для языка. За ним сидят по часу. Всё, что не помогает произнести или вспомнить фразу,
+должно быть тише фразы. Интерфейс не развлекает и не продаёт.
 
-- One visual language across routes: Warm Stone in light mode and Graphite Haze in dark mode.
-- One muted terracotta accent for current location, selection, primary action, and focus.
-- Compact desktop workspaces with visible keyboard efficiency, paired with touch-complete mobile layouts.
-- Progressive disclosure: one primary action stays obvious; advanced settings and destructive or batch actions appear only when requested.
+Три вопроса перед любым новым элементом:
+1. Это контент или механика? Механика всегда тише.
+2. Что уже на экране самое громкое? Новый элемент не должен стать вторым громким.
+3. Можно ли это не показывать постоянно? Если да — в `⋯`, в тултип или в раскрытие (но **не** в hover).
 
-## Colors
+---
 
-Warm Stone uses `warm-stone-canvas`, `warm-stone-surface`, and `warm-stone-inset` for its three depth levels. Graphite Haze uses the corresponding graphite tokens. Text and rules always use the matching theme family; avoid pure white and pure black.
+## 10 правил
 
-**The One Accent Rule.** `terracotta-light` and `terracotta-dark` are theme-matched forms of the same accent. Use them for active navigation, segmented selections, primary buttons, the Recall focus rail, focus rings, and interactive progress. Do not assign colors to individual modes or routes. The installed PWA uses the light terracotta value for browser chrome and icon detail as an intentional brand exception to the neutral canvas.
+1. **Один акцент на экран.** Ровно одна сплошная терракотовая кнопка. Всё остальное: secondary (`--rh-inset` + 1px rule) → quiet text action → icon button.
+2. **Только токены.** `var(--rh-*)`, никаких hex в компонентах. Новый цвет заводится в обеих темах или не заводится вовсе.
+3. **Шкала высот 44 / 40 / 36 / 32 / 22.** 44 — главный CTA, 36 — обычные контролы и селекты, 32 — иконки в строках списка, 22 — пилюли. Промежуточных значений нет.
+4. **Радиусы:** контрол 8 · панель 12 · оверлей 10 · пилюля 999. Сетка отступов 4/8/12/16/20/24/32.
+5. **Максимум две поверхности вглубь:** canvas → surface → inset. Глубина — тон и волосяная линия, не тень. Тень только у оверлеев.
+6. **Один сигнал эмфазы за раз.** Целевой фрагмент — только вес 600. Ни заливок, ни рамок, ни цветных плашек. Перевод никогда не выделяется.
+7. **Диф показывает только ошибки**, пословно. Зелёный зарезервирован за статусом Learned и в дифах не появляется.
+8. **Ничего только по hover.** Действие либо видно всегда, либо живёт в `⋯`.
+9. **Повторяющиеся утилиты — иконки, действия с последствиями — с подписью.** Иконка обязательно с `aria-label` и тултипом, Lucide, stroke 1.75.
+10. **Статус — это пилюля 22px без бордера, не кнопка.** Мета и счётчики — 13px `--rh-faint`, никогда не крупнее контента, которому они принадлежат.
 
-Green is reserved for learned/success, amber for notes or warnings, and red for retry, failure, or destructive actions. Status colors communicate meaning and never become decorative route themes.
+---
 
-## Typography
+## Иерархия текста в любом блоке
 
-Golos Text Variable is the product typeface for the English interface, Russian cues, and existing English/Latvian learning content. Vietnamese target-language parts use the locally bundled Vietnamese and Latin subsets of Noto Sans Variable and carry `lang="vi"`; the document language remains English.
+| Уровень | Роль | Стиль |
+|---|---|---|
+| 1 | То, что учим (фраза / cue) | 16–31px, вес 550–600, `--rh-ink` |
+| 2 | Опора (перевод, объяснение) | 14–15px, 400, `--rh-support` |
+| 3 | Механика (топик, счётчики, статусы, служебные ссылки) | 13px, `--rh-faint`, без фонов и рамок |
 
-- Page titles: 24–25px, weight 680, tight tracking.
-- Russian recall cues: 24–31px, weight 600; this is the strongest practice text.
-- Section and card titles: 16–19px, weight 590–650.
-- Body and controls: 15–16px at 1.5 line height. Form controls stay 16px on narrow screens to prevent mobile zoom.
-- Labels and metadata: 12–14px, weight 550–650, using sentence case rather than uppercase microcopy.
+Уровень 3 никогда не стоит физически выше уровня 1 и никогда не крупнее его.
 
-Use balanced wrapping for headings and natural wrapping for prose. Learning sentences may break long words when required, but controls and metadata should remain compact. Do not reduce functional text below 12px.
+---
 
-## Layout
+## Новые состояния и сообщения
 
-The shared desktop shell is a centered 1080px rail with 24px side gutters. The 4px base grid produces the recurring 8, 12, 16, 24, and 32px spacing steps. Main working panels use 24px internal padding on desktop and 16px on narrow screens.
+- Системное сообщение живёт **рядом с действием, которое его вызвало**, 13px faint, в той же строке. Полос во всю ширину нет.
+- Ошибка — 1px `--rh-retry` + короткая подсказка, `role="alert"`.
+- Загрузка — inline hairline-прогресс, подпись остаётся. Спиннеров-оверлеев нет.
+- Успех — тон, а не праздник: смена статуса и тихая строка. Ни конфетти, ни модалок «Молодец!».
+- Disabled сохраняет форму и подпись, 55% opacity, **никогда не акцентная заливка**.
 
-Practice and Library use ordinary document framing until work begins. Tutor Chat, Tutor Notebook, and the Library results surface use the remaining viewport height; only their message, notebook, or result region scrolls. This keeps navigation, mode controls, and composers stable.
+---
 
-At 900px the shell tightens. At 720px Tutor and Topics recompose for one column, Settings becomes a full-width drawer, and horizontal topic navigation is allowed. At 560px the fixed bottom navigation becomes the primary route switcher, controls stack, gutters reduce to 16px plus safe-area insets, and active Recall hides page/setup chrome to protect the card workspace. Dynamic viewport units keep full-height surfaces clear of mobile browser chrome.
+## Новые списки
 
-**Stable URL surfaces.** The visible routes are `/join`, `/practice/recall`, `/practice/listen`, `/tutor/chat`, `/tutor/notebook`, `/library`, and `/library/topics`. Route-specific filters and state remain addressable through query parameters: invitation; language; practice scope, topic, count, and review; Tutor thread; and Library search, status, topic, sort, page, import, and editor. Navigation is `BASE_URL`-safe. Browser Back closes Settings, Import, and Card Editor before leaving the underlying surface; guarded editors do not discard unsaved work silently.
+- Строка ≤72px, разделители 1px, без рамок вокруг строк.
+- Слева контент в две строки (фраза + перевод), справа один горизонтальный ряд: пилюля → счётчики → иконки. Никогда два ряда.
+- Длинный текст переносится (до двух строк), не обрезается многоточием, если есть место.
 
-## Elevation & Depth
+---
 
-Depth is created with neutral tonal steps and 1px rules, not gradients or decorative shadows. Canvas contains surfaces; surfaces contain inset controls and scroll regions. Stronger rules identify active working boundaries, including the thin terracotta top or side rail used by Tutor and Recall.
+## Мобайл (iPhone 15, 393px) — с самого начала, не потом
 
-Shadows are limited to transient overlays that need separation from moving content, such as action menus or update prompts. They are not a card treatment and do not form an elevation scale.
+- Поля ввода 16px, тач-зона 44×44.
+- Главный CTA — full-width sticky снизу, с учётом safe-area.
+- Метаданные и пилюли уходят второй строкой; справа остаются максимум две иконки.
+- Селекты — 100% ширины, по одному в строке.
 
-## Shapes
+---
 
-Controls use an 8px radius, working surfaces use 12px, and transient menus use 10px. The compact 7px radius is reserved for small identity marks and dense utility details. Pills are appropriate only for compact counts or status; navigation, tabs, fields, and primary actions remain rounded rectangles.
+## Чек-лист перед мержем
 
-All pointer controls have a minimum 44×44px hit area. Icon-only controls include a visible focus state and an accessible name.
-
-## Components
-
-### App shell and navigation
-
-Desktop uses the top header; mobile uses a concise contextual header plus fixed bottom navigation. The current route is shown with terracotta wash and text, not a separate colored mode. Links remain real links so open-in-new-tab, reload, and Back behavior work normally.
-
-### Buttons, fields, and selection
-
-Primary buttons use solid terracotta with the matching on-accent text. Secondary buttons and fields use neutral inset fills and rules. Selected segmented controls combine an accent rule/wash with `aria-pressed`; focus uses a 2px accent outline with a 2px offset. Disabled actions keep their shape and label while visibly receding. Placeholders are quieter than entered text and never replace labels where the choice needs context.
-
-### Practice and Recall
-
-Practice starts with one compact setup panel followed by a sentence-led queue. Listen & Repeat leads with playback configuration and one full-width Play action. Recall setup exposes source, Topic, and Cards, then starts **Focus mode**.
-
-Active Recall is one card at a time: Russian cue, target-language answer, comparison, natural answer, and four memory grades. On desktop the answer retains focus: Enter checks, Left/Right changes the selected grade, and Enter confirms and advances. Every keyboard action has a visible button equivalent. On mobile the surrounding Practice heading, mode switch, and setup are removed during the session while End, progress, answer, grades, and voice settings remain available.
-
-Exact and compare results are announced through a polite live region. Language content carries the correct `lang` metadata. Session completion returns a clear next action without exposing implementation detail.
-
-### Tutor Chat and Notebook
-
-Chat and Notebook share the same full-height bordered workspace and thin terracotta focus line. Chat has a session rail on desktop, an empty-state prompt set, a growing message region, and a composer pinned to the bottom. Notebook leads with Russian thought capture, then a sentence-led list and a distinct Prepare cards action. On mobile their toolbars reflow without shrinking targets; text entry and send/record/upload actions remain touch complete.
-
-### Library
-
-Search, status, topic, and sort controls form one filter surface above the results. Phrase, translation, and topic lead each card; Play, Learned, and Edit remain visible, while Review, Pattern, and Delete live under More. The URL-backed result page discloses 20 cards at a time, and rows use content visibility for long-list rendering. Select mode adds checkboxes only while bulk work is active; on narrow screens the checkbox overlays the card corner so sentence width is preserved.
-
-### Topics: Add and Select
-
-Topics uses a topic rail and a sentence-led membership list. The selected topic owns the Add cards, Rename, Select, and Delete actions; each membership row keeps one right-aligned Edit control. **Add cards** opens a searchable picker and reveals eligible cards in increments of 20; selection is explicit before confirmation. **Select** changes the membership list into batch mode, reveals checkboxes, and exposes Move and Remove actions. Outside batch mode, checkbox and batch chrome are absent. On narrow screens, the topic rail becomes horizontally scrollable and the membership list remains a single readable column.
-
-### Settings, dialogs, and states
-
-Settings is a native modal dialog: a right drawer on desktop and a full-width surface on mobile. Its header and close control stay available while the body scrolls independently and background scrolling is contained. Playback changes apply immediately; scheduling changes retain their explicit save behavior. Import and Card Editor follow the same contained-scroll and Back/Escape expectations, with unsaved-change guards.
-
-Empty states name the next useful action. Errors use `role="alert"`; async changes and Recall feedback use live regions. Skip navigation, semantic controls, visible focus, reduced-motion fallbacks, and safe-area spacing are part of the component contract.
-
-## Do’s and Don’ts
-
-- **Do** let the learning sentence dominate every working surface.
-- **Do** use the single terracotta accent consistently and reserve semantic colors for status.
-- **Do** preserve 44px targets, visible keyboard focus, touch equivalents, correct language metadata, and reduced-motion behavior.
-- **Do** keep filters, open editors, and practice context reflected in stable URLs where the implementation supports them.
-- **Do** reveal Add, Select, More, and advanced settings only when they become relevant.
-- **Don’t** reintroduce mode-specific palettes, gradients, decorative shadows, pure-white cards, or pure-black canvases.
-- **Don’t** crowd sentence rows with permanent secondary or destructive actions.
-- **Don’t** rely on hover, right-click, or a physical keyboard for a core phone flow.
-- **Don’t** use uppercase microcopy, tiny functional text, or pill shapes as a default style.
+- [ ] Один акцент на экране
+- [ ] Все высоты из шкалы
+- [ ] Только `var(--rh-*)`
+- [ ] Проверено в светлой и тёмной теме
+- [ ] Проверено на 393px
+- [ ] Нет hover-only действий
+- [ ] Нет капса, нет плашек-хайлайтов, нет зелёного вне статуса Learned
+- [ ] Фокус виден, у иконок есть `aria-label`

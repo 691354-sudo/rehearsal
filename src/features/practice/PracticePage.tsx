@@ -56,15 +56,16 @@ export function PracticePage(props: {
   const listeningAvailable = languageHasAudio(props.language);
 
   return <main className="simple-main simple-main--practice" id="main-content">
-    <header className="practice-header">
-      <div><h1>Practice</h1><p>{props.recommended.due} due · {props.recommended.new} new · {props.dailyProgress.recall} recalled today{listeningAvailable ? ` · ${props.dailyProgress.shadow} listened today` : ""}</p></div>
+    <header className="practice-header"><h1>Practice</h1></header>
+    <section className="practice-control-header" aria-label="Practice controls">
       {listeningAvailable ? <div className="practice-modes" aria-label="Practice mode">
         <AppLink aria-current={props.route.mode === "listen" ? "page" : undefined} className={props.route.mode === "listen" ? "is-active" : ""} onClick={props.onModeSelected}
           route={{ ...props.route, mode: "listen", review: null }}>Listen &amp; Repeat</AppLink>
         <AppLink aria-current={props.route.mode === "recall" ? "page" : undefined} className={props.route.mode === "recall" ? "is-active" : ""} onClick={props.onModeSelected}
           route={{ ...props.route, mode: "recall", review: null }}>Recall</AppLink>
-      </div> : null}
-    </header>
+      </div> : <strong>Recall</strong>}
+      <p>{props.recommended.due} due · {props.recommended.new} new · {props.dailyProgress.recall} recalled today{listeningAvailable ? ` · ${props.dailyProgress.shadow} listened today` : ""}</p>
+    </section>
 
     {props.route.mode === "recall" || !listeningAvailable ? <RecallSession
       attempts={props.attempts}
@@ -80,14 +81,13 @@ export function PracticePage(props: {
       onAnswer={props.onAnswer}
       onCheck={props.onCheck}
       onEdit={setEditingItem}
-      onCount={(cards) => props.onRoute({ ...props.route, cards, review: null }, "replace")}
+      onSelection={(scope, cards) => props.onRoute({ ...props.route, cards, scope: scope === "custom" ? "library" : "due", review: null }, "replace")}
       onListenMode={() => props.onRoute({ ...props.route, mode: "listen", review: null })}
       onListened={props.onListened}
       onManualReviewStarted={() => props.onRoute({ ...props.route, review: null }, "replace")}
       onRecallReview={props.onRecallReview}
       onPlay={props.onPlay}
       onPlayback={props.onPlayback}
-      onScope={(scope) => props.onRoute({ ...props.route, scope: scope === "custom" ? "library" : "due", review: null }, "replace")}
       onTopic={onTopic}
       selectedTopicItems={selectedTopicItems}
       scope={props.route.scope === "library" ? "custom" : "due"}
@@ -100,10 +100,9 @@ export function PracticePage(props: {
       recommended={props.recommended}
       onEdit={setEditingItem} onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
       onPlayPrepared={props.onPlayPrepared} onPrepareAudio={props.onPrepareAudio}
-      onCount={(cards) => props.onRoute({ ...props.route, cards }, "replace")}
+      onSelection={(scope, cards) => props.onRoute({ ...props.route, cards, scope: scope === "custom" ? "library" : "due" }, "replace")}
       onPlayback={props.onPlayback} onResume={props.onResumePlayback} onStop={props.onStopPlayback}
       onPracticeEnabled={props.onPracticeEnabled}
-      onScope={(scope) => props.onRoute({ ...props.route, scope: scope === "custom" ? "library" : "due" }, "replace")}
       onTopic={onTopic}
       playback={props.playback} selectedTopicItems={selectedTopicItems} scope={props.route.scope === "library" ? "custom" : "due"}
       topicId={props.route.topic} topics={topics} voices={props.voices} />}

@@ -210,8 +210,9 @@ export function ReviewBatchPanel(props: {
         </div>
       </article>)}
     </div>
-    <footer><span><span className="simple-review-selected-count">{selected.size} of {props.batch.candidates.length} selected</span><span aria-live="polite">{notice}</span></span><div className="simple-review-footer-actions">
+    <footer><span><span className="simple-review-selected-count">{selected.size} of {props.batch.candidates.length} selected</span>
       {props.batch.kind === "capture" && props.batch.candidates.length ? <button className="simple-review-footer-clear" disabled={!selected.size} onClick={toggleAll} type="button">Clear</button> : null}
+      <span aria-live="polite">{notice}</span></span><div className="simple-review-footer-actions">
       <button className="simple-primary" disabled={!selected.size || commentedCount > 0 || saving || resetting || props.batch.status === "committed"}
         onClick={() => void resolveReview()} type="button">
       {saving ? <LoaderCircle className="simple-spin" size={15} /> : null}

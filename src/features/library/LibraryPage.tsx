@@ -307,20 +307,20 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
           {selectionMode ? <label className="simple-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} name={`select-card-${item.publicId}`}
             disabled={deletingSelected} onChange={() => toggleItem(item.publicId)} type="checkbox" /></label> : null}
           <div className="simple-phrase-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><small lang="ru">{item.cue}</small></div>
-          <div className="simple-row-side"><LearningStageBadge stage={item.progress.stage} /></div><div className="simple-row-actions">
+          <div className="simple-row-actions"><LearningStageBadge stage={item.progress.stage} />
               {languageHasAudio(language) ? <button aria-label="Play" onClick={() => {
                 void onPlay(item.target).then(() => onListened(item.publicId));
               }} title="Play" type="button"><Volume2 size={15} /></button> : null}
-              {item.practiceEnabled
-                ? <button aria-label={`Mark ${item.target} as learned`} onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Learned</button>
-                : <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Reactivate</button>}
-              <button aria-label={`Edit ${item.target}`} onClick={() => patchRoute({ edit: item.publicId }, "push")} title="Edit" type="button"><Pencil size={16} /></button>
               <div className="simple-row-more" data-library-actions={item.publicId} onBlur={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null);
               }}>
                 <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-label={`More actions for ${item.target}`}
                   onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)} title="More actions" type="button"><MoreHorizontal size={17} /></button>
                 {openActionsId === item.publicId ? <div className="simple-row-more-panel" id={`card-actions-${item.publicId}`}>
+                  {item.practiceEnabled
+                    ? <button onClick={() => { setOpenActionsId(null); void setPracticeEnabled(item.publicId, false); }} type="button">Mark as learned</button>
+                    : <button onClick={() => { setOpenActionsId(null); void setPracticeEnabled(item.publicId, true); }} type="button">Return to learning</button>}
+                  <button onClick={() => { setOpenActionsId(null); patchRoute({ edit: item.publicId }, "push"); }} type="button"><Pencil size={15} />Edit</button>
                   {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} type="button">Review now</button> : null}
                   <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} type="button">Pattern drill</button>
                   <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} type="button"><Trash2 size={15} />Delete</button>

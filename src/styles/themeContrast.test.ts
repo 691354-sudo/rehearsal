@@ -3,11 +3,24 @@ import { describe, expect, it } from "vitest";
 
 const css = readFileSync(new URL("./base.css", import.meta.url), "utf8");
 
-const tokensFor = (selector: string) => {
+const declarationsFor = (selector: string) => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const block = css.match(new RegExp(`${escaped}\\s*\\{([^}]+)\\}`))?.[1] ?? "";
-  return Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[\da-f]{6})/gi)]
+  return Object.fromEntries([...block.matchAll(/--([\w-]+):\s*([^;]+);/gi)]
     .map((match) => [match[1], match[2]]));
+};
+
+const tokensFor = (selector: string) => {
+  const declarations = selector === ":root"
+    ? declarationsFor(":root")
+    : { ...declarationsFor(":root"), ...declarationsFor(selector) };
+  const resolve = (name: string, seen = new Set<string>()): string => {
+    if (seen.has(name)) throw new Error(`Circular color token: ${name}`);
+    const value = declarations[name];
+    const reference = value?.match(/^var\(--([\w-]+)\)$/)?.[1];
+    return reference ? resolve(reference, new Set([...seen, name])) : value;
+  };
+  return Object.fromEntries(Object.keys(declarations).map((name) => [name, resolve(name)]));
 };
 
 const channel = (value: number) => {

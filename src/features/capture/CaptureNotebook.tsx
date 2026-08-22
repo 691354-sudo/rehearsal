@@ -298,7 +298,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
     <div className="capture-entry">
       <textarea aria-label="Russian note" autoComplete="off" lang="ru" maxLength={30_000} name="notebook-note" onChange={(event) => setTextDraft(event.target.value)}
         placeholder="Write a Russian thought…" rows={3} value={textDraft} />
-      <div><button className="simple-primary" disabled={!textDraft.trim() || addingText} onClick={() => void addText()} type="button">
+      <div><button disabled={!textDraft.trim() || addingText} onClick={() => void addText()} type="button">
         {addingText ? <LoaderCircle className="simple-spin" size={16} /> : <Plus size={16} />}Add note</button>
         <button aria-label={recording ? "Stop recording" : "Start recording"} className={`capture-record${recording ? " is-recording" : ""}`}
           disabled={uploading || Boolean(pendingRecording)} onClick={recording ? stopRecording : () => void startRecording()}
@@ -306,7 +306,6 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
           {recording ? <Square fill="currentColor" size={16} /> : uploading ? <LoaderCircle className="simple-spin" size={17} /> : <Mic size={17} />}
         </button></div>
     </div>
-    {notice ? <div aria-live="polite" className="capture-notice">{notice}</div> : null}
     {pendingRecording && !uploading ? <div className="capture-pending-audio"><span>This recording is saved on this device until the server accepts it.</span>
       <div><button onClick={() => void upload(pendingRecording)} type="button"><RefreshCw size={14} />Retry upload</button>
         <button onClick={() => { if (!window.confirm("Delete this unsent recording from this device?")) return; void deletePendingRecording(profileId, language).then(() => {
@@ -314,9 +313,10 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
         }).catch((error) => setNotice(friendlyError(error))); }} type="button"><Trash2 size={14} />Delete recording</button></div></div> : null}
 
     <div className="capture-list-heading"><div><h2>Notebook</h2><span>{notes.length} {notes.length === 1 ? "note" : "notes"}</span></div>
-      <button className="simple-primary" disabled={!readyCount || processing || Boolean(batch)} onClick={() => void prepare()} type="button">
-        {processing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Prepare cards{readyCount ? ` (${readyCount})` : ""}
-      </button></div>
+      <div className="capture-list-actions">{notice ? <span aria-live="polite" className="capture-notice">{notice}</span> : null}
+        <button disabled={!readyCount || processing || Boolean(batch)} onClick={() => void prepare()} type="button">
+          {processing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Prepare cards{readyCount ? ` (${readyCount})` : ""}
+        </button></div></div>
     {!notes.length ? <div className="capture-empty"><strong>Capture something you actually want to say</strong><span>Write a Russian thought or record it. Nothing enters Library until you review it.</span></div> : <div className="capture-notes">
       {notes.map((note) => <article className="capture-note" key={note.publicId}>
         <header><span className={`is-${note.status}`}>{note.status}</span><time>{new Date(note.createdAt).toLocaleString()}</time></header>

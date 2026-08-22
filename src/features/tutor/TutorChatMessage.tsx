@@ -10,7 +10,7 @@ export function TutorChatMessage({ message, onDelete, onEdit, onRetry, tutorLabe
   tutorLabel: string;
 }) {
   return <article className={`simple-message simple-message--${message.role}`} data-status={message.status}>
-    <span>{message.role === "user" ? "You" : tutorLabel}</span>
+    {message.role === "assistant" ? <span>{tutorLabel}</span> : null}
     {message.status === "placeholder" ? <div className="simple-chat-loading" role="status">
       <LoaderCircle className="simple-spin" size={17} />Tutor is thinking…
     </div> : <TutorMarkdownMessage content={message.content} />}

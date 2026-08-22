@@ -39,7 +39,7 @@ export function ListenRepeat(props: {
   elevenLabs: ElevenLabsConfig;
   items: LearningItem[];
   language: Language;
-  onCount: (count: PracticeCardCount) => void;
+  onSelection: (scope: PracticeScope, count: PracticeCardCount) => void;
   onListened: (itemId: string) => Promise<void>;
   recommended: { due: number; new: number };
   onEdit: (item: LearningItem) => void;
@@ -54,7 +54,6 @@ export function ListenRepeat(props: {
     strictProvider: boolean,
   ) => Promise<PreparedAudio>;
   onResume: () => void;
-  onScope: (scope: PracticeScope) => void;
   onStop: () => void;
   playback: PlaybackPreferences;
   selectedTopicItems: Set<string> | null;
@@ -382,24 +381,23 @@ export function ListenRepeat(props: {
 
   if (phase === "setup") return <div className="practice-ready-layout">
     <section className="listen-setup" aria-label="Listen and Repeat setup">
-      <div className="practice-scope-switch" role="group" aria-label="Listening source">
-        <button aria-pressed={props.scope === "due"} onClick={() => props.onScope("due")} type="button">Recommended now</button>
-        <button aria-pressed={props.scope === "custom"} onClick={() => props.onScope("custom")} type="button">All Library</button>
-      </div>
-      {props.scope === "due" ? <small className="practice-recommended-note">FSRS puts due and relearning first, then up to your daily limit of new cards · {props.recommended.due} due · {props.recommended.new} new</small> : null}
       <div className="listen-selection-grid">
-        <label><span>Topic</span><TopicProgressPicker onChange={props.onTopic} topics={props.topics} value={props.topicId} /></label>
-        <label><span>Cards</span><select name="listen-count" onChange={(event) => props.onCount(event.target.value as PracticeCardCount)} value={props.count}>
-          <option value="all">All {props.scope === "due" ? "recommended" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+        <label><span className="simple-visually-hidden">Topic</span><TopicProgressPicker onChange={props.onTopic} topics={props.topics} value={props.topicId} /></label>
+        <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" name="listen-count" onChange={(event) => {
+          const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
+          props.onSelection(scope, count);
+        }} value={`${props.scope}:${props.count}`}>
+          <option value="due:all">All recommended</option><option value="due:10">10 recommended</option><option value="due:20">20 recommended</option><option value="due:50">50 recommended</option>
+          <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
         </select></label>
       </div>
       <details className="listen-playback-options">
-        <summary><span>Playback</span><strong>{props.playback.provider === "elevenlabs" ? selectedElevenLabsVoice.name : props.playback.voice} · {props.playback.speed.toFixed(2)}× · {props.playback.repetitions}× · Adaptive pause</strong></summary>
+        <summary><strong>{props.playback.provider === "elevenlabs" ? selectedElevenLabsVoice.name : props.playback.voice} · {props.playback.speed.toFixed(2)}× · {props.playback.repetitions}× · Adaptive pause</strong><span>Playback settings</span></summary>
         {playbackSettings}
       </details>
       <div className="listen-start-options">
-        <button aria-pressed={loop} className={loop ? "is-active" : ""} onClick={() => setLoop((enabled) => !enabled)} type="button"><Repeat2 size={17} />Loop</button>
-        <button onClick={shuffle} type="button"><Shuffle size={17} />Shuffle</button>
+        <button aria-label={loop ? "Disable loop" : "Enable loop"} aria-pressed={loop} className={loop ? "is-active" : ""} onClick={() => setLoop((enabled) => !enabled)} title="Loop" type="button"><Repeat2 size={17} /></button>
+        <button aria-label="Shuffle cards" onClick={shuffle} title="Shuffle" type="button"><Shuffle size={17} /></button>
       </div>
       <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
         <Play fill="currentColor" size={15} />Play {visibleCandidates.length || "recommended"} cards
