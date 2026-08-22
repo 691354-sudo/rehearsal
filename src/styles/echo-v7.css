@@ -108,6 +108,8 @@
   border-top-right-radius: 0;
 }
 
+.recall-setup { min-height: 0; }
+
 .listen-setup {
   display: grid;
   grid-template-areas:
