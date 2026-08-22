@@ -643,13 +643,13 @@
   min-width: 0;
 }
 
-.simple-phrase-row strong {
+.simple-phrase-copy > strong {
   font-size: 17px;
   font-weight: 600;
   line-height: 1.4;
 }
 
-.simple-phrase-row small {
+.simple-phrase-copy > small {
   color: var(--script-support);
   font-size: 14px;
   line-height: 1.45;
