@@ -304,41 +304,69 @@
 .simple-message > span { font-size: 12px; font-weight: 500; }
 .simple-message--user > span { display: none; }
 
-.simple-message:has(.simple-message-heading) {
-  width: min(780px, 100%);
+.simple-message--assistant {
+  width: min(780px, 92%);
   padding: 0;
   background: transparent;
   border: 0;
+  border-radius: 0;
 }
 
-.simple-message:has(.simple-message-heading) > span { margin: 0 0 8px; }
+.simple-message--assistant > span { margin: 0 0 8px; }
 
-.simple-message:has(.simple-message-heading) .simple-message-copy > p:first-of-type {
-  margin-bottom: 16px;
+.simple-message--assistant > .simple-message-copy,
+.simple-message--assistant > .simple-chat-loading,
+.simple-tutor-reply {
   padding: 13px 15px;
   background: var(--rh-inset);
   border: 1px solid var(--rh-rule);
   border-radius: 4px 12px 12px;
 }
 
-.simple-message-heading,
-.simple-message-heading ~ p,
-.simple-message-heading ~ ul {
-  margin: 0;
-  padding-left: 14px;
+.simple-message--assistant > .simple-message-copy--structured {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.simple-correction {
+  margin-top: 16px;
+  padding: 4px 0 4px 14px;
   border-left: 2px solid var(--rh-note);
 }
 
-.simple-message-heading {
-  padding-top: 4px;
-  padding-bottom: 8px;
+.simple-correction > h3 {
+  margin: 0 0 8px;
   color: var(--rh-note);
   font-size: 12px;
   font-weight: 600;
 }
 
-.simple-message-heading ~ p,
-.simple-message-heading ~ ul { padding-bottom: 8px; }
+.simple-correction-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.simple-correction-copy > p,
+.simple-correction-copy > ul { margin: 0; }
+
+.simple-correction-copy > p:first-child {
+  color: var(--rh-faint);
+  font-size: 14px;
+}
+
+.simple-correction-copy > p:nth-child(2) {
+  color: var(--rh-ink);
+  font-size: 16px;
+  font-weight: 550;
+}
+
+.simple-correction-copy > p:nth-child(n + 3),
+.simple-correction-copy > ul {
+  color: var(--rh-support);
+  font-size: 14px;
+}
 
 .simple-composer { background: var(--rh-surface); }
 .simple-composer textarea { border-radius: 8px; }

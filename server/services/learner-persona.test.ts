@@ -16,6 +16,7 @@ describe("learner-specific AI context", () => {
     );
 
     expect(romanTutor).toContain("Roman");
+    expect(romanTutor).toContain("### Correction");
     expect(romanTutor).toContain("born in 1992");
     expect(oliverTutor).toContain("Oliver");
     expect(oliverTutor).not.toContain("Roman");

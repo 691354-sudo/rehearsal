@@ -400,7 +400,8 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             <span>Ask Tutor to use your Library, correct a message, or make a short speaking drill.</span><div>
               {["Find useful phrases from my Library", "Correct a message I wrote", "Give me a short speaking drill"].map((prompt) => <button key={prompt}
                 onClick={() => { setDraft(prompt); window.requestAnimationFrame(() => composerRef.current?.focus()); }} type="button">{prompt}</button>)}</div></div> : null}
-          {messages.map((message) => <TutorChatMessage key={message.id} message={message}
+          {messages.map((message, messageIndex) => <TutorChatMessage key={message.id} learnerMessage={message.role === "assistant" ? messages.slice(0, messageIndex).reverse().find((candidate) => candidate.role === "user")?.content : undefined}
+            message={message}
             onDelete={(failed) => setMessages((current) => current.filter((currentMessage) => currentMessage.id !== failed.id))}
             onEdit={editFailedMessage}
             onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} tutorLabel={`${languageCopy[language].label} · roleplay`} />)}
