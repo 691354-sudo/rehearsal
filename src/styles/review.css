@@ -294,6 +294,8 @@
 
 .simple-review-batch--capture .simple-review-fields {
   grid-column: 2;
+  width: 100%;
+  max-width: 62ch;
 }
 
 .simple-review-check {
@@ -575,10 +577,10 @@
   border-color: color-mix(in srgb, var(--retry) 28%, var(--script-rule));
 }
 
-.simple-phrase-row { grid-template-columns: minmax(0, 1fr) auto; }
+.simple-phrase-row { grid-template-columns: minmax(0, 1fr) auto auto; }
 
 .simple-phrase-row.is-selecting {
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
 }
 
 .simple-phrase-row.is-selected {

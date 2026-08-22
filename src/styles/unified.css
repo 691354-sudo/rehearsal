@@ -171,7 +171,6 @@
 .recall-answer-row textarea,
 .practice-inline-answer input,
 .simple-composer textarea,
-.capture-entry textarea,
 .capture-note textarea,
 .simple-card-dialog textarea {
   font-size: max(16px, 1em);
@@ -370,13 +369,32 @@
   flex-wrap: nowrap;
   max-width: none;
   padding-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
 }
 
 .simple-row-side {
   display: grid;
-  gap: 7px;
+  gap: 5px;
+  min-width: 116px;
   justify-items: end;
   align-content: start;
+}
+
+.simple-row-topic {
+  max-width: 22ch;
+  overflow: hidden;
+  color: var(--script-support);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simple-phrase-row:hover .simple-row-actions,
+.simple-phrase-row:focus-within .simple-row-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .simple-row-actions > button,
@@ -533,6 +551,18 @@
   .simple-main,
   .simple-main--practice,
   .simple-main--notebook { width: min(760px, calc(100% - 32px)); }
+  .simple-main:has(.simple-library-panel--main):not(:has(.simple-library-secondary, .simple-review-batch)) {
+    display: block;
+    height: auto;
+    min-height: calc(100dvh - 58px);
+  }
+  .simple-main:has(.simple-library-panel--main):not(:has(.simple-library-secondary, .simple-review-batch)) .simple-library-panel--main {
+    display: block;
+  }
+  .simple-phrase-list {
+    overflow-y: visible;
+    overscroll-behavior: auto;
+  }
 }
 
 @media (max-width: 720px) {
@@ -595,7 +625,12 @@
   }
   .simple-phrase-row.is-selecting .simple-phrase-copy > strong { padding-inline-start: 32px; }
   .simple-row-side { grid-column: 1; justify-self: start; justify-items: start; }
-  .simple-row-actions { grid-column: 1; justify-content: flex-start; }
+  .simple-row-actions {
+    grid-column: 1;
+    justify-content: flex-start;
+    opacity: 1;
+    pointer-events: auto;
+  }
   .simple-row-more-panel { right: 0; left: auto; transform-origin: top right; }
   .simple-main .simple-primary,
   .simple-main .simple-import-card button,
@@ -648,4 +683,15 @@
     white-space: normal;
     overflow-wrap: anywhere;
   }
+}
+
+@media (hover: none) and (min-width: 561px) {
+  .simple-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simple-row-actions { transition: none; }
 }

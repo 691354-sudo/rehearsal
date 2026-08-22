@@ -22,7 +22,7 @@ import { languageHasAudio } from "../../shared/config";
 import { filterLibraryItems, type LibrarySort, type LibraryStatus } from "../../lib/libraryView";
 import type { AppRoute, HistoryMode, LibraryRoute } from "../../lib/appRoute";
 import { FocusedText } from "../progress/FocusedText";
-import { LearningProgressBadge } from "../progress/LearningProgress";
+import { LearningStageBadge } from "../progress/LearningProgress";
 
 export function LibraryPage({ items, language, route, onRoute, onItemDeleted, onItemUpdated, onItemsReload, onListen, onListened, onPlay, onPracticeEnabled, onReview }: {
   items: LearningItem[];
@@ -307,7 +307,8 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
           {selectionMode ? <label className="simple-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} name={`select-card-${item.publicId}`}
             disabled={deletingSelected} onChange={() => toggleItem(item.publicId)} type="checkbox" /></label> : null}
           <div className="simple-phrase-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><small lang="ru">{item.cue}</small></div>
-          <div className="simple-row-side"><div className="simple-row-actions">
+          <div className="simple-row-side">{item.tags[0] ? <span className="simple-row-topic">{item.tags[0]}</span> : null}
+            <LearningStageBadge stage={item.progress.stage} /></div><div className="simple-row-actions">
               {languageHasAudio(language) ? <button aria-label="Play" onClick={() => {
                 void onPlay(item.target).then(() => onListened(item.publicId));
               }} title="Play" type="button"><Volume2 size={15} /></button> : null}
@@ -326,7 +327,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
                   <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} type="button"><Trash2 size={15} />Delete</button>
                 </div> : null}
               </div>
-            </div><LearningProgressBadge progress={item.progress} /></div>
+            </div>
         </article>)}
         {displayedItems.length < visibleItems.length ? <div className="simple-library-load-more"><span>{visibleItems.length - displayedItems.length} more cards</span>
           <button onClick={() => patchRoute({ page: route.page + 1 })} type="button">Load more</button></div> : null}

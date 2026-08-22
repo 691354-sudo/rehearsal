@@ -621,17 +621,24 @@
 }
 
 .simple-phrase-list {
+  display: grid;
+  gap: 8px;
   max-height: calc(100vh - 280px);
+  padding: 10px;
   overflow-y: auto;
+  background: var(--stage-canvas);
 }
 
 .simple-phrase-row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   align-items: start;
-  padding: 18px;
-  border-bottom: 1px solid var(--script-rule);
+  padding: 14px 18px;
+  background: var(--script-surface);
+  border: 1px solid var(--script-rule);
+  border-radius: 12px;
 }
 
 .simple-phrase-row > span {
@@ -640,15 +647,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.simple-phrase-copy {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
+.simple-phrase-copy { display: grid; gap: 4px; min-width: 0; }
 
 .simple-phrase-copy > strong {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
   line-height: 1.4;
 }
 

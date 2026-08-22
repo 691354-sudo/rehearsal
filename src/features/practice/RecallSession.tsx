@@ -143,7 +143,7 @@ export function RecallSession(props: {
       <div className="recall-answer-row"><textarea aria-label={`Type in ${languageCopy[props.language].label}`} autoComplete="off" lang={props.language} name="recall-answer"
         onChange={(event) => { if (!attempt.evaluation) props.onAnswer(current.publicId, event.target.value); }}
         onKeyDown={onKeyDown} placeholder={`Type in ${languageCopy[props.language].label}…`} readOnly={Boolean(attempt.evaluation)} ref={inputRef} rows={2} value={attempt.answer} />
-        {!attempt.evaluation ? <button aria-label="Check answer" className="simple-primary" disabled={!attempt.answer.trim()} onClick={check} type="button"><Check size={16} /></button> : null}
+        {!attempt.evaluation ? <button aria-label="Check answer" className="recall-check" disabled={!attempt.answer.trim()} onClick={check} type="button"><Check size={16} /></button> : null}
       </div>
       {attempt.evaluation ? <div aria-live="polite" className={`recall-result recall-result--${attempt.evaluation.verdict}`}>
         <span>{attempt.evaluation.verdict === "exact" ? "Correct" : "Compare"}</span>

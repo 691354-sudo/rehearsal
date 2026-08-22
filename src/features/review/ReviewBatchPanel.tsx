@@ -180,7 +180,8 @@ export function ReviewBatchPanel(props: {
           <p className="simple-review-focus-preview" lang={props.batch.language}>
             <FocusedText focusTerms={candidate.focusTerms} text={candidate.target} /></p>
           <p className="simple-review-cue" lang="ru">{candidate.cue}</p>
-          {props.batch.kind !== "capture" ? <p className="simple-review-meta">{[candidate.category, candidate.disposition || "active", candidate.frequencyBand, candidate.currency].filter(Boolean).join(" · ")}</p> : null}
+          <p className="simple-review-meta">{[candidate.category, candidate.disposition || "active", candidate.frequencyBand,
+            props.batch.kind === "capture" ? null : candidate.currency].filter(Boolean).join(" · ")}</p>
           <button aria-expanded={adjustingCandidateId === candidate.id} className="simple-review-adjust-toggle" onClick={() => {
             setAdjustingCandidateId((current) => current === candidate.id ? null : candidate.id);
           }} type="button"><ChevronDown aria-hidden="true" size={15} />{adjustingCandidateId === candidate.id ? "Hide adjustments" : "Adjust"}</button>
