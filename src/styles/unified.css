@@ -24,6 +24,18 @@
   opacity: 1;
 }
 
+.simple-app button:focus-visible,
+.simple-app a:focus-visible,
+.simple-app input:focus-visible,
+.simple-app select:focus-visible,
+.simple-app textarea:focus-visible,
+.simple-app label:has(input[type="file"]:focus-visible) {
+  border-color: var(--script-rule-strong);
+  box-shadow: none !important;
+  outline: 2px solid var(--cue-light) !important;
+  outline-offset: 2px;
+}
+
 .simple-app select {
   padding-right: 38px;
   appearance: none;
@@ -32,6 +44,37 @@
   background-position: right 14px center;
   background-size: 14px 14px;
 }
+
+.simple-composer-controls,
+.simple-composer-tools,
+.simple-composer-send-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.simple-composer-controls { justify-content: space-between; }
+
+.simple-composer-send-group > span {
+  color: var(--script-support);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.simple-finish-review {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 6px;
+  color: var(--script-support);
+  font-size: 14px;
+  font-weight: 550;
+  background: transparent;
+  border: 0;
+}
+
+.simple-finish-review:hover:not(:disabled) { color: var(--script-ink); }
 
 .practice-header h1 { font-size: 24px; }
 .simple-card-dialog select { font-size: 14px; }
@@ -65,8 +108,8 @@
 
 .practice-modes a.is-active,
 .simple-tutor-mode a.is-active {
-  color: var(--mode-on);
-  background: var(--mode-action);
+  color: var(--accent-hover);
+  background: var(--cue-wash);
 }
 
 .simple-tutor-mode a {
@@ -119,13 +162,13 @@
 
 .recall-card::before {
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
+  inset: 0 0 auto;
+  height: 2px;
   content: "";
   background: var(--cue-action);
 }
 
-.recall-answer-row input,
+.recall-answer-row textarea,
 .practice-inline-answer input,
 .simple-composer textarea,
 .capture-entry textarea,
@@ -585,19 +628,18 @@
   .simple-chat-messages { padding: 18px 14px; }
 
   .simple-composer {
-    grid-template-areas:
-      "message message message message"
-      "upload record spacer send";
-    grid-template-columns: 44px 44px minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     padding: 12px;
   }
-  .simple-composer-input { grid-area: message; }
-  .simple-composer-upload { grid-area: upload; min-width: 44px; min-height: 44px; }
-  .simple-composer-record { grid-area: record; width: 44px; height: 44px; }
-  .simple-composer-send { grid-area: send; width: 44px; height: 44px; }
-  .simple-composer textarea { min-height: 64px; padding-right: 13px; }
+  .simple-composer-upload { min-width: 44px; min-height: 44px; }
+  .simple-composer-record { width: 44px; height: 44px; }
+  .simple-composer-send { width: 44px; height: 44px; }
+  .simple-composer textarea { min-height: 104px; padding-right: 13px; }
   .simple-composer-resize { display: none; }
+  .simple-composer-controls { align-items: flex-end; }
+  .simple-composer-tools { flex-wrap: wrap; }
+  .simple-composer-send-group > span { display: none; }
 
   .topic-items strong,
   .topic-items span {

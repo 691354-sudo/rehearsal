@@ -2,14 +2,15 @@ import { LoaderCircle, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import type { ChatMessage } from "../../shared/contracts";
 import { TutorMarkdownMessage } from "./TutorMarkdownMessage";
 
-export function TutorChatMessage({ message, onDelete, onEdit, onRetry }: {
+export function TutorChatMessage({ message, onDelete, onEdit, onRetry, tutorLabel }: {
   message: ChatMessage;
   onDelete: (message: ChatMessage) => void;
   onEdit: (message: ChatMessage) => void;
   onRetry: (message: ChatMessage) => void;
+  tutorLabel: string;
 }) {
   return <article className={`simple-message simple-message--${message.role}`} data-status={message.status}>
-    <span>{message.role === "user" ? "You" : "Tutor"}</span>
+    <span>{message.role === "user" ? "You" : tutorLabel}</span>
     {message.status === "placeholder" ? <div className="simple-chat-loading" role="status">
       <LoaderCircle className="simple-spin" size={17} />Tutor is thinking…
     </div> : <TutorMarkdownMessage content={message.content} />}

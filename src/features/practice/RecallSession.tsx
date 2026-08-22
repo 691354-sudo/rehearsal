@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronLeft, ChevronRight, Settings2, Volume2 } from "lucide-react";
+import { Check, ChevronRight, Settings2, Volume2, X } from "lucide-react";
 import { recallKeyAction, recallSessionReducer, initialRecallSession } from "../../lib/recallSession";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { capitalize, languageCopy, languageHasAudio } from "../../shared/config";
@@ -55,7 +55,7 @@ export function RecallSession(props: {
 }) {
   const [state, dispatch] = useReducer(recallSessionReducer, initialRecallSession);
   const [showPlaybackSettings, setShowPlaybackSettings] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const sourceItems = useMemo(() => props.manualReviewItemId
     ? props.items.filter((item) => item.publicId === props.manualReviewItemId)
     : props.items, [props.items, props.manualReviewItemId]);
@@ -85,7 +85,7 @@ export function RecallSession(props: {
     if (saved) dispatch({ type: "save-succeeded", rating });
     else dispatch({ type: "save-failed" });
   };
-  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" || event.key.startsWith("Arrow")) event.preventDefault();
     const action = recallKeyAction(event.key, Boolean(attempt.evaluation), state.selectedRating);
     if (action === "check") check();
@@ -137,14 +137,13 @@ export function RecallSession(props: {
 
   const position = state.completed + 1;
   return <section className="recall-session" aria-label="Written active recall">
-    <header><button aria-label="End session" onClick={() => dispatch({ type: "reset" })} type="button"><ChevronLeft size={16} />End</button>
-      <span>{Math.min(position, state.initialTotal)} / {state.initialTotal}</span></header>
+    <header><span>{Math.min(position, state.initialTotal)} / {state.initialTotal}</span></header>
     <article className="recall-card">
       <LearningProgressBadge progress={current.progress} />
       <p className="recall-cue" lang="ru">{current.cue}</p>
-      <div className="recall-answer-row"><input aria-label={`Type in ${languageCopy[props.language].label}`} autoComplete="off" lang={props.language} name="recall-answer"
+      <div className="recall-answer-row"><textarea aria-label={`Type in ${languageCopy[props.language].label}`} autoComplete="off" lang={props.language} name="recall-answer"
         onChange={(event) => { if (!attempt.evaluation) props.onAnswer(current.publicId, event.target.value); }}
-        onKeyDown={onKeyDown} placeholder={`Type in ${languageCopy[props.language].label}…`} readOnly={Boolean(attempt.evaluation)} ref={inputRef} value={attempt.answer} />
+        onKeyDown={onKeyDown} placeholder={`Type in ${languageCopy[props.language].label}…`} readOnly={Boolean(attempt.evaluation)} ref={inputRef} rows={2} value={attempt.answer} />
         {!attempt.evaluation ? <button aria-label="Check answer" className="simple-primary" disabled={!attempt.answer.trim()} onClick={check} type="button"><Check size={16} /></button> : null}
       </div>
       {attempt.evaluation ? <div aria-live="polite" className={`recall-result recall-result--${attempt.evaluation.verdict}`}>
@@ -162,14 +161,16 @@ export function RecallSession(props: {
         <small className="recall-key-hint">← → choose · Enter confirm</small>
       </div> : <small className="recall-key-hint">Enter to check</small>}
     </article>
-    {languageHasAudio(props.language) ? <div className="recall-session-settings">
-      <button aria-expanded={showPlaybackSettings} className={showPlaybackSettings ? "is-active" : ""}
-        onClick={() => setShowPlaybackSettings((shown) => !shown)} type="button"><Settings2 size={16} />Voice settings</button>
-      {showPlaybackSettings ? <div aria-label="Voice settings" className="recall-session-playback-settings">
+    <div className="recall-session-settings"><div className="recall-session-utilities">
+      {languageHasAudio(props.language) ? <button aria-expanded={showPlaybackSettings} aria-label="Voice settings" className={showPlaybackSettings ? "is-active" : ""}
+        onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Voice settings" type="button"><Settings2 size={18} /></button> : null}
+      <button aria-label="End session" onClick={() => dispatch({ type: "reset" })} title="End session" type="button"><X size={18} /></button>
+    </div>
+      {languageHasAudio(props.language) && showPlaybackSettings ? <div aria-label="Voice settings" className="recall-session-playback-settings">
         <PlaybackSettings elevenLabs={props.elevenLabs} language={props.language} onPlayback={props.onPlayback}
           playback={props.playback} voices={props.voices} />
         <small>Changes apply to the next card.</small>
       </div> : null}
-    </div> : null}
+    </div>
   </section>;
 }

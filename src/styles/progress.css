@@ -19,10 +19,9 @@
   border: 1px solid var(--script-rule);
   border-radius: 999px;
   color: var(--script-secondary);
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 13px;
+  font-weight: 550;
   line-height: 1.2;
-  text-transform: uppercase;
 }
 
 .learning-stage[data-stage="new"] { color: var(--script-support); }
@@ -74,7 +73,11 @@
   min-height: 42px;
   justify-content: space-between;
   align-items: center;
-  background: transparent;
+  padding: 0 12px;
+  color: var(--script-ink);
+  background: var(--script-inset);
+  border: 1px solid var(--script-rule);
+  border-radius: 8px;
   text-align: start;
 }
 
@@ -118,7 +121,7 @@
 
 .answer-diff { display: grid; gap: 6px; margin-top: 10px; }
 .answer-diff p { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; margin: 0; }
-.answer-diff p > small { padding-top: 2px; color: var(--script-support); font-size: 10px; text-transform: uppercase; }
+.answer-diff p > small { padding-top: 2px; color: var(--script-support); font-size: 13px; font-weight: 550; }
 .answer-diff p > span { display: flex; flex-wrap: wrap; gap: 0 0.3em; line-height: 1.55; }
 .answer-diff del { color: var(--retry); text-decoration-thickness: 1px; }
 .answer-diff mark { padding: 0; color: inherit; background: transparent; }

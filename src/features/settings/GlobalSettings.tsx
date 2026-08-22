@@ -351,12 +351,6 @@ export function GlobalSettings(props: {
                 onClick={() => { setSchedulerTouched(true); setDraft((current) => ({ ...current, fuzz: !current.fuzz })); setSaveState("idle"); }} type="button"><i /></button></div>
             </div>
           </details>
-          <div className="simple-scheduler-save-row">
-            <span aria-live="polite" className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use 1–4 steps like 1m, 10m" : !validNewItems || !validPresets ? "Use 0–30 cards, 80–97%, and 7–3650 days" : ""}</span>
-            <button className="simple-settings-save" disabled={!schedulerDirty || !validScheduler || saveState === "saving"} onClick={() => void save()} type="button">
-              {saveState === "saving" ? "Saving…" : "Save recall settings"}
-            </button>
-          </div>
         </section>
 
         <section className="simple-settings-section simple-invite-section">
@@ -379,6 +373,12 @@ export function GlobalSettings(props: {
           {inviteState === "error" ? <p className="simple-voice-error" role="alert">Couldn’t create an invitation.</p> : null}
         </section>
       </div>
+      <footer className="simple-settings-footer">
+        <span aria-live="polite" className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use 1–4 steps like 1m, 10m" : !validNewItems || !validPresets ? "Use 0–30 cards, 80–97%, and 7–3650 days" : ""}</span>
+        <button className="simple-settings-save" disabled={!schedulerDirty || !validScheduler || saveState === "saving"} onClick={() => void save()} type="button">
+          {saveState === "saving" ? "Saving…" : "Save recall settings"}
+        </button>
+      </footer>
     </section>
   </dialog>;
 }

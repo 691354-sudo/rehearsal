@@ -76,11 +76,11 @@
   gap: 6px;
   align-items: center;
   min-height: 40px;
-  padding: 0 11px;
-  color: var(--cue-on);
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--cue-action);
+  padding: 0 6px;
+  color: var(--script-support);
+  font-size: 14px;
+  font-weight: 550;
+  background: transparent;
   border: 0;
   border-radius: 8px;
 }
@@ -111,10 +111,6 @@
 
 .simple-message-copy ul {
   padding-left: 20px;
-}
-
-.simple-composer {
-  grid-template-columns: 40px 42px minmax(0, 1fr) 42px;
 }
 
 .simple-composer-upload {
