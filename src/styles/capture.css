@@ -240,8 +240,8 @@
 }
 
 .capture-notebook > .simple-review-batch {
-  width: auto;
-  margin: 18px;
+  width: min(100%, 720px);
+  margin: 18px auto;
 }
 
 .capture-added,
