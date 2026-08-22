@@ -19,6 +19,10 @@ describe("audio API", () => {
     });
     expect(response.json().tts.providers.elevenlabs).toMatchObject({
       voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
+      voices: expect.arrayContaining([
+        { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
+        { id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" },
+      ]),
       voicesByLanguage: {
         en: expect.arrayContaining([
           { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
@@ -45,6 +49,9 @@ describe("audio API", () => {
     const response = await app.inject({ method: "GET", url: "/api/config" });
 
     expect(response.json().tts.providers.elevenlabs.voicesByLanguage.en).toEqual([
+      { id: "saved-voice", name: "Saved Voice" },
+    ]);
+    expect(response.json().tts.providers.elevenlabs.voices).toEqual([
       { id: "saved-voice", name: "Saved Voice" },
     ]);
     expect(voicesByLanguage).toHaveBeenCalledOnce();

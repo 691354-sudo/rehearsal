@@ -28,6 +28,8 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
   app.get("/api/config", async (request) => {
     const { elevenlabs, repository } = dependencies.forRequest(request);
     const voicesByLanguage = await elevenlabs.voicesByLanguage();
+    const voices = [...new Map(Object.values(voicesByLanguage).flat()
+      .map((voice) => [voice.id, voice])).values()];
     return {
       openaiConfigured: openAIConfigured,
       tts: {
@@ -42,6 +44,7 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
           elevenlabs: {
             configured: elevenLabsConfigured,
             voice: { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName },
+            voices,
             voicesByLanguage,
             models: elevenLabsModelOptions,
             speedRange: elevenLabsSpeedRange,
