@@ -404,7 +404,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             message={message}
             onDelete={(failed) => setMessages((current) => current.filter((currentMessage) => currentMessage.id !== failed.id))}
             onEdit={editFailedMessage}
-            onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} tutorLabel={`${languageCopy[language].label} · roleplay`} />)}
+            onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} tutorLabel={languageCopy[language].label} />)}
           {reviewBatch ? <ReviewBatchPanel batch={reviewBatch} onBatch={setReviewBatch} onCommitted={() => { setReviewBatch(null); setAdded(true); }} /> : null}
           {added ? <div className="simple-tutor-added"><strong>Added to Library</strong><div>
             {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}

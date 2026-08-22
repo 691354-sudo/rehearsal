@@ -9,7 +9,7 @@
 }
 
 .simple-app select,
-.topic-progress-trigger {
+.simple-app .topic-progress-trigger {
   height: 36px;
   min-height: 36px;
   border-radius: 8px;
@@ -108,7 +108,7 @@
 
 .listen-selection-grid {
   grid-area: filters;
-  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   max-width: 520px;
 }
@@ -127,6 +127,13 @@
   font-size: 14px;
   font-weight: 500;
 }
+
+.simple-app .topic-progress-trigger {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.topic-progress-trigger strong { font: inherit; }
 
 .listen-start-options {
   grid-area: toggles;
