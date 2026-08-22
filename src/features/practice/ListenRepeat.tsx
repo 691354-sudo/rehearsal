@@ -109,9 +109,10 @@ export function ListenRepeat(props: {
   ), [countValue, props.dueItemIds, props.items, props.scope, props.selectedTopicItems]);
   const visibleCandidates = shuffledCandidates || candidates;
   const current = queue[index];
-  const selectedElevenLabsVoice = props.elevenLabs.voices.find(
+  const compatibleElevenLabsVoices = props.elevenLabs.voicesByLanguage[props.language] || [];
+  const selectedElevenLabsVoice = compatibleElevenLabsVoices.find(
     (voice) => voice.id === props.playback.elevenlabs.voiceId,
-  ) || props.elevenLabs.voice;
+  ) || compatibleElevenLabsVoices[0] || { id: "", name: "No compatible voice" };
   const playbackSettings = <PlaybackSettings elevenLabs={props.elevenLabs} language={props.language}
     onPlayback={props.onPlayback} playback={props.playback} voices={props.voices} />;
 

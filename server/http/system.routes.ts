@@ -27,7 +27,7 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
 
   app.get("/api/config", async (request) => {
     const { elevenlabs, repository } = dependencies.forRequest(request);
-    const elevenLabsVoices = await elevenlabs.listVoices();
+    const voicesByLanguage = await elevenlabs.voicesByLanguage();
     return {
       openaiConfigured: openAIConfigured,
       tts: {
@@ -42,7 +42,7 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
           elevenlabs: {
             configured: elevenLabsConfigured,
             voice: { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName },
-            voices: elevenLabsVoices,
+            voicesByLanguage,
             models: elevenLabsModelOptions,
             speedRange: elevenLabsSpeedRange,
             defaults: {
@@ -56,6 +56,13 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
                 voiceName: config.elevenLabsViVoiceName,
                 modelId: "eleven_flash_v2_5",
               },
+              ...(config.elevenLabsNoVoiceId ? {
+                no: {
+                  voiceId: config.elevenLabsNoVoiceId,
+                  voiceName: config.elevenLabsNoVoiceName,
+                  modelId: "eleven_flash_v2_5" as const,
+                },
+              } : {}),
             },
             note: "Generated MP3 files are cached on this server. Identical requests reuse the cached audio.",
           },

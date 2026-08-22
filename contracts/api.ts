@@ -1,4 +1,4 @@
-export type LanguageCode = "en" | "lv" | "vi";
+export type LanguageCode = "en" | "lv" | "vi" | "no";
 export type LanguageOption = {
   code: LanguageCode;
   label: string;
@@ -10,6 +10,7 @@ export const languageCatalog = {
   en: { code: "en", label: "English", locale: "en-US", capabilities: { audio: true } },
   lv: { code: "lv", label: "Latviešu", locale: "lv-LV", capabilities: { audio: false } },
   vi: { code: "vi", label: "Vietnamese", locale: "vi-VN", capabilities: { audio: true } },
+  no: { code: "no", label: "Norwegian", locale: "nb-NO", capabilities: { audio: true } },
 } as const satisfies Record<LanguageCode, LanguageOption>;
 
 export const languageCodes = Object.keys(languageCatalog) as LanguageCode[];

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
+import type { LanguageCode } from "../contracts/api.js";
 
 const root = process.cwd();
 const databasePath = path.resolve(root, process.env.DATABASE_PATH || ".data/rehearsal.sqlite");
@@ -56,6 +57,8 @@ export const config = {
   elevenLabsVoiceName: process.env.ELEVENLABS_VOICE_NAME || "Christopher",
   elevenLabsViVoiceId: process.env.ELEVENLABS_VI_VOICE_ID?.trim() || "ueSxRO0nLF1bj93J2hVt",
   elevenLabsViVoiceName: process.env.ELEVENLABS_VI_VOICE_NAME?.trim() || "Trung Caha",
+  elevenLabsNoVoiceId: process.env.ELEVENLABS_NO_VOICE_ID?.trim() || "",
+  elevenLabsNoVoiceName: process.env.ELEVENLABS_NO_VOICE_NAME?.trim() || "Norwegian voice",
   elevenLabsModel: process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
   elevenLabsSpeed: numberFromEnv(process.env.ELEVENLABS_SPEED, 1.05),
 };
@@ -63,11 +66,25 @@ export const config = {
 export const openAIConfigured = Boolean(config.openaiApiKey);
 export const elevenLabsConfigured = Boolean(config.elevenLabsApiKey);
 
-export const elevenLabsVoices = Array.from(new Map([
-  { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName },
-  { id: config.elevenLabsViVoiceId, name: config.elevenLabsViVoiceName },
-  { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
-  { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" },
-  { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
-  { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
-].map((voice) => [voice.id, voice])).values());
+export type ElevenLabsVoiceOption = { id: string; name: string; languages: LanguageCode[] };
+
+const configuredElevenLabsVoices: ElevenLabsVoiceOption[] = [
+  { id: config.elevenLabsVoiceId, name: config.elevenLabsVoiceName, languages: ["en"] as LanguageCode[] },
+  { id: config.elevenLabsViVoiceId, name: config.elevenLabsViVoiceName, languages: ["vi"] as LanguageCode[] },
+  { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn", languages: ["en"] as LanguageCode[] },
+  { id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time", languages: ["en"] as LanguageCode[] },
+  { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia", languages: ["en"] as LanguageCode[] },
+  { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley", languages: ["en"] as LanguageCode[] },
+  ...(config.elevenLabsNoVoiceId ? [{
+    id: config.elevenLabsNoVoiceId,
+    name: config.elevenLabsNoVoiceName,
+    languages: ["no"] as LanguageCode[],
+  }] : []),
+];
+
+export const elevenLabsVoices = [...configuredElevenLabsVoices.reduce((voices, voice) => {
+  const existing = voices.get(voice.id);
+  if (existing) existing.languages = [...new Set([...existing.languages, ...voice.languages])];
+  else voices.set(voice.id, { ...voice, languages: [...voice.languages] });
+  return voices;
+}, new Map<string, ElevenLabsVoiceOption>()).values()];

@@ -110,6 +110,8 @@ CONFIRM_LANGUAGE_CHANGE=oliver:vi:true npm run db:set-language -- --profile oliv
 
 Before the first Vietnamese enablement, run `npm run db:backup` and retain both verified profile backups. Deploy the schema and application with Vietnamese disabled, configure `ELEVENLABS_VI_VOICE_ID` and `ELEVENLABS_VI_VOICE_NAME`, then run one separately authorized paid Flash v2.5 smoke test. Only after that acceptance may `vi` be enabled for Oliver. Rollback disables `vi` for Oliver and restores the prior application release; it does not remove Vietnamese cards, history, Topics, statistics, or cached audio.
 
+Norwegian Bokmål is inserted as `no / nb-NO` for existing profiles by migration `006-norwegian-language`; invited profiles still start with only their selected language. Before production Norwegian playback, configure an approved native voice through `ELEVENLABS_NO_VOICE_ID` and `ELEVENLABS_NO_VOICE_NAME`, create and verify profile backups, and run one separately authorized paid Flash v2.5 smoke test. Without that voice, Norwegian remains available for written Recall but its audio controls report that no compatible voice is configured. Rollback restores the prior release without deleting Norwegian cards or schedules.
+
 ## Production verification
 
 Every release builds the new image, creates separate backups for all currently registered profile databases, replaces the container, and then verifies:

@@ -28,16 +28,17 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const body = z.object({
       text: z.string().trim().min(1).max(4_096),
     }).and(speechSettingsSchema).parse(request.body);
-    if (body.language === "vi" && body.provider !== "elevenlabs") {
+    const strictLanguage = body.language === "vi" || body.language === "no";
+    if (strictLanguage && body.provider !== "elevenlabs") {
       return reply.code(400).send({
-        error: "VIETNAMESE_ELEVENLABS_REQUIRED",
-        message: "Vietnamese playback requires the configured ElevenLabs voice.",
+        error: body.language === "vi" ? "VIETNAMESE_ELEVENLABS_REQUIRED" : "NORWEGIAN_ELEVENLABS_REQUIRED",
+        message: `${body.language === "vi" ? "Vietnamese" : "Norwegian"} playback requires a compatible ElevenLabs voice.`,
       });
     }
-    if (body.language === "vi" && body.modelId !== "eleven_flash_v2_5") {
+    if (strictLanguage && body.modelId !== "eleven_flash_v2_5") {
       return reply.code(400).send({
-        error: "VIETNAMESE_MODEL_UNSUPPORTED",
-        message: "Vietnamese playback requires Eleven Flash v2.5.",
+        error: body.language === "vi" ? "VIETNAMESE_MODEL_UNSUPPORTED" : "NORWEGIAN_MODEL_UNSUPPORTED",
+        message: `${body.language === "vi" ? "Vietnamese" : "Norwegian"} playback requires Eleven Flash v2.5.`,
       });
     }
     if (body.provider === "elevenlabs" && body.speed !== undefined
@@ -47,7 +48,10 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
         message: `ElevenLabs speed must be between ${elevenLabsSpeedRange.min} and ${elevenLabsSpeedRange.max}.`,
       });
     }
-    const result = body.provider === "elevenlabs" ? await elevenlabs.speech(body) : await openai.speech(body);
+    const voiceId = body.provider === "elevenlabs" && body.language !== "ru"
+      ? await elevenlabs.compatibleVoiceId(body.language, body.voiceId) : body.voiceId;
+    const result = body.provider === "elevenlabs"
+      ? await elevenlabs.speech({ ...body, voiceId }) : await openai.speech(body);
     return reply
       .header("X-AI-Generated-Audio", "true")
       .header("X-Audio-Cache", result.cached ? "HIT" : "MISS")
@@ -56,7 +60,7 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
   });
 
   app.post("/api/audio/prepare", async (request, reply) => {
-    const { audioPreparation } = dependencies.forRequest(request);
+    const { audioPreparation, elevenlabs } = dependencies.forRequest(request);
     const body = z.object({
       itemIds: z.array(z.string().trim().min(1).max(100)).min(1).max(50)
         .transform((itemIds) => [...new Set(itemIds)]),
@@ -65,17 +69,25 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
     if (body.priorityItemId && !body.itemIds.includes(body.priorityItemId)) {
       return reply.code(400).send({ error: "AUDIO_PRIORITY_ITEM_NOT_FOUND" });
     }
-    if (body.language === "vi" && body.provider !== "elevenlabs") {
-      return reply.code(400).send({ error: "VIETNAMESE_ELEVENLABS_REQUIRED" });
+    const strictLanguage = body.language === "vi" || body.language === "no";
+    if (strictLanguage && body.provider !== "elevenlabs") {
+      return reply.code(400).send({
+        error: body.language === "vi" ? "VIETNAMESE_ELEVENLABS_REQUIRED" : "NORWEGIAN_ELEVENLABS_REQUIRED",
+      });
     }
-    if (body.language === "vi" && body.modelId !== "eleven_flash_v2_5") {
-      return reply.code(400).send({ error: "VIETNAMESE_MODEL_UNSUPPORTED" });
+    if (strictLanguage && body.modelId !== "eleven_flash_v2_5") {
+      return reply.code(400).send({
+        error: body.language === "vi" ? "VIETNAMESE_MODEL_UNSUPPORTED" : "NORWEGIAN_MODEL_UNSUPPORTED",
+      });
     }
     if (body.provider === "elevenlabs" && body.speed !== undefined
       && (body.speed < elevenLabsSpeedRange.min || body.speed > elevenLabsSpeedRange.max)) {
       return reply.code(400).send({ error: "INVALID_ELEVENLABS_SPEED" });
     }
-    const job = audioPreparation.prepare(body.itemIds, body, body.priorityItemId);
+    const voiceId = body.provider === "elevenlabs"
+      ? await elevenlabs.compatibleVoiceId(body.language, body.voiceId)
+      : body.voiceId;
+    const job = audioPreparation.prepare(body.itemIds, { ...body, voiceId }, body.priorityItemId);
     return reply.code(job.status === "ready" ? 200 : 202).send(job);
   });
 

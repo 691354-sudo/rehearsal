@@ -190,7 +190,9 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
       onClose={closeSettings}
       onPlayback={audio.updatePlayback}
       onPreview={() => audio.playTarget(language === "vi"
-        ? "Đây là giọng nói của gia sư của bạn." : "This is how your tutor will sound.", { repetitions: 1 }, true)}
+        ? "Đây là giọng nói của gia sư của bạn."
+        : language === "no" ? "Dette er stemmen til språklæreren din."
+          : "This is how your tutor will sound.", { repetitions: 1 }, true)}
       onSaveScheduler={saveSchedulerSettings}
       elevenLabs={audio.elevenLabsConfig}
       playback={audio.playback}

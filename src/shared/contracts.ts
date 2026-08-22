@@ -57,7 +57,7 @@ export type PlaybackPreferences = {
 export type ElevenLabsConfig = {
   configured: boolean;
   voice: { id: string; name: string };
-  voices: { id: string; name: string }[];
+  voicesByLanguage: Partial<Record<Language, Array<{ id: string; name: string }>>>;
   models: ElevenLabsPreferences["modelId"][];
   speedRange: { min: number; max: number };
   defaults: ElevenLabsPreferences & { speed: number };

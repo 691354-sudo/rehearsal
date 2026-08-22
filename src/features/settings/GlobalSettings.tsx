@@ -43,12 +43,13 @@ export function GlobalSettings(props: {
   const [voiceStatusState, setVoiceStatusState] = useState<"idle" | "checking" | "ready" | "error">("idle");
   const [inviteState, setInviteState] = useState<"idle" | "creating" | "ready" | "error" | "copied">("idle");
   const [inviteUrl, setInviteUrl] = useState("");
-  const selectedElevenLabsVoice = props.elevenLabs.voices.find(
+  const compatibleElevenLabsVoices = props.elevenLabs.voicesByLanguage[props.language] || [];
+  const selectedElevenLabsVoice = compatibleElevenLabsVoices.find(
     (voice) => voice.id === props.playback.elevenlabs.voiceId,
-  ) || props.elevenLabs.voice;
+  ) || compatibleElevenLabsVoices[0] || { id: "", name: "No compatible voice" };
 
   useEffect(() => {
-    if (!props.elevenLabs.configured) return;
+    if (!props.elevenLabs.configured || !selectedElevenLabsVoice.id) return;
     const controller = new AbortController();
     setVoiceStatus(null);
     setVoiceStatusState("checking");
@@ -168,6 +169,7 @@ export function GlobalSettings(props: {
   };
 
   const refreshVoiceStatus = async () => {
+    if (!selectedElevenLabsVoice.id) return;
     setVoiceStatusState("checking");
     try {
       const response = await apiFetch(`/api/audio/elevenlabs/status?refresh=true&voiceId=${encodeURIComponent(selectedElevenLabsVoice.id)}`);
@@ -226,7 +228,7 @@ export function GlobalSettings(props: {
   const voiceDetails = [activeVoice.labels.accent, activeVoice.labels.use_case, activeVoice.labels.gender]
     .filter(Boolean).map(humanizeLabel).join(" · ") || "ElevenLabs voice";
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
-  const availableProviders: TtsProvider[] = props.language === "vi"
+  const availableProviders: TtsProvider[] = props.language === "vi" || props.language === "no"
     ? ["elevenlabs"] : ["openai", "elevenlabs"];
 
   return <dialog className="simple-settings-overlay" onMouseDown={(event) => {
@@ -258,8 +260,10 @@ export function GlobalSettings(props: {
             </select>
           </label> : <>
             <label className="simple-openai-voice-choice"><span>Voice</span>
-              <select name="elevenlabs-voice" onChange={(event) => updateElevenLabs("voiceId", event.target.value)} value={selectedElevenLabsVoice.id}>
-                {props.elevenLabs.voices.map((voice) => <option key={voice.id} value={voice.id}>{voice.name}</option>)}
+              <select disabled={!compatibleElevenLabsVoices.length} name="elevenlabs-voice"
+                onChange={(event) => updateElevenLabs("voiceId", event.target.value)} value={selectedElevenLabsVoice.id}>
+                {!compatibleElevenLabsVoices.length ? <option value="">No compatible voice configured</option> : null}
+                {compatibleElevenLabsVoices.map((voice) => <option key={voice.id} value={voice.id}>{voice.name}</option>)}
               </select>
             </label>
             <div className="simple-elevenlabs-voice">
@@ -284,7 +288,7 @@ export function GlobalSettings(props: {
                 </div>
                 <div className="simple-model-choice">
                   <span>Model</span><div>
-                    {props.language !== "vi" ? <button className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
+                    {props.language !== "vi" && props.language !== "no" ? <button className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
                       onClick={() => updateElevenLabs("modelId", "eleven_multilingual_v2")} type="button">Quality</button> : null}
                     <button className={props.playback.elevenlabs.modelId === "eleven_flash_v2_5" ? "is-active" : ""}
                       onClick={() => updateElevenLabs("modelId", "eleven_flash_v2_5")} type="button">Fast</button>
@@ -295,7 +299,7 @@ export function GlobalSettings(props: {
             </details>
           </>}
           <button className="simple-voice-preview" disabled={previewState === "playing"
-            || (props.playback.provider === "elevenlabs" && !props.elevenLabs.configured)}
+            || (props.playback.provider === "elevenlabs" && (!props.elevenLabs.configured || !selectedElevenLabsVoice.id))}
             onClick={() => void preview()} type="button">
             {previewState === "playing" ? <LoaderCircle className="simple-spin" size={13} /> : <Play fill="currentColor" size={13} />}
             <span>Preview {props.playback.provider === "openai" ? capitalize(props.playback.voice) : activeVoice.name}</span>

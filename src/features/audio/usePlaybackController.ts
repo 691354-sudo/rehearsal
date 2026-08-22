@@ -23,6 +23,8 @@ type AudioConfig = {
   elevenlabs?: ElevenLabsConfig;
 };
 
+const requiresElevenLabs = (language: Language) => language === "vi" || language === "no";
+
 export const usePlaybackController = (profileId: ProfileId, language: Language) => {
   const storageKey = playbackStorageKey(profileId, language);
   const hadSavedPlaybackAtMountRef = useRef(Boolean(
@@ -37,11 +39,12 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
         storedPlaybackValue(window.localStorage, profileId, targetLanguage) || "{}",
       ) as Partial<PlaybackPreferences>;
       const defaults = defaultPlaybackForLanguage(targetLanguage, config);
+      const strictLanguage = requiresElevenLabs(targetLanguage);
       return {
-        provider: targetLanguage === "vi" ? "elevenlabs" : saved.provider || defaults.provider,
+        provider: strictLanguage ? "elevenlabs" : saved.provider || defaults.provider,
         repetitions: saved.repetitions ?? defaults.repetitions,
         speed: clampPlaybackSpeed(
-          targetLanguage === "vi" || saved.provider === "elevenlabs" ? "elevenlabs" : "openai",
+          strictLanguage || saved.provider === "elevenlabs" ? "elevenlabs" : "openai",
           saved.speed ?? defaults.speed,
           config.speedRange,
         ),
@@ -49,7 +52,7 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
         voice: saved.voice || defaults.voice,
         elevenlabs: {
           voiceId: saved.elevenlabs?.voiceId || defaults.elevenlabs.voiceId,
-          modelId: targetLanguage === "vi" ? "eleven_flash_v2_5" : saved.elevenlabs?.modelId || defaults.elevenlabs.modelId,
+          modelId: strictLanguage ? "eleven_flash_v2_5" : saved.elevenlabs?.modelId || defaults.elevenlabs.modelId,
         },
       };
     } catch { return defaultPlaybackForLanguage(targetLanguage, config); }
@@ -90,12 +93,12 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
   const updatePlayback = useCallback((next: PlaybackPreferences) => {
     setPlayback({
       ...next,
-      provider: language === "vi" ? "elevenlabs" : next.provider,
+      provider: requiresElevenLabs(language) ? "elevenlabs" : next.provider,
       elevenlabs: {
         ...next.elevenlabs,
-        modelId: language === "vi" ? "eleven_flash_v2_5" : next.elevenlabs.modelId,
+        modelId: requiresElevenLabs(language) ? "eleven_flash_v2_5" : next.elevenlabs.modelId,
       },
-      speed: clampPlaybackSpeed(language === "vi" ? "elevenlabs" : next.provider, next.speed, elevenLabsConfig.speedRange),
+      speed: clampPlaybackSpeed(requiresElevenLabs(language) ? "elevenlabs" : next.provider, next.speed, elevenLabsConfig.speedRange),
     });
   }, [elevenLabsConfig.speedRange, language, setPlayback]);
 
@@ -111,8 +114,9 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     if (audio?.elevenlabs) {
       setElevenLabsConfig(audio.elevenlabs);
       const languageDefault = audio.elevenlabs.languageDefaults[language];
+      const compatibleVoices = audio.elevenlabs.voicesByLanguage[language] || [];
       setPlayback((current) => {
-        if (language === "vi" && languageDefault && !hadSavedPlaybackAtMountRef.current) {
+        if (requiresElevenLabs(language) && languageDefault && !hadSavedPlaybackAtMountRef.current) {
           return {
             ...current,
             provider: "elevenlabs",
@@ -123,26 +127,30 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
             },
           };
         }
-        return audio.elevenlabs?.voices.some((voice) => voice.id === current.elevenlabs.voiceId)
+        return compatibleVoices.some((voice) => voice.id === current.elevenlabs.voiceId)
           ? current : {
               ...current,
               elevenlabs: {
                 ...current.elevenlabs,
                 voiceId: languageDefault?.voiceId
-                  || audio.elevenlabs?.voice.id || current.elevenlabs.voiceId,
+                  || compatibleVoices[0]?.id || "",
               },
             };
       });
       if (audio.elevenlabs.configured) {
-        const statusVoiceId = languageDefault?.voiceId || playback.elevenlabs.voiceId;
+        const statusVoiceId = languageDefault?.voiceId || compatibleVoices[0]?.id || playback.elevenlabs.voiceId;
+        if (!statusVoiceId) return;
         void apiFetch(`/api/audio/elevenlabs/status?voiceId=${encodeURIComponent(statusVoiceId)}`).then(async (response) => {
           if (!response.ok) return;
           const status = await response.json() as ElevenLabsVoiceStatus;
           if (status.reachable) setElevenLabsConfig((current) => ({
             ...current,
             voice: { id: status.voice.id, name: status.voice.name },
-            voices: current.voices.map((voice) => voice.id === status.voice.id
-              ? { id: status.voice.id, name: status.voice.name } : voice),
+            voicesByLanguage: {
+              ...current.voicesByLanguage,
+              [language]: (current.voicesByLanguage[language] || []).map((voice) => voice.id === status.voice.id
+                ? { id: status.voice.id, name: status.voice.name } : voice),
+            },
           }));
         }).catch(() => { /* Settings exposes provider retry without blocking the app. */ });
       }
@@ -220,11 +228,11 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
         provider,
       } satisfies PreparedAudio;
     };
-    const provider = language === "vi" ? "elevenlabs" : nextPlayback.provider;
+    const provider = requiresElevenLabs(language) ? "elevenlabs" : nextPlayback.provider;
     try {
       return await request(provider);
     } catch (error) {
-      if (!strictProvider && language !== "vi" && provider === "elevenlabs") {
+      if (!strictProvider && !requiresElevenLabs(language) && provider === "elevenlabs") {
         return request("openai");
       }
       const message = error instanceof Error ? error.message : "Audio is unavailable.";
@@ -337,12 +345,12 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
         }
         return { provider: prepared.provider, cache: prepared.cache } satisfies PlaybackResult;
       } catch (error) {
-        if (strictProvider || language === "vi") throw error;
+        if (strictProvider || requiresElevenLabs(language)) throw error;
         setPlaybackError("");
       }
     }
-    if (language === "vi") {
-      const error = new Error("Vietnamese audio requires the configured ElevenLabs voice.");
+    if (requiresElevenLabs(language)) {
+      const error = new Error(`${language === "vi" ? "Vietnamese" : "Norwegian"} audio requires a compatible ElevenLabs voice.`);
       setPlaybackError(error.message);
       throw error;
     }

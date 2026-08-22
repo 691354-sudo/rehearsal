@@ -77,7 +77,7 @@ export function parseAppRoute(
   location: Pick<Location, "pathname" | "search">,
   baseUrl: string,
   fallbackLanguage: Language = "en",
-  availableLanguages: readonly Language[] = ["en", "lv", "vi"],
+  availableLanguages: readonly Language[] = ["en", "lv", "vi", "no"],
 ): AppRoute {
   const params = new URLSearchParams(location.search);
   const requestedLanguage = params.get("lang");
