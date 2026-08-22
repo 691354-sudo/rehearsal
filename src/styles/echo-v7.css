@@ -158,6 +158,31 @@
 
 .topic-progress-trigger strong { font: inherit; }
 
+.listen-setup .topic-progress-trigger,
+.recall-setup .topic-progress-trigger,
+.listen-setup .practice-card-select,
+.recall-setup .practice-card-select {
+  background-color: var(--rh-surface);
+}
+
+.listen-setup .topic-progress-trigger,
+.recall-setup .topic-progress-trigger { gap: 10px; }
+
+.listen-setup .topic-progress-trigger-copy,
+.recall-setup .topic-progress-trigger-copy { flex: 1; }
+
+.listen-setup .topic-progress-trigger-count,
+.recall-setup .topic-progress-trigger-count {
+  flex: none;
+  padding: 3px 8px;
+  color: var(--rh-support);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  background: var(--rh-inset);
+  border-radius: 999px;
+}
+
 .listen-start-options {
   grid-area: footer;
   align-self: start;
