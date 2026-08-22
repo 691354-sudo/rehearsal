@@ -1,0 +1,426 @@
+/* Echo v7: compact, sentence-led working surfaces. Imported last by design. */
+
+.simple-app button:disabled,
+.simple-app .simple-primary:disabled {
+  color: var(--rh-faint);
+  background: var(--rh-inset);
+  border-color: transparent;
+  opacity: 0.55;
+}
+
+.simple-app select,
+.topic-progress-trigger {
+  height: 36px;
+  min-height: 36px;
+  border-radius: 8px;
+}
+
+.simple-primary {
+  border-radius: 8px;
+}
+
+/* Practice control panel */
+
+.practice-header {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.practice-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+}
+
+.practice-control-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(1080px, 100%);
+  min-height: 64px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  background: var(--rh-surface);
+  border: 1px solid var(--rh-rule);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+}
+
+.practice-control-header > p {
+  margin: 0;
+  color: var(--rh-faint);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.practice-modes {
+  display: flex;
+  grid-column: auto;
+  gap: 2px;
+  padding: 3px;
+  background: var(--rh-inset);
+  border: 0;
+  border-radius: 8px;
+}
+
+.practice-modes a {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 7px;
+}
+
+.practice-modes a.is-active {
+  color: var(--rh-ink);
+  background: var(--rh-raised);
+  border-color: transparent;
+}
+
+.practice-ready-layout {
+  width: min(1080px, 100%);
+  gap: 20px;
+}
+
+.recall-setup,
+.listen-setup {
+  width: 100%;
+  min-height: 156px;
+  margin: 0;
+  padding: 20px 24px 24px;
+  border-top: 1px solid var(--rh-rule);
+  border-radius: 0 0 12px 12px;
+}
+
+.practice-control-header + .practice-ready-layout > :first-child {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.listen-setup {
+  display: grid;
+  grid-template-areas:
+    "filters toggles"
+    "playback playback"
+    "start start";
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 20px;
+}
+
+.listen-selection-grid {
+  grid-area: filters;
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr);
+  gap: 8px;
+  max-width: 520px;
+}
+
+.listen-selection-grid label,
+.recall-setup-fields label {
+  min-width: 0;
+}
+
+.listen-setup select,
+.recall-setup select {
+  min-height: 36px;
+  height: 36px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.listen-start-options {
+  grid-area: toggles;
+  align-self: start;
+  gap: 8px;
+  margin: 0;
+}
+
+.listen-start-options button {
+  position: relative;
+  flex: none;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  color: var(--rh-support);
+  background: transparent;
+}
+
+.listen-start-options button.is-active {
+  color: var(--rh-accent);
+  background: var(--rh-wash);
+  border-color: transparent;
+}
+
+.listen-playback-options {
+  grid-area: playback;
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+}
+
+.listen-playback-options summary {
+  min-height: 24px;
+  padding: 0;
+  color: var(--rh-faint);
+  font-size: 13px;
+  list-style: none;
+}
+
+.listen-playback-options summary::-webkit-details-marker { display: none; }
+
+.listen-playback-options summary strong {
+  color: var(--rh-faint);
+  font-weight: 500;
+}
+
+.listen-playback-options .practice-playback-settings {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--rh-inset);
+  border: 1px solid var(--rh-rule);
+  border-radius: 8px;
+}
+
+.listen-start {
+  grid-area: start;
+  width: min(320px, 100%);
+  min-height: 44px;
+  height: 44px;
+  margin: 0 auto;
+}
+
+.recall-setup-fields {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.recall-start {
+  min-height: 36px;
+  height: 36px;
+  padding: 0 12px;
+  color: var(--rh-ink);
+  background: var(--rh-inset);
+  border: 1px solid var(--rh-rule);
+}
+
+.simple-main--practice:has(.recall-session, .listen-player, .recall-complete) > .practice-header,
+.simple-main--practice:has(.recall-session, .listen-player, .recall-complete) > .practice-control-header {
+  display: none;
+}
+
+/* Recommended rows */
+
+.practice-queue-preview {
+  width: 100%;
+  border-top: 1px solid var(--rh-rule) !important;
+}
+
+.practice-queue-preview > header {
+  min-height: 54px;
+  padding: 12px 20px;
+}
+
+.practice-queue-preview > header strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.practice-queue-preview > header span {
+  font-size: 13px;
+}
+
+.practice-queue-preview li {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 72px;
+  padding: 12px 20px;
+}
+
+.practice-queue-index {
+  top: 50%;
+  left: 20px;
+  width: 24px;
+  font-size: 13px;
+  text-align: right;
+  transform: translateY(-50%);
+}
+
+.practice-queue-index::after { content: ""; }
+
+.practice-queue-preview li:has(.practice-inline-recall) .practice-queue-index {
+  top: 16px;
+  transform: none;
+}
+
+.practice-queue-preview li p {
+  padding-inline-start: 44px;
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.practice-queue-copy > span {
+  margin-top: 2px;
+  padding-inline-start: 44px;
+  color: var(--rh-support);
+  font-size: 14px;
+}
+
+.practice-queue-side {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 8px;
+  align-items: center;
+}
+
+.practice-queue-actions {
+  flex-wrap: nowrap;
+  gap: 4px;
+  max-width: none;
+  padding: 0;
+}
+
+.practice-queue-actions button,
+.recall-natural-row button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 8px;
+}
+
+/* Status and counters */
+
+.learning-progress {
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.learning-stage {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  color: var(--rh-accent);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  background: var(--rh-wash);
+  border: 0;
+}
+
+.learning-stage[data-stage="new"],
+.learning-stage[data-stage="learning"],
+.learning-stage[data-stage="due"],
+.learning-stage[data-stage="strong"] { color: var(--rh-accent); }
+
+.learning-stage[data-stage="learned"] {
+  color: var(--rh-learned);
+  background: color-mix(in srgb, var(--rh-learned) 14%, transparent);
+}
+
+.learning-counts {
+  gap: 8px;
+  color: var(--rh-faint);
+  font-size: 12px;
+}
+
+.learning-counts > span { gap: 3px; }
+
+/* Focus Recall */
+
+.recall-session {
+  position: relative;
+  width: min(760px, 100%);
+}
+
+.recall-session > header {
+  min-height: 36px;
+  margin: 0;
+  padding: 0 92px 8px 0;
+  font-size: 13px;
+}
+
+.recall-session > header::after {
+  position: absolute;
+  top: 33px;
+  right: 0;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: var(--rh-rule);
+}
+
+.recall-card {
+  padding: 32px;
+  border-top: 1px solid var(--rh-rule) !important;
+}
+
+.recall-card > .learning-progress { display: none; }
+
+.recall-card::before {
+  width: 2px;
+  height: auto;
+  inset: 0 auto 0 0;
+}
+
+.recall-cue {
+  margin-right: auto;
+  margin-bottom: 24px;
+  margin-left: auto;
+  font-size: clamp(26px, 3vw, 31px);
+  text-align: center;
+}
+
+.recall-answer-row { align-items: center; }
+
+.recall-answer-row textarea {
+  height: 44px;
+  min-height: 44px;
+  padding: 9px 12px;
+  overflow: hidden;
+  field-sizing: fixed;
+}
+
+.recall-answer-row .recall-check {
+  color: var(--rh-on-accent);
+  background: var(--rh-accent);
+  border-color: var(--rh-accent);
+}
+
+.recall-answer-row .recall-check:disabled {
+  color: var(--rh-faint);
+  background: var(--rh-inset);
+  border-color: transparent;
+}
+
+.recall-session-settings {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+}
+
+.recall-session-utilities > button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+
+.recall-session-playback-settings {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  z-index: 10;
+  width: min(520px, calc(100vw - 32px));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--rh-ink) 18%, transparent);
+}
+
+.recall-result > span { color: var(--rh-faint); }

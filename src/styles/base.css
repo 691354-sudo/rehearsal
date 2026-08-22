@@ -7,49 +7,63 @@ body,
 }
 
 :root {
-  --canvas: #ede8e0;
-  --surface: #f8f5f0;
-  --inset: #e2dbd1;
-  --raised: #fffdfa;
-  --rule: #d5ccc0;
-  --rule-strong: #bcb1a1;
-  --ink: #23211f;
-  --ink-support: #655e57;
-  --ink-faint: #8c857c;
-  --accent: #a4573b;
+  --rh-canvas: #ede8e0;
+  --rh-surface: #f8f5f0;
+  --rh-inset: #e2dbd1;
+  --rh-raised: #fffdfa;
+  --rh-rule: #d5ccc0;
+  --rh-rule-strong: #bcb1a1;
+  --rh-ink: #23211f;
+  --rh-support: #655e57;
+  --rh-faint: #8c857c;
   --rh-accent: #a4573b;
+  --rh-accent-hover: #8e4930;
+  --rh-wash: #efe0d7;
+  --rh-on-accent: #fff9f4;
+  --rh-learned: #3f7b60;
+  --rh-note: #8b5a1c;
+  --rh-retry: #a64f49;
+  --canvas: var(--rh-canvas);
+  --surface: var(--rh-surface);
+  --inset: var(--rh-inset);
+  --raised: var(--rh-raised);
+  --rule: var(--rh-rule);
+  --rule-strong: var(--rh-rule-strong);
+  --ink: var(--rh-ink);
+  --ink-support: var(--rh-support);
+  --ink-faint: var(--rh-faint);
+  --accent: var(--rh-accent);
   --rh-text: var(--ink);
-  --accent-hover: #8e4930;
-  --accent-wash: #efe0d7;
-  --on-accent: #fff9f4;
-  --learned: #3f7b60;
+  --accent-hover: var(--rh-accent-hover);
+  --accent-wash: var(--rh-wash);
+  --on-accent: var(--rh-on-accent);
+  --learned: var(--rh-learned);
   --learned-wash: color-mix(in srgb, var(--learned) 14%, transparent);
-  --note: #8b5a1c;
-  --retry: #a64f49;
+  --note: var(--rh-note);
+  --retry: var(--rh-retry);
   color-scheme: light dark;
   background: var(--canvas);
   scrollbar-color: var(--rule) var(--canvas);
 }
 
 :root[data-theme="dark"] {
-  --canvas: #2a2b2d;
-  --surface: #343639;
-  --inset: #232426;
-  --raised: #3d4043;
-  --rule: #474a4e;
-  --rule-strong: #5c6064;
-  --ink: #e8e5e1;
-  --ink-support: #aba7a2;
-  --ink-faint: #847f7a;
-  --accent: #c9825f;
-  --rh-accent: #a4573b;
+  --rh-canvas: #2a2b2d;
+  --rh-surface: #343639;
+  --rh-inset: #232426;
+  --rh-raised: #3d4043;
+  --rh-rule: #474a4e;
+  --rh-rule-strong: #5c6064;
+  --rh-ink: #e8e5e1;
+  --rh-support: #aba7a2;
+  --rh-faint: #847f7a;
+  --rh-accent: #c9825f;
+  --rh-accent-hover: #d9926e;
+  --rh-wash: #3b2e28;
+  --rh-on-accent: #1e1512;
+  --rh-learned: #7fb294;
+  --rh-note: #d3a469;
+  --rh-retry: #d08078;
   --rh-text: var(--ink);
-  --accent-hover: #d9926e;
-  --accent-wash: #3b2e28;
-  --on-accent: #1e1512;
-  --learned: #7fb294;
-  --note: #d3a469;
-  --retry: #d08078;
 }
 
 @media (min-width: 901px) {
@@ -478,20 +492,20 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   gap: 8px;
   align-items: center;
   padding: 10px 12px;
-  color: var(--script-ink, #202026);
+  color: var(--rh-ink);
   font: 600 13px/1.4 "Golos Text Variable", "Golos Text", sans-serif;
-  background: var(--script-surface, #f7f3ed);
-  border: 1px solid var(--script-rule-strong, #bfb4a7);
+  background: var(--rh-surface);
+  border: 1px solid var(--rh-rule-strong);
   border-radius: 10px;
-  box-shadow: 0 12px 36px rgb(20 18 30 / 18%);
+  box-shadow: 0 12px 36px color-mix(in srgb, var(--rh-ink) 18%, transparent);
 }
 
 .simple-update-prompt button {
   min-height: 36px;
   padding: 0 10px;
-  color: var(--script-ink, #282522);
-  background: var(--control-fill, #e6e0d7);
-  border: 1px solid var(--script-rule, #d7cfc4);
+  color: var(--rh-ink);
+  background: var(--rh-inset);
+  border: 1px solid var(--rh-rule);
   border-radius: 7px;
 }
 

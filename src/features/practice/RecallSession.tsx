@@ -38,7 +38,7 @@ export function RecallSession(props: {
   topicId: string;
   onAnswer: (itemId: string, value: string) => void;
   onCheck: (itemId: string) => void;
-  onCount: (count: PracticeCardCount) => void;
+  onSelection: (scope: PracticeScope, count: PracticeCardCount) => void;
   onEdit: (item: LearningItem) => void;
   onListenMode: () => void;
   onListened: (itemId: string) => Promise<void>;
@@ -46,7 +46,6 @@ export function RecallSession(props: {
   onRecallReview: (itemId: string, rating: ReviewRating) => Promise<boolean>;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<unknown>;
   onPlayback: (playback: PlaybackPreferences) => void;
-  onScope: (scope: PracticeScope) => void;
   onTopic: (topicId: string) => void;
   playback: PlaybackPreferences;
   scope: PracticeScope;
@@ -107,15 +106,14 @@ export function RecallSession(props: {
   if (state.phase === "setup") return <div className="practice-ready-layout">
     <section className="recall-setup" aria-label="Recall setup">
       {props.manualReviewItemId ? <><p className="recall-manual-label">Manual review · stays Learned</p>{startButton}</> : <>
-        <div className="practice-scope-switch" role="group" aria-label="Recall source">
-          <button aria-pressed={props.scope === "due"} onClick={() => props.onScope("due")} type="button">Recommended now</button>
-          <button aria-pressed={props.scope === "custom"} onClick={() => props.onScope("custom")} type="button">All Library</button>
-        </div>
-        {props.scope === "due" ? <small className="practice-recommended-note">FSRS puts due and relearning first, then up to your daily limit of new cards · {props.recommended.due} due · {props.recommended.new} new</small> : null}
         <div className="recall-setup-fields">
-          <label><span>Topic</span><TopicProgressPicker onChange={props.onTopic} topics={props.topics} value={props.topicId} /></label>
-          <label><span>Cards</span><select name="recall-count" onChange={(event) => props.onCount(event.target.value as PracticeCardCount)} value={props.count}>
-            <option value="all">All {props.scope === "due" ? "recommended" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+          <label><span className="simple-visually-hidden">Topic</span><TopicProgressPicker onChange={props.onTopic} topics={props.topics} value={props.topicId} /></label>
+          <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" name="recall-count" onChange={(event) => {
+            const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
+            props.onSelection(scope, count);
+          }} value={`${props.scope}:${props.count}`}>
+            <option value="due:all">All recommended</option><option value="due:10">10 recommended</option><option value="due:20">20 recommended</option><option value="due:50">50 recommended</option>
+            <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
           </select></label>
           {startButton}
         </div>

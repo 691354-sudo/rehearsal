@@ -180,18 +180,17 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
   const visibleItems = matchingItems.slice(0, visibleItemCount);
 
   return <section className="topics-manager">
-    <header><div><h2>Manage topics</h2><span>{topics.length} Topics</span></div>
+    <header><div><h2>Manage topics</h2><span>{topics.length} topics</span></div>
       <div className="topics-header-actions"><div className="topic-create"><input aria-label="New Topic name" autoComplete="off" name="new-topic" onChange={(event) => setNewTitle(event.target.value)} onKeyDown={(event) => {
         if (event.key === "Enter") { event.preventDefault(); void create(); }
-      }} placeholder="New Topic…" value={newTitle} /><button disabled={!newTitle.trim() || saving} onClick={() => void create()} type="button"><Plus size={15} />Create</button></div>
+      }} placeholder="New topic…" value={newTitle} /><button aria-label="Create topic" disabled={!newTitle.trim() || saving} onClick={() => void create()} title="Create topic" type="button"><Plus size={17} /></button></div>
         <button aria-label="Close Topic manager" className="topic-manager-close" onClick={onClose} type="button"><X size={16} /></button></div></header>
     <div className="topics-layout">
       <nav aria-label="Topics">{topics.map((candidate) => {
         const activity = candidate.progress.dueNow + candidate.progress.new;
-        const activityWidth = `${Math.min(100, activity / Math.max(candidate.itemCount, 1) * 100)}%`;
         return <button className={candidate.publicId === topic?.publicId ? "is-active" : ""}
         key={candidate.publicId} onClick={() => void loadTopic(candidate.publicId)} ref={candidate.publicId === topic?.publicId ? activeTopicRef : undefined}
-        title={candidate.title} type="button"><span><b>{candidate.title}</b>{activity ? <i aria-hidden="true" className="topic-nav-progress"><i style={{ width: activityWidth }} /></i> : null}</span>
+        title={candidate.title} type="button"><span><b>{candidate.title}</b></span>
           <small>{candidate.itemCount}{activity ? <span>{candidate.progress.dueNow ? `${candidate.progress.dueNow} due` : ""}{candidate.progress.dueNow && candidate.progress.new ? " · " : ""}{candidate.progress.new ? `${candidate.progress.new} new` : ""}</span> : null}</small></button>;
       })}</nav>
       <div className="topic-detail">
@@ -239,9 +238,9 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
           <div className="topic-items">{topic.items.length ? topic.items.map((item) => <article className={selectionMode ? "is-selecting" : ""} key={item.publicId}>
             {selectionMode ? <label className="topic-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} disabled={saving}
               onChange={() => toggleSelected(item.publicId)} type="checkbox" /></label> : null}
-            <div className="topic-item-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><span lang="ru">{item.cue}</span>
-              <LearningProgressBadge progress={item.progress} /></div>
-            <button aria-label={`Edit ${item.target}`} className="topic-card-edit" onClick={() => onEdit(item.publicId)} title="Edit card" type="button"><Pencil size={15} /></button></article>)
+            <div className="topic-item-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><span lang="ru">{item.cue}</span></div>
+            <div className="topic-item-side"><LearningProgressBadge progress={item.progress} />
+              <button aria-label={`Edit ${item.target}`} className="topic-card-edit" onClick={() => onEdit(item.publicId)} title="Edit card" type="button"><Pencil size={15} /></button></div></article>)
             : <div className="topic-items-empty"><p>No cards in this Topic.</p><div><button className="simple-primary" onClick={onCreateNew} type="button"><Plus size={14} />Create new</button>
               <button onClick={() => { setAddingCard(true); setSelectedAddItemIds(new Set()); setItemSearch(""); setVisibleItemCount(20); }} type="button">Choose from Library</button></div></div>}</div>
         </>}

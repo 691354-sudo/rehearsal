@@ -1,305 +1,357 @@
-# Theme refresh specification
+# Echo — ТЗ на редизайн интерфейса (v7, консолидированное)
 
-## Goal
+Документ самодостаточный: его можно отдать LLM-исполнителю вместе со скриншотами.
+Он объединяет брендбук v4, parity-v5 и UX-правки v6 и заменяет их.
 
-Replace the current overly bright light theme and overly dark night theme with the approved visual system:
+**Продукт.** Echo — приватный тренажёр языка. Три раздела: **Tutor** (Chat + Notebook),
+**Library**, **Practice** (Listen & Repeat + Active Recall). Учим не слова, а фразы в контексте.
+Сценарий: разговор с тьютором → разбор ошибок → карточки → Library → повторение и активный вызов.
 
-- light theme: **Warm Stone**;
-- dark theme: **Graphite Haze**;
-- primary typeface: **Golos Text Variable**;
-- primary accent: muted terracotta.
+**Цель редизайна.** Спокойный, «настольный» интерфейс, за которым можно сидеть час без напряжения глаз.
+Не яркий, не броский. Максимум комфорта и гармонии. Приоритет — контент (фраза), а не механика (кнопки, счётчики, статусы).
 
-This document owns visual tokens and asset values. The unified interface work may
-change layout, navigation, and interaction behavior under its own approved plan;
-those changes must still use the exact colors and typography defined here.
+---
 
-## Before starting
+## 0. Как читать это ТЗ
 
-Follow [AGENTS.md](../AGENTS.md):
+- Все числа обязательны. Если число не указано — берём ближайшее из шкалы (раздел 2).
+- Раздел 1–5 — фундамент (токены, шкалы, правила). Раздел 6 — экран за экраном.
+- Раздел 7 — критерии приёмки. Раздел 8 — что запрещено.
+- Правила для будущих фич — отдельный файл `echo-design-rules.md`.
 
-1. Run `git status --short --branch` and `git log --oneline -5`.
-2. Read `README.md`, `.interface-design/system.md`, and the styles relevant to this task.
-3. Preserve unfinished work that belongs to another author.
-4. Work on a separate `codex/<topic>` branch.
+---
 
-## 1. Replace Inter with Golos Text
+## 1. Токены цвета
 
-Remove `@fontsource-variable/inter` and install `@fontsource-variable/golos-text`.
+Единственный источник цвета. В коде — только переменные, ни одного хардкода hex в компонентах.
 
-The selected package supports the variable weight axis, Cyrillic, Cyrillic Extended, Latin, and Latin Extended: [@fontsource-variable/golos-text](https://www.npmjs.com/package/%40fontsource-variable/golos-text?activeTab=readme).
-
-Update:
-
-- `package.json` and `package-lock.json`;
-- `src/main.tsx`;
-- `src/styles/base.css`;
-- `src/styles/auth.css`;
-- `.interface-design/system.md`.
-
-Use this import:
-
-```ts
-import "@fontsource-variable/golos-text";
-```
-
-Use this font stack:
+### 1.1 Светлая тема — «Warm Stone»
 
 ```css
-font-family:
-  "Golos Text Variable",
-  "Golos Text",
-  -apple-system,
-  BlinkMacSystemFont,
-  "Segoe UI",
-  sans-serif;
+--rh-canvas:      #ede8e0;  /* фон страницы */
+--rh-surface:     #f8f5f0;  /* панель/карточка на фоне */
+--rh-inset:       #e2dbd1;  /* поля ввода, вложенные блоки, secondary-кнопки */
+--rh-raised:      #fffdfa;  /* активный сегмент, hover-подъём */
+--rh-rule:        #d5ccc0;  /* волосяная линия, бордер контрола */
+--rh-rule-strong: #bcb1a1;  /* бордер в фокусе/hover */
+--rh-ink:         #23211f;  /* основной текст */
+--rh-support:     #655e57;  /* перевод, вторичный текст */
+--rh-faint:       #8c857c;  /* мета, счётчики, подсказки */
+--rh-accent:      #a4573b;  /* терракота — единственный акцент */
+--rh-accent-hover:#8e4930;
+--rh-wash:        #efe0d7;  /* мягкая заливка акцента: пилюли, активная строка */
+--rh-on-accent:   #fff9f4;  /* текст на акценте */
+--rh-learned:     #3f7b60;  /* ТОЛЬКО статус карточки Learned */
+--rh-note:        #8b5a1c;  /* коррекции/заметки тьютора */
+--rh-retry:       #a64f49;  /* ошибка, диф-удаление */
 ```
 
-Keep the current type sizes and font weights. The variable font supports the intermediate weights already used in the stylesheets. Change an individual size or weight only when visual inspection confirms clipping, poor line height, or reduced readability.
-
-Check English, Russian, and Latvian text.
-
-## 2. Warm Stone light theme
-
-Replace the main `.simple-app` tokens:
+### 1.2 Тёмная тема — «Graphite Haze» (не чёрная, средне-тёмная)
 
 ```css
---stage-canvas: #ece7df;
---script-surface: #f7f3ed;
---script-inset: #e6e0d7;
-
---script-ink: #282522;
---script-support: #6f6861;
---script-tertiary: #746d66;
---script-muted: #9d958d;
-
---script-rule: #d7cfc4;
---script-rule-strong: #bfb4a7;
-
---cue-light: #a4573b;
---cue-action: #a4573b;
---cue-wash: #ead8cd;
---cue-on: #fff9f4;
-
---control-fill: #e6e0d7;
---control-rule: #c9bfb3;
---control-focus: color-mix(
-  in srgb,
-  var(--cue-light) 18%,
-  transparent
-);
+--rh-canvas:      #2a2b2d;
+--rh-surface:     #343639;
+--rh-inset:       #232426;
+--rh-raised:      #3d4043;
+--rh-rule:        #474a4e;
+--rh-rule-strong: #5c6064;
+--rh-ink:         #e8e5e1;
+--rh-support:     #aba7a2;
+--rh-faint:       #847f7a;
+--rh-accent:      #c9825f;
+--rh-accent-hover:#d9926e;
+--rh-wash:        #3b2e28;
+--rh-on-accent:   #1e1512;
+--rh-learned:     #7fb294;
+--rh-note:        #d3a469;
+--rh-retry:       #d08078;
 ```
 
-Set the normal `body` background to `#ece7df`.
+Обязательные свойства палитры:
+- Между `canvas` / `surface` / `inset` разница светлоты **не меньше 5%** (сейчас в проде ~2–3% — «муть», исправить).
+- Акцент в обеих темах — **терракота одного семейства**. Никакого неонового персика и никакого бордового в тёмной.
+- Чистый чёрный `#000` и чистый белый `#fff` не используются нигде.
+- Тёмная тема — это «графит», а не «полночь»: canvas не темнее ~#26272a.
 
-The workspace should resemble warm paper. Do not use pure white for cards, fields, or navigation.
+---
 
-## 3. Graphite Haze dark theme
+## 2. Шкалы (жёсткие)
 
-Replace the `.simple-app--dark` tokens:
+**Высоты контролов — только эти четыре значения:**
 
-```css
---stage-canvas: #2b2c2e;
---script-surface: #353638;
---script-inset: #252628;
+| Высота | Что это |
+|---|---|
+| 44px | Primary CTA (Play, Check, Add to Library в шапке сессии) |
+| 40px | Круглая кнопка отправки в чате, primary в футере панели |
+| 36px | Secondary-кнопки, селекты, иконки-кнопки в панелях, кнопки шапки |
+| 32px | Иконки-кнопки внутри строк списка |
+| 22px | Пилюли статуса (это **не** кнопки) |
 
---script-ink: #f1efec;
---script-support: #b8b5b0;
---script-tertiary: #a19e99;
---script-muted: #7d7b77;
+**Радиусы:** контрол 8px · панель/поверхность 12px · оверлей 10px · пилюля 999px · знак бренда 7px.
 
---script-rule: #4c4d50;
---script-rule-strong: #606165;
+**Отступы:** сетка 4px → 4 / 8 / 12 / 16 / 20 / 24 / 32.
+Паддинг панели 20–24px десктоп, 16px узкий экран. Разрывы между блоками экрана — 20px, не 40.
 
---cue-light: #db906b;
---cue-action: #db906b;
---cue-wash: #4e352e;
---cue-on: #24140e;
+**Ширина:** контейнер 1080px, боковые поля 24px (16px + safe-area ниже 560px).
+Строка текста контента — 62–70 символов максимум, иначе текст выглядит «рыхлым».
 
---control-fill: #252628;
---control-rule: #55565a;
---control-focus: color-mix(
-  in srgb,
-  var(--cue-light) 20%,
-  transparent
-);
+**Тач-зона:** минимум 44×44px всегда, даже если визуально контрол 32px.
+
+---
+
+## 3. Типографика
+
+Шрифт интерфейса и контента — **Golos Text Variable** (variable, доступны веса 400–700 с шагом).
+Для вьетнамского — Noto Sans Variable с `lang="vi"`.
+
+| Роль | Размер | Вес |
+|---|---|---|
+| Cue в Recall (русская фраза) | 26–31px | 600 |
+| Заголовок страницы | 24px | 680, tracking −0.035em |
+| Заголовок панели/секции | 17–19px | 600 |
+| Фраза в карточке-предложении (Notebook) | 18px | 550 |
+| Фраза в строке списка (Library, Recommended) | 16px | 550 |
+| Текст, чат, контролы | 15–16px | 400–500 |
+| Перевод / вторичная строка | 14–15px | 400, `--rh-support` |
+| Мета, счётчики, статусы | 13px | 500–550, `--rh-faint` |
+| Минимум | 12px | — |
+
+Правила:
+- **Никакого uppercase** в микротексте. Sentence case везде.
+- Цифры — tabular-nums.
+- Веса берём из вариативного шрифта: 550 и 650 разрешены и нужны (это то, что отличает «аккуратно» от «толсто»).
+- Поля ввода на узких экранах — 16px, чтобы iOS не зумил.
+
+---
+
+## 4. Глубина и форма
+
+- Иерархия ровно двухступенчатая: `canvas` → `surface` → `inset`. Третьей вложенности на экране быть не должно.
+- Глубина делается **тоном и волосяной линией**, не тенью. Тень — только у оверлеев:
+  `0 8px 24px rgba(0,0,0,.18)` светлая / `rgba(0,0,0,.45)` тёмная.
+- Разделители в списках — 1px `--rh-rule` между строками. **Не** рамка вокруг каждой строки.
+- Пилюли — только для статуса и счётчиков, у них `--rh-wash` фон, без бордера.
+
+---
+
+## 5. Состояния, акцент и эмфаза
+
+### 5.1 Состояния
+
+| Состояние | Оформление |
+|---|---|
+| Hover | На один тон выше (`surface`→`raised`), 140ms |
+| Pressed | Та же заливка, без scale |
+| Focus | 2px outline `--rh-accent`, offset 2px — на каждом интерактивном элементе |
+| Selected | `--rh-wash` + accent-текст + `aria-pressed` |
+| Disabled | 55% opacity, бордер убран, форма и подпись сохраняются. **Акцентная заливка у disabled запрещена** |
+| Loading | Текст остаётся, появляется inline hairline-прогресс. Никаких спиннеров-оверлеев |
+| Error | 1px `--rh-retry` + подсказка `--rh-retry`, `role="alert"` |
+
+### 5.2 Один акцент на экран
+
+На любом экране **ровно одна** сплошная акцентная кнопка. Всё остальное спускается по лестнице:
+`primary accent → secondary (inset + rule) → quiet text action → icon button`.
+
+- **Quiet text action:** без фона и бордера, `--rh-support` 14px/550, опционально иконка 15px и шеврон.
+- **Icon button:** 32 или 36px, прозрачный фон, 1px `--rh-rule`, иконка 17px `--rh-support`, hover → иконка `--rh-ink`, бордер `--rh-rule-strong`. Обязателен `aria-label` и тултип.
+- Иконки — Lucide, stroke 1.75px.
+- Ghost-кнопки используют `--rh-ink`, **не** `--rh-faint`: сейчас они выглядят выключенными.
+
+### 5.3 Эмфаза — один сигнал за раз
+
+Это главный источник «грязи» в текущем интерфейсе.
+
+- **Целевой фрагмент внутри фразы** (`take turns`): только **вес 600**, остальная фраза 450/500.
+  Никакой заливки, никакой рамки. Если на экране разбора нужен второй сигнал — 1px accent-подчёркивание на 35% прозрачности, offset 3px. Плашка-хайлайт запрещена.
+- **Перевод никогда не выделяется.** Русская строка — всегда plain `--rh-support`.
+- **Диф (Recall, коррекции): показываем только ошибки.**
+  Совпавшие слова — обычный `--rh-ink`, без зелёного и без фона.
+  Удаление → зачёркивание `--rh-retry` 70%. Вставка/пропуск → 1px подчёркивание `--rh-retry`.
+  Диф **пословный**, минимальная единица — целое слово. Побуквенная раскраска запрещена.
+- **Зелёный (`--rh-learned`) — только статус карточки Learned.** В дифах его нет.
+- Максимум **два** цветовых роля на одном блоке контента: семейство ink + один из accent / retry.
+- Статус, топик, стадия — текстовые чипы `--rh-support`, без заливки, без цвета по топику.
+
+---
+
+## 6. Экраны
+
+### 6.1 Оболочка
+
+Десктоп: верхняя шапка — знак Echo + вордмарк, три вкладки (Tutor / Library / Practice), переключатель языка, переключатель темы.
+Подвкладки (Chat / Notebook, Listen & Repeat / Active Recall) — строкой ниже, **сегментированным контролом** 32px, а не отдельными верхними пунктами.
+Активный маршрут = `--rh-wash` + accent-текст. Никаких цветов по разделам.
+Мобайл: контекстная шапка + фиксированный нижний бар с теми же тремя вкладками.
+
+---
+
+### 6.2 Practice — панель управления
+
+**Проблема:** панель ~560px высоты, всё full-width, всё одного веса.
+
+**Целевая структура (одна компактная панель, три уровня веса):**
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│ [Listen & Repeat][Recall]        9 due · 10 new · 2 today │  ← сегмент 28–32px, мета справа 13px
+├──────────────────────────────────────────────────────────┤
+│ All Topics ▾   All recommended ▾           ⟲ Loop  ⤨ Shf  │  ← одна строка, всё 36px
+│ Justin Time · 1.00× · Adaptive pause      Playback settings│  ← 13px faint, вся строка кликабельна
+├──────────────────────────────────────────────────────────┤
+│                   ▶ Play 19 cards                         │  ← 44px accent, max-width 320px, по центру
+└──────────────────────────────────────────────────────────┘
 ```
 
-Set the system dark `body` background to `#2b2c2e`.
+- Селекты: 36px, radius 10px, 14px/500, ширина по контенту (`min-width: 160px`), **не** full-width.
+- Loop / Shuffle: toggle-иконки 36×36. Активное — `--rh-wash` + accent-иконка.
+- Строка Playback: 13px `--rh-faint`, без своего бордера, открывает настройки голоса.
+- Play: 44px, `max-width: 320px`, по центру. Не растягивать.
+- Пояснение про FSRS — тултип у сегмента «Recall», не строка в потоке.
+- Дубль «9 due · 10 new» под заголовком страницы — удалить, оставить только в панели.
+- **Mobile:** селекты в две строки по 100%, Loop/Shuffle иконками, Play — full-width sticky снизу.
 
-Keep the dark theme graphite-colored. Do not restore the `#090a0d` canvas, nearly black cards, or the cold violet accent.
+---
 
-Use the following text color on light action buttons in dark mode:
+### 6.3 Practice → список Recommended
 
-```css
-.simple-app--dark .simple-workspace:not(.simple-workspace--library) {
-  --mode-on: #24140e;
-}
-```
+- Заголовок панели: padding `20px 20px 12px`, снизу 1px rule.
+- Строка карточки: padding `14px 20px`, **min-height 72px** (сейчас 106).
+- Внутри строки — **один горизонтальный ряд справа**, не два:
+  слева `[№ 24px, 13px faint, вправо] фраза 16px/550` + `перевод 14px --rh-support` второй строкой;
+  справа: пилюля `Learning` (22px, 12px/500, `--rh-wash`, без бордера) · `⟲2` · `♪2` · [🔊 32] · [✎ 32], gap 4px.
+- Счётчики 12–13px `--rh-faint`, без бордеров.
+- Разделители 1px `--rh-rule`, без рамок вокруг строк.
+- **Mobile:** пилюля и счётчики уходят второй строкой под перевод; справа остаются 🔊 и ✎.
 
-## 4. Unified workspace colors
+---
 
-Recall, Listen & Repeat, Chat, and Notebook use one visual system. They remain recognizable through their content and composition rather than separate action colors or tinted canvases.
+### 6.4 Practice → Active Recall (focus mode)
 
-All workspaces inherit the global canvas and terracotta action tokens:
+- На экране виден **один** режим Recall. Инлайн-список и focus mode одновременно не показываем.
+- Cue (русская фраза) — 26–31px/600, максимум ~24ch, по центру рабочей колонки.
+- Поле ответа и кнопка проверки — **одна строка, одинаковая высота 44px и одинаковый радиус 8px**.
+  Поле `flex: 1`, `--rh-inset` + 1px rule. Кнопка проверки — **иконка 44×44**, не блок 72px и не широкая кнопка с подписью.
+- Пока поле пустое, кнопка disabled: 55% opacity, **без акцентной заливки**.
+- Служебные действия сессии (Voice settings, End session) — **иконки 36×36** в шапке сессии, не текстовые кнопки. Текстом они съедают рабочую ширину.
+- Прогресс сессии — hairline-полоса вверху панели + `7 / 19` 13px faint. Без круговых индикаторов.
+- Разбор ответа — по правилам 5.3: только ошибки, пословно, без зелёного.
 
-```css
---mode-action: var(--cue-action);
---mode-canvas: var(--stage-canvas);
---mode-on: var(--cue-on);
-```
+---
 
-Do not reintroduce green, blue, violet, or amber workspace palettes. Green, amber, and red remain reserved for semantic learning, note, warning, retry, and error states.
+### 6.5 Tutor → Chat
 
-## 5. Status colors
+- Ни аватара, ни имени персонажа, ни онлайн-точки. Метка — язык и режим: `Norwegian · roleplay`, 12px faint.
+- **Реплика тьютора:** слева, `--rh-inset`, 1px rule, radius 12px с 4px у левого верхнего угла, 16px/400.
+- **Реплика ученика:** справа, `--rh-wash`, 1px accent 40%, radius 12px с 4px у правого верхнего угла.
+  Метку «You» убрать — сторона уже читается. Различие должно быть по **трём осям сразу**: сторона + заливка + бордер.
+- **Коррекция — это не пузырь.** Это заметка «на полях»:
+  прозрачный фон, слева вертикальная линия 2px `--rh-note`, padding-left 14px, без рамки.
+  Заголовок `Correction` 12px/600 `--rh-note`.
+  Внутри: строка «было» 14px `--rh-faint` (подчёркнуты только ошибочные слова, `--rh-retry`), строка «стало» 16px/550 `--rh-ink`, одна строка объяснения 14px `--rh-support`.
+  Коррекция всегда **под** соответствующей репликой, отступ 16px.
+- **Composer** прижат к низу поверхности, две строки:
+  1. многострочное поле `--rh-inset`, full-width, **min-height 104px**, 16px, line-height 1.5;
+  2. ряд контролов: слева quiet text action **`Finish & make cards`** с иконкой-палочкой; справа подсказка `Enter to send` 13px faint и **круглая accent-кнопка 40×40** со стрелкой вверх.
+- Завершение сессии — quiet text action, не широкая акцентная полоса: действие раз за сессию, подтверждение всё равно будет на шаге разбора карточек.
 
-Light theme:
+---
 
-```css
---learned: #3f7b60;
---learned-wash: #e2eee7;
---rehearsal-note: #97611f;
---retry: #a64f49;
-```
+### 6.6 Tutor → Notebook
 
-Dark theme:
+Порядок экрана строго: **composer → список заметок → панель Capture Reality**. Разрывы 20px.
 
-```css
---learned: #84c5a5;
---learned-wash: rgb(132 197 165 / 14%);
---rehearsal-note: #e0ad62;
---retry: #e28a82;
-```
+- Composer: поле «Write a Russian thought…» `--rh-inset`, **min-height 180px**.
+  Под ним справа: `+ Add note` 36px secondary и микрофон 36×36 icon-кнопка. Оба **не** акцентные.
+- Строка заголовка списка: слева `Notebook` 17px/600 + `1 note` 13px faint;
+  справа — **inline-статус рядом с действием**: `Nothing saved yet — review below` 13px `--rh-faint`, затем кнопка `Prepare cards (1)` 36px **secondary** (`--rh-inset` + rule).
+  Отдельной полосы системного сообщения во всю ширину быть не должно.
+- Панель `Capture Reality` появляется **на месте**, сразу под списком, и автоскроллится в вид.
 
-Green represents success and the Learned state. Amber represents notes and warnings. Red represents errors and retry actions.
+**Карточка-предложение — три уровня, ранжированные размером, весом и цветом:**
 
-## 6. Profile gate
+| Уровень | Что | Стиль |
+|---|---|---|
+| 1 — фраза | английское предложение | 18px/550 `--rh-ink`, целевой фрагмент 600. Самый крупный текст карточки |
+| 2 — опора | русский cue | 15px/400 `--rh-support` |
+| 3 — механика | `topic · active · common`, `Adjust`, `Another`, `Clear`, `1 of 3 selected`, таймстемпы | 13px `--rh-faint`, без заливок и бордеров |
 
-Update `src/styles/auth.css`:
+- Уровень 3 **никогда не стоит выше уровня 1** и никогда не имеет заливки. `1 of 3 selected · Clear` — одна строка 13px faint в **футере** панели слева, не в шапке и не в рамке.
+- Чекбокс включения — **20×20**, radius 6px; выбран = accent-заливка + белая галочка. 44px-чекбоксы запрещены.
+- Тоггл раскрытия — quiet text action: закрыт `Adjust`, открыт `Hide adjustments`, шеврон 15px поворачивается, `--rh-support` 14px/550, слева под русским cue. Не должен сливаться с фоном.
+- Футер панели, sticky: слева 13px faint счётчик, справа **единственная акцентная кнопка экрана** `Add 1 to Library` — **высота 40px**, padding 20px, 15px/600. Primary — это цвет, а не размер: она не должна быть в полтора раза выше остальных.
 
-```css
---profile-canvas: #ece7df;
---profile-surface: #f7f3ed;
---profile-ink: #282522;
---profile-support: #6f6861;
---profile-rule: #d7cfc4;
---profile-action: #a4573b;
---profile-wash: #ead8cd;
-```
+---
 
-Also:
+### 6.7 Library — список карточек
 
-- apply Golos Text;
-- use `#fff9f4` for text on terracotta actions;
-- replace the violet-tinted shadow with a neutral warm shadow;
-- update placeholder and error colors to match the new system;
-- preserve the current layout and authentication behavior.
+- **Никаких hover-only действий.** Всегда видны `[🔊 32]` и `[⋯ 32]`.
+  Внутри `⋯`: Mark as learned, Edit, Move to topic, Delete.
+- **Убрать «эхо-текст»** над пилюлей (`spot me`, `We can take turns if…`) — он дублирует фразу.
+  Если это тег топика — 12px faint **под переводом слева**.
+- Строка: min-height 68px, padding `12px 16px`.
+  Слева: фраза 16px/550 + перевод 14px `--rh-support`.
+  Справа: пилюля состояния (New / Learning / Learned) 22px, 12px, `--rh-wash`, + 🔊 + ⋯.
+- Разделители 1px, без карточек-контейнеров у каждой строки.
+- Шапка: поиск (`flex:1`, 36px) + три селекта 36px по контенту; ниже строка `Select` 36px secondary + `20 of 604 cards` 13px faint.
+- **Mobile:** пилюля уходит под перевод, справа остаются 🔊 и ⋯.
 
-Do not add a theme switcher to the profile gate.
+---
 
-## 7. PWA metadata and icons
+### 6.8 Library → Manage topics
 
-Update the brand color in:
+- Сайдбар: **260px**, `flex: 0 0 260px`.
+- Строка топика: две колонки — название (`flex:1`, 15px/500, **`line-clamp: 2`**, line-height 1.3) и счётчик (13px faint, `flex-shrink:0`, tabular-nums, вправо).
+  Обрезка в одну строку `Djakovic Discipli…` запрещена.
+- Подчёркивание-accent под каждым названием убрать; активный топик = фон `--rh-wash` + accent-текст.
+- Счётчик — просто число. `48 new` показываем только у активного/hover. Ноль — серым.
+- Шапка топика: `+ Add cards` 36px accent (единственный акцент экрана), `Select` 36px secondary, `⋯` 36×36. Текущие 48px+ — слишком крупно.
+- Пилюли `Learning` в списке карточек — 22px, 12px, `--rh-wash`, без accent-бордера: сейчас читаются как кнопки.
 
-- `index.html`, `theme-color`: `#a4573b`;
-- `vite.config.ts`, `theme_color`: `#a4573b`;
-- `vite.config.ts`, `background_color`: `#ece7df`;
-- `public/icons/app-icon.svg`;
-- `public/icons/app-icon-maskable.svg`;
-- raster PWA icons and `apple-touch.png`.
+---
 
-Use these icon colors:
+## 7. Критерии приёмки
 
-- main background: `#a4573b`;
-- letter and light details: `#fff9f4`.
+Проверять на десктопе 1280px и на iPhone 15 (393×852), в обеих темах.
 
-Regenerate the PNG files from the updated SVG sources. Preserve the existing dimensions and maskable safe area.
+1. На каждом экране **ровно одна** сплошная акцентная кнопка.
+2. Все высоты контролов ∈ {44, 40, 36, 32, 22}. Замерить в DevTools, отклонений нет.
+3. Между `canvas`, `surface`, `inset` разница светлоты ≥5% в обеих темах.
+4. Ни одного `#fff`/`#000`/hardcoded hex в компонентах — только `var(--rh-*)`.
+5. В дифе и в разборе нет зелёного и нет побуквенной раскраски.
+6. Ни одного выделения-плашки за текстом; целевой фрагмент отличается только весом.
+7. Нет ни одного действия, доступного только по hover.
+8. Panel Practice ≤ 240px по высоте; строки Recommended ≤ 76px; строки Library ≤ 72px.
+9. Поле ответа Recall и кнопка проверки одной высоты (44px) и одного радиуса.
+10. Composer чата ≥104px, capture Notebook ≥180px.
+11. Названия топиков видны целиком (до двух строк) при ширине сайдбара 260px.
+12. Все иконки-кнопки имеют `aria-label`; фокус виден на каждом интерактивном элементе.
+13. Ни одной надписи капсом; все счётчики tabular-nums.
+14. Ширина строки контента ≤70 символов.
 
-## 8. Design-system documentation
+---
 
-Update `.interface-design/system.md`:
+## 8. Запрещено
 
-- replace `Inter Variable` with `Golos Text Variable`;
-- name the light palette `Warm Stone`;
-- name the dark palette `Graphite Haze`;
-- replace the violet accent with muted terracotta;
-- describe the active-sentence rail and focus border as terracotta;
-- preserve the borders-only depth strategy;
-- preserve the current sizes, radii, and spacing scale.
+- Больше одной акцентной кнопки на экран.
+- Акцентная заливка у disabled-состояния.
+- Заливка-хайлайт за изучаемым фрагментом.
+- Зелёный в дифах, побуквенный диф.
+- Действия, появляющиеся только по наведению.
+- Uppercase-микротекст с трекингом.
+- Тени для карточек и панелей (тени только у оверлеев).
+- Белые бордеры в тёмной теме.
+- Три уровня вложенности поверхностей.
+- Отдельные полосы системных сообщений во всю ширину.
+- Пилюли статуса, оформленные как кнопки (бордер + высота 32+).
+- Цвет по топикам/разделам.
 
-Remove outdated statements about a white working surface, midnight canvas, and violet accent.
+---
 
-## Theme scope limits
+## 9. Порядок работ
 
-This theme specification alone does not authorize changes to:
-
-- page components or structure;
-- dimensions or spacing system;
-- radii or depth strategy;
-- navigation;
-- Recall, Listen & Repeat, Tutor, Capture, or Library behavior;
-- API, database, or server code;
-- theme selection and persistence logic;
-- animation behavior, apart from the colors used by existing transitions.
-
-Do not add gradients, decorative shadows, new themes, or custom-color settings.
-
-## Visual verification
-
-Check both themes on:
-
-- Profile Gate;
-- Practice, including Recall and Listen & Repeat;
-- Tutor, including Chat and Notebook;
-- Library and Topics;
-- Settings and dialogs;
-- loading, empty, error, disabled, hover, and focus states;
-- desktop;
-- a narrow viewport near `390 × 844`.
-
-Confirm that:
-
-- Golos Text does not clip in buttons, inputs, dialogs, or bottom navigation;
-- Russian and Latvian text render correctly;
-- cards remain distinct from the canvas without harsh borders;
-- inputs appear inset relative to their surrounding surface;
-- essential text and interactive controls meet WCAG AA contrast;
-- focus rings remain visible in both themes;
-- theme switching does not produce a white or black flash;
-- the chosen theme persists after reload;
-- the standalone PWA uses the new background and icon.
-
-If measured contrast requires a secondary color adjustment, make the smallest change and report the final value. Keep the approved canvas, surface, ink, and accent values unchanged.
-
-## Automated checks
-
-Run:
-
-```bash
-OPENAI_API_KEY= ELEVENLABS_API_KEY= npm test
-npm run build
-npm run check:architecture
-git diff --check
-```
-
-For visual inspection, run:
-
-```bash
-npm run dev:codex
-```
-
-Open `http://127.0.0.1:4183/`, use `Continue as Roman`, and inspect desktop and mobile viewports.
-
-## Completion criteria
-
-The task is complete when:
-
-- the application uses Golos Text Variable;
-- the light theme matches Warm Stone;
-- the dark theme matches Graphite Haze;
-- the old Inter dependency and old active palette values `#f5f4f8`, `#090a0d`, and `#6956c9` no longer appear in the active theme, profile gate, or PWA metadata;
-- PWA icons use the terracotta brand color;
-- `.interface-design/system.md` matches the implementation;
-- automated checks pass;
-- visual verification finds no overflow, clipping, or unreadable state.
-
-Deliver the change through a ready PR and squash merge after CI passes. Do not deploy to production without a separate request.
+1. Токены и шкалы (разделы 1–4) — глобально, до правки экранов.
+2. Правила эмфазы и дифа (5.3) — они убирают больше всего визуального шума.
+3. Экраны в порядке: Practice-панель → Recommended → Recall → Notebook → Library → Manage topics → Tutor Chat.
+4. Мобильная адаптация под iPhone 15.
+5. Прогресс и мягкая геймификация (отдельная итерация, спокойные состояния успеха, без конфетти и стриков-давления).
