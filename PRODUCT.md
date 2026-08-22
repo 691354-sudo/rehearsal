@@ -8,11 +8,11 @@ web
 
 ## Users
 
-Rehearsal is a private language-learning tool for a small invited group. Learners use it in short daily sessions on desktop and as an installed phone PWA, often moving between capture, listening, written recall, and library maintenance.
+Echo is a private language-learning tool for a small invited group. Learners use it in short daily sessions on desktop and as an installed phone PWA, often moving between capture, listening, written recall, and library maintenance.
 
 ## Product Purpose
 
-Rehearsal turns Russian notes and real personal material into reviewed target-language sentence cards. English and Latvian are standard; Vietnamese may be enabled per profile. Success means moving through Capture → Review → Library → Listen & Repeat → Recall → Learned with little interface friction while preserving deliberate approval and FSRS scheduling.
+Echo turns Russian notes and real personal material into reviewed target-language sentence cards. English and Latvian are standard; Vietnamese may be enabled per profile. Success means moving through Capture → Review → Library → Listen & Repeat → Recall → Learned with little interface friction while preserving deliberate approval and FSRS scheduling.
 
 ## Positioning
 
@@ -37,7 +37,7 @@ The product rehearses the users' own language and situations rather than a gener
 
 ## Brand Commitments
 
-- Product name: Rehearsal.
+- Product name: Echo.
 - Voice: direct, calm, compact, and specific.
 - The approved interface uses Warm Stone and Graphite Haze, Golos Text Variable, and one muted terracotta action color across workspaces.
 

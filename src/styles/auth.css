@@ -9,6 +9,8 @@
   --profile-action: #a4573b;
   --profile-action-hover: #8e4930;
   --profile-wash: #efe0d7;
+  --rh-accent: #a4573b;
+  --rh-text: var(--profile-ink);
   position: fixed;
   inset: 0;
   display: grid;
@@ -60,17 +62,8 @@
   border-radius: 16px;
 }
 
-.profile-mark {
-  display: grid;
-  width: 38px;
-  height: 38px;
+.profile-echo-lockup {
   margin-bottom: 28px;
-  place-items: center;
-  color: #fff9f4;
-  font-size: 16px;
-  font-weight: 700;
-  background: var(--profile-action);
-  border-radius: 9px;
 }
 
 .profile-card header > span {

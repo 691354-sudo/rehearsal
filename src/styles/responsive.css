@@ -543,10 +543,6 @@
     align-items: flex-start;
   }
 
-  .simple-review-meta {
-    flex-wrap: wrap;
-  }
-
   .simple-review-actions {
     flex-wrap: wrap;
   }
