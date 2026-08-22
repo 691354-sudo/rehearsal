@@ -6,7 +6,6 @@ import {
   MoreHorizontal,
   Plus,
   RefreshCw,
-  Search,
   Sparkles,
   Trash2,
   Upload,
@@ -281,7 +280,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     {notice ? <p className="simple-library-notice" aria-live="polite">{notice}</p> : null}
 
     <section className="simple-library-panel simple-library-panel--main">
-      <div className="simple-library-tools"><label className="simple-search"><Search size={17} /><input aria-label="Search cards" autoComplete="off" name="library-search" onChange={(event) => setSearchInput(event.target.value)} placeholder="Search cards…" type="search" value={searchInput} /></label>
+      <div className="simple-library-tools"><label className="simple-search"><input aria-label="Search cards" autoComplete="off" name="library-search" onChange={(event) => setSearchInput(event.target.value)} placeholder="Search cards…" type="search" value={searchInput} /></label>
         <select aria-label="Filter by status" name="library-status" onChange={(event) => patchRoute({ status: event.target.value as LibraryStatus, page: 1 })} value={status}>
           <option value="all">All</option><option value="new">New</option><option value="learning">Learning</option><option value="due">Due</option>
           <option value="strong">Strong</option><option value="learned">Learned</option></select>

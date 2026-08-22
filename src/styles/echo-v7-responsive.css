@@ -29,9 +29,9 @@
     max-width: none;
   }
 
-  .listen-setup select,
-  .recall-setup select,
-  .topic-progress-trigger {
+  .simple-app .listen-setup select,
+  .simple-app .recall-setup select,
+  .simple-app .topic-progress-trigger {
     width: 100%;
     min-height: 44px;
     height: 44px;
@@ -106,6 +106,13 @@
   .simple-library-tools .simple-search,
   .simple-library-tools select {
     width: 100%;
+    min-height: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .simple-library-tools .simple-search input,
+  .simple-library-selection button {
     min-height: 44px;
     height: 44px;
     font-size: 16px;

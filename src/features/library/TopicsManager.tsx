@@ -187,11 +187,10 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
         <button aria-label="Close Topic manager" className="topic-manager-close" onClick={onClose} type="button"><X size={16} /></button></div></header>
     <div className="topics-layout">
       <nav aria-label="Topics">{topics.map((candidate) => {
-        const activity = candidate.progress.dueNow + candidate.progress.new;
         return <button className={candidate.publicId === topic?.publicId ? "is-active" : ""}
         key={candidate.publicId} onClick={() => void loadTopic(candidate.publicId)} ref={candidate.publicId === topic?.publicId ? activeTopicRef : undefined}
         title={candidate.title} type="button"><span><b>{candidate.title}</b></span>
-          <small>{candidate.itemCount}{activity ? <span>{candidate.progress.dueNow ? `${candidate.progress.dueNow} due` : ""}{candidate.progress.dueNow && candidate.progress.new ? " · " : ""}{candidate.progress.new ? `${candidate.progress.new} new` : ""}</span> : null}</small></button>;
+          <small>{candidate.itemCount}</small></button>;
       })}</nav>
       <div className="topic-detail">
         {!topic ? <div className="topic-empty">Create or select a Topic.</div> : <>
