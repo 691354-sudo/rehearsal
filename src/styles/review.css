@@ -136,7 +136,7 @@
   width: min(100%, 760px);
   margin: 22px auto;
   overflow: hidden;
-  background: var(--script-inset);
+  background: var(--script-surface);
   border: 1px solid var(--script-rule-strong);
   border-radius: 10px;
 }
@@ -282,7 +282,8 @@
 }
 
 .simple-review-candidate.is-selected {
-  background: var(--cue-wash);
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--cue-action);
 }
 
 .simple-review-check {

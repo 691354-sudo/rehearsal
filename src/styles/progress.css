@@ -25,7 +25,7 @@
   text-transform: uppercase;
 }
 
-.learning-stage[data-stage="new"] { color: var(--cue-action); }
+.learning-stage[data-stage="new"] { color: var(--script-support); }
 .learning-stage[data-stage="learning"] { color: var(--rehearsal-note); }
 .learning-stage[data-stage="due"] { color: var(--retry); }
 .learning-stage[data-stage="strong"],
@@ -59,7 +59,7 @@
   background: var(--script-rule);
 }
 
-.topic-progress-bar i[data-stage="new"] { background: var(--cue-action); }
+.topic-progress-bar i[data-stage="new"] { background: var(--script-support); }
 .topic-progress-bar i[data-stage="learning"] { background: var(--rehearsal-note); }
 .topic-progress-bar i[data-stage="due"] { background: var(--retry); }
 .topic-progress-bar i[data-stage="strong"] { background: var(--learned); }

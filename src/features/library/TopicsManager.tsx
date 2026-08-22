@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LoaderCircle, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { Check, Headphones, LoaderCircle, MoreHorizontal, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { apiFetch } from "../../shared/api";
 import type { IslandSummary, Language, LearningItem } from "../../shared/contracts";
 import { normalizeNfc } from "../../../contracts/text";
 import { FocusedText } from "../progress/FocusedText";
-import { LearningProgressBadge, TopicProgress } from "../progress/LearningProgress";
+import { LearningProgressBadge, LearningStageBadge, TopicProgress } from "../progress/LearningProgress";
 
 type TopicSummary = IslandSummary;
 type Topic = TopicSummary & { items: LearningItem[] };
@@ -22,24 +22,26 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
   const [items, setItems] = useState<LearningItem[]>([]);
   const [newTitle, setNewTitle] = useState("");
   const [title, setTitle] = useState("");
-  const [addItemId, setAddItemId] = useState("");
+  const [selectedAddItemIds, setSelectedAddItemIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [addingCard, setAddingCard] = useState(false);
+  const [topicMenuOpen, setTopicMenuOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [moveTargetId, setMoveTargetId] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const [visibleItemCount, setVisibleItemCount] = useState(20);
   const activeTopicRef = useRef<HTMLButtonElement>(null);
+  const topicMenuButtonRef = useRef<HTMLButtonElement>(null);
 
   const loadTopic = async (publicId: string) => {
     const response = await apiFetch(`/api/islands/${publicId}`);
     if (!response.ok) throw new Error("Topic could not be loaded.");
     const data = await response.json() as { island: Topic };
-    setTopic(data.island); setTitle(data.island.title); setRenaming(false); setAddingCard(false); setSelectionMode(false);
-    setSelectedItemIds(new Set()); setMoveTargetId(""); onTopic(data.island.publicId);
+    setTopic(data.island); setTitle(data.island.title); setRenaming(false); setAddingCard(false); setTopicMenuOpen(false); setSelectionMode(false);
+    setSelectedAddItemIds(new Set()); setSelectedItemIds(new Set()); setMoveTargetId(""); onTopic(data.island.publicId);
   };
   const load = async (preferredId?: string) => {
     const [topicResponse, itemResponse] = await Promise.all([
@@ -136,6 +138,9 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
   const toggleSelected = (itemId: string) => setSelectedItemIds((current) => {
     const next = new Set(current); if (next.has(itemId)) next.delete(itemId); else next.add(itemId); return next;
   });
+  const toggleAddItem = (itemId: string) => setSelectedAddItemIds((current) => {
+    const next = new Set(current); if (next.has(itemId)) next.delete(itemId); else next.add(itemId); return next;
+  });
   const availableItems = useMemo(() => {
     const current = new Set(topic?.items.map((item) => item.publicId));
     return items.filter((item) => !current.has(item.publicId));
@@ -145,7 +150,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
     if (!normalized) return availableItems;
     return availableItems.filter((item) => normalizeNfc(`${item.target} ${item.cue}`).toLocaleLowerCase().includes(normalized));
   }, [availableItems, itemSearch]);
-  const visibleItems = itemSearch.trim() ? matchingItems.slice(0, visibleItemCount) : [];
+  const visibleItems = matchingItems.slice(0, visibleItemCount);
 
   return <section className="topics-manager">
     <header><div><h2>Manage topics</h2><span>{topics.length} Topics</span></div>
@@ -164,26 +169,30 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
             <button onClick={() => { setTitle(topic.title); setRenaming(false); }} type="button">Cancel</button></div>
           : <div className="topic-title-summary"><h3>{topic.title}</h3><small>{topic.items.length} {topic.items.length === 1 ? "card" : "cards"}</small></div>}
             {!renaming ? <div>{selectionMode ? <button onClick={() => { setSelectionMode(false); setSelectedItemIds(new Set()); setMoveTargetId(""); }} type="button">Cancel selection</button> : <>
-              <button className="topic-add-toggle" onClick={() => { setAddingCard((active) => !active); setAddItemId(""); setItemSearch(""); }} type="button">{addingCard ? <X size={14} /> : <Plus size={14} />}{addingCard ? "Close" : "Add cards"}</button>
-              <button onClick={() => { setAddingCard(false); setRenaming(true); }} type="button"><Pencil size={14} />Rename</button>
-              <button disabled={!topic.items.length || saving} onClick={() => { setAddingCard(false); setSelectionMode(true); setSelectedItemIds(new Set()); setMoveTargetId(""); }} type="button">Select</button>
-              <button aria-label="Delete Topic" className="topic-delete" disabled={saving} onClick={() => void remove()} title="Delete Topic" type="button"><Trash2 size={14} /></button></>}</div> : null}</div>
+              <button className={addingCard ? "" : "topic-add-toggle"} onClick={() => { setAddingCard((active) => !active); setSelectedAddItemIds(new Set()); setItemSearch(""); setVisibleItemCount(20); setTopicMenuOpen(false); }} type="button">{addingCard ? <X size={14} /> : <Plus size={14} />}{addingCard ? "Close" : "Add cards"}</button>
+              <button disabled={!topic.items.length || saving} onClick={() => { setAddingCard(false); setTopicMenuOpen(false); setSelectionMode(true); setSelectedItemIds(new Set()); setMoveTargetId(""); }} type="button">Select</button>
+              <div className="topic-overflow"><button aria-expanded={topicMenuOpen} aria-haspopup="menu" aria-label="More Topic actions" onClick={() => setTopicMenuOpen((open) => !open)} ref={topicMenuButtonRef} type="button"><MoreHorizontal size={16} /></button>
+                {topicMenuOpen ? <div className="topic-overflow-menu" onKeyDown={(event) => { if (event.key === "Escape") { setTopicMenuOpen(false); window.requestAnimationFrame(() => topicMenuButtonRef.current?.focus()); } }} role="menu"><button onClick={() => { setAddingCard(false); setTopicMenuOpen(false); setRenaming(true); }} role="menuitem" type="button"><Pencil size={14} />Rename</button>
+                  <button className="topic-delete" disabled={saving} onClick={() => { setTopicMenuOpen(false); void remove(); }} role="menuitem" type="button"><Trash2 size={14} />Delete</button></div> : null}</div></>}</div> : null}</div>
           {addingCard ? <section className="topic-add-item"><div><div><strong>Add cards</strong><span>Choose from Library or create directly in {topic.title}.</span></div>
             <button onClick={onCreateNew} type="button"><Plus size={14} />Create new</button></div>
             <label htmlFor="topic-card-search">Search cards</label>
             <input autoComplete="off" id="topic-card-search" name="topic-card-search" onChange={(event) => { setItemSearch(event.target.value); setVisibleItemCount(20); }}
               placeholder="Search target or Russian cue…" type="search" value={itemSearch} />
-            <div className="topic-card-picker" aria-label="Matching Library cards">
-              {!itemSearch.trim() ? <span>Start typing to find a Library card.</span> : !visibleItems.length ? <span>{availableItems.length ? "No matching cards" : "All cards are already here"}</span> : visibleItems.map((item) => <button
-                aria-pressed={addItemId === item.publicId} className={addItemId === item.publicId ? "is-selected" : ""} key={item.publicId}
-                onClick={() => setAddItemId(item.publicId)} type="button"><strong lang={language}>{item.target}</strong><small lang="ru">{item.cue}</small></button>)}
-              {itemSearch.trim() && visibleItemCount < matchingItems.length ? <button className="topic-card-picker-more" onClick={() => setVisibleItemCount((count) => count + 20)} type="button">Show 20 more</button> : null}
+            <div className="topic-card-picker" aria-label="Library cards">
+              {!visibleItems.length ? <span>{availableItems.length ? "No matching cards" : "All cards are already here"}</span> : visibleItems.map((item) => <button
+                aria-pressed={selectedAddItemIds.has(item.publicId)} className={selectedAddItemIds.has(item.publicId) ? "is-selected" : ""} key={item.publicId}
+                onClick={() => toggleAddItem(item.publicId)} type="button"><span className="topic-picker-check" aria-hidden="true">{selectedAddItemIds.has(item.publicId) ? <Check size={13} /> : null}</span>
+                <span className="topic-picker-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><small lang="ru">{item.cue}</small>
+                  <span className="topic-picker-progress"><LearningStageBadge stage={item.progress.stage} /><span aria-label={`${item.progress.listens} listens`}><Headphones aria-hidden="true" size={12} />{item.progress.listens}</span></span></span></button>)}
+              {visibleItemCount < matchingItems.length ? <button className="topic-card-picker-more" onClick={() => setVisibleItemCount((count) => count + 20)} type="button">Show 20 more</button> : null}
             </div>
-            <button disabled={!addItemId || saving} onClick={() => { if (!topic || !addItemId) return; void (async () => {
-              const updated = await update({ itemIds: [...topic.items.map((item) => item.publicId), addItemId] });
-              if (updated) { setAddItemId(""); setItemSearch(""); }
+            <div className="topic-add-footer"><span>{selectedAddItemIds.size} selected</span><button className="simple-primary" disabled={!selectedAddItemIds.size || saving} onClick={() => { if (!topic || !selectedAddItemIds.size) return; void (async () => {
+              const count = selectedAddItemIds.size;
+              const updated = await update({ itemIds: [...topic.items.map((item) => item.publicId), ...selectedAddItemIds] });
+              if (updated) { setSelectedAddItemIds(new Set()); setItemSearch(""); setVisibleItemCount(20); setNotice(`Added ${count} ${count === 1 ? "card" : "cards"} to ${topic.title}.`); }
             })(); }} type="button">
-              {saving ? <LoaderCircle className="simple-spin" size={14} /> : <Plus size={14} />}Add selected card</button></section> : null}
+              {saving ? <LoaderCircle className="simple-spin" size={14} /> : <Plus size={14} />}Add selected{selectedAddItemIds.size ? ` (${selectedAddItemIds.size})` : ""}</button></div></section> : null}
           {selectionMode ? <div className="topic-selection-toolbar"><label><input aria-label="Select all cards in this Topic" checked={Boolean(topic.items.length) && topic.items.every((item) => selectedItemIds.has(item.publicId))}
             onChange={() => setSelectedItemIds(topic.items.every((item) => selectedItemIds.has(item.publicId)) ? new Set() : new Set(topic.items.map((item) => item.publicId)))} type="checkbox" /><span>{selectedItemIds.size} selected</span></label>
             <select aria-label="Move selected cards to another Topic" disabled={!selectedItemIds.size || saving || topics.length < 2} onChange={(event) => setMoveTargetId(event.target.value)} value={moveTargetId}>
@@ -196,7 +205,8 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
             <div className="topic-item-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><span lang="ru">{item.cue}</span>
               <LearningProgressBadge progress={item.progress} /></div>
             <button aria-label={`Edit ${item.target}`} className="topic-card-edit" onClick={() => onEdit(item.publicId)} title="Edit card" type="button"><Pencil size={15} /></button></article>)
-            : <div className="topic-items-empty"><p>No cards in this Topic.</p><button onClick={onCreateNew} type="button"><Plus size={14} />Create a card</button></div>}</div>
+            : <div className="topic-items-empty"><p>No cards in this Topic.</p><div><button className="simple-primary" onClick={onCreateNew} type="button"><Plus size={14} />Create new</button>
+              <button onClick={() => { setAddingCard(true); setSelectedAddItemIds(new Set()); setItemSearch(""); setVisibleItemCount(20); }} type="button">Choose from Library</button></div></div>}</div>
         </>}
       </div>
     </div>

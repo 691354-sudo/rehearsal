@@ -7,19 +7,19 @@
 }
 
 .simple-workspace--notebook .capture-notebook {
-  border-top: 4px solid var(--mode-action);
+  border-top-color: var(--script-rule);
 }
 
 .capture-entry {
   display: grid;
-  gap: 12px;
-  padding: 24px;
+  gap: 10px;
+  padding: 18px 20px;
   border-bottom: 1px solid var(--script-rule);
 }
 
 .capture-entry textarea {
   width: 100%;
-  min-height: 92px;
+  min-height: 76px;
   padding: 11px 13px;
   color: var(--script-ink);
   font-size: 15px;
@@ -75,7 +75,7 @@
   padding: 10px 24px;
   color: var(--script-tertiary);
   font-size: 12px;
-  background: var(--script-inset);
+  background: transparent;
   border-bottom: 1px solid var(--script-rule);
 }
 
@@ -137,7 +137,7 @@
 }
 
 .capture-list-heading .simple-primary {
-  min-height: 44px;
+  min-height: 40px;
 }
 
 .capture-empty {
@@ -154,8 +154,8 @@
 
 .capture-note {
   display: grid;
-  gap: 8px;
-  padding: 15px 20px;
+  gap: 6px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--script-rule);
 }
 
@@ -194,7 +194,7 @@
 
 .capture-note textarea {
   width: 100%;
-  min-height: 78px;
+  min-height: 48px;
   padding: 8px 9px;
   overflow-y: hidden;
   field-sizing: content;
@@ -225,7 +225,7 @@
   display: inline-flex;
   gap: 5px;
   align-items: center;
-  min-height: 44px;
+  min-height: 36px;
   padding: 0 9px;
   color: var(--script-support);
   font-size: 12px;
