@@ -222,16 +222,11 @@ export class OpenAIService {
       .digest("hex");
   }
 
-  private async prepareBatch(input: {
-    language: LanguageCode;
-    kind: ReviewBatchKind;
-    title: string;
-    sourceText: string;
-    task: string;
-    sourceThreadPublicId?: string;
-  }) {
+  private async prepareBatch(input: { publicId?: string; language: LanguageCode; kind: ReviewBatchKind;
+    title: string; sourceText: string; task: string; sourceThreadPublicId?: string }) {
     if (!this.client) {
       const batch = this.repository.reviews.create({
+        publicId: input.publicId,
         language: input.language,
         kind: input.kind,
         title: input.title,
@@ -259,6 +254,7 @@ export class OpenAIService {
       input.language,
     );
     const batch = this.repository.reviews.create({
+      publicId: input.publicId,
       language: input.language,
       kind: input.kind,
       title: input.title,
@@ -281,8 +277,10 @@ export class OpenAIService {
     });
   }
 
-  prepareVocabBatch(input: { language: LanguageCode; title: string; text: string; sourceThreadPublicId?: string }) {
+  prepareVocabBatch(input: { publicId?: string; language: LanguageCode; title: string; text: string;
+    sourceThreadPublicId?: string }) {
     return this.prepareBatch({
+      publicId: input.publicId,
       language: input.language,
       kind: "vocab",
       title: input.title,

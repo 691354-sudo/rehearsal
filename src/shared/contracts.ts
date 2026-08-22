@@ -37,7 +37,13 @@ export type Evaluation = {
 };
 
 export type AttemptDraft = { answer: string; evaluation?: Evaluation };
-export type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
+export type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  clientMessageId?: string;
+  status?: "sending" | "sent" | "failed" | "placeholder";
+};
 export type TtsProvider = "openai" | "elevenlabs";
 
 export type ElevenLabsPreferences = {

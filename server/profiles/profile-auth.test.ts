@@ -184,7 +184,7 @@ describe("profile authentication and database isolation", () => {
     expect((await mutate(app, roman, {
       method: "POST",
       url: "/api/chat",
-      payload: { language: "en", message: "Roman private thread" },
+      payload: { language: "en", message: "Roman private thread", clientMessageId: "e59fda18-738a-4b8f-832c-e111831c5f07" },
     })).statusCode).toBe(200);
 
     const oliverItems = await read(app, oliver, "/api/items?language=en&limit=500");
@@ -367,7 +367,7 @@ describe("profile authentication and database isolation", () => {
     const islandId = createdIsland.json().island.publicId as string;
     const createdThread = await mutate(app, oliver, {
       method: "POST", url: "/api/chat",
-      payload: { language: "vi", message: "Giúp tôi luyện câu này." },
+      payload: { language: "vi", message: "Giúp tôi luyện câu này.", clientMessageId: "ef55fa77-a526-4056-a8f2-d71cce76e02f" },
     });
     const threadId = createdThread.json().threadId as string;
     const createdCapture = await mutate(app, oliver, {

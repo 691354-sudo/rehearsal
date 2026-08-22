@@ -12,6 +12,14 @@ export type TutorThreadRow = {
   updated_at: string;
 };
 
+type ClientMessageRow = {
+  message_id: number;
+  thread_id: number;
+  thread_public_id: string;
+  language_code: LanguageCode;
+  content: string;
+};
+
 export class TutorRepository {
   constructor(private readonly db: RehearsalDatabase) {}
 
@@ -81,13 +89,61 @@ export class TutorRepository {
     }));
   }
 
-  addMessage(threadId: number, role: "user" | "assistant" | "tool", content: string, metadata = {}) {
-    this.db.prepare(
-      "INSERT INTO chat_messages(thread_id, role, content, metadata) VALUES (?, ?, ?, ?)",
-    ).run(threadId, role, content, JSON.stringify(metadata));
+  addMessage(threadId: number, role: "user" | "assistant" | "tool", content: string, metadata = {}, clientMessageId?: string) {
+    const result = this.db.prepare(
+      "INSERT INTO chat_messages(thread_id, role, content, client_message_id, metadata) VALUES (?, ?, ?, ?, ?)",
+    ).run(threadId, role, content, clientMessageId || null, JSON.stringify(metadata));
     this.db.prepare(
       "UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     ).run(threadId);
+    return Number(result.lastInsertRowid);
+  }
+
+  getOrCreateClientMessage(input: {
+    clientMessageId: string;
+    content: string;
+    language: LanguageCode;
+    threadPublicId?: string;
+  }) {
+    return this.db.transaction(() => {
+      const existing = this.getClientMessage(input.clientMessageId);
+      if (existing) {
+        if (existing.content !== input.content || existing.language_code !== input.language
+          || (input.threadPublicId && existing.thread_public_id !== input.threadPublicId)) {
+          throw new Error("CLIENT_MESSAGE_ID_CONFLICT");
+        }
+        return existing;
+      }
+      const thread = this.getOrCreateThread(input.threadPublicId, input.language);
+      const messageId = this.addMessage(thread.id, "user", input.content, {}, input.clientMessageId);
+      this.ensureThreadTitle(thread.id, input.content);
+      return {
+        message_id: messageId,
+        thread_id: thread.id,
+        thread_public_id: thread.publicId,
+        language_code: input.language,
+        content: input.content,
+      } satisfies ClientMessageRow;
+    })();
+  }
+
+  getCompletedClientExchange(clientMessageId: string) {
+    const message = this.getClientMessage(clientMessageId);
+    if (!message) return null;
+    const assistant = this.db.prepare(
+      `SELECT content, metadata FROM chat_messages
+       WHERE thread_id = ? AND id > ? AND role = 'assistant' ORDER BY id LIMIT 1`,
+    ).get(message.thread_id, message.message_id) as { content: string; metadata: string } | undefined;
+    if (!assistant) return null;
+    let metadata: Record<string, unknown> = {};
+    try { metadata = JSON.parse(assistant.metadata) as Record<string, unknown>; } catch { /* legacy metadata */ }
+    return {
+      threadId: message.thread_public_id,
+      content: assistant.content,
+      mode: metadata.mode === "setup" ? "setup" as const : "openai" as const,
+      toolCalls: [],
+      metadata,
+    };
   }
 
   getMessages(threadId: number, limit = 30) {
@@ -101,5 +157,14 @@ export class TutorRepository {
 
   deleteThread(publicId: string) {
     return this.db.prepare("DELETE FROM chat_threads WHERE public_id = ?").run(publicId).changes > 0;
+  }
+
+  private getClientMessage(clientMessageId: string) {
+    return this.db.prepare(
+      `SELECT m.id AS message_id, t.id AS thread_id, t.public_id AS thread_public_id,
+              t.language_code, m.content
+       FROM chat_messages m JOIN chat_threads t ON t.id = m.thread_id
+       WHERE m.client_message_id = ? AND m.role = 'user'`,
+    ).get(clientMessageId) as ClientMessageRow | undefined;
   }
 }

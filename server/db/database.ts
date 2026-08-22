@@ -171,6 +171,18 @@ const migrateNorwegianLanguage = (db: Database.Database) => {
   `);
 };
 
+const migrateChatClientMessageIds = (db: Database.Database) => {
+  const columns = new Set(
+    (db.prepare("PRAGMA table_info(chat_messages)").all() as Array<{ name: string }>)
+      .map((column) => column.name),
+  );
+  if (!columns.has("client_message_id")) {
+    db.exec("ALTER TABLE chat_messages ADD COLUMN client_message_id TEXT");
+  }
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_messages_client_message_id
+    ON chat_messages(client_message_id) WHERE client_message_id IS NOT NULL`);
+};
+
 type SchemaMigration = {
   id: string;
   run: (db: Database.Database) => void;
@@ -184,6 +196,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "004-remove-saturation-storage", run: removeLegacyContinuousTrackStorage },
   { id: "005-vietnamese-language", run: migrateVietnameseLanguage, requiresForeignKeysOff: true },
   { id: "006-norwegian-language", run: migrateNorwegianLanguage, requiresForeignKeysOff: true },
+  { id: "007-chat-client-message-id", run: migrateChatClientMessageIds },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {

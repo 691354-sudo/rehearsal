@@ -466,6 +466,10 @@
     padding: 22px 18px;
   }
 
+  .simple-message-failed button {
+    min-height: 44px;
+  }
+
   .simple-chat-toolbar {
     justify-content: flex-end;
     padding: 0 10px;

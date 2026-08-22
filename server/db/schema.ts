@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   thread_id INTEGER NOT NULL REFERENCES chat_threads(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'tool')),
   content TEXT NOT NULL,
+  client_message_id TEXT,
   metadata TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

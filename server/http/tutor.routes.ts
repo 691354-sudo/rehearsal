@@ -58,8 +58,10 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
       language: languageSchema,
       message: z.string().trim().min(1).max(aiLimits.tutorMessageCharacters),
       threadId: optionalThreadIdSchema,
+      clientMessageId: z.string().uuid(),
     }).parse(request.body);
-    return tutor.chat({ language: body.language, message: body.message, threadPublicId: body.threadId });
+    return tutor.chat({ language: body.language, message: body.message, threadPublicId: body.threadId,
+      clientMessageId: body.clientMessageId });
   });
 
   app.post("/api/chat/transcribe", async (request, reply) => {
@@ -109,22 +111,49 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
       title: z.string().trim().min(1).max(300).default("Vocabulary review"),
       text: z.string().trim().min(1).max(aiLimits.sourceCharacters),
       threadId: optionalThreadIdSchema,
+      clientMessageId: z.string().uuid(),
     }).parse(request.body);
-    const thread = repository.tutor.getOrCreateThread(body.threadId, body.language);
-    repository.tutor.addMessage(thread.id, "user", body.text);
-    repository.tutor.ensureThreadTitle(thread.id, body.text);
+    const message = repository.tutor.getOrCreateClientMessage({
+      clientMessageId: body.clientMessageId,
+      content: body.text,
+      language: body.language,
+      threadPublicId: body.threadId,
+    });
+    const completed = repository.tutor.getCompletedClientExchange(body.clientMessageId);
+    if (completed && typeof completed.metadata.reviewBatchId === "string") {
+      const batch = repository.reviews.get(completed.metadata.reviewBatchId);
+      if (batch) return reply.code(201).send({
+        source: { publicId: body.clientMessageId },
+        batch,
+        mode: completed.metadata.mode || "stored",
+        threadId: completed.threadId,
+        content: completed.content,
+      });
+    }
     const source = repository.library.saveSource({
+      publicId: body.clientMessageId,
       language: body.language,
       title: body.title,
       rawText: body.text,
       kind: "vocab",
     });
-    const prepared = await openai.prepareVocabBatch({ ...body, sourceThreadPublicId: thread.publicId });
+    const prepared = await openai.prepareVocabBatch({
+      ...body,
+      publicId: body.clientMessageId,
+      sourceThreadPublicId: message.thread_public_id,
+    });
     const content = prepared.batch.candidates.length
       ? `I prepared ${prepared.batch.candidates.length} options. Nothing has been added to Library yet.`
       : "The vocabulary list is saved. No suggestions were generated because the language model is not connected.";
-    repository.tutor.addMessage(thread.id, "assistant", content, { reviewBatchId: prepared.batch.publicId });
-    return reply.code(201).send({ source, ...prepared, threadId: thread.publicId, content });
+    if (!repository.tutor.getCompletedClientExchange(body.clientMessageId)) {
+      repository.tutor.addMessage(message.thread_id, "assistant", content, {
+        clientMessageId: body.clientMessageId,
+        mode: prepared.mode,
+        reviewBatchId: prepared.batch.publicId,
+        sourcePublicId: source.publicId,
+      });
+    }
+    return reply.code(201).send({ source, ...prepared, threadId: message.thread_public_id, content });
   });
 
   app.post("/api/review-batches/:batchId/commit", async (request, reply) => {

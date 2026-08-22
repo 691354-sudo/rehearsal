@@ -33,6 +33,9 @@ export const toErrorResponse = (error: unknown) => {
   if (error instanceof Error && error.message === "THREAD_LANGUAGE_MISMATCH") {
     return { statusCode: 409, body: { error: "THREAD_LANGUAGE_MISMATCH" } };
   }
+  if (error instanceof Error && error.message === "CLIENT_MESSAGE_ID_CONFLICT") {
+    return { statusCode: 409, body: { error: "CLIENT_MESSAGE_ID_CONFLICT" } };
+  }
   const statusCode = typeof error === "object" && error && "statusCode" in error
     ? Number((error as { statusCode?: number }).statusCode)
     : 0;

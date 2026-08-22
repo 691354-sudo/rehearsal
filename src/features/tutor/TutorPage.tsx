@@ -28,7 +28,8 @@ import {
 import type { ChatMessage, ChatThread, Language } from "../../shared/contracts";
 import { languageHasAudio } from "../../shared/config";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
-import { TutorMarkdownMessage } from "./TutorMarkdownMessage";
+import { TutorChatMessage } from "./TutorChatMessage";
+import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimisticMessages";
 
 const looksLikeVocabList = (content: string) => {
   const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -213,44 +214,51 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     finally { setDeletingThread(false); }
   };
 
-  const prepareVocab = async (content: string) => {
+  const prepareVocab = async (content: string, clientMessageId: string) => {
     const response = await apiFetch("/api/review-batches/vocab", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ language, title: "Vocabulary from Tutor", text: content, threadId }),
+      body: JSON.stringify({ language, title: "Vocabulary from Tutor", text: content, threadId, clientMessageId }),
     });
     if (!response.ok) throw new Error("Vocab preparation failed");
     const data = await response.json() as { batch: ReviewBatch; threadId: string; content: string };
     return data;
   };
 
-  const sendContent = async (rawContent: string) => {
+  const sendContent = async (rawContent: string, existingClientMessageId?: string) => {
     const content = rawContent.trim(); if (!content || sending) return false;
+    const clientMessageId = existingClientMessageId || crypto.randomUUID();
     setSending(true); setSendError(""); setAdded(false);
+    setDraft((current) => current.trim() === content ? "" : current);
+    scrollIntentRef.current = "smooth";
+    setMessages((current) => beginTutorSend(current, content, clientMessageId));
     try {
       if (looksLikeVocabList(content)) {
-        const data = await prepareVocab(content);
+        const data = await prepareVocab(content, clientMessageId);
         setReviewBatch(data.batch); onRoute({ ...route, thread: data.threadId }, "replace"); window.localStorage.setItem(storageKey, data.threadId);
-        scrollIntentRef.current = "smooth"; setMessages((current) => [...current,
-          { id: crypto.randomUUID(), role: "user", content },
-          { id: crypto.randomUUID(), role: "assistant", content: data.content },
-        ]);
+        setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
       } else {
         const response = await apiFetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ language, message: content, threadId }) });
+          body: JSON.stringify({ language, message: content, threadId, clientMessageId }) });
         if (!response.ok) throw new Error("Chat unavailable");
         const data = await response.json() as { threadId: string; content: string }; onRoute({ ...route, thread: data.threadId }, "replace");
         window.localStorage.setItem(storageKey, data.threadId);
-        scrollIntentRef.current = "smooth"; setMessages((current) => [...current,
-          { id: crypto.randomUUID(), role: "user", content },
-          { id: crypto.randomUUID(), role: "assistant", content: data.content },
-        ]);
+        setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
       }
-      setDraft((current) => current.trim() === content ? "" : current); void refreshThreads().catch(() => undefined);
+      void refreshThreads().catch(() => undefined);
       return true;
-    } catch { setSendError("Tutor unavailable. Retry."); return false; }
+    } catch {
+      setMessages((current) => failTutorSend(current, clientMessageId));
+      return false;
+    }
     finally { setSending(false); }
   };
   const send = () => sendContent(draft);
+
+  const editFailedMessage = (message: ChatMessage) => {
+    setMessages((current) => current.filter((currentMessage) => currentMessage.id !== message.id));
+    setDraft(message.content);
+    window.requestAnimationFrame(() => composerRef.current?.focus());
+  };
 
   const transcribeVoice = async (pending: PendingTutorRecording, session = voiceSessionRef.current) => {
     if (!pending.blob.size) { setVoiceError("The recording was empty. Try again closer to the microphone."); return; }
@@ -265,7 +273,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       if (!response.ok) throw new Error("Transcription failed. Your recording is still available to retry.");
       const data = await response.json() as { transcript: string };
       if (session !== voiceSessionRef.current || controller.signal.aborted) return;
-      setPendingVoice(null); setTranscribing(false); setDraft(data.transcript);
+      setPendingVoice(null); setTranscribing(false);
       await sendContent(data.transcript);
     } catch (error) {
       if (session === voiceSessionRef.current && !controller.signal.aborted) setVoiceError(voiceErrorMessage(error));
@@ -394,15 +402,16 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             <span>Ask Tutor to use your Library, correct a message, or make a short speaking drill.</span><div>
               {["Find useful phrases from my Library", "Correct a message I wrote", "Give me a short speaking drill"].map((prompt) => <button key={prompt}
                 onClick={() => { setDraft(prompt); window.requestAnimationFrame(() => composerRef.current?.focus()); }} type="button">{prompt}</button>)}</div></div> : null}
-          {messages.map((message) => <article className={`simple-message simple-message--${message.role}`} key={message.id}>
-            <span>{message.role === "user" ? "You" : "Tutor"}</span><TutorMarkdownMessage content={message.content} /></article>)}
+          {messages.map((message) => <TutorChatMessage key={message.id} message={message}
+            onDelete={(failed) => setMessages((current) => current.filter((currentMessage) => currentMessage.id !== failed.id))}
+            onEdit={editFailedMessage}
+            onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} />)}
           {reviewBatch ? <ReviewBatchPanel batch={reviewBatch} onBatch={setReviewBatch} onCommitted={() => { setReviewBatch(null); setAdded(true); }} /> : null}
           {added ? <div className="simple-tutor-added"><strong>Added to Library</strong><div>
             {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}
             <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
-          {sending && <div className="simple-chat-loading" role="status"><LoaderCircle className="simple-spin" size={17} />Tutor is thinking…</div>}
         </div>
-        {sendError ? <div className="simple-composer-error" role="alert"><span>{sendError}</span><button onClick={() => void send()} type="button">Retry</button></div> : null}
+        {sendError ? <div className="simple-composer-error" role="alert"><span>{sendError}</span><button onClick={() => setSendError("")} type="button">Dismiss</button></div> : null}
         {recording || transcribing || voiceError || pendingVoice ? <div aria-live="polite" className={`simple-composer-voice-status${voiceError ? " is-error" : ""}`}>
           <span>{recording ? `Listening · ${formatDuration(recordingSeconds)} · tap Stop to send`
             : transcribing ? "Transcribing your message…" : voiceError}</span>

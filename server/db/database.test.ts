@@ -69,11 +69,11 @@ describe("database migrations", () => {
     expect(item.preference).toBe("neutral");
     expect(item.frequency_band).toBe("common");
     expect(item.practice_enabled).toBe(1);
-    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(6);
+    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(7);
 
     migrated.close();
     const reopened = openDatabase(databasePath);
-    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(6);
+    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(7);
     expect(reopened.pragma("foreign_keys", { simple: true })).toBe(1);
 
     reopened.close();

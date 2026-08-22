@@ -26,6 +26,7 @@ export class ReviewsRepository {
   ) {}
 
   create(input: {
+    publicId?: string;
     language: LanguageCode;
     kind: ReviewBatchKind;
     title: string;
@@ -33,7 +34,9 @@ export class ReviewsRepository {
     candidates: ReviewCandidate[];
     sourceThreadPublicId?: string;
   }) {
-    const publicId = randomUUID();
+    const publicId = input.publicId || randomUUID();
+    const existing = input.publicId ? this.get(publicId) : null;
+    if (existing) return existing;
     this.db.prepare(
       `INSERT INTO review_batches(
          public_id, language_code, kind, title, source_text, candidates, source_thread_public_id
