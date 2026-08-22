@@ -3,7 +3,6 @@ import { Check, Volume2 } from "lucide-react";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { capitalize, languageCopy, languageHasAudio } from "../../shared/config";
 import type { AttemptDraft, Language, LearningItem } from "../../shared/contracts";
-import { FocusedText } from "../progress/FocusedText";
 import { AnswerDiff } from "./AnswerDiff";
 
 const formatInterval = (seconds?: number) => {
@@ -66,11 +65,10 @@ export function InlineRecallAnswer(props: {
     </div>
     {props.attempt.evaluation ? <div aria-live="polite" className={`practice-inline-result recall-result--${props.attempt.evaluation.verdict}`}>
       <span>{props.attempt.evaluation.verdict === "exact" ? "Correct" : "Compare"}</span>
-      <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>
-        <FocusedText focusTerms={props.item.focusTerms} text={props.attempt.evaluation.naturalAnswer} /></p>
-        {languageHasAudio(props.language) ? <button aria-label="Play natural answer" onClick={() => void props.onPlay()} type="button"><Volume2 size={15} /></button> : null}</div>
-      {props.attempt.evaluation.verdict !== "exact" ? <AnswerDiff answerTokens={props.attempt.evaluation.answerTokens}
-        expectedTokens={props.attempt.evaluation.expectedTokens} language={props.language} /> : null}
+      {props.attempt.evaluation.verdict === "exact" ? <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>{props.attempt.evaluation.naturalAnswer}</p>
+        {languageHasAudio(props.language) ? <button aria-label="Play natural answer" onClick={() => void props.onPlay()} type="button"><Volume2 size={15} /></button> : null}</div> : <AnswerDiff answerTokens={props.attempt.evaluation.answerTokens}
+        expectedTokens={props.attempt.evaluation.expectedTokens} language={props.language}
+        onPlay={languageHasAudio(props.language) ? () => void props.onPlay() : undefined} />}
       <div className="practice-inline-grades" aria-label="Memory grade">{reviewRatings.map((value) => <button aria-pressed={rating === value}
         disabled={saving} key={value} onClick={() => void save(value)} type="button"><span>{capitalize(value)}</span><small>{formatInterval(props.item.schedule?.options[value].intervalSeconds)}</small></button>)}</div>
       {error ? <p className="recall-save-error" role="alert">{error}</p> : null}

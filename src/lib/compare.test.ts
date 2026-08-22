@@ -37,11 +37,16 @@ describe("evaluateAttempt", () => {
     expect(evaluateAttempt({ ...item, target: "He is ready but cannot stay.", acceptedAnswers: [] }, "He's ready but can't stay").verdict).toBe("exact");
   });
 
-  it("keeps a typo local and marks changed characters inside the word", () => {
+  it("keeps a typo local and marks the whole changed word", () => {
     const typo = evaluateAttempt({ ...item, target: "Could you give me an example?", acceptedAnswers: [] }, "Could you give me an exampel");
     expect(typo.answerTokens.at(-1)).toMatchObject({ status: "changed" });
-    expect(typo.answerTokens.at(-1)?.parts?.some((part) => part.status === "changed")).toBe(true);
+    expect(typo.answerTokens.at(-1)?.parts).toBeUndefined();
     expect(typo.answerTokens.filter((token) => token.status !== "match")).toHaveLength(1);
+  });
+
+  it("includes missing words on the learner line for an errors-only diff", () => {
+    const result = evaluateAttempt(item, "I've been drawn nature");
+    expect(result.answerTokens.some((token) => token.status === "missing")).toBe(true);
   });
 
   it("treats NFC and NFD Vietnamese as the same answer without ignoring tones", () => {

@@ -7,7 +7,6 @@ import type { AttemptDraft, ElevenLabsConfig, IslandSummary, Language, LearningI
 import { PlaybackSettings } from "./PlaybackSettings";
 import { AnswerDiff } from "./AnswerDiff";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
-import { FocusedText } from "../progress/FocusedText";
 import { LearningProgressBadge } from "../progress/LearningProgress";
 import { TopicProgressPicker } from "./TopicProgressPicker";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
@@ -148,13 +147,13 @@ export function RecallSession(props: {
       </div>
       {attempt.evaluation ? <div aria-live="polite" className={`recall-result recall-result--${attempt.evaluation.verdict}`}>
         <span>{attempt.evaluation.verdict === "exact" ? "Correct" : "Compare"}</span>
-        <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>
-          <FocusedText focusTerms={current.focusTerms} text={attempt.evaluation.naturalAnswer} /></p>
+        {attempt.evaluation.verdict === "exact" ? <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>{attempt.evaluation.naturalAnswer}</p>
           {languageHasAudio(props.language) ? <button aria-label="Play natural answer" onClick={() => {
             void props.onPlay(current.target, props.playback).then(() => props.onListened(current.publicId));
-          }} title="Play" type="button"><Volume2 size={16} /></button> : null}</div>
-        {attempt.evaluation.verdict !== "exact" ? <AnswerDiff answerTokens={attempt.evaluation.answerTokens}
-          expectedTokens={attempt.evaluation.expectedTokens} language={props.language} /> : null}
+          }} title="Play" type="button"><Volume2 size={16} /></button> : null}</div> : <AnswerDiff answerTokens={attempt.evaluation.answerTokens}
+          expectedTokens={attempt.evaluation.expectedTokens} language={props.language} onPlay={languageHasAudio(props.language) ? () => {
+            void props.onPlay(current.target, props.playback).then(() => props.onListened(current.publicId));
+          } : undefined} />}
         <div className="recall-grades" aria-label="Memory grade">{reviewRatings.map((rating) => <button aria-pressed={state.selectedRating === rating}
           disabled={state.saving} key={rating} onClick={() => void save(rating)} type="button"><span>{capitalize(rating)}</span><small>{formatInterval(current.schedule?.options[rating].intervalSeconds)}</small></button>)}</div>
         {state.error ? <p className="recall-save-error" role="alert">{state.error}</p> : null}

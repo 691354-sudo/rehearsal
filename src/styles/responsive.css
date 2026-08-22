@@ -607,6 +607,8 @@
 
   .simple-spin { animation: none; }
 
+  .simple-review-adjust-toggle svg { transition: none; }
+
   .simple-app button:not(:disabled):active {
     transform: none;
   }

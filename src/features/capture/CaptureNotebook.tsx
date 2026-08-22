@@ -301,9 +301,9 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
       <div><button className="simple-primary" disabled={!textDraft.trim() || addingText} onClick={() => void addText()} type="button">
         {addingText ? <LoaderCircle className="simple-spin" size={16} /> : <Plus size={16} />}Add note</button>
         <button aria-label={recording ? "Stop recording" : "Start recording"} className={`capture-record${recording ? " is-recording" : ""}`}
-          disabled={uploading || Boolean(pendingRecording)} onClick={recording ? stopRecording : () => void startRecording()} type="button">
+          disabled={uploading || Boolean(pendingRecording)} onClick={recording ? stopRecording : () => void startRecording()}
+          title={recording ? `Stop recording · ${formatDuration(elapsed)}` : uploading ? "Transcribing" : "Record"} type="button">
           {recording ? <Square fill="currentColor" size={16} /> : uploading ? <LoaderCircle className="simple-spin" size={17} /> : <Mic size={17} />}
-          <span>{recording ? formatDuration(elapsed) : uploading ? "Transcribing" : "Record"}</span>
         </button></div>
     </div>
     {notice ? <div aria-live="polite" className="capture-notice">{notice}</div> : null}
