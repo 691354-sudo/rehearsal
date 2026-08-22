@@ -119,10 +119,14 @@ export function parseAppRoute(
 
   const count = params.get("cards") as PracticeCardCount;
   const review = valueOrNull(params, "review");
+  const mode = path === "practice/listen" && languageHasAudio(language) ? "listen" : "recall";
+  const requestedScope = params.get("scope");
   return {
     section: "practice",
-    mode: path === "practice/listen" && languageHasAudio(language) ? "listen" : "recall",
-    scope: review || params.get("scope") === "library" ? "library" : "due",
+    mode,
+    scope: review || requestedScope === "library" ? "library"
+      : requestedScope === "due" ? "due"
+        : mode === "listen" ? "library" : "due",
     topic: valueOrNull(params, "topic") || "",
     cards: cardCounts.has(count) ? count : "all",
     review,
@@ -139,7 +143,8 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
 
   if (route.section === "practice") {
     path = `practice/${route.mode}`;
-    if (route.scope !== "due") params.set("scope", route.scope);
+    const defaultScope = route.mode === "listen" ? "library" : "due";
+    if (route.scope !== defaultScope) params.set("scope", route.scope);
     if (route.topic) params.set("topic", route.topic);
     if (route.cards !== "all") params.set("cards", route.cards);
     if (route.review) params.set("review", route.review);

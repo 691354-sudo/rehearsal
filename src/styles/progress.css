@@ -78,7 +78,8 @@
   text-align: start;
 }
 
-.topic-progress-trigger > span { display: grid; gap: 2px; min-width: 0; }
+.topic-progress-trigger-copy { display: grid; gap: 2px; min-width: 0; }
+.topic-progress-trigger-end { display: flex; flex: none; gap: 10px; align-items: center; }
 .topic-progress-trigger strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topic-progress-trigger small { color: var(--script-support); }
 

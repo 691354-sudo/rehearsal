@@ -380,8 +380,8 @@ export function ListenRepeat(props: {
   if (phase === "setup") return <div className="practice-ready-layout">
     <section className="listen-setup" aria-label="Listen and Repeat setup">
       <div className="listen-selection-grid">
-        <label><span className="simple-visually-hidden">Topic</span><TopicProgressPicker onChange={props.onTopic} topics={props.topics} value={props.topicId} /></label>
-        <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" name="listen-count" onChange={(event) => {
+        <label><span className="simple-visually-hidden">Topic</span><TopicProgressPicker onChange={props.onTopic} progressPill topics={props.topics} value={props.topicId} /></label>
+        <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" className="practice-card-select" name="listen-count" onChange={(event) => {
           const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
           props.onSelection(scope, count);
         }} value={`${props.scope}:${props.count}`}>

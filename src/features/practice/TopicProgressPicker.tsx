@@ -3,8 +3,9 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboard
 import type { IslandSummary } from "../../shared/contracts";
 import { TopicProgress } from "../progress/LearningProgress";
 
-export function TopicProgressPicker({ onChange, topics, value }: {
+export function TopicProgressPicker({ onChange, progressPill = false, topics, value }: {
   onChange: (topicId: string) => void;
+  progressPill?: boolean;
   topics: IslandSummary[];
   value: string;
 }) {
@@ -55,20 +56,24 @@ export function TopicProgressPicker({ onChange, topics, value }: {
   };
   return <div className="topic-progress-picker" ref={rootRef}>
     <button aria-controls={listboxId} aria-expanded={open} aria-haspopup="listbox"
+      aria-label={selected ? `Topic: ${selected.title}, ${selected.progress.dueNow} due, ${selected.progress.new} new` : "Topic: All Topics"}
       className="topic-progress-trigger" onClick={() => setOpen((shown) => !shown)} ref={triggerRef} type="button">
-      <span><strong>{selected?.title || "All Topics"}</strong>{selected ? <small>{selected.progress.dueNow} due · {selected.progress.new} new</small> : null}</span>
-      <ChevronDown aria-hidden="true" size={15} />
+      <span className="topic-progress-trigger-copy"><strong>{selected?.title || "All Topics"}</strong>{selected && !progressPill ? <small>{selected.progress.dueNow} due · {selected.progress.new} new</small> : null}</span>
+      <span className="topic-progress-trigger-end">
+        {selected && progressPill ? <small aria-hidden="true" className="topic-progress-trigger-count">{selected.progress.dueNow} · {selected.progress.new}</small> : null}
+        <ChevronDown aria-hidden="true" size={15} />
+      </span>
     </button>
     {open ? <div aria-label="Topic" className="topic-progress-options" id={listboxId} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
     }} onKeyDown={navigate} role="listbox">
       <button aria-selected={!value} onClick={() => choose("")} role="option" type="button">
-        <span><strong>All Topics</strong><small>{topics.length} topics</small></span>{!value ? <Check size={15} /> : null}
+        <span><strong>All Topics</strong><small>{topics.length} topics</small></span>{!value ? <Check aria-hidden="true" size={15} /> : null}
       </button>
       {topics.map((topic) => <button aria-selected={topic.publicId === value} key={topic.publicId}
         onClick={() => choose(topic.publicId)} role="option" type="button">
         <span><strong>{topic.title}</strong><TopicProgress progress={topic.progress} /></span>
-        {topic.publicId === value ? <Check size={15} /> : null}
+        {topic.publicId === value ? <Check aria-hidden="true" size={15} /> : null}
       </button>)}
     </div> : null}
   </div>;

@@ -60,7 +60,7 @@ export function PracticePage(props: {
     <section className="practice-control-header" aria-label="Practice controls">
       {listeningAvailable ? <div className="practice-modes" aria-label="Practice mode">
         <AppLink aria-current={props.route.mode === "listen" ? "page" : undefined} className={props.route.mode === "listen" ? "is-active" : ""} onClick={props.onModeSelected}
-          route={{ ...props.route, mode: "listen", review: null }}>Listen &amp; Repeat</AppLink>
+          route={{ ...props.route, mode: "listen", scope: "library", review: null }}>Listen &amp; Repeat</AppLink>
         <AppLink aria-current={props.route.mode === "recall" ? "page" : undefined} className={props.route.mode === "recall" ? "is-active" : ""} onClick={props.onModeSelected}
           route={{ ...props.route, mode: "recall", review: null }}>Recall</AppLink>
       </div> : <strong>Recall</strong>}
@@ -82,7 +82,7 @@ export function PracticePage(props: {
       onCheck={props.onCheck}
       onEdit={setEditingItem}
       onSelection={(scope, cards) => props.onRoute({ ...props.route, cards, scope: scope === "custom" ? "library" : "due", review: null }, "replace")}
-      onListenMode={() => props.onRoute({ ...props.route, mode: "listen", review: null })}
+      onListenMode={() => props.onRoute({ ...props.route, mode: "listen", scope: "library", review: null })}
       onListened={props.onListened}
       onManualReviewStarted={() => props.onRoute({ ...props.route, review: null }, "replace")}
       onRecallReview={props.onRecallReview}

@@ -23,6 +23,13 @@ describe("app routes", () => {
     });
   });
 
+  it("defaults Listen & Repeat to Library while preserving an explicit recommended scope", () => {
+    expect(parseAppRoute(location("/practice/listen", "?lang=en"), "/"))
+      .toMatchObject({ section: "practice", mode: "listen", scope: "library" });
+    expect(parseAppRoute(location("/practice/listen", "?lang=en&scope=due"), "/"))
+      .toMatchObject({ section: "practice", mode: "listen", scope: "due" });
+  });
+
   it("parses Library state and discards invalid values", () => {
     expect(parseAppRoute(location("/library", "?lang=en&q=nature&status=learning&topic=t1&sort=due&page=3&panel=import&edit=c1"), "/")).toEqual({
       section: "library", view: "cards", query: "nature", status: "learning", topic: "t1", sort: "due", page: 3,
@@ -40,6 +47,7 @@ describe("app routes", () => {
   it("round-trips every route family", () => {
     const routes: AppRoute[] = [
       { section: "practice", mode: "listen", scope: "library", topic: "topic", cards: "50", review: null, language: "en", settings: true },
+      { section: "practice", mode: "listen", scope: "due", topic: "", cards: "all", review: null, language: "en", settings: false },
       { section: "tutor", mode: "notebook", thread: null, language: "lv", settings: false },
       { ...defaultLibraryRoute("en"), view: "topics", topic: "topic", page: 2, panel: "create", edit: null },
     ];

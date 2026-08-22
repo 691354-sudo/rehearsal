@@ -107,8 +107,8 @@ export function RecallSession(props: {
     <section className="recall-setup" aria-label="Recall setup">
       {props.manualReviewItemId ? <><p className="recall-manual-label">Manual review · stays Learned</p>{startButton}</> : <>
         <div className="recall-setup-fields">
-          <label><span className="simple-visually-hidden">Topic</span><TopicProgressPicker onChange={props.onTopic} topics={props.topics} value={props.topicId} /></label>
-          <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" name="recall-count" onChange={(event) => {
+          <label><span className="simple-visually-hidden">Topic</span><TopicProgressPicker onChange={props.onTopic} progressPill topics={props.topics} value={props.topicId} /></label>
+          <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" className="practice-card-select" name="recall-count" onChange={(event) => {
             const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
             props.onSelection(scope, count);
           }} value={`${props.scope}:${props.count}`}>
