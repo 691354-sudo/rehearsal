@@ -55,8 +55,8 @@ export function routeHistoryState(route: AppRoute): RouteHistoryState {
 }
 
 const cardCounts = new Set<PracticeCardCount>(["all", "10", "20", "50"]);
-const libraryStatuses = new Set<LibraryStatus>(["all", "new", "learning", "learned"]);
-const librarySorts = new Set<LibrarySort>(["recent", "oldest", "due", "az"]);
+const libraryStatuses = new Set<LibraryStatus>(["all", "new", "learning", "due", "strong", "learned"]);
+const librarySorts = new Set<LibrarySort>(["recent", "oldest", "due", "least", "az"]);
 
 const normalizeBaseUrl = (baseUrl: string) => {
   const withLeadingSlash = baseUrl.startsWith("/") ? baseUrl : `/${baseUrl}`;

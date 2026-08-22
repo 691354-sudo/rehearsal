@@ -25,6 +25,9 @@ import {
 } from "../audio/listenAudio";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { PlaybackSettings } from "./PlaybackSettings";
+import { FocusedText } from "../progress/FocusedText";
+import { LearningProgressBadge } from "../progress/LearningProgress";
+import { TopicProgressPicker } from "./TopicProgressPicker";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 
 type PlayerStatus = "playing" | "paused" | "error";
@@ -38,6 +41,7 @@ export function ListenRepeat(props: {
   language: Language;
   onCount: (count: PracticeCardCount) => void;
   onListened: (itemId: string) => Promise<void>;
+  recommended: { due: number; new: number };
   onEdit: (item: LearningItem) => void;
   onPause: () => void;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
@@ -379,15 +383,14 @@ export function ListenRepeat(props: {
   if (phase === "setup") return <div className="practice-ready-layout">
     <section className="listen-setup" aria-label="Listen and Repeat setup">
       <div className="practice-scope-switch" role="group" aria-label="Listening source">
-        <button aria-pressed={props.scope === "due"} onClick={() => props.onScope("due")} type="button">Due now</button>
+        <button aria-pressed={props.scope === "due"} onClick={() => props.onScope("due")} type="button">Recommended now</button>
         <button aria-pressed={props.scope === "custom"} onClick={() => props.onScope("custom")} type="button">All Library</button>
       </div>
+      {props.scope === "due" ? <small className="practice-recommended-note">FSRS puts due and relearning first, then up to your daily limit of new cards · {props.recommended.due} due · {props.recommended.new} new</small> : null}
       <div className="listen-selection-grid">
-        <label><span>Topic</span><select name="listen-topic" onChange={(event) => props.onTopic(event.target.value)} value={props.topicId}>
-          <option value="">All Topics</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}
-        </select></label>
+        <label><span>Topic</span><TopicProgressPicker onChange={props.onTopic} topics={props.topics} value={props.topicId} /></label>
         <label><span>Cards</span><select name="listen-count" onChange={(event) => props.onCount(event.target.value as PracticeCardCount)} value={props.count}>
-          <option value="all">All {props.scope === "due" ? "due" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+          <option value="all">All {props.scope === "due" ? "recommended" : "matching"}</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
         </select></label>
       </div>
       <details className="listen-playback-options">
@@ -399,11 +402,11 @@ export function ListenRepeat(props: {
         <button onClick={shuffle} type="button"><Shuffle size={17} />Shuffle</button>
       </div>
       <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
-        <Play fill="currentColor" size={15} />Play {visibleCandidates.length || "due"} cards
+        <Play fill="currentColor" size={15} />Play {visibleCandidates.length || "recommended"} cards
       </button>
     </section>
     <PracticeQueuePreview emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit}
-      onPlay={(item) => props.onPlay(item.target, props.playback)} scope={props.scope} />
+      onListened={props.onListened} onPlay={(item) => props.onPlay(item.target, props.playback)} scope={props.scope} />
   </div>;
 
   if (phase === "complete") return <section className="recall-complete" aria-label="Listening complete">
@@ -420,7 +423,8 @@ export function ListenRepeat(props: {
           setLearnedInSession((ids) => new Set(ids).add(current.publicId)); setNote("Moved to Learned");
         }
       }} type="button">Move to Learned</button> : null}</div></header>
-    <article><p lang={props.language}>{current?.target}</p>{showRussian ? <span lang="ru">{current?.cue}</span> : null}
+    <article>{current ? <LearningProgressBadge progress={current.progress} /> : null}
+      <p lang={props.language}>{current ? <FocusedText focusTerms={current.focusTerms} text={current.target} /> : null}</p>{showRussian ? <span lang="ru">{current?.cue}</span> : null}
       <button className="listen-russian" onClick={() => setShowRussian((shown) => !shown)} type="button">{showRussian ? "Hide Russian" : "Show Russian"}</button></article>
     <div className="listen-controls">
       <button aria-label="Previous" disabled={index === 0 && !loop} onClick={previous} type="button"><SkipBack fill="currentColor" size={17} /></button>

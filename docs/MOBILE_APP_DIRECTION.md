@@ -69,7 +69,7 @@ not a general offline queue or offline learning store.
 - Practice contains only `Recall` and `Listen & Repeat`. On mobile, both present
   one active card at a time and keep session controls reachable by touch; the
   desktop Recall list may expose written-answer fields without changing this path.
-- Recall defaults to `Due today`; custom Library practice remains an explicit
+- Recall defaults to `Recommended now`; custom Library practice remains an explicit
   secondary choice.
 - Notebook gives typed Russian capture and voice capture equal prominence.
 - Tutor Chat exposes a touch-sized voice-message action and keeps failed transcription audio available for Retry or Delete while the page remains open.

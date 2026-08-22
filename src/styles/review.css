@@ -488,3 +488,9 @@
   border: 1px solid var(--script-rule-strong);
   border-radius: 8px;
 }
+.simple-review-focus-preview {
+  margin: 0 0 5px;
+  color: var(--script-ink);
+  font-size: 15px;
+  line-height: 1.45;
+}

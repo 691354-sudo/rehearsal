@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "../database.js";
 import type { Island, IslandSummary, LanguageCode } from "../../types.js";
-import { logChange, mapItem, parseArray, type ItemRow } from "./shared.js";
+import { logChange, mapItemWithProgress, parseArray, type DueItemRow } from "./shared.js";
 
 type IslandRow = {
   public_id: string;
@@ -9,6 +9,14 @@ type IslandRow = {
   title: string;
   description: string;
   item_count: number;
+  progress_new: number;
+  progress_learning: number;
+  progress_due: number;
+  progress_strong: number;
+  progress_learned: number;
+  due_now: number;
+  recall_count: number;
+  listen_count: number;
   created_at: string;
   updated_at: string;
 };
@@ -20,6 +28,16 @@ const mapIslandSummary = (row: IslandRow): IslandSummary => ({
   title: row.title,
   description: row.description,
   itemCount: row.item_count,
+  progress: {
+    new: row.progress_new || 0,
+    learning: row.progress_learning || 0,
+    due: row.progress_due || 0,
+    strong: row.progress_strong || 0,
+    learned: row.progress_learned || 0,
+    dueNow: row.due_now || 0,
+    recalls: row.recall_count || 0,
+    listens: row.listen_count || 0,
+  },
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -86,28 +104,82 @@ export class LibraryRepository {
     return this.getIsland(publicId)!;
   }
 
-  listIslands(language: LanguageCode) {
+  listIslands(language: LanguageCode, now = new Date()) {
     const rows = this.db.prepare(
       `SELECT i.public_id, i.language_code, i.title, i.description, i.created_at, i.updated_at,
-       COUNT(ii.item_id) AS item_count FROM islands i
-       LEFT JOIN island_items ii ON ii.island_id = i.id WHERE i.language_code = ?
+       COUNT(ii.item_id) AS item_count,
+       SUM(CASE WHEN item.practice_enabled = 1 AND COALESCE(a.recall_count, 0) = 0 THEN 1 ELSE 0 END) AS progress_new,
+       SUM(CASE WHEN item.practice_enabled = 1 AND COALESCE(a.recall_count, 0) > 0 AND r.state IN (1, 3) THEN 1 ELSE 0 END) AS progress_learning,
+       SUM(CASE WHEN item.practice_enabled = 1 AND COALESCE(a.recall_count, 0) > 0 AND r.state NOT IN (1, 3)
+         AND datetime(r.due_at) <= datetime(?) THEN 1 ELSE 0 END) AS progress_due,
+       SUM(CASE WHEN item.practice_enabled = 1 AND COALESCE(a.recall_count, 0) > 0 AND r.state NOT IN (1, 3)
+         AND (r.due_at IS NULL OR datetime(r.due_at) > datetime(?)) THEN 1 ELSE 0 END) AS progress_strong,
+       SUM(CASE WHEN item.practice_enabled = 0 THEN 1 ELSE 0 END) AS progress_learned,
+       SUM(CASE WHEN item.practice_enabled = 1 AND r.due_at IS NOT NULL
+         AND datetime(r.due_at) <= datetime(?) THEN 1 ELSE 0 END) AS due_now,
+       SUM(COALESCE(a.recall_count, 0)) AS recall_count,
+       SUM(COALESCE(a.listen_count, 0)) AS listen_count
+       FROM islands i LEFT JOIN island_items ii ON ii.island_id = i.id
+       LEFT JOIN items item ON item.id = ii.item_id
+       LEFT JOIN review_state r ON r.item_id = item.id
+       LEFT JOIN (
+         SELECT item_id,
+           SUM(CASE WHEN mode = 'recall' THEN 1 ELSE 0 END) AS recall_count,
+           SUM(CASE WHEN mode IN ('listen', 'shadow') THEN 1 ELSE 0 END) AS listen_count
+         FROM attempts GROUP BY item_id
+       ) a ON a.item_id = item.id
+       WHERE i.language_code = ?
        GROUP BY i.id ORDER BY i.title COLLATE NOCASE, i.id`,
-    ).all(language) as IslandRow[];
+    ).all(now.toISOString(), now.toISOString(), now.toISOString(), language) as IslandRow[];
     return rows.map(mapIslandSummary);
   }
 
-  getIsland(publicId: string): Island | null {
+  getIsland(publicId: string, now = new Date()): Island | null {
     const row = this.db.prepare(
       `SELECT i.public_id, i.language_code, i.title, i.description, i.created_at, i.updated_at,
-       COUNT(ii.item_id) AS item_count FROM islands i
-       LEFT JOIN island_items ii ON ii.island_id = i.id WHERE i.public_id = ? GROUP BY i.id`,
-    ).get(publicId) as IslandRow | undefined;
+       COUNT(ii.item_id) AS item_count,
+       SUM(CASE WHEN item.practice_enabled = 1 AND COALESCE(a.recall_count, 0) = 0 THEN 1 ELSE 0 END) AS progress_new,
+       SUM(CASE WHEN item.practice_enabled = 1 AND COALESCE(a.recall_count, 0) > 0 AND r.state IN (1, 3) THEN 1 ELSE 0 END) AS progress_learning,
+       SUM(CASE WHEN item.practice_enabled = 1 AND COALESCE(a.recall_count, 0) > 0 AND r.state NOT IN (1, 3)
+         AND datetime(r.due_at) <= datetime(?) THEN 1 ELSE 0 END) AS progress_due,
+       SUM(CASE WHEN item.practice_enabled = 1 AND COALESCE(a.recall_count, 0) > 0 AND r.state NOT IN (1, 3)
+         AND (r.due_at IS NULL OR datetime(r.due_at) > datetime(?)) THEN 1 ELSE 0 END) AS progress_strong,
+       SUM(CASE WHEN item.practice_enabled = 0 THEN 1 ELSE 0 END) AS progress_learned,
+       SUM(CASE WHEN item.practice_enabled = 1 AND r.due_at IS NOT NULL
+         AND datetime(r.due_at) <= datetime(?) THEN 1 ELSE 0 END) AS due_now,
+       SUM(COALESCE(a.recall_count, 0)) AS recall_count,
+       SUM(COALESCE(a.listen_count, 0)) AS listen_count
+       FROM islands i LEFT JOIN island_items ii ON ii.island_id = i.id
+       LEFT JOIN items item ON item.id = ii.item_id
+       LEFT JOIN review_state r ON r.item_id = item.id
+       LEFT JOIN (
+         SELECT item_id,
+           SUM(CASE WHEN mode = 'recall' THEN 1 ELSE 0 END) AS recall_count,
+           SUM(CASE WHEN mode IN ('listen', 'shadow') THEN 1 ELSE 0 END) AS listen_count
+         FROM attempts GROUP BY item_id
+       ) a ON a.item_id = item.id
+       WHERE i.public_id = ? GROUP BY i.id`,
+    ).get(now.toISOString(), now.toISOString(), now.toISOString(), publicId) as IslandRow | undefined;
     if (!row) return null;
     const items = (this.db.prepare(
-      `SELECT items.* FROM island_items JOIN islands ON islands.id = island_items.island_id
-       JOIN items ON items.id = island_items.item_id WHERE islands.public_id = ?
+      `SELECT items.*,
+       r.due_at AS review_due_at, r.stability AS review_stability, r.difficulty AS review_difficulty,
+       r.elapsed_days AS review_elapsed_days, r.scheduled_days AS review_scheduled_days,
+       r.learning_steps AS review_learning_steps, r.repetitions AS review_repetitions,
+       r.lapses AS review_lapses, r.state AS review_state, r.last_review AS review_last_review,
+       COALESCE(a.recall_count, 0) AS recall_count, COALESCE(a.listen_count, 0) AS listen_count
+       FROM island_items JOIN islands ON islands.id = island_items.island_id
+       JOIN items ON items.id = island_items.item_id
+       LEFT JOIN review_state r ON r.item_id = items.id
+       LEFT JOIN (
+         SELECT item_id,
+           SUM(CASE WHEN mode = 'recall' THEN 1 ELSE 0 END) AS recall_count,
+           SUM(CASE WHEN mode IN ('listen', 'shadow') THEN 1 ELSE 0 END) AS listen_count
+         FROM attempts GROUP BY item_id
+       ) a ON a.item_id = items.id
+       WHERE islands.public_id = ?
        ORDER BY island_items.position, island_items.rowid`,
-    ).all(publicId) as ItemRow[]).map(mapItem);
+    ).all(publicId) as DueItemRow[]).map((item) => mapItemWithProgress(item, now));
     return { ...mapIslandSummary(row), items };
   }
 

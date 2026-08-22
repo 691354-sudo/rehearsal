@@ -19,8 +19,10 @@ import type { Island, IslandSummary, Language, LearningItem } from "../../shared
 import { languageHasAudio } from "../../shared/config";
 import { filterLibraryItems, type LibrarySort, type LibraryStatus } from "../../lib/libraryView";
 import type { AppRoute, HistoryMode, LibraryRoute } from "../../lib/appRoute";
+import { FocusedText } from "../progress/FocusedText";
+import { LearningProgressBadge } from "../progress/LearningProgress";
 
-export function LibraryPage({ items, language, route, onRoute, onItemDeleted, onItemUpdated, onItemsReload, onListen, onPlay, onPracticeEnabled, onReview }: {
+export function LibraryPage({ items, language, route, onRoute, onItemDeleted, onItemUpdated, onItemsReload, onListen, onListened, onPlay, onPracticeEnabled, onReview }: {
   items: LearningItem[];
   language: Language;
   route: LibraryRoute;
@@ -29,7 +31,8 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   onItemUpdated: (item: LearningItem) => void;
   onItemsReload: () => Promise<boolean>;
   onListen: () => void;
-  onPlay: (text: string) => void;
+  onListened: (itemId: string) => Promise<void>;
+  onPlay: (text: string) => Promise<unknown>;
   onPracticeEnabled: (itemId: string, practiceEnabled: boolean) => Promise<boolean>;
   onReview: (itemId: string) => void;
 }) {
@@ -270,10 +273,11 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     <section className="simple-library-panel simple-library-panel--main">
       <div className="simple-library-tools"><label className="simple-search"><Search size={17} /><input aria-label="Search cards" autoComplete="off" name="library-search" onChange={(event) => setSearchInput(event.target.value)} placeholder="Search cards…" type="search" value={searchInput} /></label>
         <select aria-label="Filter by status" name="library-status" onChange={(event) => patchRoute({ status: event.target.value as LibraryStatus, page: 1 })} value={status}>
-          <option value="all">All</option><option value="new">New</option><option value="learning">Learning</option><option value="learned">Learned</option></select>
-        <select aria-label="Filter by Topic" name="library-topic" onChange={(event) => patchRoute({ topic: event.target.value, page: 1 })} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title}</option>)}</select>
+          <option value="all">All</option><option value="new">New</option><option value="learning">Learning</option><option value="due">Due</option>
+          <option value="strong">Strong</option><option value="learned">Learned</option></select>
+        <select aria-label="Filter by Topic" name="library-topic" onChange={(event) => patchRoute({ topic: event.target.value, page: 1 })} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title} · {value.progress.dueNow} due · {value.progress.new} new</option>)}</select>
         <select aria-label="Sort cards" name="library-sort" onChange={(event) => patchRoute({ sort: event.target.value as LibrarySort, page: 1 })} value={sort}>
-          <option value="recent">Recent</option><option value="oldest">Oldest</option><option value="due">Due soon</option><option value="az">A–Z</option></select></div>
+          <option value="recent">Recent</option><option value="oldest">Oldest</option><option value="due">Due soon</option><option value="least">Least practiced</option><option value="az">A–Z</option></select></div>
       <div className={`simple-library-selection${selectionMode ? "" : " is-idle"}`}>
         {selectionMode ? <label><input aria-label="Select all visible cards" checked={allVisibleSelected} disabled={!displayedItems.length || deletingSelected} name="select-visible-cards" onChange={toggleVisible} type="checkbox" />
           <span>{displayedItems.length} visible</span></label> : <div className="simple-library-selection-start">
@@ -292,25 +296,27 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
         {displayedItems.map((item) => <article className={`simple-phrase-row${selectionMode ? " is-selecting" : ""}${selectedItemIds.has(item.publicId) ? " is-selected" : ""}`} key={item.publicId}>
           {selectionMode ? <label className="simple-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} name={`select-card-${item.publicId}`}
             disabled={deletingSelected} onChange={() => toggleItem(item.publicId)} type="checkbox" /></label> : null}
-          <div className="simple-phrase-copy"><strong lang={language}>{item.target}</strong><small lang="ru">{item.cue}</small></div>
-          <div className="simple-row-actions">
-            {languageHasAudio(language) ? <button aria-label="Play" onClick={() => onPlay(item.target)} title="Play" type="button"><Volume2 size={15} /></button> : null}
-            {item.practiceEnabled
-              ? <button aria-label={`Mark ${item.target} as learned`} onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Learned</button>
-              : <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Reactivate</button>}
-            <button aria-label={`Edit ${item.target}`} onClick={() => patchRoute({ edit: item.publicId }, "push")} title="Edit" type="button"><Pencil size={16} /></button>
-            <div className="simple-row-more" data-library-actions={item.publicId} onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null);
-            }}>
-              <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-label={`More actions for ${item.target}`}
-                onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)} title="More actions" type="button"><MoreHorizontal size={17} /></button>
-              {openActionsId === item.publicId ? <div className="simple-row-more-panel" id={`card-actions-${item.publicId}`}>
-                {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} type="button">Review now</button> : null}
-                <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} type="button">Pattern drill</button>
-                <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} type="button"><Trash2 size={15} />Delete</button>
-              </div> : null}
-            </div>
-          </div>
+          <div className="simple-phrase-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><small lang="ru">{item.cue}</small></div>
+          <div className="simple-row-side"><div className="simple-row-actions">
+              {languageHasAudio(language) ? <button aria-label="Play" onClick={() => {
+                void onPlay(item.target).then(() => onListened(item.publicId));
+              }} title="Play" type="button"><Volume2 size={15} /></button> : null}
+              {item.practiceEnabled
+                ? <button aria-label={`Mark ${item.target} as learned`} onClick={() => void setPracticeEnabled(item.publicId, false)} type="button">Learned</button>
+                : <button onClick={() => void setPracticeEnabled(item.publicId, true)} type="button">Reactivate</button>}
+              <button aria-label={`Edit ${item.target}`} onClick={() => patchRoute({ edit: item.publicId }, "push")} title="Edit" type="button"><Pencil size={16} /></button>
+              <div className="simple-row-more" data-library-actions={item.publicId} onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null);
+              }}>
+                <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-label={`More actions for ${item.target}`}
+                  onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)} title="More actions" type="button"><MoreHorizontal size={17} /></button>
+                {openActionsId === item.publicId ? <div className="simple-row-more-panel" id={`card-actions-${item.publicId}`}>
+                  {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} type="button">Review now</button> : null}
+                  <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} type="button">Pattern drill</button>
+                  <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} type="button"><Trash2 size={15} />Delete</button>
+                </div> : null}
+              </div>
+            </div><LearningProgressBadge progress={item.progress} /></div>
         </article>)}
         {displayedItems.length < visibleItems.length ? <div className="simple-library-load-more"><span>{visibleItems.length - displayedItems.length} more cards</span>
           <button onClick={() => patchRoute({ page: route.page + 1 })} type="button">Load more</button></div> : null}

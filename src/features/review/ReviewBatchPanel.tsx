@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw, RotateCcw, Shuffle, X } from "lucide-react";
 import { apiFetch } from "../../shared/api";
+import { FocusedText } from "../progress/FocusedText";
 import type { Language } from "../../shared/contracts";
 
 export type ReviewCandidate = {
@@ -154,6 +155,8 @@ export function ReviewBatchPanel(props: {
           </button>
         </div>
         <div className="simple-review-fields">
+          {candidate.focusTerms.length ? <p className="simple-review-focus-preview" lang={props.batch.language}>
+            <FocusedText focusTerms={candidate.focusTerms} text={candidate.target} /></p> : null}
           <input aria-label="Target phrase" autoComplete="off" lang={props.batch.language} name={`review-target-${candidate.id}`} onChange={(event) => update(candidate.id, { target: event.target.value })} value={candidate.target} />
           <input aria-label="Russian cue" autoComplete="off" className="is-cue" lang="ru" name={`review-cue-${candidate.id}`} onChange={(event) => update(candidate.id, { cue: event.target.value })} value={candidate.cue} />
           <div className="simple-review-meta"><input aria-label="Category" autoComplete="off" name={`review-category-${candidate.id}`} onChange={(event) => update(candidate.id, { category: event.target.value })} value={candidate.category} />

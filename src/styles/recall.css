@@ -248,6 +248,12 @@
   padding-top: 1px;
 }
 
+.practice-queue-side {
+  display: grid;
+  gap: 9px;
+  justify-items: end;
+}
+
 .practice-queue-actions button,
 .recall-natural-row button {
   display: grid;
@@ -567,8 +573,6 @@
 
 .recall-own-answer {
   color: var(--script-tertiary);
-  text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, var(--retry) 55%, transparent);
 }
 
 .recall-natural-answer {
@@ -757,8 +761,14 @@
   }
 
   .practice-queue-preview li {
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     padding: 14px;
+  }
+
+  .practice-queue-side {
+    grid-column: 1;
+    justify-self: end;
   }
 }
 .recall-manual-label {

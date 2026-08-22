@@ -4,6 +4,7 @@ import { apiFetch } from "../../shared/api";
 import { languageCopy } from "../../shared/config";
 import type { Language, LearningItem } from "../../shared/contracts";
 import type { AppRoute } from "../../lib/appRoute";
+import { focusTermsInTarget } from "../../../contracts/text";
 
 export function CardEditorDialog(props: {
   item: LearningItem;
@@ -15,6 +16,7 @@ export function CardEditorDialog(props: {
   const [target, setTarget] = useState(props.item.target);
   const [cue, setCue] = useState(props.item.cue);
   const [note, setNote] = useState(props.item.note);
+  const [focusPhrase, setFocusPhrase] = useState(props.item.focusTerms[0] || "");
   const [frequencyBand, setFrequencyBand] = useState(props.item.frequencyBand);
   const [feedback, setFeedback] = useState("");
   const [rewriting, setRewriting] = useState(false);
@@ -24,7 +26,10 @@ export function CardEditorDialog(props: {
   const [saveError, setSaveError] = useState("");
   const allowNavigationRef = useRef(false);
   const dirty = target !== props.item.target || cue !== props.item.cue || note !== props.item.note
+    || focusPhrase !== (props.item.focusTerms[0] || "")
     || frequencyBand !== props.item.frequencyBand || Boolean(feedback.trim());
+  const focusTerms = focusPhrase.trim() ? [focusPhrase.trim(), ...props.item.focusTerms.slice(1)] : [];
+  const focusValid = focusTermsInTarget(target, focusTerms);
   const requestClose = () => {
     if (dirty && !window.confirm("Discard unsaved changes to this card?")) return;
     allowNavigationRef.current = true;
@@ -77,13 +82,14 @@ export function CardEditorDialog(props: {
   };
 
   const save = async () => {
-    if (!target.trim() || !cue.trim() || saving || rewriting) return;
+    if (!target.trim() || !cue.trim() || !focusValid || saving || rewriting) return;
     setSaving(true); setRewriteError(""); setSaveError(""); setRewriteNotice("");
     try {
       const response = await apiFetch(`/api/items/${encodeURIComponent(props.item.publicId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target: target.trim(), cue: cue.trim(), note: note.trim(), frequencyBand }),
+        body: JSON.stringify({ target: target.trim(), cue: cue.trim(), note: note.trim(), frequencyBand,
+          focusTerms }),
       });
       if (!response.ok) throw new Error("Could not save this card.");
       const data = await response.json() as { item: LearningItem };
@@ -104,6 +110,10 @@ export function CardEditorDialog(props: {
       <div className="simple-card-dialog-fields">
         <label><span>{languageCopy[props.language].label}</span><textarea autoComplete="off" lang={props.language} name="card-target" onChange={(event) => setTarget(event.target.value)} rows={3} value={target} /></label>
         <label><span>Russian cue</span><textarea autoComplete="off" lang="ru" name="card-cue" onChange={(event) => setCue(event.target.value)} rows={3} value={cue} /></label>
+        <label><span>Focus phrase</span><input aria-describedby="card-focus-help" autoComplete="off" name="card-focus"
+          onChange={(event) => setFocusPhrase(event.target.value)} value={focusPhrase} />
+          <small id="card-focus-help">Optional · must appear exactly in the target phrase.</small>
+          {!focusValid ? <em className="simple-card-dialog-error">Focus phrase isn’t present in the target.</em> : null}</label>
         <label><span>Note</span><textarea autoComplete="off" name="card-note" onChange={(event) => setNote(event.target.value)} rows={2} value={note} /></label>
         <label><span>Frequency</span><select name="card-frequency" onChange={(event) => setFrequencyBand(event.target.value as LearningItem["frequencyBand"])} value={frequencyBand}>
           <option value="core">Core</option><option value="common">Common</option><option value="specific">Specific</option><option value="rare">Rare</option>
@@ -124,7 +134,7 @@ export function CardEditorDialog(props: {
         {saveError ? <p className="simple-card-dialog-error" role="alert">{saveError}</p> : null}
       </div>
       <footer><span /><div><button disabled={saving} onClick={requestClose} type="button">Cancel</button>
-        <button className="simple-primary" disabled={saving || rewriting || !target.trim() || !cue.trim()} type="submit">{saving ? "Saving…" : "Save card"}</button></div></footer>
+        <button className="simple-primary" disabled={saving || rewriting || !target.trim() || !cue.trim() || !focusValid} type="submit">{saving ? "Saving…" : "Save card"}</button></div></footer>
     </form>
   </dialog>;
 }

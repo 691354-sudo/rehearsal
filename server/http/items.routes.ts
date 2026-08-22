@@ -3,6 +3,7 @@ import { z } from "zod";
 import { aiLimits } from "../services/ai-limits.js";
 import type { HttpDependencies } from "./dependencies.js";
 import { itemBodySchema, languageSchema, nfcText } from "./schemas.js";
+import { focusTermsInTarget } from "../../contracts/text.js";
 
 export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   app.get("/api/items", async (request) => {
@@ -12,16 +13,18 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
       limit: z.coerce.number().int().min(1).max(2_000).default(100),
       includeSchedule: z.coerce.boolean().default(false),
     }).parse(request.query);
+    const items = repository.practice.listInventory(query.language, query.limit);
     return {
-      items: query.includeSchedule
-        ? repository.practice.listInventory(query.language, query.limit)
-        : repository.items.list(query.language, query.limit),
+      items: query.includeSchedule ? items : items.map(({ schedule: _schedule, ...item }) => item),
     };
   });
 
   app.post("/api/items", async (request, reply) => {
     const { repository } = dependencies.forRequest(request);
     const body = itemBodySchema.parse(request.body);
+    if (!focusTermsInTarget(body.target, body.focusTerms || [])) {
+      return reply.code(400).send({ error: "FOCUS_TERM_NOT_FOUND" });
+    }
     const item = repository.items.save({
       ...body,
       source: "Manual entry",
@@ -49,12 +52,18 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
       cue: z.string().trim().min(1).max(2_000).optional(),
       note: z.string().trim().max(2_000).optional(),
       tags: z.array(z.string().trim().min(1).max(40)).max(12).optional(),
+      focusTerms: z.array(nfcText(100)).max(8).optional(),
       preference: z.enum(["like", "neutral", "dislike"]).optional(),
       frequencyBand: z.enum(["core", "common", "specific", "rare"]).optional(),
       practiceEnabled: z.boolean().optional(),
     }).parse(request.body);
+    const existing = repository.items.get(params.itemId);
+    if (!existing) return reply.code(404).send({ error: "ITEM_NOT_FOUND" });
+    if (!focusTermsInTarget(body.target ?? existing.target, body.focusTerms ?? existing.focusTerms)) {
+      return reply.code(400).send({ error: "FOCUS_TERM_NOT_FOUND" });
+    }
     const item = repository.items.update(params.itemId, body);
-    return item ? { item } : reply.code(404).send({ error: "ITEM_NOT_FOUND" });
+    return { item };
   });
 
   app.post("/api/items/:itemId/rewrite", async (request, reply) => {

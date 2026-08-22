@@ -22,6 +22,7 @@ import type { PreparedAudio } from "../audio/listenAudio";
 export function PracticePage(props: {
   attempts: Record<string, AttemptDraft>;
   dueItemIds: string[];
+  recommended: { due: number; new: number };
   items: LearningItem[];
   language: Language;
   route: PracticeRoute;
@@ -56,7 +57,7 @@ export function PracticePage(props: {
 
   return <main className="simple-main simple-main--practice" id="main-content">
     <header className="practice-header">
-      <div><h1>Practice</h1><p>{props.dueItemIds.length} due · {props.dailyProgress.recall} recalled today{listeningAvailable ? ` · ${props.dailyProgress.shadow} listened today` : ""}</p></div>
+      <div><h1>Practice</h1><p>{props.recommended.due} due · {props.recommended.new} new · {props.dailyProgress.recall} recalled today{listeningAvailable ? ` · ${props.dailyProgress.shadow} listened today` : ""}</p></div>
       {listeningAvailable ? <div className="practice-modes" aria-label="Practice mode">
         <AppLink aria-current={props.route.mode === "listen" ? "page" : undefined} className={props.route.mode === "listen" ? "is-active" : ""} onClick={props.onModeSelected}
           route={{ ...props.route, mode: "listen", review: null }}>Listen &amp; Repeat</AppLink>
@@ -75,11 +76,13 @@ export function PracticePage(props: {
       language={props.language}
       listeningAvailable={listeningAvailable}
       manualReviewItemId={props.route.review}
+      recommended={props.recommended}
       onAnswer={props.onAnswer}
       onCheck={props.onCheck}
       onEdit={setEditingItem}
       onCount={(cards) => props.onRoute({ ...props.route, cards, review: null }, "replace")}
       onListenMode={() => props.onRoute({ ...props.route, mode: "listen", review: null })}
+      onListened={props.onListened}
       onManualReviewStarted={() => props.onRoute({ ...props.route, review: null }, "replace")}
       onRecallReview={props.onRecallReview}
       onPlay={props.onPlay}
@@ -94,6 +97,7 @@ export function PracticePage(props: {
       voices={props.voices}
     /> : <ListenRepeat count={props.route.cards} dueItemIds={props.dueItemIds} emptyAction={<AppLink route={defaultLibraryRoute(props.language)}>Browse Library</AppLink>}
       elevenLabs={props.elevenLabs} items={props.items} language={props.language}
+      recommended={props.recommended}
       onEdit={setEditingItem} onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
       onPlayPrepared={props.onPlayPrepared} onPrepareAudio={props.onPrepareAudio}
       onCount={(cards) => props.onRoute({ ...props.route, cards }, "replace")}

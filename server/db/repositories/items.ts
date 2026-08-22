@@ -99,7 +99,7 @@ export class ItemsRepository {
   }
 
   update(publicId: string, input: Partial<Pick<LearningItemInput,
-    "target" | "cue" | "note" | "tags" | "preference" | "frequencyBand" | "practiceEnabled"
+    "target" | "cue" | "note" | "tags" | "focusTerms" | "preference" | "frequencyBand" | "practiceEnabled"
   >>) {
     const existing = this.get(publicId);
     if (!existing) return null;
@@ -110,6 +110,7 @@ export class ItemsRepository {
       cue: input.cue ?? existing.cue,
       note: input.note ?? existing.note,
       tags: input.tags ?? existing.tags,
+      focusTerms: input.focusTerms ?? existing.focusTerms,
       preference: input.preference ?? existing.preference,
       frequencyBand: input.frequencyBand ?? existing.frequencyBand,
       practiceEnabled: input.practiceEnabled ?? existing.practiceEnabled,
