@@ -46,8 +46,7 @@ export function PracticeQueuePreview(props: {
       {props.mode === "listen" ? null : <span>{props.items.length} {props.items.length === 1 ? "card" : "cards"}</span>}
     </header>
     {props.items.length ? <ol>
-      {visibleItems.map((item, index) => <li key={item.publicId}>
-        <span className="practice-queue-index">{index + 1}</span>
+      {visibleItems.map((item) => <li key={item.publicId}>
         <div className="practice-queue-copy">
           <p lang={props.mode === "recall" ? "ru" : props.language}>{props.mode === "recall" ? item.cue
             : <FocusedText focusTerms={item.focusTerms} text={item.target} />}</p>

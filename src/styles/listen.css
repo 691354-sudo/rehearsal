@@ -159,12 +159,6 @@
   border-radius: 12px;
 }
 
-.practice-queue-preview--listen .practice-queue-index {
-  top: 17px;
-  display: block;
-  transform: none;
-}
-
 .practice-queue-preview--listen .practice-queue-copy > .learning-progress {
   display: inline-flex;
   margin-top: 8px;
