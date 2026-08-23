@@ -464,15 +464,15 @@
   .listen-playback-options summary strong { width: 100%; }
 }
 
-.simple-main--practice:has(.listen-setup) .practice-control-header > p {
+.simple-main--practice:has(.practice-ready-layout) .practice-control-header > p {
   display: none;
 }
 
-.simple-main--practice:has(.listen-setup) .practice-modes {
+.simple-main--practice:has(.practice-ready-layout) .practice-modes {
   width: 100%;
 }
 
-.simple-main--practice:has(.listen-setup) .practice-modes a {
+.simple-main--practice:has(.practice-ready-layout) .practice-modes a {
   flex: 1;
 }
 
