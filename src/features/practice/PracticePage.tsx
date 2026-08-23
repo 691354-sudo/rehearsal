@@ -82,6 +82,7 @@ export function PracticePage(props: {
       onCheck={props.onCheck}
       onEdit={setEditingItem}
       onSelection={(scope, cards) => props.onRoute({ ...props.route, cards, scope: scope === "custom" ? "library" : "due", review: null }, "replace")}
+      onOrder={(order) => props.onRoute({ ...props.route, order }, "replace")}
       onListenMode={() => props.onRoute({ ...props.route, mode: "listen", scope: "library", review: null })}
       onListened={props.onListened}
       onManualReviewStarted={() => props.onRoute({ ...props.route, review: null }, "replace")}
@@ -89,6 +90,7 @@ export function PracticePage(props: {
       onPlay={props.onPlay}
       onPlayback={props.onPlayback}
       onTopic={onTopic}
+      order={props.route.order}
       selectedTopicItems={selectedTopicItems}
       scope={props.route.scope === "library" ? "custom" : "due"}
       topicId={props.route.topic}
@@ -101,9 +103,10 @@ export function PracticePage(props: {
       onEdit={setEditingItem} onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
       onPlayPrepared={props.onPlayPrepared} onPrepareAudio={props.onPrepareAudio}
       onSelection={(scope, cards) => props.onRoute({ ...props.route, cards, scope: scope === "custom" ? "library" : "due" }, "replace")}
+      onOrder={(order) => props.onRoute({ ...props.route, order }, "replace")}
       onPlayback={props.onPlayback} onResume={props.onResumePlayback} onStop={props.onStopPlayback}
       onTopic={onTopic}
-      playback={props.playback} selectedTopicItems={selectedTopicItems} scope={props.route.scope === "library" ? "custom" : "due"}
+      playback={props.playback} selectedTopicItems={selectedTopicItems} order={props.route.order} scope={props.route.scope === "library" ? "custom" : "due"}
       topicId={props.route.topic} topics={topics} voices={props.voices} />}
     {editingItem ? <CardEditorDialog item={editingItem} language={props.language} onClose={() => setEditingItem(null)}
       onSaved={(item) => { props.onItemUpdated(item); setEditingItem(null); }} /> : null}

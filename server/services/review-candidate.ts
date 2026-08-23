@@ -7,7 +7,7 @@ import { aiLimits } from "./ai-limits.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import { generatedMaterialSchema, materialInstructions, toCandidate } from "./material-generation.js";
 
-type CandidateDraft = Pick<ReviewCandidate, "target" | "cue" | "note" | "category">;
+type CandidateDraft = Partial<Pick<ReviewCandidate, "target" | "cue" | "note" | "category">>;
 
 export async function reviseReviewCandidate(input: {
   client: OpenAI | null;
@@ -28,13 +28,19 @@ export async function reviseReviewCandidate(input: {
     : input.instruction === "feedback"
       ? "Revise only this candidate using the supplied learner feedback. Preserve the intended meaning and return exactly one item."
       : "Replace the candidate with a better natural personal version that keeps the intended focus and meaning. Return exactly one item.";
+  const draft = input.draft ? {
+    target: input.draft.target?.trim() || original.target,
+    cue: input.draft.cue?.trim() || original.cue,
+    note: input.draft.note?.trim() ?? original.note,
+    category: input.draft.category?.trim() ?? original.category,
+  } : {};
   const response = await input.client.responses.parse({
     model: config.balancedModel,
     reasoning: { effort: "low" },
     instructions: materialInstructions(input.learner, batch.language, task),
     input: JSON.stringify({
       batchTitle: batch.title,
-      original: { ...original, ...input.draft },
+      original: { ...original, ...draft },
       feedback: input.feedback?.trim() || undefined,
     }),
     text: { format: zodTextFormat(generatedMaterialSchema, "replacement_candidate") },

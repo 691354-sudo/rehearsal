@@ -64,8 +64,10 @@ export function TopicProgressPicker({ onChange, progressPill = false, topics, va
         <ChevronDown aria-hidden="true" size={15} />
       </span>
     </button>
-    {open ? <div aria-label="Topic" className="topic-progress-options" id={listboxId} onBlur={(event) => {
-      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+    {open ? <div aria-label="Topic" className="topic-progress-options" id={listboxId} onBlur={() => {
+      window.requestAnimationFrame(() => {
+        if (!rootRef.current?.contains(document.activeElement)) setOpen(false);
+      });
     }} onKeyDown={navigate} role="listbox">
       <button aria-selected={!value} onClick={() => choose("")} role="option" type="button">
         <span><strong>All Topics</strong><small>{topics.length} topics</small></span>{!value ? <Check aria-hidden="true" size={15} /> : null}

@@ -219,7 +219,12 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const params = z.object({ batchId: z.string().uuid(), candidateId: z.string().uuid() }).parse(request.params);
     const body = z.object({
       feedback: z.string().trim().min(1).max(1_000),
-      candidate: reviewCandidateSelectionSchema.omit({ id: true }),
+      candidate: z.object({
+        target: z.string().max(2_000),
+        cue: z.string().max(2_000),
+        note: z.string().max(2_000),
+        category: z.string().max(80),
+      }),
     }).parse(request.body);
     const batch = await openai.reviseCandidate({
       batchPublicId: params.batchId,

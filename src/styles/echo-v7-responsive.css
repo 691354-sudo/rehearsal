@@ -84,6 +84,8 @@
   }
 
   .listen-selection-grid,
+  .listen-selection-grid.has-order,
+  .recall-setup-fields.has-order,
   .recall-setup-fields {
     grid-template-columns: 1fr;
     max-width: none;

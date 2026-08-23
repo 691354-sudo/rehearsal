@@ -10,7 +10,7 @@ import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { LearningProgressBadge } from "../progress/LearningProgress";
 import { TopicProgressPicker } from "./TopicProgressPicker";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
-import type { PracticeCardCount } from "../../lib/appRoute";
+import type { PracticeCardCount, PracticeOrder } from "../../lib/appRoute";
 
 const formatInterval = (seconds?: number) => {
   if (seconds === undefined) return "";
@@ -33,12 +33,13 @@ export function RecallSession(props: {
   listeningAvailable: boolean;
   manualReviewItemId: string | null;
   recommended: { due: number; new: number };
-  selectedTopicItems: Set<string> | null;
+  selectedTopicItems: readonly string[] | null;
   topics: IslandSummary[];
   topicId: string;
   onAnswer: (itemId: string, value: string) => void;
   onCheck: (itemId: string) => void;
   onSelection: (scope: PracticeScope, count: PracticeCardCount) => void;
+  onOrder: (order: PracticeOrder) => void;
   onEdit: (item: LearningItem) => void;
   onListenMode: () => void;
   onListened: (itemId: string) => Promise<void>;
@@ -47,6 +48,7 @@ export function RecallSession(props: {
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<unknown>;
   onPlayback: (playback: PlaybackPreferences) => void;
   onTopic: (topicId: string) => void;
+  order: PracticeOrder;
   playback: PlaybackPreferences;
   scope: PracticeScope;
   voices: string[];
@@ -63,7 +65,8 @@ export function RecallSession(props: {
     props.selectedTopicItems,
     props.count === "all" ? "all" : Number(props.count),
     props.scope,
-  ), [props.count, props.dueItemIds, props.scope, props.selectedTopicItems, sourceItems]);
+    props.order,
+  ), [props.count, props.dueItemIds, props.order, props.scope, props.selectedTopicItems, sourceItems]);
   const current = props.items.find((item) => item.publicId === state.queue[0]);
   const attempt = current ? props.attempts[current.publicId] || { answer: "" } : { answer: "" };
 
@@ -106,7 +109,7 @@ export function RecallSession(props: {
   if (state.phase === "setup") return <div className="practice-ready-layout">
     <section className="recall-setup" aria-label="Recall setup">
       {props.manualReviewItemId ? <><p className="recall-manual-label">Manual review · stays Learned</p>{startButton}</> : <>
-        <div className="recall-setup-fields">
+        <div className={`recall-setup-fields${props.scope === "custom" ? " has-order" : ""}`}>
           <label><span className="simple-visually-hidden">Topic</span><TopicProgressPicker onChange={props.onTopic} progressPill topics={props.topics} value={props.topicId} /></label>
           <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" className="practice-card-select" name="recall-count" onChange={(event) => {
             const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
@@ -115,6 +118,10 @@ export function RecallSession(props: {
             <option value="due:all">All recommended</option><option value="due:10">10 recommended</option><option value="due:20">20 recommended</option><option value="due:50">50 recommended</option>
             <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
           </select></label>
+          {props.scope === "custom" ? <label><span className="simple-visually-hidden">Order</span><select aria-label="Card order" className="practice-order-select"
+            name="recall-order" onChange={(event) => props.onOrder(event.target.value as PracticeOrder)} value={props.order}>
+            <option value="original">{props.topicId ? "Original order" : "Oldest first"}</option><option value="newest">Newest first</option>
+          </select></label> : null}
           {startButton}
         </div>
       </>}
