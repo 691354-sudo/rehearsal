@@ -1,8 +1,11 @@
 .simple-main,
 .simple-main--practice,
-.simple-main--notebook,
-.simple-main--chat {
+.simple-main--notebook {
   width: min(var(--col), calc(100% - (2 * var(--pad-x))));
+}
+
+.simple-main--chat {
+  width: min(1080px, calc(100% - 48px));
 }
 
 @media (max-width: 720px) {
@@ -263,4 +266,95 @@
 
   .simple-composer-controls { align-items: center; }
   .simple-finish-review { flex-basis: 100%; }
+}
+
+@media (max-width: 720px) {
+  .simple-main--chat {
+    grid-template-rows: 44px minmax(0, 1fr);
+    gap: 8px;
+    width: calc(100% - (2 * var(--pad-x)));
+    height: calc(100dvh - var(--h-header) - var(--h-tabbar) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 12px 0 8px;
+  }
+
+  .simple-tutor-heading {
+    grid-template-areas: "modes actions";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .simple-tutor-heading > h1 {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
+  .simple-tutor-mode {
+    grid-area: modes;
+    justify-self: start;
+    height: 44px;
+    padding: 0;
+  }
+
+  .simple-tutor-mode a {
+    min-width: 78px;
+    min-height: 42px;
+    padding: 0 8px;
+  }
+
+  .simple-tutor-mobile-actions {
+    grid-area: actions;
+    height: 44px;
+  }
+
+  .simple-tutor-mobile-actions button {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .simple-chat {
+    height: 100%;
+    min-height: 0;
+    margin-top: 0;
+  }
+
+  .simple-chat-pane,
+  .simple-chat-messages {
+    min-height: 0;
+  }
+
+  .simple-chat-pane--no-toolbar {
+    grid-template-rows: minmax(0, 1fr) auto auto;
+  }
+
+  .simple-chat-messages {
+    padding: 16px 14px;
+  }
+
+  .simple-composer {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .simple-composer textarea {
+    min-height: 72px;
+  }
+
+  .simple-composer-upload,
+  .simple-app .simple-composer-record,
+  .simple-app .simple-composer-send,
+  .simple-delete-chat {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
 }

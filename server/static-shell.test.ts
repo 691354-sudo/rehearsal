@@ -5,6 +5,7 @@ describe("static app shell fallback", () => {
   it("serves direct client routes", () => {
     expect(shouldServeAppShell({ method: "GET", url: "/practice/listen?lang=en", accept: "text/html" })).toBe(true);
     expect(shouldServeAppShell({ method: "HEAD", url: "/library", accept: "*/*" })).toBe(true);
+    expect(shouldServeAppShell({ method: "GET", url: "/recover?fresh=123", accept: "text/html" })).toBe(true);
   });
 
   it("does not turn missing assets or API routes into HTML", () => {

@@ -7,7 +7,7 @@
 - One isolated SQLite database per registered profile, all using WAL and FTS5. Roman, Oliver, and Zanna keep their stable filenames; invited profiles use UUID filenames.
 - OpenAI is optional at startup. The API reports capability state via `/health` and `/api/config`.
 
-The Vite dev server proxies `/api` and `/health`. In production, Fastify serves `dist`; the installed PWA and API therefore share one origin and the same Vite deployment base path. Direct client routes receive `index.html`, while missing files with an extension return `404` instead of HTML. A stable bootstrap listener unregisters only this app's service worker and reloads once if a hashed script or stylesheet fails to load, recovering a direct phone link from a stale application shell without clearing profile data or pending Capture recordings. Client requests go through one base-path helper, and separate client/API origins are not supported.
+The Vite dev server proxies `/api` and `/health`. In production, Fastify serves `dist`; the installed PWA and API therefore share one origin and the same Vite deployment base path. Direct client routes receive `index.html`, while missing files with an extension return `404` instead of HTML. A stable bootstrap listener sends a failed hashed script, stylesheet, or empty mount through the network-only `/recover` route, unregisters only this app's service worker, and restores the original client URL before the fresh bundle starts. A second bootstrap failure shows visible recovery actions instead of a blank shell; neither path clears profile data or pending Capture recordings. Client requests go through one base-path helper, and separate client/API origins are not supported.
 
 ## Delivery targets
 

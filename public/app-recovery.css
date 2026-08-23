@@ -1,0 +1,82 @@
+.app-recovery-fallback {
+  display: grid;
+  min-width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 24px;
+  place-items: center;
+  color: #23211f;
+  background: #ede8e0;
+  font-family: "Golos Text Variable", "Golos Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  box-sizing: border-box;
+}
+
+.app-recovery-card {
+  width: min(420px, 100%);
+  padding: 24px;
+  background: #f8f5f0;
+  border: 1px solid #d5ccc0;
+  border-radius: 12px;
+}
+
+.app-recovery-card > strong {
+  color: #b98f57;
+  font-size: 14px;
+}
+
+.app-recovery-card h1 {
+  margin: 8px 0;
+  font-size: 24px;
+  letter-spacing: -0.03em;
+}
+
+.app-recovery-card p {
+  margin: 0;
+  color: #655e57;
+  line-height: 1.55;
+}
+
+.app-recovery-card div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.app-recovery-card button,
+.app-recovery-card a {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 0 14px;
+  align-items: center;
+  justify-content: center;
+  color: #2a2113;
+  background: #cda56d;
+  border: 1px solid #cda56d;
+  border-radius: 8px;
+  font: 600 14px/1 "Golos Text Variable", "Golos Text", sans-serif;
+  text-decoration: none;
+}
+
+.app-recovery-card a {
+  color: #23211f;
+  background: #e2dbd1;
+  border-color: #d5ccc0;
+}
+
+.app-recovery-card button:focus-visible,
+.app-recovery-card a:focus-visible {
+  outline: 2px solid #b98f57;
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-recovery-fallback { color: #e8e5e1; background: #2a2b2d; }
+  .app-recovery-card { background: #343639; border-color: #474a4e; }
+  .app-recovery-card > strong { color: #d8b57f; }
+  .app-recovery-card p { color: #aba7a2; }
+  .app-recovery-card button { color: #221b10; background: #d8b57f; border-color: #d8b57f; }
+  .app-recovery-card a { color: #e8e5e1; background: #232426; border-color: #474a4e; }
+  .app-recovery-card button:focus-visible,
+  .app-recovery-card a:focus-visible { outline-color: #d8b57f; }
+}

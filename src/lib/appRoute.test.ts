@@ -47,9 +47,14 @@ describe("app routes", () => {
   });
 
   it("uses the configured base path and preserves Tutor threads", () => {
-    const route: AppRoute = { section: "tutor", mode: "chat", thread: "thread one", language: "en", settings: false };
-    expect(serializeAppRoute(route, "/rehearsal")).toBe("/rehearsal/tutor/chat?lang=en&thread=thread+one");
-    expect(parseAppRoute(location("/rehearsal/tutor/chat", "?lang=en&thread=thread+one"), "/rehearsal/")).toEqual(route);
+    const route: AppRoute = { section: "tutor", mode: "chat", thread: "9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4", language: "en", settings: false };
+    expect(serializeAppRoute(route, "/rehearsal")).toBe("/rehearsal/tutor/chat?lang=en&thread=9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4");
+    expect(parseAppRoute(location("/rehearsal/tutor/chat", "?lang=en&thread=9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4"), "/rehearsal/")).toEqual(route);
+  });
+
+  it("discards malformed Tutor thread links", () => {
+    expect(parseAppRoute(location("/rehearsal/tutor/chat", "?lang=en&thread=thread-one"), "/rehearsal/"))
+      .toMatchObject({ section: "tutor", mode: "chat", thread: null });
   });
 
   it("round-trips every route family", () => {

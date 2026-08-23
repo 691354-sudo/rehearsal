@@ -76,6 +76,11 @@ const routePath = (location: Pick<Location, "pathname">, baseUrl: string) => {
 };
 
 const valueOrNull = (params: URLSearchParams, key: string) => params.get(key)?.trim() || null;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const uuidOrNull = (params: URLSearchParams, key: string) => {
+  const value = valueOrNull(params, key);
+  return value && uuidPattern.test(value) ? value : null;
+};
 
 export function parseAppRoute(
   location: Pick<Location, "pathname" | "search">,
@@ -94,7 +99,7 @@ export function parseAppRoute(
     return {
       section: "tutor",
       mode: path.endsWith("notebook") ? "notebook" : "chat",
-      thread: path.endsWith("chat") ? valueOrNull(params, "thread") : null,
+      thread: path.endsWith("chat") ? uuidOrNull(params, "thread") : null,
       language,
       settings,
     };
