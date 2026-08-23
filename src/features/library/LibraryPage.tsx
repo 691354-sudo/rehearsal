@@ -305,7 +305,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
         {displayedItems.map((item) => <article className={`simple-phrase-row${selectionMode ? " is-selecting" : ""}${selectedItemIds.has(item.publicId) ? " is-selected" : ""}`} key={item.publicId}>
           {selectionMode ? <label className="simple-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} name={`select-card-${item.publicId}`}
             disabled={deletingSelected} onChange={() => toggleItem(item.publicId)} type="checkbox" /></label> : null}
-          <div className="simple-phrase-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><small lang="ru">{item.cue}</small></div>
+          <div className="simple-phrase-copy-shell"><div className="simple-phrase-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><small lang="ru">{item.cue}</small></div></div>
           <div className="simple-row-actions"><LearningStageBadge stage={item.progress.stage} />
               {languageHasAudio(language) ? <button aria-label="Play" onClick={() => {
                 void onPlay(item.target).then(() => onListened(item.publicId));
