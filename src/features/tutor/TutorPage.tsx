@@ -30,7 +30,8 @@ import { languageCopy, languageHasAudio } from "../../shared/config";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
 import { TutorChatMessage } from "./TutorChatMessage";
 import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimisticMessages";
-
+import { tutorComposerMinimumHeight, useTutorComposerHeight } from "./useTutorComposerHeight";
+import { clearMissingTutorThread } from "./tutorThreadRecovery";
 const looksLikeVocabList = (content: string) => {
   const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   return lines.length >= 5 && lines.reduce((sum, line) => sum + line.split(/\s+/).length, 0) / lines.length <= 8;
@@ -79,8 +80,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const [recording, setRecording] = useState(false); const [transcribing, setTranscribing] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0); const [voiceError, setVoiceError] = useState("");
   const [pendingVoice, setPendingVoice] = useState<PendingTutorRecording | null>(null);
-  const [composerHeight, setComposerHeight] = useState(104);
-  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia("(max-width: 720px)").matches);
+  const { composerHeight, isNarrow, setComposerHeight } = useTutorComposerHeight();
   const scrollIntentRef = useRef<"instant" | "smooth" | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null); const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingIntervalRef = useRef<number | null>(null); const recordingTimeoutRef = useRef<number | null>(null);
@@ -148,6 +148,12 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     if (!threadId) { setMessages([]); return; }
     setLoadingThread(true);
     void apiFetch(`/api/chat/${threadId}/messages`).then(async (response) => {
+      if (response.status === 404) {
+        if (!cancelled) {
+          clearMissingTutorThread(window.localStorage, storageKey, threadId);
+          setMessages([]); onRoute({ ...route, thread: null }, "replace");
+        } return null;
+      }
       if (!response.ok) throw new Error("Could not load session");
       const data = await response.json() as { messages: Array<{ role: "user" | "assistant"; content: string }> };
       if (cancelled) return;
@@ -165,12 +171,6 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     if (draft) window.sessionStorage.setItem(draftKey, draft);
     else window.sessionStorage.removeItem(draftKey);
   }, [draft, draftKey]);
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 720px)");
-    const update = () => setIsNarrow(media.matches);
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
   useEffect(() => {
     if (!sessionsOpen || !isNarrow) return;
     window.requestAnimationFrame(() => sessionsRailRef.current?.querySelector<HTMLElement>("button, a[href]")?.focus());
@@ -341,7 +341,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   };
   const resizeComposer = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const start = resizeStartRef.current;
-    if (start) setComposerHeight(Math.max(104, Math.round(start.height + start.clientY - event.clientY)));
+    if (start) setComposerHeight(Math.max(tutorComposerMinimumHeight(isNarrow), Math.round(start.height + start.clientY - event.clientY)));
   };
   const finishComposerResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     resizeStartRef.current = null;
@@ -391,10 +391,10 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
           </AppLink>)}
         </section>)}</nav>
       </aside>
-      <div className="simple-chat-pane">
-        <div className="simple-chat-toolbar"><strong>{currentThread?.title || "New chat"}</strong>
+      <div className={`simple-chat-pane${!threadId && isNarrow ? " simple-chat-pane--no-toolbar" : ""}`}>
+        {threadId || !isNarrow ? <div className="simple-chat-toolbar"><strong>{currentThread?.title || "New chat"}</strong>
           {threadId ? <div><button aria-label="Delete chat" className="simple-delete-chat" disabled={deletingThread || sending || reviewing}
-              onClick={() => void deleteChat()} title="Delete chat" type="button">{deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}</button></div> : null}</div>
+              onClick={() => void deleteChat()} title="Delete chat" type="button">{deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}</button></div> : null}</div> : null}
         <div aria-busy={sending || loadingThread} aria-live="polite" className="simple-chat-messages" ref={messagesRef} role="log">
           {!messages.length && !loadingThread && !sending ? <div className="simple-chat-empty"><strong>Start with something from real life</strong>
             <span>Ask Tutor to use your Library, correct a message, or make a short speaking drill.</span><div>
@@ -423,7 +423,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             placeholder="Message your tutor…" ref={composerRef} rows={2} style={{ height: `${composerHeight}px` }} value={draft} />
             <button aria-label="Resize message field" className="simple-composer-resize" onKeyDown={(event) => {
               if (event.key === "ArrowUp") { event.preventDefault(); setComposerHeight((height) => height + 40); }
-              if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(104, height - 40)); }
+              if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(tutorComposerMinimumHeight(isNarrow), height - 40)); }
             }} onPointerCancel={finishComposerResize} onPointerDown={beginComposerResize} onPointerMove={resizeComposer}
               onPointerUp={finishComposerResize} title="Drag up to enlarge" type="button"><MoveDiagonal2 size={14} /></button></div>
           <div className="simple-composer-controls"><div className="simple-composer-tools">

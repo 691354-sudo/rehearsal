@@ -39,7 +39,9 @@ native-only requirement.
   from that base path.
 - Direct Practice, Tutor, and Library links must load the application shell. A
   missing hashed asset must fail as an asset and trigger the one-shot app-shell
-  recovery path instead of receiving `index.html` with a successful status.
+  recovery path instead of receiving `index.html` with a successful status. The
+  `/recover` navigation stays network-only, restores the original client URL,
+  and shows manual recovery actions if the fresh application still cannot mount.
 - Treat useful UI state as navigation state. Practice mode and selection, Tutor
   mode/thread, Library filters/page, Topics, Settings, Import, and Card Editor
   use stable routes or query parameters so reload and Back/Forward recover the

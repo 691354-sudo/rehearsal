@@ -1,12 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { pwaPathPatterns } from "./pwa-paths.js";
 
 const configuredBase = process.env.VITE_BASE_PATH || "/";
-const base = configuredBase.endsWith("/") ? configuredBase : `${configuredBase}/`;
-const escapedBase = base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const privatePathPattern = new RegExp(`^${escapedBase}(?:api(?:/|$)|health$)`);
-const privateUrlPattern = new RegExp(`^https?://[^/]+${escapedBase}(?:api(?:/|$)|health(?:[?#]|$))`);
+const { base, privatePathPattern, privateUrlPattern, recoveryPathPattern } = pwaPathPatterns(configuredBase);
 
 export default defineConfig({
   base,
@@ -34,7 +32,7 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{html,js,css,woff2,png,svg}"],
-        navigateFallbackDenylist: [privatePathPattern],
+        navigateFallbackDenylist: [privatePathPattern, recoveryPathPattern],
         runtimeCaching: [{
           urlPattern: privateUrlPattern,
           handler: "NetworkOnly",
