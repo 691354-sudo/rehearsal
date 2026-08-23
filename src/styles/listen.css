@@ -159,7 +159,11 @@
   border-radius: 12px;
 }
 
-.practice-queue-preview--listen .practice-queue-index { display: none; }
+.practice-queue-preview--listen .practice-queue-index {
+  top: 17px;
+  display: block;
+  transform: none;
+}
 
 .practice-queue-preview--listen .practice-queue-copy > .learning-progress {
   display: inline-flex;

@@ -621,3 +621,11 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 .simple-main--notebook {
   width: min(var(--col), calc(100% - (2 * var(--pad-x))));
 }
+
+@media (min-width: 901px) {
+  .simple-main--practice,
+  .simple-main--notebook,
+  .simple-workspace--library .simple-main {
+    width: min(1080px, calc(100% - 48px));
+  }
+}
