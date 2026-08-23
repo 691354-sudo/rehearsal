@@ -220,7 +220,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: min(var(--col), 100%);
+  width: 100%;
   min-height: 64px;
   margin: 0 auto;
   padding: 12px 20px;
@@ -260,7 +260,7 @@
 }
 
 .practice-ready-layout {
-  width: min(var(--col), 100%);
+  width: 100%;
   gap: 20px;
 }
 

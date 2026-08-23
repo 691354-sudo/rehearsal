@@ -309,7 +309,6 @@
 .simple-main--notebook {
   display: flex;
   flex-direction: column;
-  width: min(1080px, calc(100% - 48px));
   min-height: calc(100dvh - 58px);
   padding-bottom: 24px;
 }
