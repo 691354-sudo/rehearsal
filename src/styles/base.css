@@ -171,9 +171,10 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 .simple-app select,
 .simple-app textarea { touch-action: manipulation; }
 
+.simple-app::selection,
 .simple-app ::selection {
-  color: var(--ink);
-  background: var(--accent-wash);
+  color: var(--rh-canvas);
+  background: var(--rh-ink);
 }
 
 .simple-app input,

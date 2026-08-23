@@ -341,12 +341,6 @@
 .simple-message > span { font-size: 12px; font-weight: 500; }
 .simple-message--user > span { display: none; }
 
-.simple-message::selection,
-.simple-message ::selection {
-  color: var(--rh-canvas);
-  background: var(--rh-ink);
-}
-
 .simple-message--assistant {
   width: min(780px, 92%);
   padding: 0;
