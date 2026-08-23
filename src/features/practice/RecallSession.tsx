@@ -66,7 +66,8 @@ export function RecallSession(props: {
     props.count === "all" ? "all" : Number(props.count),
     props.scope,
     props.order,
-  ), [props.count, props.dueItemIds, props.order, props.scope, props.selectedTopicItems, sourceItems]);
+    props.recommended.new,
+  ), [props.count, props.dueItemIds, props.order, props.recommended.new, props.scope, props.selectedTopicItems, sourceItems]);
   const current = props.items.find((item) => item.publicId === state.queue[0]);
   const attempt = current ? props.attempts[current.publicId] || { answer: "" } : { answer: "" };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultLibraryRoute, parseAppRoute, serializeAppRoute, type AppRoute } from "./appRoute";
+import { defaultLibraryRoute, defaultPracticeRoute, parseAppRoute, serializeAppRoute, type AppRoute } from "./appRoute";
 
 const location = (pathname: string, search = "") => ({ pathname, search }) as Location;
 
@@ -28,6 +28,14 @@ describe("app routes", () => {
       .toMatchObject({ section: "practice", mode: "listen", scope: "library" });
     expect(parseAppRoute(location("/practice/listen", "?lang=en&scope=due"), "/"))
       .toMatchObject({ section: "practice", mode: "listen", scope: "due" });
+  });
+
+  it("opens the application root in Listen & Repeat when audio is available", () => {
+    expect(parseAppRoute(location("/rehearsal/", "?lang=en"), "/rehearsal/"))
+      .toMatchObject({ section: "practice", mode: "listen", scope: "library" });
+    expect(defaultPracticeRoute("en")).toMatchObject({ mode: "listen", scope: "library" });
+    expect(parseAppRoute(location("/rehearsal/", "?lang=lv"), "/rehearsal/"))
+      .toMatchObject({ section: "practice", mode: "recall", scope: "due" });
   });
 
   it("parses Library state and discards invalid values", () => {

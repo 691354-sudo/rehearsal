@@ -226,7 +226,8 @@ export class PracticeRepository {
     const fresh = freshLimit ? this.db.prepare(
       `${select}
        WHERE i.language_code = ? AND i.practice_enabled = 1 AND r.due_at IS NULL
-       ORDER BY CASE i.preference WHEN 'like' THEN 0 WHEN 'neutral' THEN 1 ELSE 2 END,
+       ORDER BY COALESCE(a.listen_count, 0) DESC,
+                CASE i.preference WHEN 'like' THEN 0 WHEN 'neutral' THEN 1 ELSE 2 END,
                 i.commonness DESC, i.persona_fit DESC, i.created_at
        LIMIT ?`,
     ).all(language, freshLimit) as DueItemRow[] : [];

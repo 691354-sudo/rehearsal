@@ -123,7 +123,10 @@ export function parseAppRoute(
   const count = params.get("cards") as PracticeCardCount;
   const order = params.get("order") as PracticeOrder;
   const review = valueOrNull(params, "review");
-  const mode = path === "practice/listen" && languageHasAudio(language) ? "listen" : "recall";
+  const defaultMode = languageHasAudio(language) ? "listen" : "recall";
+  const requestedMode = path === "practice/recall" ? "recall"
+    : path === "practice/listen" ? "listen" : defaultMode;
+  const mode = requestedMode === "listen" && languageHasAudio(language) ? "listen" : "recall";
   const requestedScope = params.get("scope");
   return {
     section: "practice",
@@ -182,17 +185,20 @@ export function navigate(route: AppRoute, historyMode: HistoryMode = "push", bas
   return true;
 }
 
-export const defaultPracticeRoute = (language: Language): PracticeRoute => ({
-  section: "practice",
-  mode: "recall",
-  scope: "due",
-  topic: "",
-  cards: "all",
-  order: "newest",
-  review: null,
-  language,
-  settings: false,
-});
+export const defaultPracticeRoute = (language: Language): PracticeRoute => {
+  const mode = languageHasAudio(language) ? "listen" : "recall";
+  return {
+    section: "practice",
+    mode,
+    scope: mode === "listen" ? "library" : "due",
+    topic: "",
+    cards: "all",
+    order: "newest",
+    review: null,
+    language,
+    settings: false,
+  };
+};
 
 export const defaultTutorRoute = (language: Language): TutorRoute => ({
   section: "tutor",

@@ -10,6 +10,7 @@ import {
 } from "../../../contracts/api";
 import { RehearsalApp } from "../../app/RehearsalApp";
 import { EchoLockup } from "../../app/EchoBrand";
+import { defaultPracticeRoute, serializeAppRoute } from "../../lib/appRoute";
 import { apiFetch, setCsrfToken } from "../../shared/api";
 
 export function ProfileGate() {
@@ -98,7 +99,7 @@ export function ProfileGate() {
         return;
       }
       const session = await response.json() as AuthSession;
-      window.history.replaceState(null, "", `${import.meta.env.BASE_URL}practice/recall?lang=${joinLanguage}`);
+      window.history.replaceState(null, "", serializeAppRoute(defaultPracticeRoute(joinLanguage), import.meta.env.BASE_URL));
       applySession(session);
       setPin("");
     } catch {
