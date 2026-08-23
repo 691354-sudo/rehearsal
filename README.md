@@ -46,6 +46,7 @@ CONFIRM_RESTORE=1 npm run db:restore -- --profile roman /absolute/path/to/backup
 OPENAI_API_KEY= ELEVENLABS_API_KEY= npm test
 npm run build
 npm run check:architecture
+npm run check:styles
 ```
 
 Once a profile registry exists, a missing registered database stops startup and requires restoring that named profile. It is never silently recreated or copied from legacy data. Schema changes run once and are recorded in `schema_migrations`.

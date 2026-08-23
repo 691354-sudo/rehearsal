@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   LoaderCircle,
   Mic,
@@ -375,8 +375,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         <button onClick={() => setSessionsOpen(true)} ref={sessionsButtonRef} type="button"><PanelLeft size={16} />Sessions</button>
         <button aria-label="New chat" onClick={newChat} title="New chat" type="button"><Plus size={17} /></button>
       </div> : null}</header>
-    {mode === "notebook" ? <CaptureNotebook language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat"
-      style={{ "--tutor-composer-height": `${composerHeight}px` } as CSSProperties}>
+    {mode === "notebook" ? <CaptureNotebook language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={closeSessions} type="button" /> : null}
       <aside aria-hidden={isNarrow && !sessionsOpen ? "true" : undefined} className={`simple-session-rail ${sessionsOpen ? "is-open" : ""}`}
         inert={isNarrow && !sessionsOpen} ref={sessionsRailRef}>

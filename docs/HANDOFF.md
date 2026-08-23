@@ -37,6 +37,7 @@ npm install
 OPENAI_API_KEY= ELEVENLABS_API_KEY= npm test
 npm run build
 npm run check:architecture
+npm run check:styles
 ```
 
 The focused API suites cover authorization, profile isolation, Practice, Tutor, Capture and Review, uploads, and audio. Browser acceptance covers Roman and Oliver login, switching, Practice, Tutor, Library, Notebook, visible connection failure, and recovery. A real iPhone remains required for Safari/Home Screen relaunch, microphone persistence, software-keyboard, and locked-screen audio checks described in [MOBILE_APP_DIRECTION.md](MOBILE_APP_DIRECTION.md).

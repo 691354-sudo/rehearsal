@@ -14,6 +14,7 @@
     "start": "node --import tsx server/index.ts",
     "build": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit && vite build",
     "check:architecture": "node scripts/check-architecture.mjs",
+    "check:styles": "node scripts/check-styles.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",

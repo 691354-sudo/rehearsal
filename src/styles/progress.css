@@ -6,44 +6,37 @@
 
 .learning-progress {
   display: inline-flex;
-  gap: 10px;
   align-items: center;
 }
 
 .learning-stage {
   width: max-content;
-  padding: 3px 8px;
-  border: 1px solid currentColor;
   border-radius: 999px;
-  color: var(--script-support);
-  font-size: 13px;
-  font-weight: 550;
-  line-height: 1.2;
 }
 
 .learning-stage[data-stage="new"] { color: var(--script-support); }
+
 .learning-stage[data-stage="learning"] { color: var(--retry); }
+
 .learning-stage[data-stage="due"] { color: var(--rehearsal-note); }
+
 .learning-stage[data-stage="strong"],
 .learning-stage[data-stage="learned"] { color: var(--learned); }
 
 .learning-counts {
   display: inline-flex;
-  gap: 10px;
   align-items: center;
-  color: var(--script-support);
-  font-size: 12px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .learning-counts > span {
   display: inline-flex;
-  gap: 6px;
   align-items: center;
 }
 
 .topic-progress { display: grid; gap: 5px; }
+
 .topic-progress small { color: var(--script-support); font-size: 11px; }
 
 .topic-progress-bar {
@@ -56,10 +49,15 @@
 }
 
 .topic-progress-bar i[data-stage="new"] { background: var(--script-support); }
+
 .topic-progress-bar i[data-stage="learning"] { background: var(--rehearsal-note); }
+
 .topic-progress-bar i[data-stage="due"] { background: var(--retry); }
+
 .topic-progress-bar i[data-stage="strong"] { background: var(--learned); }
+
 .topic-progress-bar i[data-stage="learned"] { background: var(--script-tertiary); }
+
 .topic-progress-bar i[data-stage="empty"] { width: 100%; }
 
 .topic-progress-picker { position: relative; min-width: 0; }
@@ -79,8 +77,11 @@
 }
 
 .topic-progress-trigger-copy { display: grid; gap: 2px; min-width: 0; }
+
 .topic-progress-trigger-end { display: flex; flex: none; gap: 10px; align-items: center; }
+
 .topic-progress-trigger strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .topic-progress-trigger small { color: var(--script-support); }
 
 .topic-progress-options {
@@ -112,17 +113,402 @@
 }
 
 .topic-progress-options > button > span { display: grid; gap: 5px; min-width: 0; }
+
 .topic-progress-options > button[aria-selected="true"] {
   color: var(--script-ink);
   box-shadow: inset 3px 0 var(--cue-action);
 }
 
 .answer-diff { display: grid; gap: 6px; margin-top: 10px; }
+
 .answer-diff p { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 8px; margin: 0; }
+
 .answer-diff p > small { padding-top: 2px; color: var(--script-support); font-size: 13px; font-weight: 550; }
+
 .answer-diff p > span { display: flex; flex-wrap: wrap; gap: 0 0.3em; line-height: 1.55; }
+
 .answer-diff del { color: color-mix(in srgb, var(--retry) 70%, transparent); text-decoration-thickness: 1px; }
+
 .answer-diff mark { padding: 0; color: inherit; background: transparent; }
+
 .answer-diff-missing { color: var(--retry) !important; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
 .answer-diff-changed { color: color-mix(in srgb, var(--retry) 70%, transparent); text-decoration: line-through; text-decoration-thickness: 1px; }
+
 .answer-diff button { width: 36px; min-width: 36px; height: var(--h-tap); min-height: var(--h-tap); padding: 0; color: var(--script-support); background: transparent; border: 1px solid var(--script-rule); border-radius: 7px; }
+
+@media (max-width: 900px) {
+
+  .simple-main--practice {
+    width: min(var(--col), calc(100% - 32px));
+  }
+}
+
+@media (max-width: 720px) {
+
+  .simple-main--practice {
+    width: calc(100% - 20px);
+  }
+
+  .simple-practice-toolbar {
+    gap: 12px;
+  }
+
+  .simple-practice-title {
+    gap: 10px;
+  }
+
+  .simple-practice-toolbar h1 {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+
+  .simple-practice-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: center;
+  }
+
+  .simple-practice-title,
+  .simple-feed-tools {
+    justify-content: space-between;
+  }
+}
+
+.recall-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.recall-card::before {
+  position: absolute;
+  content: "";
+  background: var(--cue-action);
+}
+
+@media (max-width: 720px) {
+  .practice-queue-index { top: 19px; }
+}
+
+.simple-app button:disabled,
+.simple-app .simple-primary:disabled {
+  color: var(--rh-faint);
+  background: var(--rh-inset);
+  border-color: transparent;
+  opacity: 0.55;
+}
+
+.simple-primary {
+  border-radius: 8px;
+}
+
+.practice-header {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.practice-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+}
+
+.practice-control-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(var(--col), 100%);
+  min-height: 64px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  background: var(--rh-surface);
+  border: 1px solid var(--rh-rule);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+}
+
+.practice-control-header > p {
+  margin: 0;
+  color: var(--rh-faint);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.practice-modes {
+  display: flex;
+  grid-column: auto;
+  gap: 2px;
+  padding: 3px;
+  background: var(--rh-inset);
+  border: 0;
+  border-radius: 8px;
+}
+
+.practice-modes a {
+  min-height: var(--h-chip);
+  padding: 0 12px;
+  border-radius: 7px;
+}
+
+.practice-modes a.is-active {
+  color: var(--rh-ink);
+  background: var(--rh-raised);
+  border-color: transparent;
+}
+
+.practice-ready-layout {
+  width: min(var(--col), 100%);
+  gap: 20px;
+}
+
+.practice-control-header + .practice-ready-layout > :first-child {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.recall-setup { min-height: 0; }
+
+.recall-setup-fields {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.recall-setup-fields.has-order {
+  grid-template-columns: minmax(140px, 1fr) minmax(160px, 1fr) minmax(140px, 0.8fr) auto;
+}
+
+.recall-start {
+  min-height: var(--h-tap);
+  height: var(--h-tap);
+  padding: 0 12px;
+  color: var(--rh-ink);
+  background: var(--rh-inset);
+  border: 1px solid var(--rh-rule);
+}
+
+.practice-queue-preview {
+  width: 100%;
+  border-top: 1px solid var(--rh-rule) !important;
+}
+
+.practice-queue-preview > header {
+  min-height: 54px;
+  padding: 12px 20px;
+}
+
+.practice-queue-preview > header strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.practice-queue-preview > header span {
+  font-size: 13px;
+}
+
+.practice-queue-preview li {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 72px;
+  padding: 12px 20px;
+}
+
+.practice-queue-index {
+  top: 50%;
+  left: 20px;
+  width: 24px;
+  font-size: 13px;
+  text-align: right;
+  transform: translateY(-50%);
+}
+
+.practice-queue-index::after { content: ""; }
+
+.practice-queue-preview li:has(.practice-inline-recall) .practice-queue-index {
+  top: 16px;
+  transform: none;
+}
+
+.practice-queue-preview li p {
+  padding-inline-start: 44px;
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.practice-queue-copy > span {
+  margin-top: 2px;
+  padding-inline-start: 44px;
+  color: var(--rh-support);
+  font-size: 14px;
+}
+
+.practice-queue-side {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 8px;
+  align-items: center;
+}
+
+.practice-queue-actions {
+  flex-wrap: nowrap;
+  gap: 4px;
+  max-width: none;
+  padding: 0;
+}
+
+.practice-queue-actions button,
+.recall-natural-row button {
+  width: 32px;
+  min-width: 32px;
+  height: var(--h-chip);
+  min-height: var(--h-chip);
+  border-radius: 8px;
+}
+
+.learning-progress {
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.learning-stage {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  color: var(--rh-accent);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  background: var(--rh-wash);
+  border: 0;
+}
+
+.learning-stage[data-stage="new"],
+.learning-stage[data-stage="learning"],
+.learning-stage[data-stage="due"],
+.learning-stage[data-stage="strong"] { color: var(--rh-accent); }
+
+.learning-stage[data-stage="learned"] {
+  color: var(--rh-learned);
+  background: color-mix(in srgb, var(--rh-learned) 14%, transparent);
+}
+
+.learning-counts {
+  gap: 8px;
+  color: var(--rh-faint);
+  font-size: 12px;
+}
+
+.learning-counts > span { gap: 3px; }
+
+.recall-card {
+  padding: 32px;
+  border-top: 1px solid var(--rh-rule) !important;
+}
+
+.recall-card > .learning-progress { display: none; }
+
+.recall-card::before {
+  width: 2px;
+  height: auto;
+  inset: 0 auto 0 0;
+}
+
+.recall-cue {
+  margin-right: auto;
+  margin-bottom: 24px;
+  margin-left: auto;
+  font-size: clamp(26px, 3vw, 31px);
+  text-align: center;
+}
+
+.recall-answer-row { align-items: center; }
+
+.recall-answer-row textarea {
+  height: var(--h-control);
+  min-height: var(--h-control);
+  padding: 9px 12px;
+  overflow: hidden;
+  field-sizing: fixed;
+}
+
+.recall-answer-row .recall-check {
+  color: var(--rh-on-accent);
+  background: var(--rh-accent);
+  border-color: var(--rh-accent);
+}
+
+.recall-answer-row .recall-check:disabled {
+  color: var(--rh-faint);
+  background: var(--rh-inset);
+  border-color: transparent;
+}
+
+.recall-result > span { color: var(--rh-faint); }
+
+@media (max-width: 720px) {
+
+  .practice-control-header {
+    display: block;
+    padding: 12px 16px;
+  }
+
+  .practice-header,
+  .practice-control-header > p { display: none; }
+
+  .practice-modes { width: 100%; }
+
+  .practice-modes a { min-height: var(--h-control); flex: 1; }
+
+  .practice-queue-preview li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    padding: 12px 16px;
+  }
+
+  .practice-queue-index { left: 16px; }
+
+  .practice-queue-preview--recall .practice-queue-side {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .practice-queue-preview--recall .practice-queue-side .learning-progress {
+    position: static;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    margin-inline-start: 36px;
+  }
+
+  .practice-queue-preview--recall .practice-queue-actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .practice-queue-actions button {
+    width: 44px;
+    min-width: 44px;
+    height: var(--h-control);
+    min-height: var(--h-control);
+  }
+
+  .recall-card { padding: 24px 16px; }
+  .recall-cue { font-size: 26px; }
+  .practice-header { margin-bottom: 16px; }
+  .practice-control-header { border-radius: 12px 12px 0 0; }
+
+  .practice-queue-copy > span,
+  .practice-queue-preview li p { padding-inline-start: 36px; }
+}

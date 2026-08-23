@@ -29,7 +29,9 @@
 
 .simple-card-dialog header,
 .simple-card-dialog footer { border-bottom: 1px solid var(--script-rule); }
+
 .simple-card-dialog footer { border-top: 1px solid var(--script-rule); border-bottom: 0; }
+
 .simple-card-dialog header > div { display: grid; gap: 1px; }
 
 .simple-card-dialog h2 {
@@ -40,6 +42,7 @@
 }
 
 .simple-card-dialog header span { color: var(--script-tertiary); font-size: 12px; }
+
 .simple-card-dialog-fields label > span { color: var(--script-tertiary); font-size: 13px; }
 
 .simple-card-dialog header > button {
@@ -94,6 +97,7 @@
 }
 
 .simple-card-dialog-error { margin: 0; color: var(--retry); font-size: 12px; }
+
 .simple-card-more { border-top: 1px solid var(--script-rule); }
 
 .simple-card-more summary {
@@ -108,8 +112,11 @@
 }
 
 .simple-card-more summary::-webkit-details-marker { display: none; }
+
 .simple-card-more[open] summary svg { transform: rotate(180deg); }
+
 .simple-card-more > div { display: grid; gap: 13px; padding-top: 8px; }
+
 .simple-card-dialog footer > div { display: flex; gap: 7px; }
 
 .simple-card-dialog footer button {
@@ -134,4 +141,35 @@
 .simple-card-dialog footer .simple-card-dialog-delete {
   color: var(--retry);
   border-color: transparent;
+}
+
+@media (max-width: 720px) {
+
+  .simple-card-dialog-row {
+    grid-template-columns: 1fr;
+  }
+
+  .simple-card-dialog footer {
+    padding: 12px;
+  }
+}
+
+.simple-card-dialog select { font-size: 14px; }
+
+.recall-answer-row textarea,
+.practice-inline-answer input,
+.simple-composer textarea,
+.capture-note textarea,
+.simple-card-dialog textarea {
+  font-size: max(16px, 1em);
+}
+
+.simple-settings-scroll,
+.simple-card-dialog-fields { overscroll-behavior: contain; }
+
+@media (max-width: 720px) {
+  .simple-import-card .simple-field-label input,
+  .simple-import-card .simple-field-label textarea,
+  .simple-card-dialog select { font-size: 14px; }
+  .simple-card-dialog select { min-height: var(--h-control); }
 }

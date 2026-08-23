@@ -1,17 +1,14 @@
 .simple-settings-overlay {
   position: fixed;
-  inset: 0;
   z-index: 80;
   display: flex;
   justify-content: flex-end;
-  background: rgba(5, 5, 8, 0.58);
 }
 
 .simple-settings-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(480px, 100%);
-  height: 100%;
   height: 100dvh;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -63,7 +60,7 @@
 
 .simple-invite-create {
   width: max-content;
-  color: var(--cue-on-action);
+  color: var(--cue-on);
   background: var(--cue-action);
   border-color: var(--cue-action);
 }
@@ -166,6 +163,7 @@
 }
 
 .simple-settings-footer > span.is-error { color: var(--retry); }
+
 .simple-settings-footer > span.is-saved { color: var(--learned); }
 
 .simple-settings-section {
@@ -616,27 +614,17 @@
 
 .simple-fsrs-toggle button {
   position: relative;
-  width: 34px;
-  height: 20px;
   padding: 0;
-  background: var(--script-rule-strong);
   border: 0;
-  border-radius: 10px;
 }
 
 .simple-fsrs-toggle button i {
   position: absolute;
-  top: 3px;
-  left: 3px;
   width: 14px;
   height: 14px;
   background: var(--script-surface);
   border-radius: 50%;
   transition: transform 120ms ease;
-}
-
-.simple-fsrs-toggle button.is-active {
-  background: var(--cue-action);
 }
 
 .simple-fsrs-toggle button.is-active i {
@@ -677,4 +665,102 @@
 .simple-settings-save:disabled {
   cursor: default;
   opacity: 0.55;
+}
+
+.simple-settings-overlay {
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+}
+
+.simple-settings-overlay:not([open]) { display: none; }
+
+.simple-settings-overlay::backdrop { background: rgb(30 26 22 / 52%); }
+
+.simple-settings-panel {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.simple-settings-panel *,
+.simple-settings-section,
+.simple-settings-scroll { min-width: 0; }
+
+.simple-settings-panel .simple-global-playback,
+.simple-settings-panel .simple-model-choice { grid-template-columns: 1fr; }
+
+.simple-settings-panel .simple-model-choice { align-items: start; }
+
+.simple-settings-panel .simple-global-speed input {
+  width: calc(100% - 8px);
+  height: var(--h-control);
+  margin-right: 4px;
+  margin-left: 4px;
+}
+
+.simple-settings-panel .simple-fsrs-row label,
+.simple-settings-panel .simple-fsrs-details input,
+.simple-settings-panel .simple-new-items-setting input { height: var(--h-control); }
+
+.simple-settings-panel .simple-fsrs-row input,
+.simple-settings-panel .simple-fsrs-details input { font-size: 14px; }
+
+.simple-fsrs-toggle button {
+  width: 44px;
+  height: var(--h-control);
+  background: transparent;
+  border-radius: 8px;
+}
+
+.simple-settings-panel .simple-fsrs-toggle button::after { inset: 0; }
+
+.simple-fsrs-toggle button::before {
+  position: absolute;
+  top: 12px;
+  left: 5px;
+  width: 34px;
+  height: 20px;
+  content: "";
+  background: var(--script-rule-strong);
+  border-radius: 10px;
+}
+
+.simple-fsrs-toggle button.is-active { background: transparent; }
+
+.simple-fsrs-toggle button.is-active::before { background: var(--cue-action); }
+
+.simple-fsrs-toggle button i {
+  top: 15px;
+  left: 8px;
+}
+
+.listen-playback-options .practice-playback-settings {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--rh-inset);
+  border: 1px solid var(--rh-rule);
+  border-radius: 8px;
+}
+
+.recall-session-settings {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+}
+
+.recall-session-playback-settings {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  z-index: 10;
+  width: min(520px, calc(100vw - 32px));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--rh-ink) 18%, transparent);
 }
