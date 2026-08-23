@@ -18,8 +18,8 @@ describe("app routes", () => {
   });
 
   it("parses stable practice state and a manual review", () => {
-    expect(parseAppRoute(location("/rehearsal/practice/recall", "?lang=lv&scope=library&topic=t1&cards=20&review=c1&settings=1"), "/rehearsal/")).toEqual({
-      section: "practice", mode: "recall", scope: "library", topic: "t1", cards: "20", review: "c1", language: "lv", settings: true,
+    expect(parseAppRoute(location("/rehearsal/practice/recall", "?lang=lv&scope=library&topic=t1&cards=20&order=original&review=c1&settings=1"), "/rehearsal/")).toEqual({
+      section: "practice", mode: "recall", scope: "library", topic: "t1", cards: "20", order: "original", review: "c1", language: "lv", settings: true,
     });
   });
 
@@ -46,8 +46,8 @@ describe("app routes", () => {
 
   it("round-trips every route family", () => {
     const routes: AppRoute[] = [
-      { section: "practice", mode: "listen", scope: "library", topic: "topic", cards: "50", review: null, language: "en", settings: true },
-      { section: "practice", mode: "listen", scope: "due", topic: "", cards: "all", review: null, language: "en", settings: false },
+      { section: "practice", mode: "listen", scope: "library", topic: "topic", cards: "50", order: "original", review: null, language: "en", settings: true },
+      { section: "practice", mode: "listen", scope: "due", topic: "", cards: "all", order: "newest", review: null, language: "en", settings: false },
       { section: "tutor", mode: "notebook", thread: null, language: "lv", settings: false },
       { ...defaultLibraryRoute("en"), view: "topics", topic: "topic", page: 2, panel: "create", edit: null },
     ];

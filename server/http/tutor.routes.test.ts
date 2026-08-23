@@ -324,6 +324,20 @@ describe("Tutor and review API", () => {
       expect.objectContaining({ id: first.id, target: first.target }),
       expect.objectContaining({ id: second.id, target: "The revised second card works." }),
     ]);
+
+    const emptyDraft = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batch.publicId}/candidates/${second.id}/revise`,
+      payload: {
+        feedback: "Keep the meaning and make it more natural.",
+        candidate: { target: "", cue: "", note: second.note, category: second.category },
+      },
+    });
+    expect(emptyDraft.statusCode).toBe(200);
+    expect(revise).toHaveBeenLastCalledWith(expect.objectContaining({
+      candidateId: second.id,
+      draft: expect.objectContaining({ target: "", cue: "" }),
+    }));
     await app.close();
   });
 });

@@ -127,6 +127,11 @@
   max-width: 520px;
 }
 
+.listen-selection-grid.has-order {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: none;
+}
+
 .listen-setup-playback { grid-area: playback; }
 
 .listen-start-options { grid-area: footer; }
@@ -163,7 +168,9 @@
 .listen-setup .topic-progress-trigger,
 .recall-setup .topic-progress-trigger,
 .listen-setup .practice-card-select,
-.recall-setup .practice-card-select {
+.recall-setup .practice-card-select,
+.listen-setup .practice-order-select,
+.recall-setup .practice-order-select {
   background-color: var(--rh-surface);
 }
 
@@ -254,6 +261,10 @@
   grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+.recall-setup-fields.has-order {
+  grid-template-columns: minmax(140px, 1fr) minmax(160px, 1fr) minmax(140px, 0.8fr) auto;
 }
 
 .recall-start {

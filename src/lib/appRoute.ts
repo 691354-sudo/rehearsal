@@ -4,6 +4,7 @@ import { isLanguageCode } from "../../contracts/api";
 import { languageHasAudio } from "../shared/config";
 
 export type PracticeCardCount = "all" | "10" | "20" | "50";
+export type PracticeOrder = "original" | "newest";
 export type PracticeScopeRoute = "due" | "library";
 
 type RouteBase = {
@@ -17,6 +18,7 @@ export type PracticeRoute = RouteBase & {
   scope: PracticeScopeRoute;
   topic: string;
   cards: PracticeCardCount;
+  order: PracticeOrder;
   review: string | null;
 };
 
@@ -56,6 +58,7 @@ export function routeHistoryState(route: AppRoute): RouteHistoryState {
 }
 
 const cardCounts = new Set<PracticeCardCount>(["all", "10", "20", "50"]);
+const practiceOrders = new Set<PracticeOrder>(["original", "newest"]);
 const libraryStatuses = new Set<LibraryStatus>(["all", "new", "learning", "due", "strong", "learned"]);
 const librarySorts = new Set<LibrarySort>(["recent", "oldest", "due", "least", "az"]);
 
@@ -118,6 +121,7 @@ export function parseAppRoute(
   }
 
   const count = params.get("cards") as PracticeCardCount;
+  const order = params.get("order") as PracticeOrder;
   const review = valueOrNull(params, "review");
   const mode = path === "practice/listen" && languageHasAudio(language) ? "listen" : "recall";
   const requestedScope = params.get("scope");
@@ -129,6 +133,7 @@ export function parseAppRoute(
         : mode === "listen" ? "library" : "due",
     topic: valueOrNull(params, "topic") || "",
     cards: cardCounts.has(count) ? count : "all",
+    order: practiceOrders.has(order) ? order : "newest",
     review,
     language,
     settings,
@@ -147,6 +152,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
     if (route.scope !== defaultScope) params.set("scope", route.scope);
     if (route.topic) params.set("topic", route.topic);
     if (route.cards !== "all") params.set("cards", route.cards);
+    if (route.order !== "newest") params.set("order", route.order);
     if (route.review) params.set("review", route.review);
   } else if (route.section === "tutor") {
     path = `tutor/${route.mode}`;
@@ -182,6 +188,7 @@ export const defaultPracticeRoute = (language: Language): PracticeRoute => ({
   scope: "due",
   topic: "",
   cards: "all",
+  order: "newest",
   review: null,
   language,
   settings: false,

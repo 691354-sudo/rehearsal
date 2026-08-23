@@ -12,7 +12,7 @@ import type {
 } from "../../shared/contracts";
 import { apiFetch } from "../../shared/api";
 import { languageCopy } from "../../shared/config";
-import type { PracticeCardCount } from "../../lib/appRoute";
+import type { PracticeCardCount, PracticeOrder } from "../../lib/appRoute";
 import {
   adaptivePauseMs,
   markListenedOnce,
@@ -39,6 +39,7 @@ export function ListenRepeat(props: {
   items: LearningItem[];
   language: Language;
   onSelection: (scope: PracticeScope, count: PracticeCardCount) => void;
+  onOrder: (order: PracticeOrder) => void;
   onListened: (itemId: string) => Promise<void>;
   recommended: { due: number; new: number };
   onEdit: (item: LearningItem) => void;
@@ -54,7 +55,8 @@ export function ListenRepeat(props: {
   onResume: () => void;
   onStop: () => void;
   playback: PlaybackPreferences;
-  selectedTopicItems: Set<string> | null;
+  selectedTopicItems: readonly string[] | null;
+  order: PracticeOrder;
   scope: PracticeScope;
   topics: IslandSummary[];
   topicId: string;
@@ -106,7 +108,8 @@ export function ListenRepeat(props: {
     props.selectedTopicItems,
     countValue,
     props.scope,
-  ), [countValue, props.dueItemIds, props.items, props.scope, props.selectedTopicItems]);
+    props.order,
+  ), [countValue, props.dueItemIds, props.items, props.order, props.scope, props.selectedTopicItems]);
   const visibleCandidates = shuffledCandidates || candidates;
   const current = queue[index];
   const compatibleElevenLabsVoices = props.elevenLabs.voicesByLanguage[props.language] || [];
@@ -376,10 +379,9 @@ export function ListenRepeat(props: {
     props.onStop();
     cancelPreparation(true);
   }, [props.onStop]);
-
   if (phase === "setup") return <div className="practice-ready-layout">
     <section className="listen-setup" aria-label="Listen and Repeat setup">
-      <div className="listen-selection-grid">
+      <div className={`listen-selection-grid${props.scope === "custom" ? " has-order" : ""}`}>
         <label><span className="simple-visually-hidden">Topic</span><TopicProgressPicker onChange={props.onTopic} progressPill topics={props.topics} value={props.topicId} /></label>
         <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" className="practice-card-select" name="listen-count" onChange={(event) => {
           const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
@@ -388,6 +390,9 @@ export function ListenRepeat(props: {
           <option value="due:all">All recommended</option><option value="due:10">10 recommended</option><option value="due:20">20 recommended</option><option value="due:50">50 recommended</option>
           <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
         </select></label>
+        {props.scope === "custom" ? <label><span className="simple-visually-hidden">Order</span><select aria-label="Card order" className="practice-order-select" name="listen-order"
+          onChange={(event) => props.onOrder(event.target.value as PracticeOrder)} value={props.order}>
+          <option value="original">{props.topicId ? "Original order" : "Oldest first"}</option><option value="newest">Newest first</option></select></label> : null}
       </div>
       {showPlaybackSettings ? <div className="listen-setup-playback">{playbackSettings}</div> : null}
       <div className="listen-start-options">
