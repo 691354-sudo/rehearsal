@@ -48,6 +48,7 @@ describe.each([
     ["ink", "canvas", 9],
     ["ink", "surface", 9],
     ["ink-support", "surface", 4.5],
+    ["ink-faint", "surface", 4.5],
     ["ink", "accent-wash", 4.5],
     ["on-accent", "accent", 4.5],
     ["learned", "surface", 4.5],

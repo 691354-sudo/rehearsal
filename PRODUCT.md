@@ -39,14 +39,14 @@ The product rehearses the users' own language and situations rather than a gener
 
 - Product name: Echo.
 - Voice: direct, calm, compact, and specific.
-- The approved interface uses Warm Stone and Graphite Haze, Golos Text Variable, and one muted terracotta action color across workspaces.
+- The approved interface uses golden Warm Sand and Graphite Haze, Golos Text Variable, and one muted gold action color across workspaces.
 
 ## Evidence on Hand
 
 - Canonical methodology: `docs/METHOD.md`.
 - Architecture and product boundaries: `docs/ARCHITECTURE.md`.
 - Mobile and PWA direction: `docs/MOBILE_APP_DIRECTION.md`.
-- Approved theme values: `docs/THEME_REFRESH_SPEC.md`.
+- Current visual rules and theme values: `DESIGN.md` and `src/styles/base.css`.
 - The repository contains the working Practice, Tutor, Notebook, Library, Settings, profile gate, and PWA implementation.
 
 ## Product Principles

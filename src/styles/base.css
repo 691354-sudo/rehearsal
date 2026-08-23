@@ -15,7 +15,7 @@ body,
   --rh-rule-strong: #bcb1a1;
   --rh-ink: #23211f;
   --rh-support: #655e57;
-  --rh-faint: #8c857c;
+  --rh-faint: #746e67;
   --rh-accent: #cda56d;
   --rh-accent-hover: #b98f57;
   --rh-wash: #f0e6d6;
@@ -26,7 +26,6 @@ body,
   --canvas: var(--rh-canvas);
   --surface: var(--rh-surface);
   --inset: var(--rh-inset);
-  --raised: var(--rh-raised);
   --rule: var(--rh-rule);
   --rule-strong: var(--rh-rule-strong);
   --ink: var(--rh-ink);
@@ -55,7 +54,7 @@ body,
   --rh-rule-strong: #5c6064;
   --rh-ink: #e8e5e1;
   --rh-support: #aba7a2;
-  --rh-faint: #847f7a;
+  --rh-faint: #aaa49f;
   --rh-accent: #d8b57f;
   --rh-accent-hover: #e5c793;
   --rh-wash: #3a3327;
@@ -95,15 +94,6 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   --control-fill: var(--inset);
   --control-rule: var(--rule);
   --control-focus: color-mix(in srgb, var(--accent) 18%, transparent);
-  --listen-action: var(--cue-action);
-  --listen-canvas: var(--stage-canvas);
-  --recall-action: var(--cue-action);
-  --recall-canvas: var(--stage-canvas);
-  --chat-action: var(--cue-action);
-  --chat-canvas: var(--stage-canvas);
-  --notebook-action: var(--cue-action);
-  --notebook-canvas: var(--stage-canvas);
-  min-height: 100vh;
   min-height: 100dvh;
   padding-top: calc(var(--h-header) + env(safe-area-inset-top));
   color: var(--script-ink);
@@ -146,8 +136,6 @@ html:has(.simple-app--dark) { color-scheme: dark; }
 .simple-workspace {
   --mode-action: var(--cue-action);
   --mode-canvas: var(--stage-canvas);
-  --mode-on: var(--cue-on);
-  min-height: calc(100vh - var(--h-header));
   min-height: calc(100dvh - var(--h-header));
   background: var(--mode-canvas);
 }
@@ -466,7 +454,6 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   font-weight: 550;
   background: var(--cue-action);
   border: 1px solid var(--cue-action);
-  border-radius: 8px;
 }
 
 .simple-primary:not(:disabled):hover {
@@ -546,13 +533,91 @@ html:has(.simple-app--dark) { color-scheme: dark; }
   border: 0 !important;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .simple-app *,
-  .simple-app *::before,
-  .simple-app *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+:root {
+  --h-control: 40px;
+  --h-chip: 32px;
+  --h-tap: 36px;
+  --h-header: 56px;
+  --h-tabbar: 56px;
+  --pad-x: 20px;
+  --gap: 12px;
+  --fs-body: 15px;
+  --col: 720px;
+}
+
+@media (max-width: 720px), (pointer: coarse) {
+  :root {
+    --h-control: 44px;
+    --h-chip: 36px;
+    --h-tap: 44px;
+    --h-header: 48px;
+    --pad-x: 16px;
+    --gap: 10px;
+    --fs-body: 16px;
+    --col: 100%;
   }
+}
+
+.simple-app a,
+.simple-app button,
+.simple-app input,
+.simple-app select,
+.simple-app textarea {
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--cue-action) 16%, transparent);
+}
+
+.simple-app input::placeholder,
+.simple-app textarea::placeholder,
+.profile-gate input::placeholder {
+  color: var(--script-tertiary, var(--profile-support));
+  font-size: 14px;
+  font-weight: 400;
+  opacity: 1;
+}
+
+.simple-app button:focus-visible,
+.simple-app a:focus-visible,
+.simple-app input:focus-visible,
+.simple-app select:focus-visible,
+.simple-app textarea:focus-visible,
+.simple-app label:has(input[type="file"]:focus-visible) {
+  border-color: var(--script-rule-strong);
+  box-shadow: none !important;
+  outline: 2px solid var(--cue-light) !important;
+  outline-offset: 2px;
+}
+
+.simple-app select {
+  padding-right: 12px;
+}
+
+.simple-app button {
+  min-width: 44px;
+  min-height: var(--h-control);
+}
+
+.simple-field-label {
+  display: grid;
+  gap: 6px;
+  color: var(--script-support);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .simple-main,
+  .simple-main--practice,
+  .simple-main--notebook { width: min(var(--col), calc(100% - (2 * var(--pad-x)))); }
+}
+
+@media (max-width: 720px) {
+  .simple-main,
+  .simple-main--practice,
+  .simple-main--notebook { width: min(var(--col), calc(100% - (2 * var(--pad-x)))); }
+}
+
+.simple-main,
+.simple-main--practice,
+.simple-main--notebook {
+  width: min(var(--col), calc(100% - (2 * var(--pad-x))));
 }

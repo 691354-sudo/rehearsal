@@ -1,6 +1,6 @@
 ---
 name: Echo
-description: "A calm, sentence-led practice workspace in Warm Stone and Graphite Haze."
+description: "A calm, sentence-led practice workspace in golden Warm Sand and Graphite Haze."
 colors:
   canvas-light: "#ede8e0"
   surface-light: "#f8f5f0"
@@ -8,8 +8,8 @@ colors:
   canvas-dark: "#2a2b2d"
   surface-dark: "#343639"
   inset-dark: "#232426"
-  accent-light: "#a4573b"
-  accent-dark: "#c9825f"
+  accent-light: "#cda56d"
+  accent-dark: "#d8b57f"
   learned-light: "#3f7b60"
   learned-dark: "#7fb294"
 typography:
@@ -31,7 +31,7 @@ spacing:
 # Echo — правила дизайна для любых новых фич
 
 Короткий рабочий свод. Применяется к **каждой** новой кнопке, панели, экрану — без отдельного согласования.
-Полные числа и экраны — в [`docs/THEME_REFRESH_SPEC.md`](docs/THEME_REFRESH_SPEC.md).
+Этот файл описывает единственное актуальное визуальное направление продукта.
 
 ---
 
@@ -49,7 +49,7 @@ Echo — тихий рабочий стол для языка. За ним си�
 
 ## 10 правил
 
-1. **Один акцент на экран.** Ровно одна сплошная терракотовая кнопка. Всё остальное: secondary (`--rh-inset` + 1px rule) → quiet text action → icon button.
+1. **Один акцент на экран.** Ровно одна сплошная кнопка в приглушённом золотом Warm Sand. Всё остальное: secondary (`--rh-inset` + 1px rule) → quiet text action → icon button.
 2. **Только токены.** `var(--rh-*)`, никаких hex в компонентах. Новый цвет заводится в обеих темах или не заводится вовсе.
 3. **Шкала высот 44 / 40 / 36 / 32 / 22.** 44 — главный CTA, 36 — обычные контролы и селекты, 32 — иконки в строках списка, 22 — пилюли. Промежуточных значений нет.
 4. **Радиусы:** контрол 8 · панель 12 · оверлей 10 · пилюля 999. Сетка отступов 4/8/12/16/20/24/32.

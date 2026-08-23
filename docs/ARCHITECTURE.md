@@ -33,6 +33,8 @@ Styles follow the same ownership boundaries under `src/styles`. `base.css` owns 
 
 Active `.ts` and `.tsx` files are limited to 450 lines and CSS files to 800 lines. `npm run check:architecture` enforces the boundary in CI. Generated-data exceptions require an explicit, documented allowlist entry; there are currently no exceptions.
 
+The active visual cascade is declared in `src/styles/index.css`. `npm run check:styles` keeps it at 13 domain imports and rejects missing imports, legacy versioned layers, and undefined CSS variables.
+
 ## Learning data
 
 Each profile database has the same schema and no cross-profile tables. `items` is the central table. Every entry belongs to exactly one target language and keeps the Russian recall cue, target sentence, accepted alternatives, notes, source, status, quality ratings, tags, and optional embedding.

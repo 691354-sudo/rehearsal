@@ -1,58 +1,24 @@
 @media (max-width: 900px) {
   .simple-header {
     grid-template-columns: 1fr auto;
-    padding: 0 18px;
   }
 
   .simple-layout {
     grid-template-columns: 1fr;
   }
 
-  .simple-library-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .simple-library-panel {
-    order: -1;
-  }
-
-  .simple-phrase-list {
-    max-height: none;
-  }
-
   .simple-queue {
     display: none;
-  }
-
-  .simple-library-heading-actions button,
-  .simple-library-panel-actions button,
-  .simple-library-tools input,
-  .simple-library-tools select,
-  .simple-row-actions button {
-    min-height: var(--h-control);
-  }
-
-  .simple-main--practice {
-    width: min(var(--col), calc(100% - 32px));
   }
 }
 
 @media (max-width: 720px) {
   .simple-header {
     height: calc(var(--h-header) + env(safe-area-inset-top));
-    padding: 0 12px;
-    padding-top: env(safe-area-inset-top);
-  }
-
-  .simple-brand-product {
-    display: none;
-  }
-
-  .simple-brand-route {
-    display: inline;
   }
 
   .simple-brand {
+    min-width: 44px;
     min-height: var(--h-control);
   }
 
@@ -142,10 +108,6 @@
     padding-top: 24px;
   }
 
-  .simple-main--practice {
-    width: calc(100% - 20px);
-  }
-
   .simple-page-heading h1 {
     font-size: 24px;
   }
@@ -154,20 +116,8 @@
     font-size: 13px;
   }
 
-  .simple-practice-toolbar {
-    gap: 12px;
-  }
-
-  .simple-practice-title {
-    gap: 10px;
-  }
-
   .simple-daily-progress {
     width: 88px;
-  }
-
-  .simple-practice-toolbar h1 {
-    font-size: 22px;
   }
 
   .simple-feed-tools .simple-icon-button {
@@ -220,23 +170,6 @@
     display: none;
   }
 
-  .simple-card-dialog-row {
-    grid-template-columns: 1fr;
-  }
-
-  .simple-card-dialog footer {
-    padding: 12px;
-  }
-
-  .simple-card-rewrite-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .simple-card-rewrite-actions button {
-    min-height: var(--h-control);
-  }
-
   .simple-playback-options {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -254,13 +187,6 @@
   .simple-modes button {
     padding: 0 9px;
     font-size: 12px;
-  }
-
-  .simple-app .simple-settings {
-    width: 40px;
-    padding: 0;
-    justify-content: center;
-    font-size: 0;
   }
 
   .simple-exercise {
@@ -309,16 +235,6 @@
     justify-content: center;
   }
 
-  .simple-settings-header,
-  .simple-settings-section {
-    padding-right: 16px;
-    padding-left: 16px;
-  }
-
-  .simple-global-playback {
-    grid-template-columns: 1fr;
-  }
-
   .simple-elevenlabs-status {
     align-items: center;
   }
@@ -327,16 +243,6 @@
     width: auto;
     margin-left: 0;
   }
-
-  .simple-fsrs-head,
-  .simple-fsrs-row {
-    grid-template-columns: minmax(72px, 1fr) 86px 108px;
-    gap: 6px;
-    padding: 0 8px;
-  }
-}
-
-@media (max-width: 720px) {
   .simple-header {
     backdrop-filter: none;
   }
@@ -349,13 +255,120 @@
   .simple-model-state {
     display: none;
   }
+}
+
+@media (max-width: 480px) {
+  .simple-app {
+    overflow-x: hidden;
+  }
+
+  .simple-daily-progress {
+    width: 128px;
+  }
+
+  .simple-daily-progress span {
+    overflow: hidden;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .simple-app .simple-filter-button {
+    justify-content: center;
+    width: auto;
+    max-width: 132px;
+    padding: 0 9px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .simple-spin { animation: none; }
+
+  .simple-app button:not(:disabled):active {
+    transform: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .simple-header { padding: 0; }
+  .simple-header-rail {
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: min(1080px, calc(100% - 32px));
+  }
+  .simple-nav a { min-height: var(--h-control); }
+}
+
+@media (max-width: 720px) {
+  .simple-app :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]), textarea) {
+    min-height: var(--h-control);
+    font-size: 16px;
+  }
+  .simple-app select { min-height: var(--h-control); font-size: 15px; }
+  .simple-header { padding: 0; padding-top: env(safe-area-inset-top); }
+  .simple-header-rail { width: calc(100% - 32px); }
+  .simple-header-rail {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .simple-brand-product { display: inline; }
+  .simple-brand-route { display: none; }
+  .simple-brand .echo-mark { display: none; }
+
+  .simple-mobile-search {
+    display: grid;
+    width: var(--h-control);
+    height: var(--h-control);
+    place-items: center;
+    color: var(--rh-support);
+    text-decoration: none;
+  }
+
+  .simple-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    height: calc(var(--h-tabbar) + env(safe-area-inset-bottom));
+    padding: 0 12px env(safe-area-inset-bottom);
+    background: var(--rh-surface);
+    border-top: 1px solid var(--rh-rule);
+  }
+
+  .simple-nav a {
+    gap: 2px;
+    height: var(--h-tabbar);
+    min-height: var(--h-control);
+    justify-content: center;
+    padding: 4px 8px;
+    flex-direction: column;
+    font-size: 11px;
+  }
+
+  .simple-nav a.is-active {
+    color: var(--rh-ink);
+    background: transparent;
+  }
+
+  .simple-nav-icon { display: block; }
+
+  .simple-main {
+    padding-bottom: calc(var(--h-tabbar) + 24px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 480px) {
+  .simple-tutor-mode button {
+    min-height: var(--h-control);
+  }
+}
+
+@media (max-width: 720px) {
 
   .simple-tutor-heading {
-    grid-template-areas:
-      "title actions"
-      "modes modes";
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
     align-items: center;
   }
 
@@ -363,22 +376,13 @@
     grid-area: title;
   }
 
-  .simple-tutor-mode {
-    grid-area: modes;
-    justify-self: center;
-  }
-
   .simple-main--chat {
     box-sizing: border-box;
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    height: calc(100dvh - 135px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding-bottom: 0;
   }
 
   .simple-tutor-mobile-actions {
     display: flex;
-    grid-area: actions;
     gap: 6px;
   }
 
@@ -387,7 +391,6 @@
     gap: 6px;
     align-items: center;
     justify-content: center;
-    min-height: var(--h-control);
     padding: 0 9px;
     font-size: 12px;
     border: 1px solid var(--script-rule);
@@ -400,8 +403,6 @@
 
   .simple-chat {
     grid-template-columns: minmax(0, 1fr);
-    height: auto;
-    min-height: calc(var(--tutor-composer-height, 64px) + 230px);
   }
 
   .simple-composer {
@@ -440,10 +441,6 @@
     place-items: center;
   }
 
-  .simple-chat-messages {
-    padding: 22px 18px;
-  }
-
   .simple-message-failed button {
     min-height: var(--h-control);
   }
@@ -460,113 +457,131 @@
   .simple-finish-review {
     white-space: nowrap;
   }
+  .simple-main--chat {
+    padding-bottom: 0;
+  }
+  .simple-chat-empty { margin: 24px auto; }
+  .practice-modes a,
+  .simple-tutor-mode a { min-height: var(--h-control); }
+  .simple-main--practice:has(.recall-session) .practice-header { display: none; }
+  .simple-main--practice:has(.recall-session) { padding-top: 16px; }
 
-  .simple-review-candidate {
-    grid-template-columns: 24px minmax(0, 1fr);
+  .simple-composer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .simple-composer-upload { min-width: 44px; min-height: var(--h-control); }
+  .simple-composer-record { width: 44px; height: var(--h-control); }
+  .simple-composer-send { width: 44px; height: var(--h-control); }
+  .simple-composer textarea { padding-right: 13px; }
+  .simple-composer-resize { display: none; }
+  .simple-composer-tools { flex-wrap: wrap; }
+  .simple-composer-send-group > span { display: none; }
+
+  .simple-composer-controls { align-items: center; }
+  .simple-finish-review { flex-basis: 100%; }
+  .simple-main--chat {
+    grid-template-rows: 44px minmax(0, 1fr);
+    gap: 8px;
+    width: calc(100% - (2 * var(--pad-x)));
+    height: calc(100dvh - var(--h-header) - var(--h-tabbar) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 12px 0 8px;
   }
 
-  .simple-review-actions {
-    grid-column: 2;
+  .simple-tutor-heading {
+    grid-template-areas: "modes actions";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    height: 44px;
+    min-height: 44px;
   }
 
-  .simple-library-tools {
-    grid-template-columns: 1fr 1fr;
+  .simple-tutor-heading > h1 {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
   }
 
-  .simple-library-tools .simple-search {
-    grid-column: 1 / -1;
+  .simple-tutor-mode {
+    grid-area: modes;
+    justify-self: start;
+    height: 44px;
+    padding: 0;
   }
 
-  .simple-library-selection {
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 480px) {
-  .simple-app {
-    overflow-x: hidden;
+  .simple-tutor-mode a {
+    min-width: 78px;
+    min-height: 44px;
+    padding: 0 8px;
   }
 
-  .simple-practice-toolbar {
-    display: grid;
-    grid-template-columns: 1fr;
-    align-items: center;
+  .simple-tutor-mobile-actions {
+    grid-area: actions;
+    height: 44px;
   }
 
-  .simple-practice-title,
-  .simple-feed-tools {
-    justify-content: space-between;
+  .simple-tutor-mobile-actions button {
+    height: 44px;
+    min-height: 44px;
   }
 
-  .simple-daily-progress {
-    width: 128px;
+  .simple-chat {
+    height: 100%;
+    min-height: 0;
+    margin-top: 0;
   }
 
-  .simple-daily-progress span {
-    overflow: hidden;
-    font-size: 12px;
-    white-space: nowrap;
+  .simple-chat-pane,
+  .simple-chat-messages {
+    min-height: 0;
   }
 
-  .simple-app .simple-filter-button {
-    justify-content: center;
-    width: auto;
-    max-width: 132px;
-    padding: 0 9px;
-    font-size: 12px;
+  .simple-chat-pane--no-toolbar {
+    grid-template-rows: minmax(0, 1fr) auto auto;
   }
 
-  .simple-review-batch > header,
-  .simple-review-batch > footer {
-    align-items: flex-start;
+  .simple-chat-messages {
+    padding: 16px 14px;
   }
 
-  .simple-review-actions {
-    flex-wrap: wrap;
+  .simple-composer {
+    gap: 8px;
+    padding: 12px;
   }
 
-  .simple-row-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    max-width: min(100%, 260px);
+  .simple-composer textarea {
+    min-height: 72px;
   }
 
-  .simple-phrase-row {
-    grid-template-columns: 44px minmax(0, 1fr);
-  }
-
-  .simple-row-actions {
-    grid-column: 2;
-    justify-content: flex-start;
-  }
-
-  .simple-card-select {
+  .simple-composer-upload,
+  .simple-app .simple-composer-record,
+  .simple-app .simple-composer-send,
+  .simple-delete-chat {
+    width: 44px;
     min-width: 44px;
-    min-height: var(--h-control);
+    height: 44px;
+    min-height: 44px;
   }
 
-  .simple-library-selection,
-  .simple-library-selection > div {
-    align-items: stretch;
-    flex-direction: column;
+  .simple-app .simple-settings {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0;
   }
 
-  .simple-library-selection > label {
-    min-height: var(--h-control);
+  .simple-global-playback {
+    grid-template-columns: 1fr;
   }
 
-  .simple-library-selection > div {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-
-  .simple-library-selection > div > span {
-    align-self: center;
-  }
-
-  .simple-library-heading-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
+  .simple-fsrs-head,
+  .simple-fsrs-row {
+    padding: 0 8px;
   }
 }
 
@@ -578,12 +593,142 @@
   .simple-fsrs-toggle button i {
     transition: none;
   }
+}
 
-  .simple-spin { animation: none; }
-
-  .simple-review-adjust-toggle svg { transition: none; }
-
-  .simple-app button:not(:disabled):active {
-    transform: none;
+@media (max-width: 720px) {
+  .simple-settings-panel { width: 100%; border-left: 0; }
+  .simple-settings-header,
+  .simple-settings-section { padding-right: 16px; padding-left: 16px; }
+  .simple-fsrs-head,
+  .simple-fsrs-row {
+    grid-template-columns: minmax(64px, 1fr) minmax(76px, 0.8fr) minmax(92px, 1fr);
+    gap: 5px;
+    padding-right: 7px;
+    padding-left: 7px;
   }
+  .simple-settings-panel .simple-fsrs-row input,
+  .simple-settings-panel .simple-fsrs-details input { font-size: 14px; }
+  .simple-settings-panel .simple-fsrs-row input:focus,
+  .simple-settings-panel .simple-fsrs-details input:focus { font-size: 16px; }
+}
+
+@media (max-width: 900px) {
+  .topic-items article { align-items: start; }
+  .topic-selection-toolbar { flex-wrap: wrap; }
+}
+
+@media (max-width: 720px) {
+  .topics-manager > header {
+    align-items: flex-start;
+  }
+
+  .topic-mobile-select {
+    display: block;
+    width: calc(100% - (2 * var(--pad-x)));
+    height: var(--h-control);
+    margin: var(--gap) auto 0;
+  }
+
+  .topics-layout > nav { display: none; }
+
+  .topics-manager button,
+  .topics-manager input,
+  .topics-manager select {
+    min-height: var(--h-control);
+  }
+}
+
+@media (max-width: 480px) {
+  .topics-manager > header {
+    display: grid;
+  }
+
+  .topics-header-actions,
+  .topic-create {
+    width: 100%;
+  }
+
+  .topic-create input {
+    flex: 1;
+  }
+
+  .topics-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .topic-detail-heading,
+  .topic-title-edit {
+    display: grid;
+  }
+
+  .topic-detail-heading {
+    position: relative;
+    padding: 12px;
+  }
+
+  .topic-title-summary {
+    padding-inline-end: 44px;
+  }
+
+  .topic-detail-heading > div:last-child {
+    justify-content: start;
+  }
+
+  .topic-items article {
+    gap: 9px;
+  }
+
+  .topic-selection-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 9px; }
+  .topic-selection-toolbar > label { grid-column: 1 / -1; }
+  .topic-selection-toolbar select { width: 100%; margin: 0; }
+  .topic-selection-toolbar .topic-remove-selected { grid-column: 1 / -1; }
+
+  .topic-add-footer,
+  .topic-items-empty > div {
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 720px) {
+  .simple-main .simple-primary,
+  .simple-main .simple-import-card button,
+  .simple-main .topics-manager button,
+  .simple-main .topics-manager input,
+  .simple-main .topics-manager select,
+  .listen-player > header button { min-height: var(--h-control); }
+
+  .topic-items strong,
+  .topic-items span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .simple-app .listen-setup select,
+  .simple-app .recall-setup select,
+  .simple-app .topic-progress-trigger {
+    width: 100%;
+    min-height: var(--h-control);
+    height: var(--h-control);
+    font-size: 16px;
+  }
+
+  .topics-layout { grid-template-columns: 1fr; }
+
+  .topic-create button,
+  .topic-manager-close {
+    width: 44px;
+    min-width: 44px;
+  }
+  .topic-detail { padding: 16px; }
+  .topic-item-side .learning-counts { display: none; }
+  .topic-card-edit { width: 44px; min-width: 44px; height: var(--h-control); min-height: var(--h-control) !important; }
+
+  .topic-detail-heading {
+    align-items: flex-start;
+    padding-bottom: 12px;
+  }
+
+  .topic-detail-heading > div:last-child { justify-content: flex-start; }
 }

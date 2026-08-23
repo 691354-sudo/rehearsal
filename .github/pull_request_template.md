@@ -10,6 +10,7 @@
 
 - [ ] `npm test`
 - [ ] `npm run build`
+- [ ] `npm run check:styles`
 - [ ] Relevant manual flow checked
 - [ ] No secrets, databases, backups, generated audio, or unrelated changes included
 - [ ] Documentation updated when product, architecture, or operations changed
