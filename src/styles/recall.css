@@ -161,12 +161,6 @@
   border-top: 1px solid var(--script-rule);
 }
 
-.practice-queue-index {
-  position: absolute;
-  color: var(--script-muted);
-  font-variant-numeric: tabular-nums;
-}
-
 .practice-queue-copy {
   min-width: 0;
 }
