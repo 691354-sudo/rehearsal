@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   FilePlus2,
   LoaderCircle,
@@ -22,6 +22,7 @@ import { filterLibraryItems, type LibrarySort, type LibraryStatus } from "../../
 import type { AppRoute, HistoryMode, LibraryRoute } from "../../lib/appRoute";
 import { FocusedText } from "../progress/FocusedText";
 import { LearningStageBadge } from "../progress/LearningProgress";
+import { placeLibraryActions, type LibraryActionsPlacement } from "./libraryActions";
 
 export function LibraryPage({ items, language, route, onRoute, onItemDeleted, onItemUpdated, onItemsReload, onListen, onListened, onPlay, onPracticeEnabled, onReview }: {
   items: LearningItem[];
@@ -51,8 +52,11 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [deletingSelected, setDeletingSelected] = useState(false);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [actionsPlacement, setActionsPlacement] = useState<(LibraryActionsPlacement & { itemId: string }) | null>(null);
   const [topicsRevision, setTopicsRevision] = useState(0);
   const allowDirtyNavigationRef = useRef(false);
+  const actionsButtonRef = useRef<HTMLButtonElement>(null);
+  const actionsPanelRef = useRef<HTMLDivElement>(null);
   const showTopics = route.view === "topics";
   const showImport = route.panel === "import";
   const showCreate = route.panel === "create";
@@ -93,7 +97,11 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   useEffect(() => {
     if (!openActionsId) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenActionsId(null);
+      if (event.key === "Escape") {
+        const trigger = actionsButtonRef.current;
+        setOpenActionsId(null);
+        window.requestAnimationFrame(() => trigger?.focus());
+      }
     };
     const closeOutside = (event: PointerEvent) => {
       const target = event.target;
@@ -105,6 +113,31 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     return () => {
       window.removeEventListener("keydown", closeOnEscape);
       window.removeEventListener("pointerdown", closeOutside);
+    };
+  }, [openActionsId]);
+  useLayoutEffect(() => {
+    if (!openActionsId || !actionsButtonRef.current || !actionsPanelRef.current) {
+      setActionsPlacement(null);
+      return;
+    }
+    const nav = document.querySelector<HTMLElement>(".simple-nav");
+    const navTop = nav && window.getComputedStyle(nav).position === "fixed"
+      ? nav.getBoundingClientRect().top : window.innerHeight;
+    setActionsPlacement({
+      itemId: openActionsId,
+      ...placeLibraryActions(
+        actionsButtonRef.current.getBoundingClientRect(),
+        actionsPanelRef.current.getBoundingClientRect(),
+        { width: window.innerWidth, bottom: navTop },
+      ),
+    });
+    window.requestAnimationFrame(() => actionsPanelRef.current?.querySelector<HTMLButtonElement>("[role=menuitem]")?.focus());
+    const close = () => setOpenActionsId(null);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
     };
   }, [openActionsId]);
 
@@ -221,6 +254,16 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     displayedItems.forEach((item) => { if (allVisibleSelected) next.delete(item.publicId); else next.add(item.publicId); });
     return next;
   });
+  const navigateActions = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const actions = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=menuitem]")];
+    if (!actions.length) return;
+    event.preventDefault();
+    const current = Math.max(0, actions.indexOf(document.activeElement as HTMLButtonElement));
+    const next = event.key === "Home" ? 0 : event.key === "End" ? actions.length - 1
+      : event.key === "ArrowDown" ? (current + 1) % actions.length : (current - 1 + actions.length) % actions.length;
+    actions[next].focus();
+  };
   const deleteSelected = async () => {
     const itemIds = [...selectedItemIds];
     if (!itemIds.length || deletingSelected) return;
@@ -313,16 +356,21 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
               <div className="simple-row-more" data-library-actions={item.publicId} onBlur={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null);
               }}>
-                <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-label={`More actions for ${item.target}`}
-                  onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)} title="More actions" type="button"><MoreHorizontal size={17} /></button>
-                {openActionsId === item.publicId ? <div className="simple-row-more-panel" id={`card-actions-${item.publicId}`}>
+                <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-haspopup="menu" aria-label={`More actions for ${item.target}`}
+                  onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)}
+                  ref={openActionsId === item.publicId ? actionsButtonRef : undefined} title="More actions" type="button"><MoreHorizontal aria-hidden="true" size={17} /></button>
+                {openActionsId === item.publicId ? <div className="simple-row-more-panel" data-placement={actionsPlacement?.placement}
+                  id={`card-actions-${item.publicId}`} ref={actionsPanelRef} role="menu" style={actionsPlacement?.itemId === item.publicId ? {
+                    left: actionsPlacement.left, right: "auto", top: actionsPlacement.top,
+                    transformOrigin: `${actionsPlacement.placement === "above" ? "bottom" : "top"} right`,
+                  } : { visibility: "hidden" }} onKeyDown={navigateActions}>
                   {item.practiceEnabled
-                    ? <button onClick={() => { setOpenActionsId(null); void setPracticeEnabled(item.publicId, false); }} type="button">Mark as learned</button>
-                    : <button onClick={() => { setOpenActionsId(null); void setPracticeEnabled(item.publicId, true); }} type="button">Return to learning</button>}
-                  <button onClick={() => { setOpenActionsId(null); patchRoute({ edit: item.publicId }, "push"); }} type="button"><Pencil size={15} />Edit</button>
-                  {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} type="button">Review now</button> : null}
-                  <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} type="button">Pattern drill</button>
-                  <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} type="button"><Trash2 size={15} />Delete</button>
+                    ? <button onClick={() => { setOpenActionsId(null); void setPracticeEnabled(item.publicId, false); }} role="menuitem" type="button">Mark as learned</button>
+                    : <button onClick={() => { setOpenActionsId(null); void setPracticeEnabled(item.publicId, true); }} role="menuitem" type="button">Return to learning</button>}
+                  <button onClick={() => { setOpenActionsId(null); patchRoute({ edit: item.publicId }, "push"); }} role="menuitem" type="button"><Pencil aria-hidden="true" size={15} />Edit</button>
+                  {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} role="menuitem" type="button">Review now</button> : null}
+                  <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} role="menuitem" type="button">Pattern drill</button>
+                  <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} role="menuitem" type="button"><Trash2 aria-hidden="true" size={15} />Delete</button>
                 </div> : null}
               </div>
             </div>

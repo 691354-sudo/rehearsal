@@ -5,6 +5,7 @@ import { buildApp } from "./app.js";
 import { config } from "./config.js";
 import { seedDatabase } from "./db/seed.js";
 import { ProfileManager, profileIds } from "./profiles/manager.js";
+import { shouldServeAppShell } from "./static-shell.js";
 
 const profiles = await ProfileManager.create({
   dataDir: config.dataDir,
@@ -26,7 +27,11 @@ const distPath = path.resolve(process.cwd(), "dist");
 if (fs.existsSync(distPath)) {
   await app.register(fastifyStatic, { root: distPath });
   app.setNotFoundHandler((request, reply) => {
-    if (request.url.startsWith("/api") || request.url === "/health") {
+    if (!shouldServeAppShell({
+      method: request.method,
+      url: request.url,
+      accept: request.headers.accept,
+    })) {
       return reply.code(404).send({ error: "NOT_FOUND" });
     }
     return reply.sendFile("index.html");

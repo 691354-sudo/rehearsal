@@ -319,4 +319,22 @@ describe("practice and library API", () => {
     expect(context.repository.practice.listDue("en", 100, new Date(), 3)
       .filter((item) => item.schedule.state === "new")).toHaveLength(3);
   });
+
+  it("prioritizes listened cards in the fresh recommendation queue", () => {
+    const exposed = context.repository.items.save({ language: "en", cue: "Прослушана", target: "Listened first." });
+    context.repository.items.save({ language: "en", cue: "Не прослушана", target: "Unheard second." });
+    context.repository.practice.recordAttempt({
+      itemPublicId: exposed.publicId,
+      mode: "listen",
+      answer: "",
+      score: 0.85,
+      verdict: "good",
+      feedback: {},
+      rating: "good",
+    });
+
+    const fresh = context.repository.practice.listDue("en", 100, new Date(), 1)
+      .filter((item) => item.progress.stage === "new");
+    expect(fresh.map((item) => item.publicId)).toEqual([exposed.publicId]);
+  });
 });

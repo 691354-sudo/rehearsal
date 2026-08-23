@@ -116,7 +116,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
   };
   const workspaceMode = route.section === "practice" ? route.mode : route.section === "tutor" ? route.mode : "library";
   const sectionLabel = route.section === "practice" ? "Practice" : route.section === "tutor" ? "Tutor" : "Library";
-  const practiceRoute = (mode: PracticeRoute["mode"] = "recall"): PracticeRoute => ({
+  const practiceRoute = (mode: PracticeRoute["mode"] = defaultPracticeRoute(language).mode): PracticeRoute => ({
     ...defaultPracticeRoute(language),
     mode,
     scope: mode === "listen" ? "library" : "due",

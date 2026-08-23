@@ -25,6 +25,14 @@ export const adaptivePauseMs = (durationMs: number) =>
 export const nextQueueIndex = (index: number, length: number, loop: boolean) =>
   index + 1 < length ? index + 1 : loop && length ? 0 : null;
 
+export type RepeatMode = "off" | "all" | "one";
+
+export const nextRepeatMode = (mode: RepeatMode): RepeatMode =>
+  mode === "off" ? "all" : mode === "all" ? "one" : "off";
+
+export const nextAutomaticIndex = (index: number, length: number, mode: RepeatMode) =>
+  mode === "one" ? index : nextQueueIndex(index, length, mode === "all");
+
 export const markListenedOnce = (
   listened: Set<string>,
   itemId: string,

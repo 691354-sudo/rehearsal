@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { defaultPlayback } from "../../shared/config";
 import {
-  adaptivePauseMs, markListenedOnce, nextQueueIndex, playbackIdentity, preparationBody, shuffleQueue,
+  adaptivePauseMs, markListenedOnce, nextAutomaticIndex, nextQueueIndex, nextRepeatMode, playbackIdentity,
+  preparationBody, shuffleQueue,
 } from "./listenAudio";
 
 describe("Listen & Repeat audio helpers", () => {
@@ -22,6 +23,16 @@ describe("Listen & Repeat audio helpers", () => {
     expect(nextQueueIndex(0, 3, false)).toBe(1);
     expect(nextQueueIndex(2, 3, false)).toBeNull();
     expect(nextQueueIndex(2, 3, true)).toBe(0);
+  });
+
+  it("cycles repeat from queue to one card and applies it only to automatic progress", () => {
+    expect(nextRepeatMode("off")).toBe("all");
+    expect(nextRepeatMode("all")).toBe("one");
+    expect(nextRepeatMode("one")).toBe("off");
+    expect(nextAutomaticIndex(2, 3, "off")).toBeNull();
+    expect(nextAutomaticIndex(2, 3, "all")).toBe(0);
+    expect(nextAutomaticIndex(2, 3, "one")).toBe(2);
+    expect(nextQueueIndex(1, 3, false)).toBe(2);
   });
 
   it("records listening only once per card in a session", () => {

@@ -37,6 +37,9 @@ native-only requirement.
 - Keep generated assets and routes compatible with a non-root deployment under
   `/rehearsal/`; manifest, icons, service worker scope, and start URL must work
   from that base path.
+- Direct Practice, Tutor, and Library links must load the application shell. A
+  missing hashed asset must fail as an asset and trigger the one-shot app-shell
+  recovery path instead of receiving `index.html` with a successful status.
 - Treat useful UI state as navigation state. Practice mode and selection, Tutor
   mode/thread, Library filters/page, Topics, Settings, Import, and Card Editor
   use stable routes or query parameters so reload and Back/Forward recover the

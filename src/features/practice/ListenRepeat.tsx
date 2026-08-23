@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  Pause, Play, Repeat2, Settings2, Shuffle, SkipBack, SkipForward,
-} from "lucide-react";
+import { Pause, Play, Settings2, Shuffle, SkipBack, SkipForward } from "lucide-react";
 import type {
   ElevenLabsConfig,
   IslandSummary,
@@ -14,20 +12,16 @@ import { apiFetch } from "../../shared/api";
 import { languageCopy } from "../../shared/config";
 import type { PracticeCardCount, PracticeOrder } from "../../lib/appRoute";
 import {
-  adaptivePauseMs,
-  markListenedOnce,
-  nextQueueIndex,
-  playbackIdentity,
-  preparationBody,
-  shuffleQueue,
-  type AudioPreparationJob,
-  type PreparedAudio,
+  adaptivePauseMs, markListenedOnce, nextAutomaticIndex, nextQueueIndex, nextRepeatMode,
+  playbackIdentity, preparationBody, shuffleQueue,
+  type AudioPreparationJob, type PreparedAudio, type RepeatMode,
 } from "../audio/listenAudio";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { PlaybackSettings, voiceDisplayName } from "./PlaybackSettings";
 import { FocusedText } from "../progress/FocusedText";
 import { TopicProgressPicker } from "./TopicProgressPicker";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
+import { RepeatModeButton } from "./RepeatModeButton";
 
 type PlayerStatus = "playing" | "paused" | "error";
 
@@ -68,7 +62,7 @@ export function ListenRepeat(props: {
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<"setup" | "player" | "complete">("setup");
   const [status, setStatus] = useState<PlayerStatus>("playing");
-  const [loop, setLoop] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [showRussian, setShowRussian] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
@@ -82,7 +76,7 @@ export function ListenRepeat(props: {
   const preparationJobRef = useRef(new Set<string>());
   const preparationIdentityRef = useRef("");
   const pausedRef = useRef(false);
-  const loopRef = useRef(loop);
+  const repeatModeRef = useRef(repeatMode);
   const playbackRef = useRef(props.playback);
   const queueRef = useRef(queue);
   const pendingShuffleRef = useRef<LearningItem[] | null>(null);
@@ -92,7 +86,7 @@ export function ListenRepeat(props: {
   const urlsRef = useRef(new Set<string>());
   playbackRef.current = props.playback;
   queueRef.current = queue;
-  loopRef.current = loop;
+  repeatModeRef.current = repeatMode;
 
   const actionsRef = useRef<Record<"play" | "pause" | "previous" | "next" | "stop", () => void>>({
     play: () => undefined,
@@ -109,8 +103,12 @@ export function ListenRepeat(props: {
     countValue,
     props.scope,
     props.order,
-  ), [countValue, props.dueItemIds, props.items, props.order, props.scope, props.selectedTopicItems]);
+    props.recommended.new,
+  ), [countValue, props.dueItemIds, props.items, props.order, props.recommended.new, props.scope, props.selectedTopicItems]);
   const visibleCandidates = shuffledCandidates || candidates;
+  const visibleComposition = visibleCandidates.reduce((composition, item) => item.progress.stage === "new"
+    ? { ...composition, new: composition.new + 1 }
+    : { ...composition, due: composition.due + 1 }, { due: 0, new: 0 });
   const current = queue[index];
   const compatibleElevenLabsVoices = props.elevenLabs.voicesByLanguage[props.language] || [];
   const selectedElevenLabsVoice = compatibleElevenLabsVoices.find(
@@ -287,7 +285,7 @@ export function ListenRepeat(props: {
         setNote("");
         void playAt(0, shuffled, true);
       } else {
-        const followingIndex = nextQueueIndex(nextIndex, nextQueue.length, loopRef.current);
+        const followingIndex = nextAutomaticIndex(nextIndex, nextQueue.length, repeatModeRef.current);
         if (followingIndex === null) setPhase("complete");
         else void playAt(followingIndex, nextQueue, true);
       }
@@ -332,11 +330,11 @@ export function ListenRepeat(props: {
   };
   const previous = () => {
     if (!queue.length) return;
-    const previousIndex = index > 0 ? index - 1 : loopRef.current ? queue.length - 1 : 0;
+    const previousIndex = index > 0 ? index - 1 : repeatModeRef.current === "all" ? queue.length - 1 : 0;
     void playAt(previousIndex);
   };
   const next = () => {
-    const nextIndex = nextQueueIndex(index, queue.length, loopRef.current);
+    const nextIndex = nextQueueIndex(index, queue.length, repeatModeRef.current === "all");
     if (nextIndex !== null) void playAt(nextIndex);
     else { runRef.current += 1; props.onStop(); setPhase("complete"); }
   };
@@ -350,6 +348,7 @@ export function ListenRepeat(props: {
       setNote("Shuffle starts after this card");
     }
   };
+  const cycleRepeat = () => setRepeatMode((mode) => nextRepeatMode(mode));
   actionsRef.current = { play: resume, pause, previous, next, stop };
 
   useEffect(() => setShuffledCandidates(null), [candidates]);
@@ -396,11 +395,11 @@ export function ListenRepeat(props: {
       </div>
       {showPlaybackSettings ? <div className="listen-setup-playback">{playbackSettings}</div> : null}
       <div className="listen-start-options">
-        <button aria-label={loop ? "Disable loop" : "Enable loop"} aria-pressed={loop} className={loop ? "is-active" : ""} onClick={() => setLoop((enabled) => !enabled)} title="Loop" type="button"><Repeat2 size={17} /></button>
+        <RepeatModeButton mode={repeatMode} onClick={cycleRepeat} size={17} />
         <button aria-label="Shuffle cards" onClick={shuffle} title="Shuffle" type="button"><Shuffle size={17} /></button>
         <button aria-expanded={showPlaybackSettings} aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
           onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Playback settings" type="button"><Settings2 size={17} /></button>
-        <span>{props.recommended.due} due · {props.recommended.new} new</span>
+        <span>{visibleComposition.due} due · {visibleComposition.new} new</span>
       </div>
     </section>
     <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
@@ -425,11 +424,11 @@ export function ListenRepeat(props: {
     <div className="listen-player-dock">
       <div className="listen-controls">
         <button aria-label="Shuffle after this card" onClick={shuffle} type="button"><Shuffle size={18} /></button>
-        <button aria-label="Previous" disabled={index === 0 && !loop} onClick={previous} type="button"><SkipBack fill="currentColor" size={17} /></button>
+        <button aria-label="Previous" disabled={index === 0 && repeatMode !== "all"} onClick={previous} type="button"><SkipBack fill="currentColor" size={17} /></button>
         <button aria-label={status === "paused" ? "Play" : "Pause"} className="listen-main-control" onClick={status === "paused" ? resume : pause} type="button">
           {status === "paused" ? <Play fill="currentColor" size={19} /> : <Pause fill="currentColor" size={19} />}</button>
         <button aria-label="Next" onClick={next} type="button"><SkipForward fill="currentColor" size={17} /></button>
-        <button aria-label={loop ? "Disable loop" : "Enable loop"} aria-pressed={loop} className={loop ? "is-active" : ""} onClick={() => setLoop((enabled) => !enabled)} type="button"><Repeat2 size={18} /></button>
+        <RepeatModeButton mode={repeatMode} onClick={cycleRepeat} size={18} />
         <button aria-expanded={showPlaybackSettings} aria-label="Voice settings" className={showPlaybackSettings ? "is-active" : ""}
           onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Voice settings" type="button"><Settings2 size={18} /></button>
       </div>
