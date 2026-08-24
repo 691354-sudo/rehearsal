@@ -345,6 +345,7 @@
 
 .simple-review-adjustment {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 7px;
   margin-top: 3px;
   padding-top: 10px;
@@ -404,7 +405,7 @@
   color: var(--script-tertiary);
 }
 
-.simple-review-actions {
+.simple-review-adjustment > .simple-review-actions {
   display: flex;
   gap: 5px;
   justify-content: flex-start;
@@ -602,15 +603,61 @@
 
   .simple-review-batch > footer {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    bottom: calc(var(--h-tabbar) + env(safe-area-inset-bottom));
+    gap: 10px;
+    justify-content: stretch;
   }
 
   .simple-review-footer-actions {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .simple-review-batch > footer .simple-primary {
     width: 100%;
+  }
+
+  .simple-app .simple-review-adjust-toggle {
+    min-height: var(--h-control);
+  }
+
+  .simple-review-adjustment {
+    gap: 12px;
+  }
+
+  .simple-review-adjustment > label {
+    gap: 6px;
+  }
+
+  .simple-review-adjustment label textarea,
+  .simple-review-adjustment > .simple-review-comment {
+    min-height: 96px;
+  }
+
+  .simple-review-comment {
+    margin-top: 0;
+  }
+
+  .simple-review-adjustment > .simple-review-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .simple-review-adjustment > .simple-review-actions button {
+    width: 100%;
+  }
+
+  .simple-app .simple-review-adjustment > .simple-review-actions button {
+    color: var(--script-support);
+    background: var(--script-inset);
+    border-color: var(--script-rule);
+  }
+
+  .simple-review-actions button.simple-review-revise {
+    grid-column: 1 / -1;
+    margin-inline-start: 0;
   }
 }
 
@@ -619,10 +666,6 @@
   .simple-review-candidate {
     grid-template-columns: 24px minmax(0, 1fr);
   }
-
-  .simple-review-actions {
-    grid-column: 2;
-  }
 }
 
 @media (max-width: 480px) {
@@ -630,10 +673,6 @@
   .simple-review-batch > header,
   .simple-review-batch > footer {
     align-items: flex-start;
-  }
-
-  .simple-review-actions {
-    flex-wrap: wrap;
   }
 }
 
