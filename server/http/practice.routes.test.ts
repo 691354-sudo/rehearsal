@@ -323,6 +323,9 @@ describe("practice and library API", () => {
   it("prioritizes listened cards in the fresh recommendation queue", () => {
     const exposed = context.repository.items.save({ language: "en", cue: "Прослушана", target: "Listened first." });
     context.repository.items.save({ language: "en", cue: "Не прослушана", target: "Unheard second." });
+    const topic = context.repository.library.createIsland({
+      language: "en", title: "Listened only", itemPublicIds: [exposed.publicId],
+    });
     context.repository.practice.recordAttempt({
       itemPublicId: exposed.publicId,
       mode: "listen",
@@ -336,5 +339,7 @@ describe("practice and library API", () => {
     const fresh = context.repository.practice.listDue("en", 100, new Date(), 1)
       .filter((item) => item.progress.stage === "new");
     expect(fresh.map((item) => item.publicId)).toEqual([exposed.publicId]);
+    expect(context.repository.library.getIsland(topic.publicId)?.progress)
+      .toMatchObject({ new: 1, dueNow: 0, recalls: 0, listens: 1 });
   });
 });

@@ -64,7 +64,7 @@ export function PracticePage(props: {
         <AppLink aria-current={props.route.mode === "recall" ? "page" : undefined} className={props.route.mode === "recall" ? "is-active" : ""} onClick={props.onModeSelected}
           route={{ ...props.route, mode: "recall", review: null }}>Recall</AppLink>
       </div> : <strong>Recall</strong>}
-      <p>{props.recommended.due} due · {props.recommended.new} new · {props.dailyProgress.recall} recalled today{listeningAvailable ? ` · ${props.dailyProgress.shadow} listened today` : ""}</p>
+      <p>{props.recommended.due} due · {props.recommended.new} not recalled yet · {props.dailyProgress.recall} recalled today{listeningAvailable ? ` · ${props.dailyProgress.shadow} listened today` : ""}</p>
     </section>
 
     {props.route.mode === "recall" || !listeningAvailable ? <RecallSession

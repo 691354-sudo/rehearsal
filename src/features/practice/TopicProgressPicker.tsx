@@ -56,9 +56,9 @@ export function TopicProgressPicker({ onChange, progressPill = false, topics, va
   };
   return <div className="topic-progress-picker" ref={rootRef}>
     <button aria-controls={listboxId} aria-expanded={open} aria-haspopup="listbox"
-      aria-label={selected ? `Topic: ${selected.title}, ${selected.progress.dueNow} due, ${selected.progress.new} new` : "Topic: All Topics"}
+      aria-label={selected ? `Topic: ${selected.title}, ${selected.progress.dueNow} due, ${selected.progress.new} not recalled yet` : "Topic: All Topics"}
       className="topic-progress-trigger" onClick={() => setOpen((shown) => !shown)} ref={triggerRef} type="button">
-      <span className="topic-progress-trigger-copy"><strong>{selected?.title || "All Topics"}</strong>{selected && !progressPill ? <small>{selected.progress.dueNow} due · {selected.progress.new} new</small> : null}</span>
+      <span className="topic-progress-trigger-copy"><strong>{selected?.title || "All Topics"}</strong>{selected && !progressPill ? <small>{selected.progress.dueNow} due · {selected.progress.new} not recalled yet</small> : null}</span>
       <span className="topic-progress-trigger-end">
         {selected && progressPill ? <small aria-hidden="true" className="topic-progress-trigger-count">{selected.progress.dueNow} · {selected.progress.new}</small> : null}
         <ChevronDown aria-hidden="true" size={15} />

@@ -62,6 +62,8 @@
 
 .topic-progress-picker { position: relative; min-width: 0; }
 
+.practice-topic-field { min-width: 0; }
+
 .topic-progress-trigger {
   display: flex;
   width: 100%;
@@ -450,7 +452,8 @@
     padding: 12px 16px;
   }
 
-  .practice-queue-preview--recall .practice-queue-side {
+  .practice-queue-preview--recall .practice-queue-side,
+  .practice-queue-preview--listen .practice-queue-side {
     display: grid;
     grid-column: 1 / -1;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -460,7 +463,8 @@
     width: 100%;
   }
 
-  .practice-queue-preview--recall .practice-queue-side .learning-progress {
+  .practice-queue-preview--recall .practice-queue-side .learning-progress,
+  .practice-queue-preview--listen .practice-queue-side .learning-progress {
     position: static;
     grid-column: 1;
     grid-row: 1;
@@ -468,7 +472,8 @@
     margin-inline-start: 36px;
   }
 
-  .practice-queue-preview--recall .practice-queue-actions {
+  .practice-queue-preview--recall .practice-queue-actions,
+  .practice-queue-preview--listen .practice-queue-actions {
     grid-column: 2;
     grid-row: 1;
   }
