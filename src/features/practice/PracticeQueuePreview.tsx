@@ -43,7 +43,7 @@ export function PracticeQueuePreview(props: {
   return <section className={`practice-queue-preview practice-queue-preview--${props.mode}`} aria-label="Selected cards">
     <header>
       <strong>{props.mode === "listen" ? "In this session" : props.scope === "due" ? "Recommended now" : "Library selection"}</strong>
-      {props.mode === "listen" ? null : <span>{props.items.length} {props.items.length === 1 ? "card" : "cards"}</span>}
+      <span>{props.items.length} {props.items.length === 1 ? "card" : "cards"}</span>
     </header>
     {props.items.length ? <ol>
       {visibleItems.map((item) => <li key={item.publicId}>
@@ -51,7 +51,6 @@ export function PracticeQueuePreview(props: {
           <p lang={props.mode === "recall" ? "ru" : props.language}>{props.mode === "recall" ? item.cue
             : <FocusedText focusTerms={item.focusTerms} text={item.target} />}</p>
           {props.mode === "listen" ? <span lang="ru">{item.cue}</span> : null}
-          {props.mode === "listen" ? <LearningProgressBadge progress={item.progress} /> : null}
           {props.mode === "recall" && props.attempts && props.onAnswer && props.onCheck && props.onRecallReview
             ? <InlineRecallAnswer attempt={props.attempts[item.publicId] || { answer: "" }} item={item} language={props.language}
               onAnswer={(value) => props.onAnswer!(item.publicId, value)} onCheck={() => props.onCheck!(item.publicId)}
@@ -62,7 +61,7 @@ export function PracticeQueuePreview(props: {
         <div className="practice-queue-side"><div className="practice-queue-actions">
             {languageHasAudio(props.language) ? <button aria-label={`Play ${item.target}`} onClick={() => void playManually(item)} title="Play" type="button"><Volume2 size={15} /></button> : null}
             <button aria-label={`Edit ${item.target}`} onClick={() => props.onEdit(item)} title="Edit" type="button"><Pencil size={15} /></button>
-          </div>{props.mode === "recall" ? <LearningProgressBadge progress={item.progress} /> : null}</div>
+          </div><LearningProgressBadge progress={item.progress} /></div>
       </li>)}
     </ol> : <div className="practice-queue-empty"><span>{props.scope === "due" ? "Nothing recommended right now." : "No matching cards."}</span>{props.emptyAction}</div>}
     {visibleCount < props.items.length ? <button className="practice-load-more" onClick={() => setVisibleCount((count) => count + 10)} type="button">

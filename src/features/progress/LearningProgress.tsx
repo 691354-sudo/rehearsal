@@ -34,6 +34,6 @@ export function TopicProgress({ progress }: { progress: IslandSummary["progress"
       {total ? stages.map((stage) => progress[stage] ? <i data-stage={stage} key={stage}
         style={{ width: `${progress[stage] / total * 100}%` }} /> : null) : <i data-stage="empty" />}
     </span>
-    <small>{progress.dueNow} due · {progress.new} new</small>
+    <small>{progress.dueNow} due · {progress.new} not recalled yet</small>
   </div>;
 }

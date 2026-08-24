@@ -709,9 +709,15 @@
   .simple-app .recall-setup select,
   .simple-app .topic-progress-trigger {
     width: 100%;
+    min-width: 0;
     min-height: var(--h-control);
     height: var(--h-control);
     font-size: 16px;
+  }
+
+  .recall-setup-fields,
+  .recall-setup-fields.has-order {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .topics-layout { grid-template-columns: 1fr; }

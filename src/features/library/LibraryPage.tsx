@@ -327,7 +327,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
         <select aria-label="Filter by status" name="library-status" onChange={(event) => patchRoute({ status: event.target.value as LibraryStatus, page: 1 })} value={status}>
           <option value="all">All</option><option value="new">New</option><option value="learning">Learning</option><option value="due">Due</option>
           <option value="strong">Strong</option><option value="learned">Learned</option></select>
-        <select aria-label="Filter by Topic" name="library-topic" onChange={(event) => patchRoute({ topic: event.target.value, page: 1 })} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title} · {value.progress.dueNow} due · {value.progress.new} new</option>)}</select>
+        <select aria-label="Filter by Topic" name="library-topic" onChange={(event) => patchRoute({ topic: event.target.value, page: 1 })} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title} · {value.progress.dueNow} due · {value.progress.new} not recalled yet</option>)}</select>
         <select aria-label="Sort cards" name="library-sort" onChange={(event) => patchRoute({ sort: event.target.value as LibrarySort, page: 1 })} value={sort}>
           <option value="recent">Recent</option><option value="oldest">Oldest</option><option value="due">Due soon</option><option value="least">Least practiced</option><option value="az">A–Z</option></select></div>
       <div className={`simple-library-selection${selectionMode ? "" : " is-idle"}`}>

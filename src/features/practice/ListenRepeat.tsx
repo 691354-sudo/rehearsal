@@ -381,7 +381,7 @@ export function ListenRepeat(props: {
   if (phase === "setup") return <div className="practice-ready-layout">
     <section className="listen-setup" aria-label="Listen and Repeat setup">
       <div className={`listen-selection-grid${props.scope === "custom" ? " has-order" : ""}`}>
-        <label><span className="simple-visually-hidden">Topic</span><TopicProgressPicker onChange={props.onTopic} progressPill topics={props.topics} value={props.topicId} /></label>
+        <div className="practice-topic-field"><TopicProgressPicker onChange={props.onTopic} progressPill topics={props.topics} value={props.topicId} /></div>
         <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" className="practice-card-select" name="listen-count" onChange={(event) => {
           const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
           props.onSelection(scope, count);
@@ -399,7 +399,7 @@ export function ListenRepeat(props: {
         <button aria-label="Shuffle cards" onClick={shuffle} title="Shuffle" type="button"><Shuffle size={17} /></button>
         <button aria-expanded={showPlaybackSettings} aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
           onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Playback settings" type="button"><Settings2 size={17} /></button>
-        <span>{visibleComposition.due} due · {visibleComposition.new} new</span>
+        <span>{visibleComposition.due} due · {visibleComposition.new} not recalled yet</span>
       </div>
     </section>
     <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
