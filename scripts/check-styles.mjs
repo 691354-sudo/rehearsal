@@ -30,8 +30,10 @@ for (const entry of fs.readdirSync(stylesDir)) {
 const cssFiles = fs.readdirSync(stylesDir).filter((entry) => entry.endsWith(".css"));
 const definitions = new Set();
 const uses = [];
+const sourceByFile = new Map();
 for (const entry of cssFiles) {
   const source = fs.readFileSync(path.join(stylesDir, entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  sourceByFile.set(entry, source);
   for (const match of source.matchAll(/^\s*(--[\w-]+)\s*:/gm)) definitions.add(match[1]);
   for (const match of source.matchAll(/var\(\s*(--[\w-]+)/g)) {
     const line = source.slice(0, match.index).split("\n").length;
@@ -41,6 +43,11 @@ for (const entry of cssFiles) {
 
 for (const use of uses) {
   if (!definitions.has(use.name)) errors.push(`undefined CSS variable ${use.name} at src/styles/${use.entry}:${use.line}`);
+}
+
+const reviewSource = sourceByFile.get("review.css") || "";
+if (/(?:^|})\s*\.simple-review-actions\s*\{[^}]*\bgrid-(?:column|row)\s*:/ms.test(reviewSource)) {
+  errors.push("review action grid placement must be scoped to its owning parent; a bare .simple-review-actions rule breaks nested mobile forms");
 }
 
 if (errors.length) {

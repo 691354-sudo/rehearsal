@@ -425,6 +425,24 @@
 
 @media (max-width: 720px) {
 
+  .capture-notebook {
+    overflow: visible;
+  }
+
+  .capture-notebook > .simple-review-batch {
+    width: 100%;
+    margin: 16px 0 0;
+    overflow: visible;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .simple-review-batch--capture .simple-review-candidate {
+    gap: 8px;
+    padding: 16px 12px;
+  }
+
   .capture-list-heading {
     align-items: flex-start;
   }

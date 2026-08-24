@@ -184,7 +184,7 @@ export function ReviewBatchPanel(props: {
             setAdjustingCandidateId((current) => current === candidate.id ? null : candidate.id);
           }} type="button"><ChevronDown aria-hidden="true" size={15} />{adjustingCandidateId === candidate.id ? "Hide adjustments" : "Adjust"}</button>
           {adjustingCandidateId === candidate.id ? <div className="simple-review-adjustment">
-            <label><span>English sentence</span><textarea aria-label="Target phrase" autoComplete="off" lang={props.batch.language} name={`review-target-${candidate.id}`} onChange={(event) => update(candidate.id, { target: event.target.value })} rows={2} value={candidate.target} /></label>
+            <label><span>Target sentence</span><textarea aria-label="Target phrase" autoComplete="off" lang={props.batch.language} name={`review-target-${candidate.id}`} onChange={(event) => update(candidate.id, { target: event.target.value })} rows={2} value={candidate.target} /></label>
             <label><span>Russian cue</span><textarea aria-label="Russian cue" autoComplete="off" lang="ru" name={`review-cue-${candidate.id}`} onChange={(event) => update(candidate.id, { cue: event.target.value })} rows={2} value={candidate.cue} /></label>
             <label><span>Topic</span><input aria-label="Category" autoComplete="off" name={`review-category-${candidate.id}`} onChange={(event) => update(candidate.id, { category: event.target.value })} value={candidate.category} /></label>
             <textarea aria-label={`Comment for card ${page * pageSize + visibleIndex + 1}`}
