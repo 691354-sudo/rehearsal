@@ -97,16 +97,17 @@ describe("practice and library API", () => {
   });
 
   it("validates an explicit focus phrase against the target", async () => {
+    const topic = context.repository.library.createIsland({ language: "en", title: "Focus phrases" });
     const app = await buildApp(context.repository);
     const invalid = await app.inject({
       method: "POST", url: "/api/items",
-      payload: { language: "en", cue: "Я справлюсь.", target: "I can pull through.", focusTerms: ["bounce back"] },
+      payload: { language: "en", cue: "Я справлюсь.", target: "I can pull through.", focusTerms: ["bounce back"], topicId: topic.publicId },
     });
     expect(invalid.statusCode).toBe(400);
     expect(invalid.json().error).toBe("FOCUS_TERM_NOT_FOUND");
     const valid = await app.inject({
       method: "POST", url: "/api/items",
-      payload: { language: "en", cue: "Я справлюсь.", target: "I can pull through.", focusTerms: ["pull through"] },
+      payload: { language: "en", cue: "Я справлюсь.", target: "I can pull through.", focusTerms: ["pull through"], topicId: topic.publicId },
     });
     expect(valid.statusCode).toBe(201);
     expect(valid.json().item.focusTerms).toEqual(["pull through"]);
@@ -256,7 +257,7 @@ describe("practice and library API", () => {
     await app.close();
   });
 
-  it("keeps Topic membership independent, ordered, and non-destructive", async () => {
+  it("moves cards between Topics and deletes a Topic with its owned cards", async () => {
     const first = context.repository.items.save({ language: "en", cue: "А", target: "A.", tags: [" My Topic "] });
     const second = context.repository.items.save({ language: "en", cue: "Б", target: "B.", tags: ["my   topic"] });
     context.repository.library.backfillTopicsFromTags("en");
@@ -277,12 +278,29 @@ describe("practice and library API", () => {
     const detail = await app.inject({ method: "GET", url: `/api/islands/${islandId}` });
     expect(detail.json().island.items.map((item: { publicId: string }) => item.publicId))
       .toEqual([second.publicId, first.publicId]);
+    expect(context.repository.library.getIsland(backfilled[0].publicId)?.items).toHaveLength(0);
     expect((await app.inject({
-      method: "PATCH", url: `/api/islands/${islandId}`, payload: { title: "Renamed topic", itemIds: [first.publicId] },
-    })).json().island).toMatchObject({ title: "Renamed topic", itemCount: 1 });
-    expect((await app.inject({ method: "DELETE", url: `/api/islands/${islandId}` })).statusCode).toBe(204);
+      method: "PATCH", url: `/api/islands/${islandId}`, payload: { title: "Renamed topic" },
+    })).json().island).toMatchObject({ title: "Renamed topic", itemCount: 2 });
+    const destination = context.repository.library.createIsland({ language: "en", title: "Destination" });
+    expect((await app.inject({
+      method: "PATCH", url: `/api/islands/${destination.publicId}`, payload: { itemIds: [first.publicId] },
+    })).statusCode).toBe(200);
+    expect(context.repository.library.getIsland(islandId)?.items.map((item) => item.publicId)).toEqual([second.publicId]);
+    const deletedTopic = await app.inject({ method: "DELETE", url: `/api/islands/${islandId}` });
+    expect(deletedTopic.statusCode).toBe(200);
+    expect(deletedTopic.json().deletedItemIds).toEqual([second.publicId]);
     expect(context.repository.items.get(first.publicId)).not.toBeNull();
-    expect(context.repository.items.get(second.publicId)).not.toBeNull();
+    expect(context.repository.items.get(second.publicId)).toBeNull();
+
+    const onlyItem = context.repository.items.save({ language: "en", cue: "Одна тема", target: "Only one Topic." });
+    const onlyTopic = context.repository.library.createIsland({ language: "en", title: "Only Topic", itemPublicIds: [onlyItem.publicId] });
+    const orphaning = await app.inject({
+      method: "PATCH", url: `/api/islands/${onlyTopic.publicId}`, payload: { itemIds: [] },
+    });
+    expect(orphaning.statusCode).toBe(409);
+    expect(orphaning.json()).toEqual({ error: "TOPIC_ITEM_ORPHAN" });
+    expect(context.repository.library.getIsland(onlyTopic.publicId)?.items).toHaveLength(1);
     await app.close();
   });
 
@@ -299,7 +317,7 @@ describe("practice and library API", () => {
   });
 
   it("does not recreate a deleted backfilled Topic after restart", async () => {
-    context.repository.items.save({
+    const item = context.repository.items.save({
       language: "en",
       cue: "Удалить тему",
       target: "Delete the topic.",
@@ -307,7 +325,9 @@ describe("practice and library API", () => {
     });
     const app = await buildApp(context.repository);
     const topic = context.repository.library.findIslandByTitle("en", "Temporary tag topic")!;
-    expect((await app.inject({ method: "DELETE", url: `/api/islands/${topic.publicId}` })).statusCode).toBe(204);
+    const deleted = await app.inject({ method: "DELETE", url: `/api/islands/${topic.publicId}` });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json().deletedItemIds).toEqual([item.publicId]);
     await app.close();
     context.reopen();
     const restarted = await buildApp(context.repository);

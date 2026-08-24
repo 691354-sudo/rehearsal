@@ -30,8 +30,7 @@ export class ItemsRepository {
     return row ? mapItem(row) : null;
   }
 
-  create(input: LearningItemInput, topicPublicId?: string) {
-    if (!topicPublicId) return this.save(input);
+  create(input: LearningItemInput, topicPublicId: string) {
     const topic = this.db.prepare(
       "SELECT id, language_code FROM islands WHERE public_id = ?",
     ).get(topicPublicId) as { id: number; language_code: LanguageCode } | undefined;

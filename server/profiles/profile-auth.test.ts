@@ -355,16 +355,16 @@ describe("profile authentication and database isolation", () => {
       expect(response.json()).toEqual({ error: "LANGUAGE_NOT_ENABLED" });
     }
 
-    const createdItem = await mutate(app, oliver, {
-      method: "POST", url: "/api/items",
-      payload: { language: "vi", cue: "Я хочу кофе.", target: "Tôi muốn uống cà phê." },
-    });
-    const itemId = createdItem.json().item.publicId as string;
     const createdIsland = await mutate(app, oliver, {
       method: "POST", url: "/api/islands",
-      payload: { language: "vi", title: "Quán cà phê", itemIds: [itemId] },
+      payload: { language: "vi", title: "Quán cà phê", itemIds: [] },
     });
     const islandId = createdIsland.json().island.publicId as string;
+    const createdItem = await mutate(app, oliver, {
+      method: "POST", url: "/api/items",
+      payload: { language: "vi", cue: "Я хочу кофе.", target: "Tôi muốn uống cà phê.", topicId: islandId },
+    });
+    const itemId = createdItem.json().item.publicId as string;
     const createdThread = await mutate(app, oliver, {
       method: "POST", url: "/api/chat",
       payload: { language: "vi", message: "Giúp tôi luyện câu này.", clientMessageId: "ef55fa77-a526-4056-a8f2-d71cce76e02f" },

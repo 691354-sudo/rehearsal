@@ -300,6 +300,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
       onClose={() => { patchRoute({ view: "cards" }, "replace"); void refreshTopics(); }}
       onCreateNew={() => patchRoute({ panel: "create", edit: null }, "push")}
       onEdit={(itemId) => patchRoute({ edit: itemId }, "push")}
+      onItemDeleted={onItemDeleted}
       onTopic={(topicId) => patchRoute({ topic: topicId || "all" }, "replace")} /></div> : <>
       {showImport ? <section className="simple-import-card simple-library-secondary">
       <div className="simple-section-heading"><FilePlus2 size={19} /><div><strong>Import text or transcript</strong></div></div>
@@ -381,7 +382,11 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     </section>
     </>}
     {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => closeSurface("editor", { edit: null })}
-      onSaved={(item) => { onItemUpdated(item); if (showTopics) setTopicsRevision((revision) => revision + 1); closeSurface("editor", { edit: null }); }} /> : null}
+      onSaved={(item) => {
+        onItemUpdated(item);
+        patchRoute({ edit: null }, "replace");
+        if (showTopics) setTopicsRevision((revision) => revision + 1);
+      }} /> : null}
     {showCreate ? <CardCreateDialog initialTopicId={route.topic === "all" ? "" : route.topic} language={language} topics={topics}
       onClose={() => closeSurface("create", { panel: null })} onCreated={() => {
         closeSurface("create", { panel: null }); void onItemsReload(); void refreshTopics();

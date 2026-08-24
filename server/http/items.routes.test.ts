@@ -94,12 +94,13 @@ describe("Item API", () => {
 
   it("stores and searches Vietnamese target text in NFC", async () => {
     context.repository.system.setLanguageEnabled("vi", true);
+    const topic = context.repository.library.createIsland({ language: "vi", title: "Vietnamese" });
     const app = await buildApp(context.repository);
     const target = "Tôi muốn uống cà phê.";
     const created = await app.inject({
       method: "POST",
       url: "/api/items",
-      payload: { language: "vi", cue: "Я хочу выпить кофе.", target: target.normalize("NFD") },
+      payload: { language: "vi", cue: "Я хочу выпить кофе.", target: target.normalize("NFD"), topicId: topic.publicId },
     });
     expect(created.statusCode).toBe(201);
     expect(created.json().item.target).toBe(target);
@@ -126,6 +127,13 @@ describe("Item API", () => {
     const topic = context.repository.library.createIsland({ language: "en", title: "Manual cards" });
     const app = await buildApp(context.repository);
     const before = context.repository.items.list("en", 2_000).length;
+    const withoutTopic = await app.inject({
+      method: "POST",
+      url: "/api/items",
+      payload: { language: "en", target: "This must have a Topic.", cue: "Этой карточке нужен топик." },
+    });
+    expect(withoutTopic.statusCode).toBe(400);
+    expect(context.repository.items.list("en", 2_000)).toHaveLength(before);
     const created = await app.inject({
       method: "POST",
       url: "/api/items",
@@ -153,6 +161,35 @@ describe("Item API", () => {
     });
     expect(missing.statusCode).toBe(404);
     expect(context.repository.items.list("en", 2_000)).toHaveLength(before + 1);
+    await app.close();
+  });
+
+  it("does not commit a review card without a Topic", async () => {
+    const candidate = reviewCandidate({ category: "", target: "This card needs a Topic.", focusTerms: [] });
+    const batch = context.repository.reviews.create({
+      language: "en",
+      kind: "vocab",
+      title: "Missing Topic",
+      candidates: [candidate],
+    });
+    const before = context.repository.items.list("en", 2_000).length;
+    const app = await buildApp(context.repository);
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/review-batches/${batch.publicId}/commit`,
+      payload: { candidates: [{
+        id: candidate.id,
+        target: candidate.target,
+        cue: candidate.cue,
+        note: candidate.note,
+        category: "",
+      }] },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: "TOPIC_REQUIRED" });
+    expect(context.repository.items.list("en", 2_000)).toHaveLength(before);
+    expect(context.repository.reviews.get(batch.publicId)?.status).toBe("draft");
     await app.close();
   });
 

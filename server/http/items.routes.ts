@@ -21,7 +21,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
 
   app.post("/api/items", async (request, reply) => {
     const { repository } = dependencies.forRequest(request);
-    const body = itemBodySchema.extend({ topicId: z.string().uuid().optional() }).parse(request.body);
+    const body = itemBodySchema.extend({ topicId: z.string().uuid() }).parse(request.body);
     if (!focusTermsInTarget(body.target, body.focusTerms || [])) {
       return reply.code(400).send({ error: "FOCUS_TERM_NOT_FOUND" });
     }
@@ -205,9 +205,9 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
   app.delete("/api/islands/:islandId", async (request, reply) => {
     const { repository } = dependencies.forRequest(request);
     const params = z.object({ islandId: z.string().uuid() }).parse(request.params);
-    if (!repository.library.deleteIsland(params.islandId)) {
-      return reply.code(404).send({ error: "TOPIC_NOT_FOUND" });
-    }
-    return reply.code(204).send();
+    const deletedItemIds = repository.library.deleteIslandWithItems(params.islandId);
+    return deletedItemIds
+      ? { deletedItemIds }
+      : reply.code(404).send({ error: "TOPIC_NOT_FOUND" });
   });
 };
