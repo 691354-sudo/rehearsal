@@ -28,7 +28,7 @@ export function CardEditorDialog(props: {
   const dirty = target !== props.item.target || cue !== props.item.cue || note !== props.item.note
     || focusPhrase !== (props.item.focusTerms[0] || "")
     || frequencyBand !== props.item.frequencyBand || Boolean(feedback.trim());
-  const focusTerms = focusPhrase.trim() ? [focusPhrase.trim(), ...props.item.focusTerms.slice(1)] : [];
+  const focusTerms = focusPhrase.trim() ? [focusPhrase.trim()] : [];
   const focusValid = focusTermsInTarget(target, focusTerms);
   const requestClose = () => {
     if (dirty && !window.confirm("Discard unsaved changes to this card?")) return;

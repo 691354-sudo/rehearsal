@@ -92,10 +92,12 @@ export class LibraryRepository {
       const add = this.db.prepare(
         "INSERT OR IGNORE INTO island_items(island_id, item_id, position) VALUES (?, ?, ?)",
       );
+      const detach = this.db.prepare("DELETE FROM island_items WHERE item_id = ?");
       (input.itemPublicIds || []).forEach((itemPublicId, index) => {
         const item = this.db.prepare("SELECT id FROM items WHERE public_id = ? AND language_code = ?")
           .get(itemPublicId, input.language) as { id: number } | undefined;
         if (!item) throw new Error("TOPIC_ITEM_NOT_FOUND");
+        detach.run(item.id);
         add.run(islandId, item.id, index);
       });
     });
@@ -201,12 +203,15 @@ export class LibraryRepository {
     const item = this.db.prepare("SELECT id FROM items WHERE public_id = ? AND language_code = ?")
       .get(itemPublicId, island.language_code) as { id: number } | undefined;
     if (!item) throw new Error("TOPIC_ITEM_NOT_FOUND");
-    const position = (this.db.prepare(
-      "SELECT COALESCE(MAX(position), -1) + 1 AS position FROM island_items WHERE island_id = ?",
-    ).get(island.id) as { position: number }).position;
-    this.db.prepare("INSERT OR IGNORE INTO island_items(island_id, item_id, position) VALUES (?, ?, ?)")
-      .run(island.id, item.id, position);
-    this.db.prepare("UPDATE islands SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(island.id);
+    this.db.transaction(() => {
+      this.db.prepare("DELETE FROM island_items WHERE item_id = ?").run(item.id);
+      const position = (this.db.prepare(
+        "SELECT COALESCE(MAX(position), -1) + 1 AS position FROM island_items WHERE island_id = ?",
+      ).get(island.id) as { position: number }).position;
+      this.db.prepare("INSERT INTO island_items(island_id, item_id, position) VALUES (?, ?, ?)")
+        .run(island.id, item.id, position);
+      this.db.prepare("UPDATE islands SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(island.id);
+    })();
   }
 
   updateIsland(publicId: string, input: { title?: string; description?: string; itemPublicIds?: string[] }) {
@@ -229,6 +234,18 @@ export class LibraryRepository {
         return item.id;
       });
       if (new Set(resolved).size !== resolved.length) throw new Error("TOPIC_ITEM_DUPLICATE");
+      const nextPublicIds = new Set(input.itemPublicIds);
+      const membershipCount = this.db.prepare(
+        `SELECT COUNT(*) AS count FROM island_items
+         JOIN items ON items.id = island_items.item_id
+         WHERE items.public_id = ? AND island_items.island_id != ?`,
+      );
+      if (before.items.filter((item) => !nextPublicIds.has(item.publicId))
+        .some((item) => (membershipCount.get(item.publicId, islandRow.id) as { count: number }).count === 0)) {
+        throw new Error("TOPIC_ITEM_ORPHAN");
+      }
+      const detachElsewhere = this.db.prepare("DELETE FROM island_items WHERE item_id = ? AND island_id != ?");
+      resolved.forEach((itemId) => detachElsewhere.run(itemId, islandRow.id));
       this.db.prepare("DELETE FROM island_items WHERE island_id = ?").run(islandRow.id);
       const add = this.db.prepare("INSERT INTO island_items(island_id, item_id, position) VALUES (?, ?, ?)");
       resolved.forEach((itemId, position) => add.run(islandRow.id, itemId, position));
@@ -245,6 +262,21 @@ export class LibraryRepository {
     this.db.prepare("DELETE FROM islands WHERE public_id = ?").run(publicId);
     logChange(this.db, "user", "delete", "island", publicId, before, null);
     return true;
+  }
+
+  deleteIslandWithItems(publicId: string) {
+    const before = this.getIsland(publicId);
+    if (!before) return null;
+    const removeItem = this.db.prepare("DELETE FROM items WHERE public_id = ?");
+    this.db.transaction(() => {
+      before.items.forEach((item) => {
+        logChange(this.db, "user", "delete", "item", item.publicId, item, null);
+        removeItem.run(item.publicId);
+      });
+      this.db.prepare("DELETE FROM islands WHERE public_id = ?").run(publicId);
+      logChange(this.db, "user", "delete", "island", publicId, before, null);
+    })();
+    return before.items.map((item) => item.publicId);
   }
 
   backfillTopicsFromTags(language?: LanguageCode) {

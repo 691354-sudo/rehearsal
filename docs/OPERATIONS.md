@@ -87,6 +87,16 @@ CONFIRM_RESTORE=1 npm run db:restore -- --profile <invited-profile-uuid> /absolu
 
 Stop the API before restore. Restore validates the candidate with SQLite `quick_check` and creates a safety copy of only the selected profile database before replacement. Never restore one profile's file into the other profile without an explicit data-recovery decision.
 
+Cards without an owning Topic are invalid legacy data. Back up every profile, preview the exact cards, and use the count-bound confirmation before deleting them:
+
+```bash
+npm run db:backup
+npm run db:delete-orphans -- --profile roman --dry-run
+CONFIRM_DELETE_ORPHANS=roman:<preview-count> npm run db:delete-orphans -- --profile roman
+```
+
+The command deletes only cards with no `island_items` membership and finishes with SQLite foreign-key and quick checks.
+
 ## Curated Library replacement
 
 A validated JSON import may replace one profile-and-language Library without touching the other language, Tutor chats, Capture notes, or the other profile. Always create and verify the profile backups first, preview the exact counts, and then use the matching confirmation value:

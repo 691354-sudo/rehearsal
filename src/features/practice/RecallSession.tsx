@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronRight, Settings2, Volume2, X } from "lucide-react";
+import { Check, ChevronRight, Pencil, Settings2, Volume2, X } from "lucide-react";
 import { recallKeyAction, recallSessionReducer, initialRecallSession } from "../../lib/recallSession";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { capitalize, languageCopy, languageHasAudio } from "../../shared/config";
@@ -167,6 +167,7 @@ export function RecallSession(props: {
       </div> : <small className="recall-key-hint">Enter to check</small>}
     </article>
     <div className="recall-session-settings"><div className="recall-session-utilities">
+      <button aria-label={`Edit ${current.target}`} onClick={() => props.onEdit(current)} title="Edit card" type="button"><Pencil aria-hidden="true" size={18} /></button>
       {languageHasAudio(props.language) ? <button aria-expanded={showPlaybackSettings} aria-label="Voice settings" className={showPlaybackSettings ? "is-active" : ""}
         onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Voice settings" type="button"><Settings2 size={18} /></button> : null}
       <button aria-label="End session" onClick={() => dispatch({ type: "reset" })} title="End session" type="button"><X size={18} /></button>

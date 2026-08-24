@@ -30,6 +30,12 @@ export const toErrorResponse = (error: unknown) => {
   if (error instanceof Error && error.message === "TOPIC_ITEM_DUPLICATE") {
     return { statusCode: 400, body: { error: "TOPIC_ITEM_DUPLICATE" } };
   }
+  if (error instanceof Error && error.message === "TOPIC_REQUIRED") {
+    return { statusCode: 400, body: { error: "TOPIC_REQUIRED" } };
+  }
+  if (error instanceof Error && error.message === "TOPIC_ITEM_ORPHAN") {
+    return { statusCode: 409, body: { error: "TOPIC_ITEM_ORPHAN" } };
+  }
   if (error instanceof Error && error.message === "TOPIC_LANGUAGE_MISMATCH") {
     return { statusCode: 409, body: { error: "TOPIC_LANGUAGE_MISMATCH" } };
   }

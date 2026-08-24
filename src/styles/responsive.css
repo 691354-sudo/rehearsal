@@ -697,14 +697,6 @@
   .simple-main .topics-manager select,
   .listen-player > header button { min-height: var(--h-control); }
 
-  .topic-items strong,
-  .topic-items span {
-    overflow: visible;
-    text-overflow: clip;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-
   .simple-app .listen-setup select,
   .simple-app .recall-setup select,
   .simple-app .topic-progress-trigger {
@@ -729,7 +721,7 @@
   }
   .topic-detail { padding: 16px; }
   .topic-item-side .learning-counts { display: none; }
-  .topic-card-edit { width: 44px; min-width: 44px; height: var(--h-control); min-height: var(--h-control) !important; }
+  .topic-card-overflow > button { width: 44px; min-width: 44px; height: var(--h-control); min-height: var(--h-control) !important; }
 
   .topic-detail-heading {
     align-items: flex-start;

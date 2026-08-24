@@ -117,6 +117,10 @@ export class ReviewsRepository {
   }
 
   private saveCandidate(batch: ReviewBatch, candidate: ReviewCandidate) {
+    const topicTitle = (batch.destinationTopicTitle || candidate.category).trim();
+    if (!topicTitle) throw new Error("TOPIC_REQUIRED");
+    const topic = this.library.ensureIsland(batch.language, topicTitle,
+      batch.destinationTopicTitle ? "user" : "llm");
     const item = this.items.save({
       language: batch.language,
       kind: batch.kind === "text_import"
@@ -136,12 +140,7 @@ export class ReviewsRepository {
       relevanceCheckedAt: candidate.currency === "uncertain" ? null : new Date().toISOString(),
       register: "casual",
     }, "user");
-    const topicTitle = batch.destinationTopicTitle || candidate.category;
-    if (topicTitle) {
-      const topic = this.library.ensureIsland(batch.language, topicTitle,
-        batch.destinationTopicTitle ? "user" : "llm");
-      this.library.addIslandItem(topic.publicId, item.publicId);
-    }
+    this.library.addIslandItem(topic.publicId, item.publicId);
     return item;
   }
 

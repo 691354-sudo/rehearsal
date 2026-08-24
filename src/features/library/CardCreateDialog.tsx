@@ -27,6 +27,7 @@ export function CardCreateDialog(props: {
     || topicId !== (props.initialTopicId || "") || frequencyBand !== "common");
   const focusTerms = focusPhrase.trim() ? [focusPhrase.trim()] : [];
   const focusValid = focusTermsInTarget(target, focusTerms);
+  const topicValid = Boolean(topicId);
 
   const requestClose = () => {
     if (dirty && !window.confirm("Discard this unfinished card?")) return;
@@ -56,13 +57,13 @@ export function CardCreateDialog(props: {
   }, [dirty, props.language]);
 
   const save = async () => {
-    if (!target.trim() || !cue.trim() || !focusValid || saving) return;
+    if (!target.trim() || !cue.trim() || !focusValid || !topicValid || saving) return;
     setSaving(true); setSaveError("");
     try {
       const response = await apiFetch("/api/items", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language: props.language, target: target.trim(), cue: cue.trim(),
-          focusTerms, topicId: topicId || undefined, note: note.trim(), frequencyBand }),
+          focusTerms, topicId, note: note.trim(), frequencyBand }),
       });
       if (!response.ok) throw new Error(response.status === 400
         ? "Check the focus phrase and required fields."
@@ -90,8 +91,9 @@ export function CardCreateDialog(props: {
           onChange={(event) => setFocusPhrase(event.target.value)} value={focusPhrase} />
           <small id="new-card-focus-help">Optional · must appear exactly in the target phrase.</small>
           {!focusValid ? <em className="simple-card-dialog-error">Focus phrase isn’t present in the target.</em> : null}</label>
-        <label><span>Topic</span><select name="new-card-topic" onChange={(event) => setTopicId(event.target.value)} value={topicId}>
-          <option value="">No Topic</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}</select></label>
+        <label><span>Topic</span><select aria-describedby={!props.topics.length ? "new-card-topic-help" : undefined} name="new-card-topic" onChange={(event) => setTopicId(event.target.value)} required value={topicId}>
+          <option disabled value="">Choose a Topic…</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}</select>
+          {!props.topics.length ? <small id="new-card-topic-help">Create a Topic before adding a card.</small> : null}</label>
         <details className="simple-card-more"><summary><span>More details</span><ChevronDown size={15} /></summary><div>
           <label><span>Note</span><textarea autoComplete="off" name="new-card-note" onChange={(event) => setNote(event.target.value)} rows={2} value={note} /></label>
           <label><span>Frequency</span><select name="new-card-frequency" onChange={(event) => setFrequencyBand(event.target.value as LearningItem["frequencyBand"])} value={frequencyBand}>
@@ -101,7 +103,7 @@ export function CardCreateDialog(props: {
         {saveError ? <p className="simple-card-dialog-error" role="alert">{saveError}</p> : null}
       </div>
       <footer><span /><div><button disabled={saving} onClick={requestClose} type="button">Cancel</button>
-        <button className="simple-primary" disabled={saving || !target.trim() || !cue.trim() || !focusValid}
+        <button className="simple-primary" disabled={saving || !target.trim() || !cue.trim() || !focusValid || !topicValid}
           type="submit">{saving ? "Creating…" : "Create card"}</button></div></footer>
     </form>
   </dialog>;

@@ -8,7 +8,7 @@ Rehearsal builds automatic target-language use around each learner's real life. 
 
 The visible unit is always a card. A card can hold a focus word in context, one sentence, a connected language island, or a short paragraph. These are different lengths of material, not separate product systems.
 
-A Topic is a collection of cards around one part of the active learner's real life. “Language island” remains the learning-method term; the product calls the collection a Topic. One card may appear in more than one Topic. Topics filter Practice and Library; deleting a Topic never deletes its cards. A Topic always describes a real-life context such as work, cafés, the gym, or relationships. Linguistic forms such as conditionals and phrasal verbs are patterns or tags, not Topics.
+A Topic is a collection of cards around one part of the active learner's real life. “Language island” remains the learning-method term; the product calls the collection a Topic. Every card belongs to exactly one Topic: it may be moved to another Topic or deleted, but never detached. Topics filter Practice and Library; deleting a Topic atomically deletes every card inside it and their review history. A Topic always describes a real-life context such as work, cafés, the gym, or relationships. Linguistic forms such as conditionals and phrasal verbs are patterns or tags, not Topics.
 
 Good material is:
 
@@ -62,9 +62,9 @@ Every card is requested and played as a separate MP3 through one persistent brow
 
 Library cards may be selected with checkboxes and deleted as one confirmed batch. The batch operation is atomic: it deletes every selected card or none of them.
 
-A saved Library card may be rewritten from its Edit dialog using one optional learner comment such as “too formal” or “keep the context, but I would say it differently.” The model rewrites only the unsaved editor draft. The stored card, Topic membership, and review history remain unchanged until the learner explicitly presses `Save card`; a failed rewrite preserves both the current draft and the comment for retry.
+A saved Library card may be edited from Library, Manage Topics, or the active Practice card. Its Edit dialog may also rewrite the draft using one optional learner comment such as “too formal” or “keep the context, but I would say it differently.” The model rewrites only the unsaved editor draft. The stored card, Topic membership, and review history remain unchanged until the learner explicitly presses `Save card`; a failed rewrite preserves both the current draft and the comment for retry.
 
-Library also accepts a card written entirely by the learner. Target sentence and Russian cue are required; Focus phrase and Topic are optional, while Note and Frequency remain under `More details`. Creating with a Topic writes the card and membership atomically, and a failed request leaves the draft in the form.
+Library also accepts a card written entirely by the learner. Target sentence, Russian cue, and Topic are required; Focus phrase is optional, while Note and Frequency remain under `More details`. Creating the card and its Topic membership is atomic, and a failed request leaves the draft in the form.
 
 Text Import keeps its ordinary “select useful material” behavior when no delimiter is present. When the source contains `$`, every non-empty whitespace-normalized fragment—including text before the first delimiter—becomes exactly one review candidate in source order. The target wording is immutable during AI preparation; the model supplies only the Russian cue, optional exact focus, and metadata. A named destination Topic is required, at most 100 fragments of 2,000 characters are accepted, and all selected cards enter that one Topic in the commit transaction.
 
