@@ -373,8 +373,9 @@ export class ProfileManager {
 
   inviteExperience(token: string) {
     const invitation = invitationRecordForToken(this.invitations, token);
-    return [invitation ? invitation.purpose || "standard" : null, Boolean(invitation?.purpose === "onboarding_v1_pilot"
-      && invitation.usedAt && invitation.usedByProfileId && !invitation.revokedAt)] as const;
+    const replayProfileId = invitation?.purpose === "onboarding_v1_pilot" && invitation.usedAt
+      && invitation.usedByProfileId && !invitation.revokedAt ? invitation.usedByProfileId : null;
+    return [invitation ? invitation.purpose || "standard" : null, Boolean(replayProfileId), replayProfileId] as const;
   }
 
   onboardingState(profileId: ProfileId): OnboardingState {

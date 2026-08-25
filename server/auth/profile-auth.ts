@@ -18,7 +18,7 @@ const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const publicAuthPath = (request: FastifyRequest) => {
   const pathname = request.url.split("?", 1)[0];
   return pathname === "/api/auth/profiles" || pathname === "/api/auth/login"
-    || pathname === "/api/auth/join"
+    || pathname === "/api/auth/join" || pathname === "/api/auth/pilot-replay"
     || (request.method === "GET" && pathname.startsWith("/api/auth/invites/"));
 };
 
@@ -79,7 +79,7 @@ export const registerProfileAuth = (
       void reply.code(403).send({ error: "CLIENT_HEADER_REQUIRED" });
       return;
     }
-    if (request.url === "/api/auth/login" || request.url === "/api/auth/join") return done();
+    if (["/api/auth/login", "/api/auth/join", "/api/auth/pilot-replay"].includes(request.url)) return done();
     app.csrfProtection(request, reply, done);
   });
 
@@ -116,6 +116,27 @@ export const registerProfileAuth = (
     reply.setCookie(sessionCookieName, sessionValue(body.profileId), cookieOptions);
     const csrfToken = reply.generateCsrf();
     return authSession(body.profileId, csrfToken);
+  });
+
+  app.post("/api/auth/pilot-replay", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const body = z.object({
+      token: z.string().min(1).max(16),
+      pin: z.string().regex(/^\d{4,12}$/),
+    }).parse(request.body);
+    const key = `${request.ip}:pilot-replay:${body.token.replaceAll("-", "").toUpperCase()}`;
+    const rate = limiter.blocked(key);
+    if (rate.blocked) {
+      return reply.header("Retry-After", rate.retryAfterSeconds).code(429).send({ error: "LOGIN_RATE_LIMITED" });
+    }
+    const [, replayAvailable, profileId] = profiles.inviteExperience(body.token);
+    if (!replayAvailable || !profileId || !profiles.verifyPin(profileId, body.pin)) {
+      limiter.fail(key);
+      return reply.code(401).send({ error: "INVALID_PILOT_REPLAY" });
+    }
+    limiter.clear(key);
+    reply.setCookie(sessionCookieName, sessionValue(profileId), cookieOptions);
+    return authSession(profileId, reply.generateCsrf());
   });
 
   app.post("/api/auth/invites", async (request, reply) => {

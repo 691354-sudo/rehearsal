@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { LoaderCircle, LockKeyhole, Moon, Sun } from "lucide-react";
+import { LoaderCircle, LockKeyhole, Moon, Sun, UserRoundCheck } from "lucide-react";
 import {
   languageCatalog,
   type AuthSession,
@@ -117,6 +117,9 @@ export function ProfileGate() {
           if (result.languages[0]) setJoinLanguage(result.languages[0].code);
           if (!result.available && result.experience === "onboarding_v1_pilot" && result.replayAvailable) {
             setReplayInvite(true);
+            const replayTheme = systemTheme();
+            document.documentElement.style.colorScheme = replayTheme;
+            document.documentElement.dataset.theme = replayTheme;
             const sessionResponse = await apiFetch("/api/auth/session");
             if (sessionResponse.ok) {
               const session = await sessionResponse.json() as AuthSession;
@@ -125,7 +128,6 @@ export function ProfileGate() {
                 return;
               }
             }
-            await loadProfiles();
             return;
           }
           if (result.experience === "onboarding_v1_pilot") {
@@ -222,32 +224,32 @@ export function ProfileGate() {
     event.preventDefault();
     if (submitting) return;
     if (!/^\d{4,12}$/.test(pin)) {
-      setError("Enter a PIN with 4–12 digits.");
+      setError(replayInvite ? "Введите PIN из 4–12 цифр." : "Enter a PIN with 4–12 digits.");
       pinRef.current?.focus();
       return;
     }
     setSubmitting(true);
     setError("");
     try {
-      const response = await apiFetch("/api/auth/login", {
+      const response = await apiFetch(replayInvite ? "/api/auth/pilot-replay" : "/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: selected, pin }),
+        body: JSON.stringify(replayInvite ? { token: invitationToken, pin } : { profileId: selected, pin }),
       });
       if (!response.ok) {
-        setError(response.status === 429 ? "Too many attempts. Try again in 15 minutes." : "Incorrect PIN.");
+        setError(response.status === 429
+          ? replayInvite ? "Слишком много попыток. Попробуйте снова через 15 минут." : "Too many attempts. Try again in 15 minutes."
+          : replayInvite ? "Неверный PIN тестового профиля." : "Incorrect PIN.");
         window.requestAnimationFrame(() => pinRef.current?.focus());
         return;
       }
       const session = await response.json() as AuthSession;
-      if (replayInvite && session.onboarding.eligibility !== "pilot") {
-        setError("Выберите тестовый onboarding-профиль.");
-        return;
-      }
       applySession(session, replayInvite);
       setPin("");
     } catch {
-      setError("Could not sign in.");
+      setError(replayInvite
+        ? "Не удалось открыть онбординг. Проверьте соединение и попробуйте снова."
+        : "Could not sign in.");
     } finally {
       setSubmitting(false);
     }
@@ -349,24 +351,27 @@ export function ProfileGate() {
     </section>
   </main>;
 
-  return <main className="profile-gate" id="main-content">
+  return <main className={`profile-gate${replayInvite ? " profile-gate--pilot-theme" : ""}`} id="main-content">
     <section className="profile-card">
       <EchoLockup className="profile-echo-lockup" />
       <header><span>Say it until it’s yours.</span><h1>{replayInvite ? "Открыть тестовый онбординг" : "Choose your profile"}</h1>
-        <p>{replayInvite ? "Выберите тестовый профиль и введите его PIN. Данные и карточки не будут созданы повторно."
+        <p>{replayInvite ? "Введите PIN, который вы задали при создании тестового профиля Echo. Карточки и данные не будут созданы повторно."
           : "Your practice, Tutor history, and settings stay separate."}</p></header>
-      <div className="profile-options" role="group" aria-label="Profiles">
+      {replayInvite ? <div className="profile-replay-identity">
+        <UserRoundCheck aria-hidden="true" size={22} />
+        <div><strong>Echo Test</strong><span>Тестовый профиль онбординга</span></div>
+      </div> : <div className="profile-options" role="group" aria-label="Profiles">
         {profiles.map((candidate) => <button className={selected === candidate.id ? "is-active" : ""}
           key={candidate.id} onClick={() => { setSelected(candidate.id); setError(""); }} type="button">
           <strong>{candidate.name}</strong><span>{candidate.name.slice(0, 1).toUpperCase()}</span>
         </button>)}
-      </div>
+      </div>}
       <form noValidate onSubmit={submit}>
         <label htmlFor="profile-pin">PIN</label>
         <div className="profile-pin"><LockKeyhole size={18} /><input aria-describedby={error ? "profile-pin-error" : undefined} aria-invalid={Boolean(error)} autoComplete="current-password"
           id="profile-pin" inputMode="numeric" maxLength={12} minLength={4} onChange={(event) => {
             setPin(event.target.value.replace(/\D/g, "")); setError("");
-          }} name="pin" pattern="[0-9]{4,12}" placeholder="For example: 1234…" ref={pinRef} type="password" value={pin} /></div>
+          }} name="pin" pattern="[0-9]{4,12}" placeholder={replayInvite ? "Например: 1234…" : "For example: 1234…"} ref={pinRef} type="password" value={pin} /></div>
         {error ? <p className="profile-error" id="profile-pin-error" role="alert">{error}</p> : null}
         <button className="profile-submit" disabled={submitting} type="submit">
           {submitting ? <LoaderCircle className="simple-spin" size={17} /> : null}{replayInvite ? "Открыть онбординг" : `Continue as ${profiles.find((candidate) => candidate.id === selected)?.name || "profile"}`}

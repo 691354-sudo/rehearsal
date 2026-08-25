@@ -311,6 +311,10 @@ describe("profile authentication and database isolation", () => {
       payload: { token, name: "Other", pin: "1234", language: "en" },
     });
     expect(reused.statusCode).toBe(410);
+    expect((await app.inject({
+      method: "POST", url: "/api/auth/pilot-replay", headers: { "x-rehearsal-client": "web" },
+      payload: { token, pin: "246810" },
+    })).statusCode).toBe(401);
     expect((await login(app, profile.id, "246810")).response.statusCode).toBe(200);
     expect(registeredProfilesFromDisk(dataDir).map((candidate) => candidate.id)).toContain(profile.id);
 
@@ -357,6 +361,18 @@ describe("profile authentication and database isolation", () => {
       starterTutorThreadId: "10000000-0000-4000-8000-000000000001",
     });
     const profile = joined.json().profile as { id: string };
+    expect((await app.inject({
+      method: "POST", url: "/api/auth/pilot-replay", headers: { "x-rehearsal-client": "web" },
+      payload: { token, pin: "0000" },
+    })).statusCode).toBe(401);
+    const replayLogin = await app.inject({
+      method: "POST", url: "/api/auth/pilot-replay", headers: { "x-rehearsal-client": "web" },
+      payload: { token, pin: "246810" },
+    });
+    expect(replayLogin.statusCode).toBe(200);
+    expect(replayLogin.json()).toMatchObject({
+      profile: { id: profile.id }, onboarding: { eligibility: "pilot", status: "pending" },
+    });
     for (let visit = 0; visit < 8; visit += 1) {
       const replayLink = await app.inject({ method: "GET", url: `/api/auth/invites/${token}` });
       expect(replayLink.statusCode).toBe(200);
