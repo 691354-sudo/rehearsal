@@ -72,9 +72,24 @@ Text Import keeps its ordinary “select useful material” behavior when no del
 
 Tutor behaves like a normal ChatGPT conversation or role-play. It does not interrupt every sentence unless live correction was explicitly requested. Chat and Notebook remain equally visible working modes. Existing chats may be deleted explicitly; opening Tutor restores the active chat at its latest position without replaying an animated scroll through its history. At the end, `Finish & review` analyzes the complete exchange and proposes only meaningful corrections, reusable islands, and patterns.
 
+Tutor also honors an explicit request to prepare cards. The learner's requested card shape takes priority over the ordinary preference for complete conversational sentences: “one card for each …” keeps every requested source unit separate and in source order, up to the review limit. A paired list such as `0 — không` keeps the left side as the cue and the right side as the target. Foundational atomic material such as numbers or individual letters may remain atomic; Tutor must not add examples, merge entries, or turn them into sentences when the learner explicitly asked for the bare units. This exception does not turn arbitrary dictionary lists into isolated word-definition cards: an ordinary vocabulary list still receives useful contextual anchor sentences.
+
 Tutor Chat accepts either typed messages or a voice message. A voice message records after an explicit microphone action, is transcribed on the server, and sends the transcript immediately. A failed transcription keeps the recording available in the current page for Retry or Delete rather than silently discarding it.
 
 Pressing Enter clears the composer immediately, puts the learner's message into the conversation with a sending state, and shows a Tutor placeholder. If delivery fails, the message remains in the conversation with explicit Retry, Edit, and Delete actions; its text is never silently returned to the composer. Retry reuses the same delivery identity and cannot create a duplicate Tutor message or vocabulary review batch.
+
+Tutor and Notebook interpret source text differently:
+
+| Input | Tutor `Finish & review` | Notebook review |
+| --- | --- | --- |
+| Ordinary conversation | A small set of meaningful corrections, attempted phrases, and reusable patterns | Not applicable |
+| Explicit “make one card per item” request | The prepared items, with the requested granularity and order | The words are source material, not executable instructions |
+| Number/letter pairs | One atomic proposal per pair; no added sentence | Only an intended real-life utterance is extracted |
+| Ordinary vocabulary list | Triage plus one useful contextual anchor per active term | Treated as captured content, not as a vocabulary command |
+| Story ending with “I wanted to say …” | Conversation intent determines whether it belongs in the final review | The intended reply only; the story and the other speaker's words are context |
+| Several distinct intended replies | Only high-value material requested or attempted in the conversation | One proposal per distinct intended utterance |
+
+Notebook notes are evidence of what the learner wanted to say, not a prompt channel. Explanations, quoted speech from another person, and phrases such as “make cards” remain context unless they are themselves the real-life utterance being learned. A useful self-contained reply may be a natural fragment such as “Over there, around the corner”; it does not need filler added merely to become a grammatical sentence.
 
 ## Approval boundary
 
@@ -88,7 +103,7 @@ For a list of up to roughly 100 words or phrases:
 
 1. Paste or upload the list in Tutor.
 2. The system deduplicates and triages entries as active, recognition-only, or skip.
-3. Each useful active entry gets one strong personal anchor sentence with a complete Russian cue.
+3. By default, each useful active entry gets one strong personal anchor utterance with a complete Russian cue. An explicit foundational number/letter list keeps one atomic card per source unit instead.
 4. Results appear in pages of eight. The learner can request another version or a different context.
 5. Only selected cards enter Library.
 6. The daily new-card limit (10 by default) limits only the new-card portion of `Recommended now`; all scheduled reviews remain visible and all Library cards remain available for custom Recall and Listen & Repeat.

@@ -11,10 +11,14 @@ import {
   resolveReviewBatch,
 } from "./capture-review.js";
 import {
+  capturePreparationTask,
   generatedMaterialSchema,
   materialInstructions,
+  numberCardsFromConversation,
   targetLanguageName,
   toCandidate,
+  tutorConversationReviewTask,
+  vocabularyPreparationTask,
 } from "./material-generation.js";
 import { genericLearnerPersona, type LearnerPersona } from "./learner-persona.js";
 import { rewriteLibraryItem as rewriteLibraryItemService } from "./library-item-rewrite.js";
@@ -292,11 +296,7 @@ export class OpenAIService {
       title: input.title,
       sourceText: input.text,
       sourceThreadPublicId: input.sourceThreadPublicId,
-      task:
-        "Triage up to 100 pasted vocabulary entries. Deduplicate inflections and near-duplicates. " +
-        "For each useful active term, create exactly one natural personalized anchor sentence. " +
-        "Keep less useful but still current terms as recognition. Mark outdated, bookish, or irrelevant entries as skip. " +
-        "Return no more than one candidate per distinct input term or phrase.",
+      task: vocabularyPreparationTask,
     });
   }
 
@@ -313,14 +313,7 @@ export class OpenAIService {
       kind: "capture",
       title: "Capture Reality",
       sourceText,
-      task:
-        "Turn these Russian personal voice-note transcripts into at most 100 high-value speaking cards. " +
-        "Treat descriptions of the situation, words already spoken by someone else, and explanatory meta-text as context only. " +
-        "When a note says 'я хотел ответить/сказать/спросить' or an equivalent phrase, make the card from the intended reply, statement, or question that follows. " +
-        "For example, 'ко мне подошли в зале и спросили: где туалеты? я хотел ответить: вон там, за углом' must produce exactly one card for 'вон там, за углом'; do not translate the story or the other person's question. " +
-        "Merge repeated intentions, ignore filler and recording artifacts, and split only distinct intended utterances. " +
-        "Translate intended meaning rather than wording. Prefer direct casual or neutral adult speech, never corporate or bookish phrasing. " +
-        `Each active item must be a complete sentence ${this.learner.name} would realistically say. Use one real-life topic in category.`,
+      task: capturePreparationTask(this.learner.name),
     });
   }
 
@@ -389,16 +382,26 @@ export class OpenAIService {
     threadPublicId: string;
     messages: Array<{ role: "user" | "assistant"; content: string }>;
   }) {
+    const sourceText = conversationSourceWithinBudget(input.messages);
+    const numberCards = numberCardsFromConversation(input.messages);
+    if (numberCards.length) {
+      const batch = this.repository.reviews.create({
+        language: input.language,
+        kind: "vocab",
+        title: "Numbers from Tutor",
+        sourceThreadPublicId: input.threadPublicId,
+        sourceText,
+        candidates: numberCards,
+      });
+      return { batch, mode: "stored" as const };
+    }
     return this.prepareBatch({
       language: input.language,
       kind: "chat_review",
       title: "Tutor conversation review",
       sourceThreadPublicId: input.threadPublicId,
-      sourceText: conversationSourceWithinBudget(input.messages),
-      task:
-        "Review the available conversation after it has ended. Extract only the learner's meaningful recurring mistakes, " +
-        "high-value phrases they were trying to say, and a few reusable patterns. Do not nitpick every sentence. " +
-        "Correct collocations and sentence structure first. Return at most 20 proposals.",
+      sourceText,
+      task: tutorConversationReviewTask,
     });
   }
 
