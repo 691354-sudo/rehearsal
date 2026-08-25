@@ -97,7 +97,7 @@ export function PracticePage(props: {
       topics={topics}
       playback={props.playback}
       voices={props.voices}
-    /> : <ListenRepeat count={props.route.cards} dueItemIds={props.dueItemIds} emptyAction={<AppLink route={defaultLibraryRoute(props.language)}>Browse Library</AppLink>}
+    /> : <ListenRepeat count={props.route.cards} dueItemIds={props.dueItemIds} editActive={Boolean(editingItem)} emptyAction={<AppLink route={defaultLibraryRoute(props.language)}>Browse Library</AppLink>}
       elevenLabs={props.elevenLabs} items={props.items} language={props.language}
       recommended={props.recommended}
       onEdit={setEditingItem} onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}

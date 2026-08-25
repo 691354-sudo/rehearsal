@@ -278,6 +278,7 @@ html[data-theme="dark"]:has(.profile-gate--pilot-theme) { color-scheme: dark; }
 
 .simple-brand-route,
 .simple-mobile-search,
+.simple-mobile-tutor-mode,
 .simple-mobile-menu-button,
 .simple-mobile-menu,
 .simple-mobile-menu-backdrop {

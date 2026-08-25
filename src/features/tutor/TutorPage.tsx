@@ -1,18 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
+  ArrowUp,
+  Ellipsis,
   LoaderCircle,
   Mic,
   MoveDiagonal2,
   PanelLeft,
   Plus,
   RefreshCw,
-  Send,
   Square,
   Trash2,
-  Upload,
   WandSparkles,
-  X,
 } from "lucide-react";
 import { CaptureNotebook } from "../capture/CaptureNotebook";
 import { AppLink } from "../../app/AppLink";
@@ -29,24 +28,13 @@ import type { ChatMessage, ChatThread, Language } from "../../shared/contracts";
 import { languageCopy, languageHasAudio } from "../../shared/config";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
 import { TutorChatMessage } from "./TutorChatMessage";
+import { TutorSessionsRail } from "./TutorSessionsRail";
 import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimisticMessages";
 import { tutorComposerMinimumHeight, useTutorComposerHeight } from "./useTutorComposerHeight";
 import { clearMissingTutorThread } from "./tutorThreadRecovery";
 const looksLikeVocabList = (content: string) => {
   const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   return lines.length >= 5 && lines.reduce((sum, line) => sum + line.split(/\s+/).length, 0) / lines.length <= 8;
-};
-
-const parseThreadDate = (value: string) => new Date(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
-
-const formatThreadDate = (value: string) => {
-  const date = parseThreadDate(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const today = new Date();
-  if (date.toDateString() === today.toDateString()) {
-    return date.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" });
-  }
-  return date.toLocaleDateString("en", { month: "short", day: "numeric" });
 };
 
 type PendingTutorRecording = { blob: Blob; filename: string };
@@ -358,42 +346,28 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     finally { setReviewing(false); }
   };
 
-  const today = new Date().toDateString();
   const currentThread = threads.find((thread) => thread.publicId === threadId);
-  const threadGroups = [
-    { label: "Today", items: threads.filter((thread) => parseThreadDate(thread.updatedAt).toDateString() === today) },
-    { label: "Earlier", items: threads.filter((thread) => parseThreadDate(thread.updatedAt).toDateString() !== today) },
-  ].filter((group) => group.items.length);
 
   return <main className={`simple-main ${mode === "chat" ? "simple-main--chat" : "simple-main--notebook"}`} id="main-content">
     <header className="simple-page-heading simple-tutor-heading"><h1>Tutor</h1>
       <div aria-label="Tutor mode" className="simple-tutor-mode" role="group">
         <AppLink aria-current={mode === "chat" ? "page" : undefined} className={mode === "chat" ? "is-active" : ""} route={{ ...route, mode: "chat" }}>Chat</AppLink>
         <AppLink aria-current={mode === "notebook" ? "page" : undefined} className={mode === "notebook" ? "is-active" : ""} route={{ ...route, mode: "notebook", thread: null }}>Notebook</AppLink>
-      </div>
-      {mode === "chat" ? <div className="simple-tutor-mobile-actions">
-        <button onClick={() => setSessionsOpen(true)} ref={sessionsButtonRef} type="button"><PanelLeft size={16} />Sessions</button>
-        <button aria-label="New chat" onClick={newChat} title="New chat" type="button"><Plus size={17} /></button>
-      </div> : null}</header>
+      </div></header>
     {mode === "notebook" ? <CaptureNotebook language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={closeSessions} type="button" /> : null}
-      <aside aria-hidden={isNarrow && !sessionsOpen ? "true" : undefined} className={`simple-session-rail ${sessionsOpen ? "is-open" : ""}`}
-        inert={isNarrow && !sessionsOpen} ref={sessionsRailRef}>
-        <div className="simple-session-rail-heading"><strong>Sessions</strong>
-          <button aria-label="Close sessions" onClick={closeSessions} type="button"><X size={16} /></button></div>
-        <button className="simple-new-chat" onClick={newChat} type="button"><Plus size={16} />New chat</button>
-        <nav aria-label="Tutor sessions">{threadGroups.map((group) => <section className="simple-session-group" key={group.label}>
-          <span>{group.label}</span>
-          {group.items.map((thread) => <AppLink aria-current={thread.publicId === threadId ? "page" : undefined} className={thread.publicId === threadId ? "is-active" : ""}
-            key={thread.publicId} onClick={closeSessions} route={{ ...route, thread: thread.publicId }}>
-            <strong>{thread.title}</strong><small>{formatThreadDate(thread.updatedAt)}</small>
-          </AppLink>)}
-        </section>)}</nav>
-      </aside>
-      <div className={`simple-chat-pane${!threadId && isNarrow ? " simple-chat-pane--no-toolbar" : ""}`} data-onboarding-target="tutor">
-        {threadId || !isNarrow ? <div className="simple-chat-toolbar"><strong>{currentThread?.title || "New chat"}</strong>
-          {threadId ? <div><button aria-label="Delete chat" className="simple-delete-chat" disabled={deletingThread || sending || reviewing}
-              onClick={() => void deleteChat()} title="Delete chat" type="button">{deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}</button></div> : null}</div> : null}
+      <TutorSessionsRail currentThreadId={threadId} onClose={closeSessions} onNewChat={newChat} open={!isNarrow || sessionsOpen}
+        railRef={sessionsRailRef} route={route} threads={threads} />
+      <div className={`simple-chat-pane${reviewBatch ? " simple-chat-pane--review" : ""}`} data-onboarding-target="tutor">
+        {reviewBatch ? <div className="simple-review-pane"><ReviewBatchPanel batch={reviewBatch} context="tutor" feed onBatch={setReviewBatch}
+          onDismiss={() => setReviewBatch(null)} onCommitted={() => { setReviewBatch(null); setAdded(true); }} /></div> : <>
+        <div className="simple-chat-toolbar"><div className="simple-chat-context">
+          <button aria-label="Open sessions" className="simple-sessions-trigger" onClick={() => setSessionsOpen(true)} ref={sessionsButtonRef}
+            title="Sessions" type="button"><PanelLeft aria-hidden="true" size={16} /></button>
+          <strong>{currentThread?.title || "New chat"}</strong></div>
+          {threadId ? <details className="simple-chat-actions"><summary aria-label="More chat actions" role="button"><Ellipsis aria-hidden="true" size={18} /></summary><div>
+            <button className="simple-delete-chat" disabled={deletingThread || sending || reviewing} onClick={() => void deleteChat()} type="button">
+              {deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}Delete chat</button></div></details> : null}</div>
         <div aria-busy={sending || loadingThread} aria-live="polite" className="simple-chat-messages" ref={messagesRef} role="log">
           {!messages.length && !loadingThread && !sending ? <div className="simple-chat-empty"><strong>Start with something from real life</strong>
             <span>Ask Tutor to use your Library, correct a message, or make a short speaking drill.</span><div>
@@ -404,7 +378,6 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             onDelete={(failed) => setMessages((current) => current.filter((currentMessage) => currentMessage.id !== failed.id))}
             onEdit={editFailedMessage}
             onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} tutorLabel={languageCopy[language].label} />)}
-          {reviewBatch ? <ReviewBatchPanel batch={reviewBatch} onBatch={setReviewBatch} onCommitted={() => { setReviewBatch(null); setAdded(true); }} /> : null}
           {added ? <div className="simple-tutor-added"><strong>Added to Library</strong><div>
             {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}
             <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
@@ -419,17 +392,19 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         <div className="simple-composer">
           <div className="simple-composer-input"><label className="simple-visually-hidden" htmlFor="tutor-message">Message your tutor</label><textarea autoComplete="off" id="tutor-message" name="tutor-message" onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }}
-            placeholder="Message your tutor…" ref={composerRef} rows={2} style={{ height: `${composerHeight}px` }} value={draft} />
+            placeholder="Message your tutor…" ref={composerRef} rows={2} style={isNarrow ? undefined : { height: `${composerHeight}px` }} value={draft} />
             <button aria-label="Resize message field" className="simple-composer-resize" onKeyDown={(event) => {
               if (event.key === "ArrowUp") { event.preventDefault(); setComposerHeight((height) => height + 40); }
               if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(tutorComposerMinimumHeight(isNarrow), height - 40)); }
             }} onPointerCancel={finishComposerResize} onPointerDown={beginComposerResize} onPointerMove={resizeComposer}
               onPointerUp={finishComposerResize} title="Drag up to enlarge" type="button"><MoveDiagonal2 size={14} /></button></div>
           <div className="simple-composer-controls"><div className="simple-composer-tools">
-            <label aria-disabled={sending || recording || transcribing} className="simple-composer-upload" title="Upload a text file"><Upload size={17} /><input accept=".txt,text/plain" aria-label="Upload a text file" name="tutor-file"
+            <label aria-disabled={sending || recording || transcribing} className="simple-composer-upload" title="Upload a text file"><Plus size={17} /><input accept=".txt,text/plain" aria-label="Upload a text file" name="tutor-file"
               disabled={sending || recording || transcribing} onChange={async (event) => {
               const file = event.target.files?.[0]; if (file) setDraft(await file.text()); event.target.value = "";
             }} type="file" /></label>
+            {threadId ? <button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
+              {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}<span>Finish &amp; review</span></button> : null}
             <button aria-label={recording ? "Stop and send voice message" : "Record and send voice message"}
               className={`simple-composer-record${recording ? " is-recording" : ""}`}
               disabled={sending || transcribing || Boolean(pendingVoice)} onClick={recording ? stopVoiceRecording : () => void startVoiceRecording()}
@@ -438,10 +413,9 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             </button>
           </div><div className="simple-composer-send-group"><span>Enter to send</span>
             <button aria-label="Send" className="simple-composer-send" disabled={!draft.trim() || sending || recording || transcribing}
-              onClick={() => void send()} title="Send" type="button"><Send size={18} /></button></div></div>
-          {threadId ? <button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
-            {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Finish &amp; make cards</button> : null}
+              onClick={() => void send()} title="Send" type="button"><ArrowUp size={18} /></button></div></div>
         </div>
+        </>}
       </div>
     </section>}
   </main>;

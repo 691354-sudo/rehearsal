@@ -183,6 +183,12 @@ export function RehearsalApp({
       <div className="simple-header-rail">
       <AppLink className="simple-brand" route={practiceRoute()}><EchoMark />
         <strong className="simple-brand-product">Echo</strong><strong className="simple-brand-route">{sectionLabel}</strong></AppLink>
+      {route.section === "tutor" ? <nav aria-label="Tutor mode" className="simple-mobile-tutor-mode">
+        <AppLink aria-current={route.mode === "chat" ? "page" : undefined} className={route.mode === "chat" ? "is-active" : ""}
+          route={{ ...route, mode: "chat" }}>Chat</AppLink>
+        <AppLink aria-current={route.mode === "notebook" ? "page" : undefined} className={route.mode === "notebook" ? "is-active" : ""}
+          route={{ ...route, mode: "notebook", thread: null }}>Notebook</AppLink>
+      </nav> : null}
       <nav className="simple-nav" aria-label="Main navigation">
         <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>
           <Headphones aria-hidden="true" className="simple-nav-icon" size={19} /><span>Practice</span></AppLink>
@@ -209,7 +215,7 @@ export function RehearsalApp({
         </button>
         <button aria-label="Settings" className="simple-icon-button simple-global-settings-button" onClick={openSettings} title="Settings" type="button"><Settings2 size={18} /></button>
       </div>
-      <AppLink aria-label="Search Library" className="simple-mobile-search" route={defaultLibraryRoute(language)}><Search size={20} /></AppLink>
+      {route.section !== "tutor" ? <AppLink aria-label="Search Library" className="simple-mobile-search" route={defaultLibraryRoute(language)}><Search size={20} /></AppLink> : null}
       <button aria-expanded={mobileMenuOpen} aria-label="App menu" className="simple-mobile-menu-button"
         onClick={() => setMobileMenuOpen((open) => !open)} ref={mobileMenuButtonRef} type="button"><Settings2 size={19} /></button>
       {mobileMenuOpen ? <><button aria-label="Close app menu" className="simple-mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} type="button" />
