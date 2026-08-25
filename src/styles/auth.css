@@ -81,6 +81,7 @@
   font-size: 28px;
   font-weight: 690;
   letter-spacing: -0.04em;
+  text-wrap: balance;
 }
 
 .profile-card header p {
@@ -133,6 +134,28 @@
   color: var(--rh-on-accent);
   background: var(--profile-action);
 }
+
+.profile-replay-identity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 64px;
+  margin: 28px 0 24px;
+  padding: 10px 14px;
+  color: var(--profile-ink);
+  background: var(--profile-inset);
+  border: 1px solid var(--profile-rule);
+  border-radius: 10px;
+}
+
+.profile-replay-identity > svg {
+  flex: 0 0 auto;
+  color: var(--profile-action);
+}
+
+.profile-replay-identity > div { display: grid; min-width: 0; gap: 1px; }
+.profile-replay-identity strong { font-size: 15px; font-weight: 650; }
+.profile-replay-identity span { overflow-wrap: anywhere; color: var(--profile-support); font-size: 13px; }
 
 .profile-card form > label {
   display: block;
