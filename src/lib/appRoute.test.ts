@@ -7,6 +7,7 @@ describe("app routes", () => {
   it.each([
     ["/practice/recall", "practice", "recall"],
     ["/practice/listen", "practice", "listen"],
+    ["/tutor", "tutor", "chat"],
     ["/tutor/chat", "tutor", "chat"],
     ["/tutor/notebook", "tutor", "notebook"],
     ["/library", "library", "cards"],
@@ -48,8 +49,17 @@ describe("app routes", () => {
 
   it("uses the configured base path and preserves Tutor threads", () => {
     const route: AppRoute = { section: "tutor", mode: "chat", thread: "9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4", language: "en", settings: false };
-    expect(serializeAppRoute(route, "/rehearsal")).toBe("/rehearsal/tutor/chat?lang=en&thread=9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4");
-    expect(parseAppRoute(location("/rehearsal/tutor/chat", "?lang=en&thread=9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4"), "/rehearsal/")).toEqual(route);
+    const href = serializeAppRoute(route, "/rehearsal");
+    expect(href).toBe("/rehearsal/tutor?lang=en&thread=9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4");
+    const url = new URL(href, "https://example.test");
+    expect(parseAppRoute(location(url.pathname, url.search), "/rehearsal/")).toEqual(route);
+  });
+
+  it("round-trips the contextual onboarding tour on real routes", () => {
+    const route: AppRoute = { ...defaultLibraryRoute("en"), tour: "replay" };
+    const href = new URL(serializeAppRoute(route, "/rehearsal/"), "https://example.test");
+    expect(href.pathname).toBe("/rehearsal/library");
+    expect(parseAppRoute(location(href.pathname, href.search), "/rehearsal/")).toEqual(route);
   });
 
   it("discards malformed Tutor thread links", () => {

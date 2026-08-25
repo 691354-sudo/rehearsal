@@ -126,7 +126,7 @@ Norwegian Bokmål is inserted as `no / nb-NO` for existing profiles by migration
 
 Only Roman may use `Create onboarding test invitation` in Settings. Creating another unused pilot invitation revokes the previous unused pilot link; once its profile has been created, the server refuses every additional pilot invitation. This is a production gate, not a public launch: ordinary invitation links remain unchanged and empty.
 
-After deployment, create the pilot link in Roman's Settings and join it once with the intended test name, language, and PIN. Verify the six starter cards, two Topics, Tutor example, processed Notebook history, both themes, completion, Settings replay, and a separate ordinary profile before treating the pilot as ready for user testing. Do not edit the private invitation or invited-profile registries manually. Public onboarding requires a later reviewed code change; there is no environment flag or data edit that broadens eligibility.
+After deployment, create the pilot link in Roman's Settings and join it once with the intended test name, language, and PIN. Verify the six starter cards, two Topics, Tutor example, processed Notebook history, both themes, completion, Settings replay, replay through the consumed pilot link, and a separate ordinary profile before treating the pilot as ready for user testing. The consumed link never creates another profile or bypasses PIN authentication. Do not edit the private invitation or invited-profile registries manually. Public onboarding requires a later reviewed code change; there is no environment flag or data edit that broadens eligibility.
 
 ## Production verification
 

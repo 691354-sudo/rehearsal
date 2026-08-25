@@ -111,6 +111,7 @@ const publicState = (state: StoredOnboarding): OnboardingState => ({
   status: state.status,
   language: state.language,
   starterReady: state.starterReady,
+  starterTutorThreadId: state.starterIds.tutorThreadId,
   ...(state.completedAt ? { completedAt: state.completedAt } : {}),
 });
 

@@ -10,6 +10,7 @@ export type PracticeScopeRoute = "due" | "library";
 type RouteBase = {
   language: Language;
   settings: boolean;
+  tour?: "first_run" | "replay";
 };
 
 export type PracticeRoute = RouteBase & {
@@ -93,15 +94,18 @@ export function parseAppRoute(
   const language: Language = isLanguageCode(requestedLanguage)
     && availableLanguages.includes(requestedLanguage) ? requestedLanguage : fallbackLanguage;
   const settings = params.get("settings") === "1";
+  const tour = params.get("tour");
+  const tourState: Pick<RouteBase, "tour"> = tour === "first_run" || tour === "replay" ? { tour } : {};
   const path = routePath(location, baseUrl);
 
-  if (path === "tutor/chat" || path === "tutor/notebook") {
+  if (path === "tutor" || path === "tutor/chat" || path === "tutor/notebook") {
     return {
       section: "tutor",
       mode: path.endsWith("notebook") ? "notebook" : "chat",
-      thread: path.endsWith("chat") ? uuidOrNull(params, "thread") : null,
+      thread: path.endsWith("notebook") ? null : uuidOrNull(params, "thread"),
       language,
       settings,
+      ...tourState,
     };
   }
 
@@ -122,6 +126,7 @@ export function parseAppRoute(
       edit: valueOrNull(params, "edit"),
       language,
       settings,
+      ...tourState,
     };
   }
 
@@ -145,6 +150,7 @@ export function parseAppRoute(
     review,
     language,
     settings,
+    ...tourState,
   };
 }
 
@@ -152,6 +158,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
   const base = normalizeBaseUrl(baseUrl);
   const params = new URLSearchParams({ lang: route.language });
   if (route.settings) params.set("settings", "1");
+  if (route.tour) params.set("tour", route.tour);
   let path: string;
 
   if (route.section === "practice") {
@@ -163,7 +170,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
     if (route.order !== "newest") params.set("order", route.order);
     if (route.review) params.set("review", route.review);
   } else if (route.section === "tutor") {
-    path = `tutor/${route.mode}`;
+    path = route.mode === "chat" ? "tutor" : "tutor/notebook";
     if (route.mode === "chat" && route.thread) params.set("thread", route.thread);
   } else {
     path = route.view === "topics" ? "library/topics" : "library";

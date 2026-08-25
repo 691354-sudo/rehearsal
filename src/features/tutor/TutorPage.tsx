@@ -390,7 +390,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
           </AppLink>)}
         </section>)}</nav>
       </aside>
-      <div className={`simple-chat-pane${!threadId && isNarrow ? " simple-chat-pane--no-toolbar" : ""}`}>
+      <div className={`simple-chat-pane${!threadId && isNarrow ? " simple-chat-pane--no-toolbar" : ""}`} data-onboarding-target="tutor">
         {threadId || !isNarrow ? <div className="simple-chat-toolbar"><strong>{currentThread?.title || "New chat"}</strong>
           {threadId ? <div><button aria-label="Delete chat" className="simple-delete-chat" disabled={deletingThread || sending || reviewing}
               onClick={() => void deleteChat()} title="Delete chat" type="button">{deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}</button></div> : null}</div> : null}

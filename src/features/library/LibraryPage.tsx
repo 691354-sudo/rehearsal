@@ -323,7 +323,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     {added ? <div className="capture-added"><strong>Added to Library</strong><div>{languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}</div></div> : null}
     {notice ? <p className="simple-library-notice" aria-live="polite">{notice}</p> : null}
 
-    <section className="simple-library-panel simple-library-panel--main">
+    <section className="simple-library-panel simple-library-panel--main" data-onboarding-target="library">
       <div className="simple-library-tools"><label className="simple-search"><input aria-label="Search cards" autoComplete="off" name="library-search" onChange={(event) => setSearchInput(event.target.value)} placeholder="Search cards…" type="search" value={searchInput} /></label>
         <select aria-label="Filter by status" name="library-status" onChange={(event) => patchRoute({ status: event.target.value as LibraryStatus, page: 1 })} value={status}>
           <option value="all">All</option><option value="new">New</option><option value="learning">Learning</option><option value="due">Due</option>

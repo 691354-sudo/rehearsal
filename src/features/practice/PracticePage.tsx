@@ -55,7 +55,7 @@ export function PracticePage(props: {
   const { selectedTopicItems, topics } = usePracticeTopics(props.language, props.route.topic, onTopic);
   const listeningAvailable = languageHasAudio(props.language);
 
-  return <main className="simple-main simple-main--practice" id="main-content">
+  return <main className="simple-main simple-main--practice" data-onboarding-target="practice" id="main-content">
     <header className="practice-header"><h1>Practice</h1></header>
     <section className="practice-control-header" aria-label="Practice controls">
       {listeningAvailable ? <div className="practice-modes" aria-label="Practice mode">
