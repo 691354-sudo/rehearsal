@@ -76,6 +76,8 @@ html:has(.simple-app--light) { color-scheme: light; }
 
 html:has(.simple-app--dark) { color-scheme: dark; }
 
+html[data-theme="dark"]:has(.profile-gate--pilot-theme) { color-scheme: dark; }
+
 .simple-app {
   --stage-canvas: var(--canvas);
   --script-surface: var(--surface);

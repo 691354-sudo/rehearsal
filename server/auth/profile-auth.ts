@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { isLanguageCode, languageCatalog, type LanguageCode } from "../../contracts/api.js";
+import {
+  isLanguageCode,
+  languageCatalog,
+  type InvitationPurpose,
+  type LanguageCode,
+} from "../../contracts/api.js";
 import type { HttpDependencies } from "../http/dependencies.js";
 import type { ProfileId } from "../profiles/manager.js";
 import { LoginRateLimiter } from "./rate-limit.js";
@@ -61,6 +66,12 @@ export const registerProfileAuth = (
     signed: true,
     maxAge: sessionSeconds,
   };
+  const authSession = (profileId: ProfileId, csrfToken: string) => ({
+    profile: profiles.listProfiles().find((profile) => profile.id === profileId),
+    csrfToken,
+    availableLanguages: profiles.get(profileId).repository.system.listLanguages(),
+    onboarding: profiles.onboardingState(profileId),
+  });
 
   app.addHook("onRequest", (request, reply, done) => {
     if (!request.url.startsWith("/api/") || !stateChangingMethods.has(request.method)) return done();
@@ -104,16 +115,22 @@ export const registerProfileAuth = (
     limiter.clear(key);
     reply.setCookie(sessionCookieName, sessionValue(body.profileId), cookieOptions);
     const csrfToken = reply.generateCsrf();
-    return {
-      profile: profiles.listProfiles().find((profile) => profile.id === body.profileId),
-      csrfToken,
-      availableLanguages: profiles.get(body.profileId).repository.system.listLanguages(),
-    };
+    return authSession(body.profileId, csrfToken);
   });
 
-  app.post("/api/auth/invites", async (request) => {
+  app.post("/api/auth/invites", async (request, reply) => {
     const context = dependencies.forRequest(request);
-    return { token: profiles.createInvite(context.profileId!) };
+    const body = z.object({
+      purpose: z.enum(["standard", "onboarding_v1_pilot"]).optional(),
+    }).parse(request.body || {}) as { purpose?: InvitationPurpose };
+    try {
+      return { token: profiles.createInvite(context.profileId!, body.purpose || "standard") };
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "INVITATION_FAILED";
+      if (code === "PILOT_INVITE_FORBIDDEN") return reply.code(403).send({ error: code });
+      if (code === "PILOT_PROFILE_EXISTS") return reply.code(409).send({ error: code });
+      throw error;
+    }
   });
 
   app.get("/api/auth/invites/:token", async (request, reply) => {
@@ -128,6 +145,7 @@ export const registerProfileAuth = (
     if (!available) limiter.fail(key);
     return {
       available,
+      experience: profiles.invitationPurpose(token) || "standard",
       languages: Object.values(languageCatalog),
     };
   });
@@ -149,15 +167,12 @@ export const registerProfileAuth = (
       const profile = profiles.createInvitedProfile(body);
       limiter.clear(key);
       reply.setCookie(sessionCookieName, sessionValue(profile.id), cookieOptions);
-      return {
-        profile,
-        csrfToken: reply.generateCsrf(),
-        availableLanguages: profiles.get(profile.id).repository.system.listLanguages(),
-      };
+      return authSession(profile.id, reply.generateCsrf());
     } catch (error) {
       limiter.fail(key);
       const code = error instanceof Error ? error.message : "JOIN_FAILED";
       if (code === "INVITATION_UNAVAILABLE") return reply.code(410).send({ error: code });
+      if (code === "PILOT_PROFILE_EXISTS") return reply.code(409).send({ error: code });
       if (code === "PROFILE_NAME_TAKEN") return reply.code(409).send({ error: code });
       if (["INVALID_PROFILE_NAME", "INVALID_NEW_PROFILE_PIN", "INVALID_PROFILE_LANGUAGE"].includes(code)) {
         return reply.code(400).send({ error: code });
@@ -170,11 +185,7 @@ export const registerProfileAuth = (
     reply.header("Cache-Control", "no-store");
     const context = dependencies.forRequest(request);
     const profile = profiles.listProfiles().find((candidate) => candidate.id === context.profileId);
-    return {
-      profile,
-      csrfToken: reply.generateCsrf(),
-      availableLanguages: context.repository.system.listLanguages(),
-    };
+    return authSession(profile!.id, reply.generateCsrf());
   });
 
   app.post("/api/auth/logout", async (_request, reply) => {

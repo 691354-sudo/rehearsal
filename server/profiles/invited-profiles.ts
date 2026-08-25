@@ -1,13 +1,19 @@
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { languageCodes, type LanguageCode } from "../../contracts/api.js";
+import {
+  languageCodes,
+  type InvitationPurpose,
+  type LanguageCode,
+} from "../../contracts/api.js";
 import { openDatabase } from "../db/database.js";
+import { seedPilotOnboarding } from "../onboarding/pilot.js";
 
 export type InvitedProfileRecord<ProfileRecord> = {
   state: "initializing" | "ready";
   language: LanguageCode;
   invitationHash: string;
+  purpose?: InvitationPurpose;
   profile: ProfileRecord;
 };
 
@@ -20,6 +26,8 @@ export type InvitationRecord = {
   hash: string;
   createdAt: string;
   createdByProfileId: string;
+  purpose?: InvitationPurpose;
+  revokedAt?: string | null;
   usedAt: string | null;
   usedByProfileId: string | null;
 };
@@ -62,6 +70,7 @@ export const readInvitedProfiles = <ProfileRecord extends { id: string; database
     if (!profile || !invitedProfileIdPattern.test(profile.id) || ids.has(profile.id)
       || path.basename(profile.databasePath) !== `${profile.id}.sqlite`
       || !["initializing", "ready"].includes(entry.state)
+      || (entry.purpose !== undefined && !["standard", "onboarding_v1_pilot"].includes(entry.purpose))
       || !languageCodes.includes(entry.language)) {
       throw new Error("Invalid invited profile registry entry");
     }
@@ -98,10 +107,48 @@ export const createInviteToken = (invitations: InvitationRegistry) => {
   return token;
 };
 
+export const createProfileInvitation = <ProfileRecord>(input: {
+  invitations: InvitationRegistry;
+  invitedProfiles: InvitedProfileRegistry<ProfileRecord>;
+  createdByProfileId: string;
+  purpose: InvitationPurpose;
+}) => {
+  if (input.purpose === "onboarding_v1_pilot") {
+    if (input.createdByProfileId !== "roman") throw new Error("PILOT_INVITE_FORBIDDEN");
+    if (input.invitedProfiles.profiles.some((entry) => entry.purpose === "onboarding_v1_pilot")) {
+      throw new Error("PILOT_PROFILE_EXISTS");
+    }
+    const revokedAt = new Date().toISOString();
+    input.invitations.invitations.forEach((invitation) => {
+      if (invitation.purpose === "onboarding_v1_pilot" && !invitation.usedAt && !invitation.revokedAt) {
+        invitation.revokedAt = revokedAt;
+      }
+    });
+  }
+  const token = createInviteToken(input.invitations);
+  input.invitations.invitations.push({
+    hash: hashInvite(token),
+    createdAt: new Date().toISOString(),
+    createdByProfileId: input.createdByProfileId,
+    purpose: input.purpose,
+    revokedAt: null,
+    usedAt: null,
+    usedByProfileId: null,
+  });
+  return token;
+};
+
 export const inviteAvailable = (invitations: InvitationRegistry, token: string) => {
   const normalized = normalizedInvite(token);
   if (!/^[0-9A-HJKMNP-TV-Z]{8}$/.test(normalized)) return false;
-  return invitations.invitations.some((invite) => invite.hash === hashInvite(normalized) && !invite.usedAt);
+  return invitations.invitations.some((invite) => invite.hash === hashInvite(normalized)
+    && !invite.usedAt && !invite.revokedAt);
+};
+
+export const invitationForToken = (invitations: InvitationRegistry, token: string) => {
+  if (!inviteAvailable(invitations, token)) return null;
+  const hash = hashInvite(token);
+  return invitations.invitations.find((invite) => invite.hash === hash && !invite.usedAt && !invite.revokedAt) || null;
 };
 
 export const initializeInvitedDatabase = <ProfileRecord extends { id: string; databasePath: string }>(
@@ -113,8 +160,12 @@ export const initializeInvitedDatabase = <ProfileRecord extends { id: string; da
       throw new Error(`Unknown language for invited profile: ${entry.language}`);
     }
     db.prepare("UPDATE languages SET enabled = CASE WHEN code = ? THEN 1 ELSE 0 END").run(entry.language);
-    const items = db.prepare("SELECT COUNT(*) AS count FROM items").get() as { count: number };
-    if (items.count !== 0) throw new Error(`Invited profile database is not empty: ${entry.profile.id}`);
+    if (entry.purpose === "onboarding_v1_pilot") {
+      seedPilotOnboarding(db, entry.language);
+    } else {
+      const items = db.prepare("SELECT COUNT(*) AS count FROM items").get() as { count: number };
+      if (items.count !== 0) throw new Error(`Invited profile database is not empty: ${entry.profile.id}`);
+    }
     if ((db.pragma("quick_check", { simple: true }) as string) !== "ok") {
       throw new Error(`SQLite quick_check failed for invited profile: ${entry.profile.id}`);
     }
