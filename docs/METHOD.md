@@ -30,9 +30,9 @@ The core production cycle is `Capture → Review → Library → Listen & Repeat
 
 ### Capture Reality
 
-Tutor has a Notebook for thoughts the active learner genuinely wants to express. A note can be typed directly in Russian or recorded freely and transcribed by OpenAI. Typed and transcribed notes enter the same ready queue, may be edited, and may accumulate across days.
+Tutor has a Notebook for one-shot card-preparation requests and thoughts the active learner genuinely wants to express. A note can directly describe the cards and format the learner wants, contain a real-life thought in Russian, or be recorded freely and transcribed by OpenAI. Typed and transcribed notes enter the same ready queue, may be edited, and may accumulate across days.
 
-`Prepare cards` takes the oldest ready notes within a 50,000-character window, removes repetition, separates ideas, and proposes up to 100 complete, natural utterances with one primary Topic. Situation descriptions, another person's words, and explanatory meta-text are context rather than card content. After wording such as “я хотел ответить/сказать/спросить”, the intended utterance that follows is the card: the gym/toilet example produces only the intended “вон там, за углом” reply. Active proposals are included by default. Each proposal has its own optional comment and `Revise` action; revision replaces only that card and leaves every other proposal unchanged. `Add to Library` saves only the selected, already reviewed proposals. A failed revision preserves its comment and saves nothing.
+`Prepare cards` takes the oldest ready notes within a 50,000-character window and proposes up to 100 cards. An explicit one-shot instruction such as “make one separate card for every number” controls the output shape, quantity, and order just as it does in Tutor Chat. Without an explicit card-making instruction, Notebook removes repetition, separates ideas, and extracts complete natural utterances. Situation descriptions, another person's words, and explanatory meta-text are then context rather than card content. After wording such as “я хотел ответить/сказать/спросить”, the intended utterance that follows is the card: the gym/toilet example produces only the intended “вон там, за углом” reply. Active proposals are included by default. Each proposal has its own optional comment and `Revise` action; revision replaces only that card and leaves every other proposal unchanged. `Add to Library` saves only the selected, already reviewed proposals. A failed revision preserves its comment and saves nothing.
 
 Before upload, the browser stores one pending recording per profile and language in IndexedDB. It survives a PWA restart and remains available for Retry or Delete. The browser copy is removed only after the server confirms the upload. Server-side source audio is temporary and is deleted as soon as transcription succeeds; a failed transcription retains it only for Retry or Delete.
 
@@ -72,9 +72,24 @@ Text Import keeps its ordinary “select useful material” behavior when no del
 
 Tutor behaves like a normal ChatGPT conversation or role-play. It does not interrupt every sentence unless live correction was explicitly requested. Chat and Notebook remain equally visible working modes. Existing chats may be deleted explicitly; opening Tutor restores the active chat at its latest position without replaying an animated scroll through its history. At the end, `Finish & review` analyzes the complete exchange and proposes only meaningful corrections, reusable islands, and patterns.
 
+Tutor also honors an explicit request to prepare cards. The learner's requested card shape takes priority over the ordinary preference for complete conversational sentences: “one card for each …” keeps every requested source unit separate and in source order, up to the review limit. A paired list such as `0 — không` keeps the left side as the cue and the right side as the target. Foundational atomic material such as numbers or individual letters may remain atomic; Tutor must not add examples, merge entries, or turn them into sentences when the learner explicitly asked for the bare units. This exception does not turn arbitrary dictionary lists into isolated word-definition cards: an ordinary vocabulary list still receives useful contextual anchor sentences.
+
 Tutor Chat accepts either typed messages or a voice message. A voice message records after an explicit microphone action, is transcribed on the server, and sends the transcript immediately. A failed transcription keeps the recording available in the current page for Retry or Delete rather than silently discarding it.
 
 Pressing Enter clears the composer immediately, puts the learner's message into the conversation with a sending state, and shows a Tutor placeholder. If delivery fails, the message remains in the conversation with explicit Retry, Edit, and Delete actions; its text is never silently returned to the composer. Retry reuses the same delivery identity and cannot create a duplicate Tutor message or vocabulary review batch.
+
+Tutor and Notebook have the same card-preparation capabilities. Their difference is interaction context: Tutor can clarify and refine a request across a dialogue, while Notebook treats the ready notes as one direct request plus its source material.
+
+| Input | Tutor `Finish & review` | Notebook review |
+| --- | --- | --- |
+| Ordinary conversation | A small set of meaningful corrections, attempted phrases, and reusable patterns | Not applicable |
+| Explicit “make one card per item” request | The prepared items, using the dialogue context and requested granularity/order | The same result in one pass from the ready notes |
+| Number/letter pairs | One atomic proposal per pair; no added sentence | One atomic proposal per pair; no added sentence |
+| Ordinary vocabulary list | Triage plus one useful contextual anchor per active term | The same triage and contextual anchors |
+| Story ending with “I wanted to say …” | Conversation intent determines whether it belongs in the final review | The intended reply only; the story and the other speaker's words are context |
+| Several distinct intended replies | Only high-value material requested or attempted in the conversation | One proposal per distinct intended utterance |
+
+Notebook first distinguishes a direct card-making request from a captured real-life situation. A direct request controls generation; quoted instructions from another person or a narrative mention of card-making do not. When the note is a real-life capture, explanations and the other person's speech remain context. A useful self-contained reply may be a natural fragment such as “Over there, around the corner”; it does not need filler added merely to become a grammatical sentence.
 
 ## Approval boundary
 
@@ -88,7 +103,7 @@ For a list of up to roughly 100 words or phrases:
 
 1. Paste or upload the list in Tutor.
 2. The system deduplicates and triages entries as active, recognition-only, or skip.
-3. Each useful active entry gets one strong personal anchor sentence with a complete Russian cue.
+3. By default, each useful active entry gets one strong personal anchor utterance with a complete Russian cue. An explicit foundational number/letter list keeps one atomic card per source unit instead.
 4. Results appear in pages of eight. The learner can request another version or a different context.
 5. Only selected cards enter Library.
 6. The daily new-card limit (10 by default) limits only the new-card portion of `Recommended now`; all scheduled reviews remain visible and all Library cards remain available for custom Recall and Listen & Repeat.

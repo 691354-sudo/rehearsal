@@ -18,6 +18,9 @@ describe("learner-specific AI context", () => {
     expect(romanTutor).toContain("Roman");
     expect(romanTutor).toContain("### Correction");
     expect(romanTutor).toContain("conversational reply before the heading is mandatory");
+    expect(romanTutor).toContain("follow the requested shape, quantity, and order");
+    expect(romanTutor).toContain("including every member of stated ranges or enumerations");
+    expect(romanTutor).toContain("Bare foundational units such as numbers or individual letters may stay atomic");
     expect(romanTutor).toContain("born in 1992");
     expect(oliverTutor).toContain("Oliver");
     expect(oliverTutor).not.toContain("Roman");

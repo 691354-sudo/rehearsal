@@ -38,6 +38,86 @@ export const generatedMaterialSchema = z.object({
 
 export const targetLanguageName = (language: LanguageCode) => targetLanguages[language].name;
 
+export const vocabularyPreparationTask =
+  "Classify the source before generating cards. If it is a foundational list of bare numbers or individual letters, " +
+  "return exactly one atomic card per distinct source entry in the same order; use the source number or letter as cue " +
+  "and its target-language name as target. If it is an explicit foundational cue-target pair list, preserve exactly one " +
+  "pair per line. Keep every foundational unit active; do not triage, merge, or skip distinct requested units. " +
+  "Otherwise triage up to 100 vocabulary entries, deduplicate inflections and near-duplicates, and create exactly one " +
+  "natural personalized anchor utterance for each useful active term. Keep less useful but current terms as recognition, " +
+  "mark outdated, bookish, or irrelevant entries as skip, and return no more than one candidate per distinct term or phrase.";
+
+export const capturePreparationTask = (learnerName: string) =>
+  "Treat these Notebook notes as one-shot card-preparation requests and source material. First classify the learner's " +
+  "intent. If the learner directly asks Rehearsal to prepare cards, specifies their format, or supplies a clearly " +
+  "standalone card-source list, prepare that material rather than treating it as a personal utterance. Follow explicit " +
+  "instructions using the supplied material. Honor the requested quantity, order, and granularity, including every member of " +
+  "stated " +
+  "ranges or enumerations, up to 100 cards. 'One card for each number' means one separate active candidate per number. " +
+  "Bare foundational units such as numbers or individual letters are valid atomic cards; do not add example sentences, " +
+  "triage, merge, or skip distinct requested units. For numbers, use the exact numeral as cue and its target-language name " +
+  "as target. A note such as 'сделай отдельную карточку для каждой цифры от 0 до " +
+  "9, только цифра и её перевод' is an instruction to return 10 atomic cards. For an ordinary vocabulary list, triage " +
+  "entries and create one useful contextual anchor utterance per active term. If there is no card-making request or list, " +
+  "turn the Russian personal thoughts into at most 100 high-value speaking cards. Descriptions of the situation, words " +
+  "already spoken by someone else, quoted instructions, and explanatory meta-text are context only. When a note says " +
+  "'я хотел ответить/сказать/спросить' or an equivalent phrase, make the card from the intended reply, statement, or " +
+  "question that follows. For example, 'ко мне подошли в зале и спросили: где туалеты? я хотел ответить: вон там, " +
+  "за углом' must produce exactly one card for 'вон там, за углом'; do not translate the story or the other person's " +
+  "question. For real-life captures, merge repeated intentions, ignore filler and recording artifacts, and split distinct " +
+  "intended utterances " +
+  "into separate cards. Translate intended meaning rather than wording. Prefer direct casual or neutral adult speech, " +
+  `never corporate or bookish phrasing. A real-life capture must be a self-contained utterance ${learnerName} would ` +
+  "realistically say; a natural short answer or fragment is valid without added filler. The explicit foundational exception stays atomic.";
+
+export const tutorConversationReviewTask =
+  "First identify what the learner asked Tutor to produce. If the learner explicitly requested cards or a card-ready " +
+  "list, extract that prepared material instead of treating the exchange only as conversation correction. Honor an " +
+  "explicit quantity, order, and granularity such as 'one card for each number': return one candidate for every requested " +
+  "source unit, including every member of stated ranges or enumerations, in source order, up to 100. Preserve explicit " +
+  "cue-target pairs. Bare foundational units such as numbers " +
+  "or individual letters are valid atomic cards and must not be expanded into example sentences. Keep every explicitly " +
+  "requested unit active; do not triage, merge, or skip it. Do not add unrelated " +
+  "conversation corrections to an explicit card-preparation result. Otherwise review the ended conversation and extract " +
+  "only meaningful recurring mistakes, high-value phrases the learner was trying to say, and a few reusable patterns. " +
+  "Correct collocations and sentence structure first, do not nitpick every sentence, and return at most 20 proposals.";
+
+export const numberCardsFromConversation = (
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+): ReviewCandidate[] => {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role !== "assistant") continue;
+    const learnerRequest = messages.slice(0, index).reverse().find((candidate) => candidate.role === "user")?.content || "";
+    if (!/(?:карточ|\bcards?\b)/iu.test(learnerRequest) || !/(?:цифр|числ|\bnumbers?\b|\bdigits?\b)/iu.test(learnerRequest)) {
+      continue;
+    }
+    const pairs = message.content.split(/\r?\n/).flatMap((line) => {
+      const match = line.trim().replace(/\\+$/u, "").trim()
+        .match(/^(\d+(?:[ .\u00a0\u202f]\d{3})*)\s*[—–-]\s*(.+)$/u);
+      if (!match) return [];
+      const target = normalizeNfc(match[2].trim());
+      if (!target) return [];
+      return [{
+        id: randomUUID(),
+        target,
+        cue: match[1],
+        note: "",
+        category: "Numbers",
+        focusTerms: [],
+        disposition: "active" as const,
+        frequencyBand: "core" as const,
+        currency: "current" as const,
+        personaFit: 5,
+        naturalness: 5,
+        commonness: 5,
+      }];
+    });
+    if (pairs.length >= 2) return pairs.slice(0, 100);
+  }
+  return [];
+};
+
 export const materialInstructions = (learner: LearnerPersona, language: LanguageCode, task: string) => `
 You prepare optional learning cards for ${learner.name}, who is learning ${targetLanguageName(language)}.
 ${learner.context}
@@ -47,14 +127,16 @@ ${targetLanguages[language].guidance}
 Content policy:
 - Match the learner's known speaking style when it is supplied. Prefer neutral adult conversational language and useful collocations.
 - Current means natural in ${new Date().getFullYear()}. Avoid dated, bookish, corporate, overly formal, or forced Gen-Z wording.
-- Never create isolated word-definition cards. Put a focus word inside a complete useful sentence.
-- target must contain only the complete target-language sentence. Never prefix it with the focus term, a label, a dash, or a definition.
-- cue must be a complete natural Russian sentence with the same meaning as target. Never return a dictionary definition or several glosses separated by punctuation.
+- Follow the flow task's selection, count, order, and card-shape rules before applying the defaults below.
+- By default, never create isolated word-definition cards. Put a focus word inside one complete useful utterance.
+- When the flow task explicitly allows foundational atomic material, preserve each requested unit and do not expand it into a sentence.
+- target must contain only the target-language card content. Never prefix it with a focus term, label, dash, or definition.
+- cue must be a natural Russian retrieval cue with the same meaning as target. It is normally a complete utterance; an exact numeral or atomic source label is allowed only for the explicit foundational exception.
 - focusTerms is the only field for the exact word or phrase being trained.
-- category is a real-life situation such as café, gym, work, relationships, travel, or daily errands; never use grammatical labels such as conditional or phrasal verb.
+- category is normally a real-life situation such as café, gym, work, relationships, travel, or daily errands. Use a clear topic such as Numbers for an atomic foundational set; never use grammatical labels such as conditional or phrasal verb.
 - Prefer one strong relevant anchor over many generic examples, without inventing personal details.
 - Russian cues must carry the same natural meaning, not word-for-word translation.
-- Keep every target sentence speakable and worth active recall. Pattern drills vary one meaningful slot while preserving the structure.
+- Keep every target utterance or explicitly permitted atomic unit speakable and worth active recall. Pattern drills vary one meaningful slot while preserving the structure.
 - Mark rare or dated input as recognition or skip instead of forcing it into active vocabulary.
 - Do not claim anything was saved. These are proposals requiring the user's approval.
 

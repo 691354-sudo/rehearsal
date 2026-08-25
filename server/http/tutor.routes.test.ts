@@ -177,6 +177,56 @@ describe("Tutor and review API", () => {
     await app.close();
   });
 
+  it("turns each number pair prepared by Tutor into its own review card", async () => {
+    context.repository.system.setLanguageEnabled("vi", true);
+    const thread = context.repository.tutor.getOrCreateThread(undefined, "vi");
+    context.repository.tutor.addMessage(thread.id, "user", "Подготовь отдельные карточки для базовых цифр.");
+    context.repository.tutor.addMessage(thread.id, "assistant", [
+      "0 — không\\",
+      "\\",
+      "1 — một\\",
+      "2 — hai\\",
+      "3 — ba\\",
+      "\\",
+      "10 — mười\\",
+      "11 — mười một\\",
+      "20 — hai mươi\\",
+      "\\",
+      "1 000 — một nghìn\\",
+      "1 000 000 — một triệu",
+    ].join("\n"));
+    const app = await buildApp(context.repository, {
+      openai: new OpenAIService(context.repository),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/chat/${thread.publicId}/review`,
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      mode: "stored",
+      batch: {
+        language: "vi",
+        kind: "vocab",
+        candidates: [
+          { cue: "0", target: "không", category: "Numbers" },
+          { cue: "1", target: "một", category: "Numbers" },
+          { cue: "2", target: "hai", category: "Numbers" },
+          { cue: "3", target: "ba", category: "Numbers" },
+          { cue: "10", target: "mười", category: "Numbers" },
+          { cue: "11", target: "mười một", category: "Numbers" },
+          { cue: "20", target: "hai mươi", category: "Numbers" },
+          { cue: "1 000", target: "một nghìn", category: "Numbers" },
+          { cue: "1 000 000", target: "một triệu", category: "Numbers" },
+        ],
+      },
+    });
+    expect(context.repository.items.list("vi", 500)).toHaveLength(0);
+    await app.close();
+  });
+
   it("adds approved Tutor corrections while revising individually commented cards", async () => {
     const approved = reviewCandidate({
       id: "9ad9bdcb-8309-43cd-8e75-92ed741bb561",
