@@ -17,6 +17,7 @@ import {
   initializeInvitedDatabase,
   inviteAvailable,
   invitationForToken,
+  invitationRecordForToken,
   readInvitations,
   readInvitedProfiles,
   saveInvitations,
@@ -370,8 +371,10 @@ export class ProfileManager {
     return inviteAvailable(this.invitations, token);
   }
 
-  invitationPurpose(token: string): InvitationPurpose | null {
-    return invitationForToken(this.invitations, token)?.purpose || (this.inviteAvailable(token) ? "standard" : null);
+  inviteExperience(token: string) {
+    const invitation = invitationRecordForToken(this.invitations, token);
+    return [invitation ? invitation.purpose || "standard" : null, Boolean(invitation?.purpose === "onboarding_v1_pilot"
+      && invitation.usedAt && invitation.usedByProfileId && !invitation.revokedAt)] as const;
   }
 
   onboardingState(profileId: ProfileId): OnboardingState {

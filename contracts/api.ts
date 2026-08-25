@@ -182,6 +182,7 @@ export type OnboardingState = {
   status: "not_available" | "pending" | "completed";
   language?: LanguageCode;
   starterReady: boolean;
+  starterTutorThreadId?: string;
   completedAt?: string;
 };
 export type AuthSession = {

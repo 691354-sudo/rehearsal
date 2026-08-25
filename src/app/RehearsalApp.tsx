@@ -11,6 +11,12 @@ import { LibraryPage } from "../features/library/LibraryPage";
 import { PracticePage } from "../features/practice/PracticePage";
 import { useLearningData } from "../features/practice/useLearningData";
 import { GlobalSettings } from "../features/settings/GlobalSettings";
+import { OnboardingPage } from "../features/onboarding/OnboardingPage";
+import {
+  onboardingRoute,
+  parseOnboardingStep,
+  type OnboardingMode,
+} from "../features/onboarding/onboardingRoute";
 import { TutorPage } from "../features/tutor/TutorPage";
 import { useAppRoute } from "../hooks/useAppRoute";
 import { EchoMark } from "./EchoBrand";
@@ -35,9 +41,21 @@ import type {
 } from "../shared/contracts";
 import { AppLink } from "./AppLink";
 
-export function RehearsalApp({ availableLanguages, onboarding, onReplayOnboarding, profile, onSwitchProfile }: {
+export function RehearsalApp({
+  availableLanguages,
+  onboarding,
+  onboardingMode,
+  onCloseOnboarding,
+  onCompleteOnboarding,
+  onReplayOnboarding,
+  profile,
+  onSwitchProfile,
+}: {
   availableLanguages: LanguageOption[];
   onboarding: OnboardingState;
+  onboardingMode: OnboardingMode | null;
+  onCloseOnboarding: () => void;
+  onCompleteOnboarding: (state: OnboardingState) => void;
   onReplayOnboarding: () => void;
   profile: ProfileSummary;
   onSwitchProfile: () => void;
@@ -157,7 +175,9 @@ export function RehearsalApp({ availableLanguages, onboarding, onReplayOnboardin
     goTo({ ...route, settings: false }, "replace");
   }, [goTo, route]);
 
-  return <div className={`simple-app simple-app--${theme}`} data-theme={theme}>
+  const onboardingStep = onboardingMode ? parseOnboardingStep(window.location) : null;
+
+  return <div className={`simple-app simple-app--${theme}${onboardingMode ? " has-onboarding-tour" : ""}`} data-theme={theme}>
     <a className="simple-skip-link" href="#main-content">Skip to Main Content</a>
     <header className="simple-header">
       <div className="simple-header-rail">
@@ -256,5 +276,10 @@ export function RehearsalApp({ availableLanguages, onboarding, onReplayOnboardin
       onListened={learning.commitListening} onPlay={audio.playTarget} onPracticeEnabled={learning.updatePracticeEnabled}
       onReview={(itemId) => goTo({ ...practiceRoute("recall"), scope: "library", review: itemId })} />}
     </div>
+    {onboardingMode && onboardingStep ? <OnboardingPage language={language} mode={onboardingMode}
+      onClose={onCloseOnboarding} onComplete={onCompleteOnboarding}
+      onStep={(step) => goTo(onboardingRoute(
+        step, language, onboardingMode, onboarding.starterTutorThreadId,
+      ))} step={onboardingStep} /> : null}
   </div>;
 }

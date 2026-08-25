@@ -139,16 +139,20 @@ export const createProfileInvitation = <ProfileRecord>(input: {
 };
 
 export const inviteAvailable = (invitations: InvitationRegistry, token: string) => {
+  const invitation = invitationRecordForToken(invitations, token);
+  return Boolean(invitation && !invitation.usedAt && !invitation.revokedAt);
+};
+
+export const invitationRecordForToken = (invitations: InvitationRegistry, token: string) => {
   const normalized = normalizedInvite(token);
-  if (!/^[0-9A-HJKMNP-TV-Z]{8}$/.test(normalized)) return false;
-  return invitations.invitations.some((invite) => invite.hash === hashInvite(normalized)
-    && !invite.usedAt && !invite.revokedAt);
+  if (!/^[0-9A-HJKMNP-TV-Z]{8}$/.test(normalized)) return null;
+  const hash = hashInvite(normalized);
+  return invitations.invitations.find((invite) => invite.hash === hash) || null;
 };
 
 export const invitationForToken = (invitations: InvitationRegistry, token: string) => {
-  if (!inviteAvailable(invitations, token)) return null;
-  const hash = hashInvite(token);
-  return invitations.invitations.find((invite) => invite.hash === hash && !invite.usedAt && !invite.revokedAt) || null;
+  const invitation = invitationRecordForToken(invitations, token);
+  return invitation && !invitation.usedAt && !invitation.revokedAt ? invitation : null;
 };
 
 export const initializeInvitedDatabase = <ProfileRecord extends { id: string; databasePath: string }>(

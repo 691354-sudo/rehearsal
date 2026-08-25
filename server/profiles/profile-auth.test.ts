@@ -278,6 +278,7 @@ describe("profile authentication and database isolation", () => {
     expect(available.statusCode).toBe(200);
     expect(available.json().available).toBe(true);
     expect(available.json().experience).toBe("standard");
+    expect(available.json().replayAvailable).toBe(false);
     expect(available.json().languages.map((language: { code: string }) => language.code)).toEqual(["en", "lv", "vi", "no"]);
 
     const shortPin = await app.inject({
@@ -341,9 +342,10 @@ describe("profile authentication and database isolation", () => {
       method: "POST", url: "/api/auth/invites", payload: { purpose: "onboarding_v1_pilot" },
     });
     const token = replacement.json().token as string;
-    expect((await app.inject({ method: "GET", url: `/api/auth/invites/${firstToken}` })).json().available).toBe(false);
+    expect((await app.inject({ method: "GET", url: `/api/auth/invites/${firstToken}` })).json())
+      .toMatchObject({ available: false, experience: "onboarding_v1_pilot", replayAvailable: false });
     expect((await app.inject({ method: "GET", url: `/api/auth/invites/${token}` })).json())
-      .toMatchObject({ available: true, experience: "onboarding_v1_pilot" });
+      .toMatchObject({ available: true, experience: "onboarding_v1_pilot", replayAvailable: false });
 
     const joined = await app.inject({
       method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },
@@ -352,8 +354,16 @@ describe("profile authentication and database isolation", () => {
     expect(joined.statusCode).toBe(200);
     expect(joined.json().onboarding).toMatchObject({
       version: 1, eligibility: "pilot", status: "pending", language: "en", starterReady: true,
+      starterTutorThreadId: "10000000-0000-4000-8000-000000000001",
     });
     const profile = joined.json().profile as { id: string };
+    for (let visit = 0; visit < 8; visit += 1) {
+      const replayLink = await app.inject({ method: "GET", url: `/api/auth/invites/${token}` });
+      expect(replayLink.statusCode).toBe(200);
+      expect(replayLink.json()).toMatchObject({
+        available: false, experience: "onboarding_v1_pilot", replayAvailable: true,
+      });
+    }
     const repository = manager.get(profile.id).repository;
     expect(repository.items.list("en", 20)).toHaveLength(6);
     expect(repository.library.listIslands("en").map((topic) => [topic.title, topic.itemCount])).toEqual([

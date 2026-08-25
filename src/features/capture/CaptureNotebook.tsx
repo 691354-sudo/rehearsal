@@ -297,7 +297,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
   const activeNotes = notes.filter((note) => note.status !== "processed");
   const processedNotes = notes.filter((note) => note.status === "processed");
   const readyCount = activeNotes.filter((note) => note.status === "ready").length;
-  return <section className="capture-notebook">
+  return <section className="capture-notebook" data-onboarding-target="notebook">
     <div className="capture-entry">
       <textarea aria-label="Russian note" autoComplete="off" lang="ru" maxLength={30_000} name="notebook-note" onChange={(event) => setTextDraft(event.target.value)}
         placeholder="Write a Russian thought…" rows={3} value={textDraft} />

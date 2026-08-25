@@ -142,11 +142,13 @@ export const registerProfileAuth = (
       return reply.header("Retry-After", rate.retryAfterSeconds).code(429).send({ error: "INVITE_RATE_LIMITED" });
     }
     const available = profiles.inviteAvailable(token);
-    if (!available) limiter.fail(key);
+    const [experience, replayAvailable] = profiles.inviteExperience(token);
+    if (!experience) limiter.fail(key);
     return {
       available,
-      experience: profiles.invitationPurpose(token) || "standard",
+      experience: experience || "standard",
       languages: Object.values(languageCatalog),
+      replayAvailable,
     };
   });
 

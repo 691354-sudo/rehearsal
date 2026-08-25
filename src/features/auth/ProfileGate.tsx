@@ -15,11 +15,11 @@ import { EchoLockup } from "../../app/EchoBrand";
 import { defaultPracticeRoute, serializeAppRoute } from "../../lib/appRoute";
 import { apiFetch, setCsrfToken } from "../../shared/api";
 import type { Theme } from "../../shared/contracts";
-import { OnboardingPage } from "../onboarding/OnboardingPage";
 import {
-  isWelcomeLocation,
+  isOnboardingLocation,
   onboardingHref,
   parseOnboardingMode,
+  parseOnboardingStep,
   type OnboardingMode,
 } from "../onboarding/onboardingRoute";
 
@@ -34,8 +34,8 @@ export function ProfileGate() {
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingState>(unavailableOnboarding);
   const [onboardingMode, setOnboardingMode] = useState<OnboardingMode | null>(null);
-  const [onboardingTheme, setOnboardingTheme] = useState<Theme>(systemTheme);
   const [onboardingReturnHref, setOnboardingReturnHref] = useState("");
+  const [replayInvite, setReplayInvite] = useState(false);
   const [availableLanguages, setAvailableLanguages] = useState<LanguageOption[]>([]);
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [selected, setSelected] = useState<ProfileId>("roman");
@@ -51,7 +51,7 @@ export function ProfileGate() {
   const [joinExperience, setJoinExperience] = useState<InvitationPurpose>("standard");
   const [joinTheme, setJoinTheme] = useState<Theme>(systemTheme);
   const [joinThemeTouched, setJoinThemeTouched] = useState(false);
-  const applySession = (session: AuthSession) => {
+  const applySession = (session: AuthSession, forceReplay = false) => {
     setCsrfToken(session.csrfToken);
     setProfile(session.profile);
     const languages = session.availableLanguages?.length
@@ -60,23 +60,31 @@ export function ProfileGate() {
     setOnboarding(session.onboarding || unavailableOnboarding);
     const storedTheme = window.localStorage.getItem(`rehearsal:${session.profile.id}:theme`);
     const resolvedTheme = storedTheme === "light" || storedTheme === "dark" ? storedTheme : systemTheme();
-    setOnboardingTheme(resolvedTheme);
     document.documentElement.style.colorScheme = resolvedTheme;
     document.documentElement.dataset.theme = resolvedTheme;
 
-    const welcomeLocation = isWelcomeLocation(window.location);
+    const onboardingLocation = isOnboardingLocation(window.location);
     const requestedMode = parseOnboardingMode(window.location);
     const shouldOpen = session.onboarding?.eligibility === "pilot"
-      && (session.onboarding.status === "pending" || (welcomeLocation && requestedMode === "replay"));
+      && (session.onboarding.status === "pending" || forceReplay
+        || (onboardingLocation && requestedMode === "replay"));
     if (shouldOpen) {
       const mode: OnboardingMode = session.onboarding.status === "pending" ? "first_run" : "replay";
+      const step = onboardingLocation ? parseOnboardingStep(window.location) : "tutor";
       setOnboardingMode(mode);
-      if (!welcomeLocation || requestedMode !== mode) {
-        window.history.replaceState(null, "", onboardingHref("intro", mode));
+      const destination = onboardingHref(
+        step,
+        session.onboarding.language || languages[0]?.code || "en",
+        mode,
+        import.meta.env.BASE_URL,
+        session.onboarding.starterTutorThreadId,
+      );
+      if (`${window.location.pathname}${window.location.search}` !== destination) {
+        window.history.replaceState(null, "", destination);
       }
     } else {
       setOnboardingMode(null);
-      if (welcomeLocation) {
+      if (onboardingLocation) {
         const language = session.onboarding?.language || languages[0]?.code || "en";
         window.history.replaceState(null, "", serializeAppRoute(defaultPracticeRoute(language), import.meta.env.BASE_URL));
       }
@@ -101,11 +109,25 @@ export function ProfileGate() {
             available: boolean;
             experience: InvitationPurpose;
             languages: LanguageOption[];
+            replayAvailable: boolean;
           };
           setJoinAvailable(result.available);
           setJoinExperience(result.experience);
           setJoinLanguages(result.languages);
           if (result.languages[0]) setJoinLanguage(result.languages[0].code);
+          if (!result.available && result.experience === "onboarding_v1_pilot" && result.replayAvailable) {
+            setReplayInvite(true);
+            const sessionResponse = await apiFetch("/api/auth/session");
+            if (sessionResponse.ok) {
+              const session = await sessionResponse.json() as AuthSession;
+              if (session.onboarding.eligibility === "pilot") {
+                applySession(session, true);
+                return;
+              }
+            }
+            await loadProfiles();
+            return;
+          }
           if (result.experience === "onboarding_v1_pilot") {
             try {
               const saved = JSON.parse(window.sessionStorage.getItem(pilotThemeSessionKey) || "null") as
@@ -138,21 +160,21 @@ export function ProfileGate() {
   }, []);
 
   useEffect(() => {
-    if (joinExperience !== "onboarding_v1_pilot") return;
+    if (joinExperience !== "onboarding_v1_pilot" || replayInvite) return;
     document.documentElement.style.colorScheme = joinTheme;
     document.documentElement.dataset.theme = joinTheme;
     window.sessionStorage.setItem(pilotThemeSessionKey, JSON.stringify({
       theme: joinTheme, touched: joinThemeTouched,
     }));
-  }, [joinExperience, joinTheme, joinThemeTouched]);
+  }, [joinExperience, joinTheme, joinThemeTouched, replayInvite]);
 
   useEffect(() => {
-    if (joinExperience !== "onboarding_v1_pilot" || joinThemeTouched) return;
+    if (joinExperience !== "onboarding_v1_pilot" || joinThemeTouched || replayInvite) return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const change = () => setJoinTheme(media.matches ? "dark" : "light");
     media.addEventListener("change", change);
     return () => media.removeEventListener("change", change);
-  }, [joinExperience, joinThemeTouched]);
+  }, [joinExperience, joinThemeTouched, replayInvite]);
 
   const join = async (event: FormEvent) => {
     event.preventDefault();
@@ -218,7 +240,11 @@ export function ProfileGate() {
         return;
       }
       const session = await response.json() as AuthSession;
-      applySession(session);
+      if (replayInvite && session.onboarding.eligibility !== "pilot") {
+        setError("Выберите тестовый onboarding-профиль.");
+        return;
+      }
+      applySession(session, replayInvite);
       setPin("");
     } catch {
       setError("Could not sign in.");
@@ -235,6 +261,7 @@ export function ProfileGate() {
       setProfile(null);
       setOnboarding(unavailableOnboarding);
       setOnboardingMode(null);
+      setReplayInvite(false);
       setAvailableLanguages([]);
       setPin("");
       setError("");
@@ -243,38 +270,39 @@ export function ProfileGate() {
   };
 
   if (loading) return <main className="profile-gate"><LoaderCircle className="simple-spin" size={24} /><span>Opening Echo…</span></main>;
-  if (profile && onboardingMode && onboarding.eligibility === "pilot") return <OnboardingPage
-    language={onboarding.language || availableLanguages[0]?.code || "en"}
-    mode={onboardingMode}
-    onClose={() => {
+  if (profile) return <RehearsalApp availableLanguages={availableLanguages} key={profile.id}
+    onboarding={onboarding} onboardingMode={onboardingMode}
+    onCloseOnboarding={() => {
       const destination = onboardingReturnHref
         || serializeAppRoute(defaultPracticeRoute(onboarding.language || availableLanguages[0]?.code || "en"), import.meta.env.BASE_URL);
       window.history.replaceState(null, "", destination);
+      window.dispatchEvent(new Event("app-routechange"));
       setOnboardingMode(null);
       setOnboardingReturnHref("");
     }}
-    onComplete={(state) => {
+    onCompleteOnboarding={(state) => {
       setOnboarding(state);
       window.history.replaceState(null, "", serializeAppRoute(
         defaultPracticeRoute(state.language || availableLanguages[0]?.code || "en"), import.meta.env.BASE_URL,
       ));
+      window.dispatchEvent(new Event("app-routechange"));
       setOnboardingMode(null);
     }}
-    theme={onboardingTheme}
-  />;
-
-  if (profile) return <RehearsalApp availableLanguages={availableLanguages} key={profile.id}
-    onboarding={onboarding}
     onReplayOnboarding={() => {
       setOnboardingReturnHref(`${window.location.pathname}${window.location.search}`);
-      const activeTheme = document.documentElement.dataset.theme;
-      setOnboardingTheme(activeTheme === "dark" ? "dark" : "light");
-      window.history.pushState(null, "", onboardingHref("intro", "replay"));
+      window.history.pushState(null, "", onboardingHref(
+        "tutor",
+        onboarding.language || availableLanguages[0]?.code || "en",
+        "replay",
+        import.meta.env.BASE_URL,
+        onboarding.starterTutorThreadId,
+      ));
+      window.dispatchEvent(new Event("app-routechange"));
       setOnboardingMode("replay");
     }}
     onSwitchProfile={() => void switchProfile()} profile={profile} />;
 
-  if (invitationToken) return <main className={`profile-gate${joinExperience === "onboarding_v1_pilot"
+  if (invitationToken && !replayInvite) return <main className={`profile-gate${joinExperience === "onboarding_v1_pilot"
     ? " profile-gate--pilot-theme" : ""}`} id="main-content">
     <section className="profile-card profile-card--join">
       <EchoLockup className="profile-echo-lockup" />
@@ -324,7 +352,9 @@ export function ProfileGate() {
   return <main className="profile-gate" id="main-content">
     <section className="profile-card">
       <EchoLockup className="profile-echo-lockup" />
-      <header><span>Say it until it’s yours.</span><h1>Choose your profile</h1><p>Your practice, Tutor history, and settings stay separate.</p></header>
+      <header><span>Say it until it’s yours.</span><h1>{replayInvite ? "Открыть тестовый онбординг" : "Choose your profile"}</h1>
+        <p>{replayInvite ? "Выберите тестовый профиль и введите его PIN. Данные и карточки не будут созданы повторно."
+          : "Your practice, Tutor history, and settings stay separate."}</p></header>
       <div className="profile-options" role="group" aria-label="Profiles">
         {profiles.map((candidate) => <button className={selected === candidate.id ? "is-active" : ""}
           key={candidate.id} onClick={() => { setSelected(candidate.id); setError(""); }} type="button">
@@ -339,7 +369,7 @@ export function ProfileGate() {
           }} name="pin" pattern="[0-9]{4,12}" placeholder="For example: 1234…" ref={pinRef} type="password" value={pin} /></div>
         {error ? <p className="profile-error" id="profile-pin-error" role="alert">{error}</p> : null}
         <button className="profile-submit" disabled={submitting} type="submit">
-          {submitting ? <LoaderCircle className="simple-spin" size={17} /> : null}Continue as {profiles.find((candidate) => candidate.id === selected)?.name || "profile"}
+          {submitting ? <LoaderCircle className="simple-spin" size={17} /> : null}{replayInvite ? "Открыть онбординг" : `Continue as ${profiles.find((candidate) => candidate.id === selected)?.name || "profile"}`}
         </button>
       </form>
     </section>

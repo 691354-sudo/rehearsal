@@ -404,8 +404,8 @@ export function GlobalSettings(props: {
         </section>
         {props.onboarding.eligibility === "pilot" ? <section className="simple-settings-section simple-onboarding-help">
           <div className="simple-settings-section-title"><h3>How Echo works</h3></div>
-          <p>Reopen the introduction to Tutor, Notebook, Library, and Practice. Your cards will not be changed.</p>
-          <button onClick={openOnboarding} type="button">Open onboarding</button>
+          <p>Reopen the guided tour inside Tutor, Notebook, Library, and Practice. Your cards will not be changed.</p>
+          <button onClick={openOnboarding} type="button">Open guided tour</button>
         </section> : null}
       </div>
       <footer className="simple-settings-footer">

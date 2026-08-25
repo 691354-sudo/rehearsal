@@ -53,6 +53,7 @@ describe("pilot onboarding workspace", () => {
 
     expect(seedPilotOnboarding(database, language)).toMatchObject({
       eligibility: "pilot", status: "pending", language, starterReady: true,
+      starterTutorThreadId: pilotStarterIds.tutorThread,
     });
     expect((database.prepare("SELECT target FROM items ORDER BY id").all() as Array<{ target: string }>)
       .map((row) => row.target)).toEqual(expectedTargets[language]);
