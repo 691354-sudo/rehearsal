@@ -274,6 +274,10 @@
   border-radius: 8px;
 }
 
+.profile-gate--pilot-theme .profile-theme-choice button {
+  min-height: 44px;
+}
+
 .profile-theme-choice button.is-active {
   color: var(--profile-ink);
   background: var(--profile-wash);
