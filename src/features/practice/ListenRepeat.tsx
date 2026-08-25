@@ -27,6 +27,7 @@ export function ListenRepeat(props: {
   dueItemIds: string[];
   emptyAction: ReactNode;
   elevenLabs: ElevenLabsConfig;
+  editActive: boolean;
   items: LearningItem[];
   language: Language;
   onSelection: (scope: PracticeScope, count: PracticeCardCount) => void;
@@ -85,7 +86,6 @@ export function ListenRepeat(props: {
   playbackRef.current = props.playback;
   queueRef.current = queue;
   repeatModeRef.current = repeatMode;
-
   const actionsRef = useRef<Record<"play" | "pause" | "previous" | "next" | "stop", () => void>>({
     play: () => undefined,
     pause: () => undefined,
@@ -438,7 +438,7 @@ export function ListenRepeat(props: {
     <div><button className="simple-primary" onClick={restart} type="button">Play again</button><button onClick={stop} type="button">Change selection</button></div>
   </section>;
 
-  return <ListenPlayerSurface current={current} error={error} index={index} language={props.language} note={note}
+  return <ListenPlayerSurface current={current} editActive={props.editActive} error={error} index={index} language={props.language} note={note}
     onEdit={editCurrent} onNext={next} onPause={pause} onPrevious={previous} onReplay={replay} onResume={resume}
     onRetryPreparation={() => { void beginPreparation(queue, playbackRef.current, current).catch(() => undefined); }}
     onShuffle={shuffle} onToggleRepeat={cycleRepeat} onToggleRussian={() => setShowRussian((shown) => !shown)}

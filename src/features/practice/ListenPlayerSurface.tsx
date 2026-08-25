@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Pause, Pencil, Play, Settings2, Shuffle, SkipBack, SkipForward } from "lucide-react";
 import type { Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
 import { FocusedText } from "../progress/FocusedText";
@@ -7,6 +7,7 @@ import type { RepeatMode } from "../audio/listenAudio";
 
 export function ListenPlayerSurface(props: {
   current: LearningItem;
+  editActive: boolean;
   error: string;
   index: number;
   language: Language;
@@ -36,11 +37,24 @@ export function ListenPlayerSurface(props: {
   showRussian: boolean;
   status: "playing" | "paused" | "error";
 }) {
-  return <section className={`listen-player${props.showPlaybackSettings ? " is-settings-open" : ""}`} aria-label="Listen and Repeat player">
+  const surfaceRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (props.editActive) return;
+    const frame = window.requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active !== surfaceRef.current) active.blur();
+      window.getSelection()?.removeAllRanges();
+      surfaceRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [props.editActive]);
+  return <section className={`listen-player${props.showPlaybackSettings ? " is-settings-open" : ""}`} aria-label="Listen and Repeat player"
+    ref={surfaceRef} tabIndex={-1}>
     <header><span>{props.index + 1} / {props.queueLength}</span><div aria-hidden="true" className="listen-progress-track"><i style={{ width: `${props.queueLength ? ((props.index + 1) / props.queueLength) * 100 : 0}%` }} /></div>
       <strong>{props.selectedTopicName}</strong></header>
     <span className="simple-visually-hidden" role="status">Ready for pocket {props.readyCount} / {props.preparationTotal || props.queueLength}{props.note ? `. ${props.note}` : ""}</span>
-    <article><button aria-label={`Edit ${props.current.target}`} className="practice-active-edit" onClick={props.onEdit} title="Edit card" type="button"><Pencil aria-hidden="true" size={16} /></button><span className="listen-prompt">Repeat after the speaker</span>
+    <article><div className="listen-prompt-row"><span className="listen-prompt">Repeat after the speaker</span>
+      <button aria-label={`Edit ${props.current.target}`} className="practice-active-edit" onClick={props.onEdit} title="Edit card" type="button"><Pencil aria-hidden="true" size={14} /></button></div>
       <p lang={props.language}><FocusedText focusTerms={props.current.focusTerms} text={props.current.target} /></p>
       {props.showRussian ? <span className="listen-russian-cue" lang="ru">{props.current.cue}</span> : null}
       <button className="listen-russian" onClick={props.onToggleRussian} type="button">{props.showRussian ? "Hide Russian" : "Show Russian"}</button></article>

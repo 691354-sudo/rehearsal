@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LoaderCircle, Mic, Plus, RefreshCw, Save, Square, Trash2, WandSparkles } from "lucide-react";
+import { LoaderCircle, Mic, MoreHorizontal, Plus, RefreshCw, Save, Square, Trash2, WandSparkles } from "lucide-react";
 import type { ProfileId } from "../../../contracts/api";
 import { apiFetch } from "../../shared/api";
 import {
@@ -52,6 +52,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
   const [textDraft, setTextDraft] = useState("");
   const [addingText, setAddingText] = useState(false);
   const [batch, setBatch] = useState<ReviewBatch | null>(null);
+  const [reviewVisible, setReviewVisible] = useState(true);
   const [added, setAdded] = useState(false);
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -83,13 +84,14 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
     const data = await response.json() as { notes: CaptureNote[]; activeBatch: ReviewBatch | null };
     if (session !== sessionRef.current) return;
     setNotes(data.notes || []); setBatch(data.activeBatch || null);
+    if (data.activeBatch) setReviewVisible(true);
     setDrafts((current) => Object.fromEntries((data.notes || []).map((note) => [note.publicId, current[note.publicId] ?? note.transcript])));
   };
 
   useEffect(() => {
     const session = ++sessionRef.current;
     let cancelled = false;
-    setNotes([]); setDrafts({}); setBatch(null); setPendingRecording(null);
+    setNotes([]); setDrafts({}); setBatch(null); setReviewVisible(true); setPendingRecording(null);
     setNotice(""); setRemaining(0); setAdded(false); setRecording(false); setUploading(false);
     void Promise.allSettled([refresh(session), loadPendingRecording(profileId, language)]).then((results) => {
       if (cancelled) return;
@@ -280,7 +282,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
       });
       if (!response.ok) throw new Error("No ready notes to prepare, or OpenAI is unavailable.");
       const data = await response.json() as { batch: ReviewBatch; remaining: number };
-      setBatch(data.batch); setRemaining(data.remaining || 0); await refresh();
+      setBatch(data.batch); setReviewVisible(true); setRemaining(data.remaining || 0); await refresh();
       setNotice(data.remaining ? `${data.remaining} newer notes remain for the next package.` : "Nothing has been saved yet. Review the package below.");
     } catch (error) { setNotice(friendlyError(error)); }
     finally { setProcessing(false); }
@@ -297,42 +299,48 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
   const activeNotes = notes.filter((note) => note.status !== "processed");
   const processedNotes = notes.filter((note) => note.status === "processed");
   const readyCount = activeNotes.filter((note) => note.status === "ready").length;
+  const sourceNotes = activeNotes.filter((note) => note.status === "batched");
+  if (batch && reviewVisible) return <section className="capture-notebook capture-notebook--review" data-onboarding-target="notebook">
+    {remaining ? <p className="capture-remaining">{remaining} notes will stay ready for the next package.</p> : null}
+    <ReviewBatchPanel batch={batch} context="notebook" feed onBatch={setBatch} onDismiss={() => setReviewVisible(false)} onReset={resetBatch} onCommitted={() => {
+      setBatch(null); setRemaining(0); setNotice(""); setAdded(true); void refresh();
+    }} source={sourceNotes.length ? <details className="capture-review-source"><summary>Source notes <span>{sourceNotes.length}</span></summary>
+      <div>{sourceNotes.map((note) => <p key={note.publicId} lang="ru">{note.transcript}</p>)}</div></details> : null} />
+  </section>;
+
   return <section className="capture-notebook" data-onboarding-target="notebook">
     <div className="capture-entry">
       <textarea aria-label="Russian note" autoComplete="off" lang="ru" maxLength={30_000} name="notebook-note" onChange={(event) => setTextDraft(event.target.value)}
         placeholder="Write a Russian thought…" rows={3} value={textDraft} />
       <div><button disabled={!textDraft.trim() || addingText} onClick={() => void addText()} type="button">
-        {addingText ? <LoaderCircle className="simple-spin" size={16} /> : <Plus size={16} />}Add note</button>
+        {addingText ? <LoaderCircle aria-hidden="true" className="simple-spin" size={16} /> : <Plus aria-hidden="true" size={16} />}Add note</button>
         <button aria-label={recording ? "Stop recording" : "Start recording"} className={`capture-record${recording ? " is-recording" : ""}`}
           disabled={uploading || Boolean(pendingRecording)} onClick={recording ? stopRecording : () => void startRecording()}
           title={recording ? `Stop recording · ${formatDuration(elapsed)}` : uploading ? "Transcribing" : "Record"} type="button">
-          {recording ? <Square fill="currentColor" size={16} /> : uploading ? <LoaderCircle className="simple-spin" size={17} /> : <Mic size={17} />}
+          {recording ? <Square aria-hidden="true" fill="currentColor" size={16} /> : uploading ? <LoaderCircle aria-hidden="true" className="simple-spin" size={17} /> : <Mic aria-hidden="true" size={17} />}
         </button></div>
     </div>
     {pendingRecording && !uploading ? <div className="capture-pending-audio"><span>This recording is saved on this device until the server accepts it.</span>
-      <div><button onClick={() => void upload(pendingRecording)} type="button"><RefreshCw size={14} />Retry upload</button>
+      <div><button onClick={() => void upload(pendingRecording)} type="button"><RefreshCw aria-hidden="true" size={14} />Retry upload</button>
         <button onClick={() => { if (!window.confirm("Delete this unsent recording from this device?")) return; void deletePendingRecording(profileId, language).then(() => {
           setPendingRecording(null); setNotice("Unsent recording deleted from this device.");
-        }).catch((error) => setNotice(friendlyError(error))); }} type="button"><Trash2 size={14} />Delete recording</button></div></div> : null}
+        }).catch((error) => setNotice(friendlyError(error))); }} type="button"><Trash2 aria-hidden="true" size={14} />Delete recording</button></div></div> : null}
 
-    <div className="capture-list-heading"><div><h2>Notebook</h2><span>{activeNotes.length} {activeNotes.length === 1 ? "note" : "notes"}</span></div>
-      <div className="capture-list-actions">{notice ? <span aria-live="polite" className="capture-notice">{notice}</span> : null}
-        <button disabled={!readyCount || processing || Boolean(batch)} onClick={() => void prepare()} type="button">
-          {processing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Prepare cards{readyCount ? ` (${readyCount})` : ""}
-        </button></div></div>
+    <div className="capture-list-heading"><div><h2>{readyCount} ready {readyCount === 1 ? "note" : "notes"}</h2>
+      <span>Tap a note to edit</span></div>{notice ? <span aria-live="polite" className="capture-notice">{notice}</span> : null}</div>
     {!activeNotes.length ? <div className="capture-empty"><strong>Capture something you actually want to say</strong><span>Write a Russian thought or record it. Nothing enters Library until you review it.</span></div> : <div className="capture-notes">
       {activeNotes.map((note) => <article className="capture-note" key={note.publicId}>
-        <header><span className={`is-${note.status}`}>{note.status}</span><time>{new Date(note.createdAt).toLocaleString()}</time></header>
+        <header><span className={`is-${note.status}`}>{note.status}</span><time dateTime={note.createdAt}>{new Date(note.createdAt).toLocaleString()}</time>
+          <details className="capture-note-actions"><summary aria-label="Note actions"><MoreHorizontal aria-hidden="true" size={16} /></summary><div>
+            {note.status === "failed" ? <button onClick={() => void retry(note)} type="button"><RefreshCw aria-hidden="true" size={14} />Retry</button> :
+              <button disabled={note.status !== "ready" || !drafts[note.publicId]?.trim() || drafts[note.publicId] === note.transcript}
+                onClick={() => void saveNote(note)} type="button"><Save aria-hidden="true" size={14} />Save edit</button>}
+            <button disabled={note.status === "batched"} onClick={() => void removeNote(note)} type="button"><Trash2 aria-hidden="true" size={14} />Delete</button>
+          </div></details></header>
         {note.status === "failed" ? <p className="capture-error">OpenAI could not transcribe this recording. The audio is temporarily retained.</p> :
           <textarea aria-label="Russian transcript" autoComplete="off" disabled={note.status === "batched"} lang="ru" name={`notebook-transcript-${note.publicId}`}
             onChange={(event) => setDrafts((current) => ({ ...current, [note.publicId]: event.target.value }))}
             rows={1} value={drafts[note.publicId] ?? note.transcript} />}
-        <footer>
-          {note.status === "failed" ? <button onClick={() => void retry(note)} type="button"><RefreshCw size={14} />Retry</button> :
-            <button disabled={note.status !== "ready" || !drafts[note.publicId]?.trim() || drafts[note.publicId] === note.transcript}
-              onClick={() => void saveNote(note)} type="button"><Save size={14} />Save edit</button>}
-          <button disabled={note.status === "batched"} onClick={() => void removeNote(note)} type="button"><Trash2 size={14} />Delete</button>
-        </footer>
       </article>)}
     </div>}
     {processedNotes.length ? <details className="capture-history">
@@ -342,10 +350,10 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
         <p lang="ru">{note.transcript}</p>
       </article>)}</div>
     </details> : null}
-    {remaining ? <p className="capture-remaining">{remaining} notes will stay ready for the next package.</p> : null}
-    {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onReset={resetBatch} onCommitted={() => {
-      setBatch(null); setRemaining(0); setNotice(""); setAdded(true); void refresh();
-    }} /> : null}
+    {activeNotes.length ? <footer className="capture-prepare-dock"><span>Nothing enters Library before review</span>
+      <button disabled={!batch && (!readyCount || processing)} onClick={() => batch ? setReviewVisible(true) : void prepare()} type="button">
+        {processing ? <LoaderCircle aria-hidden="true" className="simple-spin" size={15} /> : <WandSparkles aria-hidden="true" size={15} />}{batch ? "Continue review" : `Prepare cards${readyCount ? ` (${readyCount})` : ""}`}
+      </button></footer> : null}
     {added ? <div className="capture-added"><strong>Added to Library</strong><div>
       {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}
       <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
