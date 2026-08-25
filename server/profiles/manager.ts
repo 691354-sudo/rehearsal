@@ -2,15 +2,21 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import Database from "better-sqlite3";
-import { languageCodes, type LanguageCode } from "../../contracts/api.js";
+import {
+  languageCodes,
+  type InvitationPurpose,
+  type LanguageCode,
+  type OnboardingState,
+} from "../../contracts/api.js";
 import { openDatabase, type RehearsalDatabase } from "../db/database.js";
 import { RehearsalRepository } from "../db/repository.js";
 import {
-  createInviteToken,
+  createProfileInvitation,
   finishPendingInvitedProfiles,
   hashInvite,
   initializeInvitedDatabase,
   inviteAvailable,
+  invitationForToken,
   readInvitations,
   readInvitedProfiles,
   saveInvitations,
@@ -19,6 +25,11 @@ import {
   type InvitedProfileRecord,
   type InvitedProfileRegistry,
 } from "./invited-profiles.js";
+import {
+  completePilotOnboarding,
+  getPilotOnboardingState,
+  unavailableOnboardingState,
+} from "../onboarding/pilot.js";
 
 const baseProfileIds = ["roman", "oliver"] as const;
 export const profileIds = [...baseProfileIds, "zanna"] as const;
@@ -346,15 +357,10 @@ export class ProfileManager {
     return context;
   }
 
-  createInvite(createdByProfileId: ProfileId) {
+  createInvite(createdByProfileId: ProfileId, purpose: InvitationPurpose = "standard") {
     if (!this.hasProfile(createdByProfileId)) throw new Error("Profile is unavailable");
-    const token = createInviteToken(this.invitations);
-    this.invitations.invitations.push({
-      hash: hashInvite(token),
-      createdAt: new Date().toISOString(),
-      createdByProfileId,
-      usedAt: null,
-      usedByProfileId: null,
+    const token = createProfileInvitation({
+      invitations: this.invitations, invitedProfiles: this.invitedRegistry, createdByProfileId, purpose,
     });
     saveInvitations(this.profilesDir, this.invitations);
     return token;
@@ -364,8 +370,30 @@ export class ProfileManager {
     return inviteAvailable(this.invitations, token);
   }
 
+  invitationPurpose(token: string): InvitationPurpose | null {
+    return invitationForToken(this.invitations, token)?.purpose || (this.inviteAvailable(token) ? "standard" : null);
+  }
+
+  onboardingState(profileId: ProfileId): OnboardingState {
+    const pilot = this.invitedRegistry.profiles.some((entry) =>
+      entry.profile.id === profileId && entry.purpose === "onboarding_v1_pilot");
+    return pilot ? getPilotOnboardingState(this.get(profileId).db) : unavailableOnboardingState();
+  }
+
+  completeOnboarding(profileId: ProfileId): OnboardingState {
+    const state = this.onboardingState(profileId);
+    if (state.eligibility !== "pilot") throw new Error("ONBOARDING_NOT_AVAILABLE");
+    return completePilotOnboarding(this.get(profileId).db);
+  }
+
   createInvitedProfile(input: { token: string; name: string; pin: string; language: LanguageCode }) {
-    if (!this.inviteAvailable(input.token)) throw new Error("INVITATION_UNAVAILABLE");
+    const invitation = invitationForToken(this.invitations, input.token);
+    if (!invitation) throw new Error("INVITATION_UNAVAILABLE");
+    const purpose = invitation.purpose || "standard";
+    if (purpose === "onboarding_v1_pilot"
+      && this.invitedRegistry.profiles.some((entry) => entry.purpose === "onboarding_v1_pilot")) {
+      throw new Error("PILOT_PROFILE_EXISTS");
+    }
     const name = normalizeProfileName(input.name);
     if (name.length < 1 || name.length > 40) throw new Error("INVALID_PROFILE_NAME");
     if ([...this.records.values()].some((profile) => profile.name.localeCompare(name, undefined, { sensitivity: "base" }) === 0)) {
@@ -381,6 +409,7 @@ export class ProfileManager {
       state: "initializing",
       language: input.language,
       invitationHash: hash,
+      purpose,
       profile,
     };
     this.invitedRegistry.profiles.push(entry);
@@ -389,8 +418,6 @@ export class ProfileManager {
     entry.state = "ready";
     saveInvitedProfiles(this.profilesDir, this.invitedRegistry);
 
-    const invitation = this.invitations.invitations.find((candidate) => candidate.hash === hash && !candidate.usedAt);
-    if (!invitation) throw new Error("INVITATION_UNAVAILABLE");
     invitation.usedAt = new Date().toISOString();
     invitation.usedByProfileId = id;
     saveInvitations(this.profilesDir, this.invitations);

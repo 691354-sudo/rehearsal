@@ -15,7 +15,7 @@ const forbiddenFiles = new Set([
 ]);
 const errors = [];
 
-if (importedFiles.length !== 13) errors.push(`src/styles/index.css imports ${importedFiles.length} files; expected 13`);
+if (importedFiles.length !== 14) errors.push(`src/styles/index.css imports ${importedFiles.length} files; expected 14`);
 
 for (const importedFile of importedFiles) {
   const basename = path.basename(importedFile);

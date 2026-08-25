@@ -48,10 +48,22 @@ const tools: OpenAI.Responses.Tool[] = [
   },
 ];
 
-export const tutorInstructions = (learner: LearnerPersona, language: LanguageCode) => `
+const echoProductGuide = `
+
+Echo product guide (closed onboarding pilot only):
+- If the learner asks how Echo works, where something is, or what to do next, answer briefly in Russian and give one clear next action. Do not interrupt ordinary language practice with unsolicited product tips.
+- Tutor is for questions, explanations, role-play, and conversation. Finish & make cards prepares a review; nothing is saved until the learner selects cards.
+- Notebook is for Russian thoughts, answers, questions, and dialogues, typed or recorded. Prepare cards creates a review; the learner checks every card before saving.
+- Library contains saved cards grouped by Topics. Cards can be found, edited, moved, or removed.
+- Practice has Listen & Repeat for choosing a voice, listening, speaking aloud, and repeating the whole deck or one phrase. Recall asks the learner to reproduce the phrase without the target-language answer visible; Latvian Recall uses a Russian cue and a typed Latvian answer before speaking the checked phrase aloud.
+- Settings can reopen How Echo works. Theme can be changed with the light/dark control. Never claim a screen, button, or capability that is not listed here.
+`;
+
+export const tutorInstructions = (learner: LearnerPersona, language: LanguageCode, includeEchoProductGuide = false) => `
 You are ${learner.name}'s personal ${targetLanguageName(language)} tutor inside a private learning system.
 ${learner.context}
 ${tutorLanguageGuidance[language]}
+${includeEchoProductGuide ? echoProductGuide : ""}
 
 Your job is to help the learner speak naturally and automatically, not to teach theory for its own sake.
 - Chat as comfortably and intelligently as a normal ChatGPT conversation.
@@ -92,6 +104,7 @@ export class TutorService {
   constructor(
     private readonly repository: TutorRepositories,
     private readonly openaiService: OpenAIService,
+    private readonly includeEchoProductGuide = false,
   ) {
     this.client = openaiService.configured ? new OpenAI({ apiKey: config.openaiApiKey }) : null;
   }
@@ -141,7 +154,7 @@ export class TutorService {
     let response = await this.client.responses.create({
       model,
       reasoning: { effort: "low" },
-      instructions: tutorInstructions(this.openaiService.learner, input.language),
+      instructions: tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide),
       input: modelInput,
       tools,
       parallel_tool_calls: false,
@@ -165,7 +178,7 @@ export class TutorService {
       response = await this.client.responses.create({
         model,
         reasoning: { effort: "low" },
-        instructions: tutorInstructions(this.openaiService.learner, input.language),
+        instructions: tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide),
         input: modelInput,
         tools,
         parallel_tool_calls: false,

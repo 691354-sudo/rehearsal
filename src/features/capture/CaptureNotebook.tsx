@@ -29,6 +29,7 @@ type CaptureNote = {
   reviewBatchId: string | null;
   createdAt: string;
   updatedAt: string;
+  processedAt: string | null;
 };
 
 const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -77,7 +78,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
     streamRef.current = null;
   };
   const refresh = async (session = sessionRef.current) => {
-    const response = await apiFetch(`/api/captures?language=${language}`);
+    const response = await apiFetch(`/api/captures?language=${language}&includeProcessed=true`);
     if (!response.ok) throw new Error("Could not load voice notes.");
     const data = await response.json() as { notes: CaptureNote[]; activeBatch: ReviewBatch | null };
     if (session !== sessionRef.current) return;
@@ -293,7 +294,9 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
     setNotice("Suggestions reset. Your original note is ready.");
   };
 
-  const readyCount = notes.filter((note) => note.status === "ready").length;
+  const activeNotes = notes.filter((note) => note.status !== "processed");
+  const processedNotes = notes.filter((note) => note.status === "processed");
+  const readyCount = activeNotes.filter((note) => note.status === "ready").length;
   return <section className="capture-notebook">
     <div className="capture-entry">
       <textarea aria-label="Russian note" autoComplete="off" lang="ru" maxLength={30_000} name="notebook-note" onChange={(event) => setTextDraft(event.target.value)}
@@ -312,13 +315,13 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
           setPendingRecording(null); setNotice("Unsent recording deleted from this device.");
         }).catch((error) => setNotice(friendlyError(error))); }} type="button"><Trash2 size={14} />Delete recording</button></div></div> : null}
 
-    <div className="capture-list-heading"><div><h2>Notebook</h2><span>{notes.length} {notes.length === 1 ? "note" : "notes"}</span></div>
+    <div className="capture-list-heading"><div><h2>Notebook</h2><span>{activeNotes.length} {activeNotes.length === 1 ? "note" : "notes"}</span></div>
       <div className="capture-list-actions">{notice ? <span aria-live="polite" className="capture-notice">{notice}</span> : null}
         <button disabled={!readyCount || processing || Boolean(batch)} onClick={() => void prepare()} type="button">
           {processing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}Prepare cards{readyCount ? ` (${readyCount})` : ""}
         </button></div></div>
-    {!notes.length ? <div className="capture-empty"><strong>Capture something you actually want to say</strong><span>Write a Russian thought or record it. Nothing enters Library until you review it.</span></div> : <div className="capture-notes">
-      {notes.map((note) => <article className="capture-note" key={note.publicId}>
+    {!activeNotes.length ? <div className="capture-empty"><strong>Capture something you actually want to say</strong><span>Write a Russian thought or record it. Nothing enters Library until you review it.</span></div> : <div className="capture-notes">
+      {activeNotes.map((note) => <article className="capture-note" key={note.publicId}>
         <header><span className={`is-${note.status}`}>{note.status}</span><time>{new Date(note.createdAt).toLocaleString()}</time></header>
         {note.status === "failed" ? <p className="capture-error">OpenAI could not transcribe this recording. The audio is temporarily retained.</p> :
           <textarea aria-label="Russian transcript" autoComplete="off" disabled={note.status === "batched"} lang="ru" name={`notebook-transcript-${note.publicId}`}
@@ -332,6 +335,13 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen }: {
         </footer>
       </article>)}
     </div>}
+    {processedNotes.length ? <details className="capture-history">
+      <summary>Processed notes <span>{processedNotes.length}</span></summary>
+      <div>{processedNotes.map((note) => <article key={note.publicId}>
+        <time dateTime={note.processedAt || note.updatedAt}>{new Date(note.processedAt || note.updatedAt).toLocaleString()}</time>
+        <p lang="ru">{note.transcript}</p>
+      </article>)}</div>
+    </details> : null}
     {remaining ? <p className="capture-remaining">{remaining} notes will stay ready for the next package.</p> : null}
     {batch ? <ReviewBatchPanel batch={batch} onBatch={setBatch} onReset={resetBatch} onCommitted={() => {
       setBatch(null); setRemaining(0); setNotice(""); setAdded(true); void refresh();

@@ -175,8 +175,18 @@ export type DailyProgress = { recall: number; shadow: number; pattern: number };
 
 export type ProfileId = string;
 export type ProfileSummary = { id: ProfileId; name: string };
+export type InvitationPurpose = "standard" | "onboarding_v1_pilot";
+export type OnboardingState = {
+  version: 1;
+  eligibility: "none" | "pilot";
+  status: "not_available" | "pending" | "completed";
+  language?: LanguageCode;
+  starterReady: boolean;
+  completedAt?: string;
+};
 export type AuthSession = {
   profile: ProfileSummary;
   csrfToken: string;
   availableLanguages: LanguageOption[];
+  onboarding: OnboardingState;
 };

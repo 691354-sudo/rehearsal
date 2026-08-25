@@ -33,6 +33,7 @@ const makeContext = (
   profileId: ProfileId | null,
   overrides: ServiceOverrides = {},
   profileName?: string,
+  includeEchoProductGuide = false,
 ): HttpContext => {
   repository.library.runTopicBackfillMigration();
   const learner = profileId ? learnerPersonaForProfile(profileId, profileName) : genericLearnerPersona;
@@ -43,7 +44,7 @@ const makeContext = (
     repository,
     openai,
     elevenlabs,
-    tutor: new TutorService(repository, openai),
+    tutor: new TutorService(repository, openai, includeEchoProductGuide),
     audioPreparation: new AudioPreparationService(repository, openai, elevenlabs),
   };
 };
@@ -61,7 +62,8 @@ export const createHttpDependencies = (
     const existing = profileContexts.get(profileId);
     if (existing) return existing;
     const profile = profiles!.get(profileId);
-    const context = makeContext(profile.repository, profileId, overrides, profile.name);
+    const includeEchoProductGuide = profiles!.onboardingState(profileId).eligibility === "pilot";
+    const context = makeContext(profile.repository, profileId, overrides, profile.name, includeEchoProductGuide);
     profileContexts.set(profileId, context);
     return context;
   };

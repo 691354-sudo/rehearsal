@@ -22,7 +22,9 @@ Every generated candidate records a frequency band (`core`, `common`, `specific`
 
 Personalization is profile-specific. Roman keeps the established context: a Russian-speaking adult born in 1992 with direct, casual, thoughtful language and familiar life anchors when they genuinely fit. Oliver, Zanna, and invited learners are configured only as Russian-speaking adults; the model must not invent their age, interests, work, relationships, location, or lifestyle. Conversation facts supplied by any learner may be used within that conversation.
 
-An authenticated learner may create a one-time, non-expiring invitation in Settings. The recipient chooses a unique display name, one learning language, and a 4–10 digit PIN. The new profile starts with an empty isolated database and only the selected language enabled. Rehearsal has no open registration or profile administration surface.
+An authenticated learner may create a one-time, non-expiring invitation in Settings. The recipient chooses a unique display name, one learning language, and a 4–10 digit PIN. An ordinary invited profile starts with an empty isolated database and only the selected language enabled. Rehearsal has no open registration or profile administration surface.
+
+One closed `onboarding_v1_pilot` invitation may be created by Roman for product testing. That server-marked invitation alone creates six editable starter cards, one Tutor example, two processed Notebook notes, and a short Russian explanation of `Tutor → Notebook → Library → Practice`. The pilot Tutor also receives an exact Echo product guide so it can answer direct questions about where to go or what to do next without interrupting ordinary language practice; other profiles keep the existing Tutor prompt. The Russian copy is a deliberate pilot-only exception to the otherwise English interface. The learner may cancel permanently, replay the explanation from Settings, and freely edit or delete the starter material; completion and replay never restore deleted data. Ordinary invitations and every non-pilot profile retain the empty start and never see the pilot route or theme choice.
 
 ## Daily loop
 

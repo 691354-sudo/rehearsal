@@ -137,6 +137,54 @@
   display: grid;
 }
 
+.capture-history {
+  border-top: 1px solid var(--script-rule);
+}
+
+.capture-history summary {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: var(--h-control);
+  padding: 0 20px;
+  color: var(--script-support);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.capture-history summary span {
+  color: var(--script-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.capture-history > div {
+  display: grid;
+  border-top: 1px solid var(--script-rule);
+}
+
+.capture-history article {
+  display: grid;
+  gap: 5px;
+  padding: 12px 20px;
+}
+
+.capture-history article + article { border-top: 1px solid var(--script-rule); }
+
+.capture-history time {
+  color: var(--script-tertiary);
+  font-size: 12px;
+}
+
+.capture-history p {
+  margin: 0;
+  color: var(--script-support);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .capture-note {
   display: grid;
   gap: 6px;

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, ChevronDown, Headphones, MessageCircle, Moon, Search, Settings2, Sun, UserRound } from "lucide-react";
-import { isLanguageCode, type LanguageOption, type ProfileSummary } from "../../contracts/api";
+import {
+  isLanguageCode,
+  type LanguageOption,
+  type OnboardingState,
+  type ProfileSummary,
+} from "../../contracts/api";
 import { usePlaybackController } from "../features/audio/usePlaybackController";
 import { LibraryPage } from "../features/library/LibraryPage";
 import { PracticePage } from "../features/practice/PracticePage";
@@ -30,8 +35,10 @@ import type {
 } from "../shared/contracts";
 import { AppLink } from "./AppLink";
 
-export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
+export function RehearsalApp({ availableLanguages, onboarding, onReplayOnboarding, profile, onSwitchProfile }: {
   availableLanguages: LanguageOption[];
+  onboarding: OnboardingState;
+  onReplayOnboarding: () => void;
   profile: ProfileSummary;
   onSwitchProfile: () => void;
 }) {
@@ -45,20 +52,31 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [schedulerSettings, setSchedulerSettings] = useState(defaultSchedulerSettings);
-  const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = window.localStorage.getItem(storageKey("theme"));
-    if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  });
+  const savedTheme = window.localStorage.getItem(storageKey("theme"));
+  const [themeExplicit, setThemeExplicit] = useState(savedTheme === "light" || savedTheme === "dark");
+  const [theme, setTheme] = useState<Theme>(() => savedTheme === "light" || savedTheme === "dark"
+    ? savedTheme : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const followSystemTheme = onboarding.eligibility === "pilot" && !themeExplicit;
   const language = route.language;
   const learning = useLearningData(language);
   const audio = usePlaybackController(profile.id, language);
 
   useEffect(() => {
-    window.localStorage.setItem(storageKey("theme"), theme);
+    if (!followSystemTheme) window.localStorage.setItem(storageKey("theme"), theme);
     document.documentElement.style.colorScheme = theme;
     document.documentElement.dataset.theme = theme;
-  }, [theme]);
+  }, [followSystemTheme, theme]);
+  useEffect(() => {
+    if (!followSystemTheme) return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const change = () => setTheme(media.matches ? "dark" : "light");
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, [followSystemTheme]);
+  const toggleTheme = () => {
+    setThemeExplicit(true);
+    setTheme((current) => current === "dark" ? "light" : "dark");
+  };
   useEffect(() => setMobileMenuOpen(false), [route.section]);
   useEffect(() => {
     window.localStorage.setItem(storageKey("language"), language);
@@ -165,7 +183,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
         </button>
         <button aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}
           aria-pressed={theme === "dark"} className="simple-icon-button simple-theme-button"
-          onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}
+          onClick={toggleTheme}
           title={theme === "dark" ? "Light theme" : "Dark theme"} type="button">
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
@@ -179,7 +197,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
           <label><span>Language</span><select name="mobile-language" onChange={(event) => { changeLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
             {availableLanguages.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
           <button onClick={() => { setMobileMenuOpen(false); onSwitchProfile(); }} type="button"><UserRound size={17} />{profile.name}</button>
-          <button onClick={() => { setTheme((current) => current === "dark" ? "light" : "dark"); setMobileMenuOpen(false); }} type="button">
+          <button onClick={() => { toggleTheme(); setMobileMenuOpen(false); }} type="button">
             {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}{theme === "dark" ? "Light theme" : "Dark theme"}</button>
           <button onClick={() => { setMobileMenuOpen(false); openSettings(); }} type="button"><Settings2 size={17} />Settings</button>
         </div></> : null}
@@ -197,7 +215,9 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
       </div> : null}
     {route.settings ? <GlobalSettings
       language={language}
+      onboarding={onboarding}
       onClose={closeSettings}
+      onReplayOnboarding={onReplayOnboarding}
       onPlayback={audio.updatePlayback}
       onPreview={() => audio.playTarget(language === "vi"
         ? "Đây là giọng nói của gia sư của bạn."
@@ -206,6 +226,7 @@ export function RehearsalApp({ availableLanguages, profile, onSwitchProfile }: {
       onSaveScheduler={saveSchedulerSettings}
       elevenLabs={audio.elevenLabsConfig}
       playback={audio.playback}
+      profileId={profile.id}
       scheduler={schedulerSettings}
       voices={audio.voices}
     /> : null}

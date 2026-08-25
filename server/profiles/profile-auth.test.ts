@@ -277,6 +277,7 @@ describe("profile authentication and database isolation", () => {
     const available = await app.inject({ method: "GET", url: `/api/auth/invites/${token}` });
     expect(available.statusCode).toBe(200);
     expect(available.json().available).toBe(true);
+    expect(available.json().experience).toBe("standard");
     expect(available.json().languages.map((language: { code: string }) => language.code)).toEqual(["en", "lv", "vi", "no"]);
 
     const shortPin = await app.inject({
@@ -294,6 +295,9 @@ describe("profile authentication and database isolation", () => {
     expect(profile.name).toBe("Maya");
     expect(profile.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(joined.json().availableLanguages.map((language: { code: string }) => language.code)).toEqual(["vi"]);
+    expect(joined.json().onboarding).toEqual({
+      version: 1, eligibility: "none", status: "not_available", starterReady: false,
+    });
     expect(manager.get(profile.id).repository.system.stats().items).toEqual([]);
     expect(manager.get(profile.id).repository.system.isLanguageEnabled("en")).toBe(false);
     expect(manager.get(profile.id).repository.system.isLanguageEnabled("lv")).toBe(false);
@@ -315,6 +319,70 @@ describe("profile authentication and database isolation", () => {
     app = await buildApp(manager, { sessionSecret, cookieSecure: true });
     expect(manager.get(profile.id).repository.system.stats().items).toEqual([]);
     expect((await login(app, profile.id, "246810")).response.statusCode).toBe(200);
+  });
+
+  it("limits the onboarding pilot to one Roman-created invited profile", async () => {
+    const roman = (await login(app, "roman")).session!;
+    const oliver = (await login(app, "oliver")).session!;
+    expect((await read(app, roman, "/api/onboarding")).json().onboarding).toEqual({
+      version: 1, eligibility: "none", status: "not_available", starterReady: false,
+    });
+    expect((await mutate(app, roman, { method: "POST", url: "/api/onboarding/complete" })).statusCode).toBe(404);
+    const forbidden = await mutate(app, oliver, {
+      method: "POST", url: "/api/auth/invites", payload: { purpose: "onboarding_v1_pilot" },
+    });
+    expect(forbidden.statusCode).toBe(403);
+
+    const first = await mutate(app, roman, {
+      method: "POST", url: "/api/auth/invites", payload: { purpose: "onboarding_v1_pilot" },
+    });
+    const firstToken = first.json().token as string;
+    const replacement = await mutate(app, roman, {
+      method: "POST", url: "/api/auth/invites", payload: { purpose: "onboarding_v1_pilot" },
+    });
+    const token = replacement.json().token as string;
+    expect((await app.inject({ method: "GET", url: `/api/auth/invites/${firstToken}` })).json().available).toBe(false);
+    expect((await app.inject({ method: "GET", url: `/api/auth/invites/${token}` })).json())
+      .toMatchObject({ available: true, experience: "onboarding_v1_pilot" });
+
+    const joined = await app.inject({
+      method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },
+      payload: { token, name: "Pilot", pin: "246810", language: "en" },
+    });
+    expect(joined.statusCode).toBe(200);
+    expect(joined.json().onboarding).toMatchObject({
+      version: 1, eligibility: "pilot", status: "pending", language: "en", starterReady: true,
+    });
+    const profile = joined.json().profile as { id: string };
+    const repository = manager.get(profile.id).repository;
+    expect(repository.items.list("en", 20)).toHaveLength(6);
+    expect(repository.library.listIslands("en").map((topic) => [topic.title, topic.itemCount])).toEqual([
+      ["Доставка посылки", 3], ["Заказываем кофе", 3],
+    ]);
+    expect(repository.tutor.listThreads("en")).toHaveLength(1);
+    expect(repository.capture.list("en", true)).toHaveLength(2);
+    expect(repository.capture.list("en", true).every((note) => note.status === "processed")).toBe(true);
+
+    const pilotSession = { cookie: cookieHeader(joined), csrfToken: joined.json().csrfToken };
+    expect((await read(app, pilotSession, "/api/onboarding")).json().onboarding.status).toBe("pending");
+    const completed = await mutate(app, pilotSession, { method: "POST", url: "/api/onboarding/complete" });
+    expect(completed.statusCode).toBe(200);
+    expect(completed.json().onboarding).toMatchObject({ status: "completed", completedAt: expect.any(String) });
+    expect((await mutate(app, pilotSession, { method: "POST", url: "/api/onboarding/complete" }))
+      .json().onboarding).toEqual(completed.json().onboarding);
+
+    const secondPilot = await mutate(app, roman, {
+      method: "POST", url: "/api/auth/invites", payload: { purpose: "onboarding_v1_pilot" },
+    });
+    expect(secondPilot.statusCode).toBe(409);
+
+    await app.close();
+    manager.close();
+    manager = await ProfileManager.create({ dataDir, backupDir, legacyDatabasePath: legacyPath, pins });
+    app = await buildApp(manager, { sessionSecret, cookieSecure: true });
+    const afterRestart = await login(app, profile.id, "246810");
+    expect(afterRestart.response.json().onboarding.status).toBe("completed");
+    expect(manager.get(profile.id).repository.items.list("en", 20)).toHaveLength(6);
   });
 
   it("keeps an invitation available when a case-insensitive profile name is rejected", async () => {

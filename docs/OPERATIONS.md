@@ -122,6 +122,12 @@ Before the first Vietnamese enablement, run `npm run db:backup` and retain both 
 
 Norwegian Bokmål is inserted as `no / nb-NO` for existing profiles by migration `006-norwegian-language`; invited profiles still start with only their selected language. Before production Norwegian playback, configure an approved native voice through `ELEVENLABS_NO_VOICE_ID` and `ELEVENLABS_NO_VOICE_NAME`, create and verify profile backups, and run one separately authorized paid Flash v2.5 smoke test. Without that voice, Norwegian remains available for written Recall but its audio controls report that no compatible voice is configured. Rollback restores the prior release without deleting Norwegian cards or schedules.
 
+## Closed onboarding pilot
+
+Only Roman may use `Create onboarding test invitation` in Settings. Creating another unused pilot invitation revokes the previous unused pilot link; once its profile has been created, the server refuses every additional pilot invitation. This is a production gate, not a public launch: ordinary invitation links remain unchanged and empty.
+
+After deployment, create the pilot link in Roman's Settings and join it once with the intended test name, language, and PIN. Verify the six starter cards, two Topics, Tutor example, processed Notebook history, both themes, completion, Settings replay, and a separate ordinary profile before treating the pilot as ready for user testing. Do not edit the private invitation or invited-profile registries manually. Public onboarding requires a later reviewed code change; there is no environment flag or data edit that broadens eligibility.
+
 ## Production verification
 
 Every release builds the new image, creates separate backups for all currently registered profile databases, replaces the container, and then verifies:

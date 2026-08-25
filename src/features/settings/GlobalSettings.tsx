@@ -3,6 +3,7 @@ import { Check, Copy, LoaderCircle, Play, RefreshCw, Share2, UserPlus, X } from 
 import { speedRangeForProvider } from "../../lib/playbackSettings";
 import { apiFetch } from "../../shared/api";
 import { capitalize, humanizeLabel } from "../../shared/config";
+import type { InvitationPurpose, OnboardingState, ProfileId } from "../../../contracts/api";
 import type {
   ElevenLabsConfig,
   ElevenLabsPreferences,
@@ -19,12 +20,15 @@ import type { AppRoute } from "../../lib/appRoute";
 export function GlobalSettings(props: {
   elevenLabs: ElevenLabsConfig;
   language: Language;
+  onboarding: OnboardingState;
   onClose: () => void;
   onPlayback: (playback: PlaybackPreferences) => void;
   onPreview: () => Promise<PlaybackResult>;
+  onReplayOnboarding: () => void;
   onSaveScheduler: (settings: SchedulerSettings) => Promise<void>;
   playback: PlaybackPreferences;
   scheduler: SchedulerSettings;
+  profileId: ProfileId;
   voices: string[];
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -43,6 +47,8 @@ export function GlobalSettings(props: {
   const [voiceStatusState, setVoiceStatusState] = useState<"idle" | "checking" | "ready" | "error">("idle");
   const [inviteState, setInviteState] = useState<"idle" | "creating" | "ready" | "error" | "copied">("idle");
   const [inviteUrl, setInviteUrl] = useState("");
+  const [invitePurpose, setInvitePurpose] = useState<InvitationPurpose>("standard");
+  const [inviteError, setInviteError] = useState("");
   const compatibleElevenLabsVoices = props.elevenLabs.voicesByLanguage[props.language] || [];
   const selectedElevenLabsVoice = compatibleElevenLabsVoices.find(
     (voice) => voice.id === props.playback.elevenlabs.voiceId,
@@ -200,11 +206,22 @@ export function GlobalSettings(props: {
     }
   };
 
-  const createInvite = async () => {
+  const createInvite = async (purpose: InvitationPurpose = "standard") => {
     setInviteState("creating");
+    setInvitePurpose(purpose);
+    setInviteError("");
     try {
-      const response = await apiFetch("/api/auth/invites", { method: "POST" });
-      if (!response.ok) throw new Error("Invitation failed");
+      const response = await apiFetch("/api/auth/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purpose }),
+      });
+      if (!response.ok) {
+        setInviteError(response.status === 409 && purpose === "onboarding_v1_pilot"
+          ? "The onboarding test account already exists."
+          : "Couldn’t create an invitation.");
+        throw new Error("Invitation failed");
+      }
       const result = await response.json() as { token: string };
       const relative = `${import.meta.env.BASE_URL}join?invite=${encodeURIComponent(result.token)}`;
       setInviteUrl(new URL(relative, window.location.origin).toString());
@@ -212,6 +229,12 @@ export function GlobalSettings(props: {
     } catch {
       setInviteState("error");
     }
+  };
+
+  const openOnboarding = () => {
+    if (schedulerDirtyRef.current && !window.confirm("Discard unsaved Recall scheduling changes?")) return;
+    allowNavigationRef.current = true;
+    props.onReplayOnboarding();
   };
 
   const copyInvite = async () => {
@@ -356,22 +379,34 @@ export function GlobalSettings(props: {
         <section className="simple-settings-section simple-invite-section">
           <div className="simple-settings-section-title"><h3>Invite someone</h3></div>
           <p>Create a one-time link for a new, empty profile. The link does not expire.</p>
-          {!inviteUrl ? <button className="simple-invite-create" disabled={inviteState === "creating"}
-            onClick={() => void createInvite()} type="button">
-            {inviteState === "creating" ? <LoaderCircle className="simple-spin" size={15} /> : <UserPlus size={15} />}
-            {inviteState === "creating" ? "Creating…" : "Create invitation"}
-          </button> : <div className="simple-invite-result">
+          {!inviteUrl ? <div className="simple-invite-actions"><button className="simple-invite-create" disabled={inviteState === "creating"}
+            onClick={() => void createInvite("standard")} type="button">
+            {inviteState === "creating" && invitePurpose === "standard" ? <LoaderCircle className="simple-spin" size={15} /> : <UserPlus size={15} />}
+            {inviteState === "creating" && invitePurpose === "standard" ? "Creating…" : "Create invitation"}
+          </button>{props.profileId === "roman" ? <button className="simple-pilot-invite-create" disabled={inviteState === "creating"}
+            onClick={() => void createInvite("onboarding_v1_pilot")} type="button">
+            {inviteState === "creating" && invitePurpose === "onboarding_v1_pilot"
+              ? <LoaderCircle className="simple-spin" size={15} /> : <UserPlus size={15} />}
+            {inviteState === "creating" && invitePurpose === "onboarding_v1_pilot"
+              ? "Creating test invitation…" : "Create onboarding test invitation"}
+          </button> : null}</div> : <div aria-live="polite" className="simple-invite-result">
+            {invitePurpose === "onboarding_v1_pilot" ? <small>Onboarding pilot · replaces any unused pilot link</small> : null}
             <input aria-label="Invitation link" readOnly value={inviteUrl} />
             <div>
               <button onClick={() => void copyInvite()} type="button"><Copy size={14} />
                 {inviteState === "copied" ? "Copied" : "Copy"}</button>
               {navigator.share ? <button onClick={() => void navigator.share({ title: "Join Echo", url: inviteUrl })}
                 type="button"><Share2 size={14} />Share</button> : null}
-              <button onClick={() => { setInviteUrl(""); setInviteState("idle"); }} type="button">Create another</button>
+              <button onClick={() => { setInviteUrl(""); setInviteState("idle"); setInviteError(""); }} type="button">Create another</button>
             </div>
           </div>}
-          {inviteState === "error" ? <p className="simple-voice-error" role="alert">Couldn’t create an invitation.</p> : null}
+          {inviteState === "error" ? <p className="simple-voice-error" role="alert">{inviteError || "Couldn’t create an invitation."}</p> : null}
         </section>
+        {props.onboarding.eligibility === "pilot" ? <section className="simple-settings-section simple-onboarding-help">
+          <div className="simple-settings-section-title"><h3>How Echo works</h3></div>
+          <p>Reopen the introduction to Tutor, Notebook, Library, and Practice. Your cards will not be changed.</p>
+          <button onClick={openOnboarding} type="button">Open onboarding</button>
+        </section> : null}
       </div>
       <footer className="simple-settings-footer">
         <span aria-live="polite" className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use 1–4 steps like 1m, 10m" : !validNewItems || !validPresets ? "Use 0–30 cards, 80–97%, and 7–3650 days" : ""}</span>

@@ -31,6 +31,19 @@ describe("learner-specific AI context", () => {
     expect(zannaTutor).not.toContain("Roman");
   });
 
+  it("adds accurate Echo usage help only for the closed pilot Tutor", () => {
+    const ordinaryTutor = tutorInstructions(learnerPersonaForProfile("oliver"), "lv");
+    const pilotTutor = tutorInstructions(learnerPersonaForProfile("oliver"), "lv", true);
+
+    expect(ordinaryTutor).not.toContain("Echo product guide");
+    expect(pilotTutor).toContain("Echo product guide (closed onboarding pilot only)");
+    expect(pilotTutor).toContain("Finish & make cards");
+    expect(pilotTutor).toContain("Notebook is for Russian thoughts");
+    expect(pilotTutor).toContain("Library contains saved cards grouped by Topics");
+    expect(pilotTutor).toContain("Latvian Recall uses a Russian cue");
+    expect(pilotTutor).toContain("Do not interrupt ordinary language practice with unsolicited product tips");
+  });
+
   it("keeps the newest whole Tutor messages inside the character budget", () => {
     const messages = [
       { role: "user" as const, content: "old".repeat(20) },
