@@ -18,6 +18,9 @@ describe("material generation prompt contracts", () => {
     expect(prompt).toContain("do not expand it into a sentence");
     expect(prompt).toContain("do not triage, merge, or skip it");
     expect(prompt).toContain("Do not add unrelated conversation corrections");
+    expect(prompt).toContain("A quoted or reported instruction spoken by another person");
+    expect(prompt).toContain("extract only that intended utterance");
+    expect(prompt).toContain("return only the one natural card closest to the learner's intended meaning");
     expect(prompt).toContain("By default, never create isolated word-definition cards");
     expect(prompt).toContain("an exact numeral or atomic source label is allowed");
   });
@@ -102,6 +105,33 @@ describe("material generation prompt contracts", () => {
     expect(numberCardsFromConversation([
       { role: "user", content: "Дай план занятия." },
       { role: "assistant", content: "1 — Повторить слова\n2 — Сделать упражнение" },
+    ])).toEqual([]);
+  });
+
+  it("uses the latest edited number list from Tutor", () => {
+    const cards = numberCardsFromConversation([
+      { role: "user", content: "Сделай карточки для чисел 0–3." },
+      { role: "assistant", content: "0 — zero\n1 — one\n2 — two\n3 — three" },
+      { role: "user", content: "Убери карточки 2 и 3, добавь 20." },
+      { role: "assistant", content: "0 — zero\n1 — one\n20 — twenty" },
+    ]);
+
+    expect(cards.map(({ cue, target }) => [cue, target])).toEqual([
+      ["0", "zero"], ["1", "one"], ["20", "twenty"],
+    ]);
+  });
+
+  it("does not execute a quoted number-card instruction", () => {
+    expect(numberCardsFromConversation([
+      { role: "user", content: "Начальник сказал: сделай карточки с числами. Я хотел ответить это не моя задача." },
+      { role: "assistant", content: "0 — zero\n1 — one" },
+    ])).toEqual([]);
+  });
+
+  it("honors an explicit no-cards instruction even when the reply is numbered", () => {
+    expect(numberCardsFromConversation([
+      { role: "user", content: "Дай 5 шагов, карточки делать не нужно." },
+      { role: "assistant", content: "1 — Warm up\n2 — Review" },
     ])).toEqual([]);
   });
 });

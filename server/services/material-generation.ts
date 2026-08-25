@@ -72,7 +72,12 @@ export const capturePreparationTask = (learnerName: string) =>
 
 export const tutorConversationReviewTask =
   "First identify what the learner asked Tutor to produce. If the learner explicitly requested cards or a card-ready " +
-  "list, extract that prepared material instead of treating the exchange only as conversation correction. Honor an " +
+  "list directly from Tutor, extract that prepared material instead of treating the exchange only as conversation " +
+  "correction. A quoted or reported instruction spoken by another person inside the learner's story is context, not a " +
+  "request to create cards. When the learner says they wanted to answer, say, or ask something, extract only that intended " +
+  "utterance and ignore the other person's question or instruction. Tutor may have offered alternatives, but unless the " +
+  "learner explicitly requested multiple versions, return only the one natural card closest to the learner's intended " +
+  "meaning. Honor an " +
   "explicit quantity, order, and granularity such as 'one card for each number': return one candidate for every requested " +
   "source unit, including every member of stated ranges or enumerations, in source order, up to 100. Preserve explicit " +
   "cue-target pairs. Bare foundational units such as numbers " +
@@ -82,14 +87,32 @@ export const tutorConversationReviewTask =
   "only meaningful recurring mistakes, high-value phrases the learner was trying to say, and a few reusable patterns. " +
   "Correct collocations and sentence structure first, do not nitpick every sentence, and return at most 20 proposals.";
 
+const cardRequestPattern = /(?:карточ|\bcards?\b)/iu;
+const numberMaterialPattern = /(?:цифр|числ|\bnumbers?\b|\bdigits?\b|\d)/iu;
+const numberRevisionPattern = /(?:убер|удал|добав|остав|замен|remove|delete|add|keep|replace)/iu;
+const reportedSpeechPattern = /(?:я хотел(?:а)?\s+(?:ответить|сказать|спросить)|\bi wanted to\s+(?:answer|say|ask)\b)/iu;
+const cardRequestDeniedPattern = /(?:карточки?\s+(?:делать\s+)?не\s+(?:нужно|надо|делай)|без\s+карточ|\b(?:no|without)\s+cards?\b|\bdon't\s+(?:make|create)\s+cards?\b)/iu;
+
+const isDirectNumberCardRequest = (content: string) => cardRequestPattern.test(content)
+  && numberMaterialPattern.test(content)
+  && !reportedSpeechPattern.test(content)
+  && !cardRequestDeniedPattern.test(content);
+
+const isNumberCardRevision = (content: string) => numberMaterialPattern.test(content)
+  && numberRevisionPattern.test(content)
+  && !cardRequestDeniedPattern.test(content);
+
 export const numberCardsFromConversation = (
   messages: Array<{ role: "user" | "assistant"; content: string }>,
 ): ReviewCandidate[] => {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
     if (message.role !== "assistant") continue;
-    const learnerRequest = messages.slice(0, index).reverse().find((candidate) => candidate.role === "user")?.content || "";
-    if (!/(?:карточ|\bcards?\b)/iu.test(learnerRequest) || !/(?:цифр|числ|\bnumbers?\b|\bdigits?\b)/iu.test(learnerRequest)) {
+    const learnerRequests = messages.slice(0, index).filter((candidate) => candidate.role === "user");
+    const latestRequest = learnerRequests.at(-1)?.content || "";
+    const hasNumberCardContext = learnerRequests.some((candidate) => isDirectNumberCardRequest(candidate.content));
+    if (!isDirectNumberCardRequest(latestRequest)
+      && !(hasNumberCardContext && isNumberCardRevision(latestRequest))) {
       continue;
     }
     const pairs = message.content.split(/\r?\n/).flatMap((line) => {

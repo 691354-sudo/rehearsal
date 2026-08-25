@@ -36,6 +36,12 @@ Server-side defaults are deliberately pinned by workload:
 
 Model changes are manual. After deliberately changing model environment variables, run `npm run models:check`; the command makes small canary requests but never rewrites application configuration.
 
+Prompt behavior has a separate paid, non-mutating manual evaluation over synthetic Tutor and Notebook scenarios. Run it only after explicitly approving the model calls:
+
+```bash
+CONFIRM_PROMPT_EVAL=1 npm run prompts:check
+```
+
 All LLM material remains a draft until the user confirms it. Prompt sources, Tutor history, individual messages, and model output have server-side size limits. API keys never reach browser JavaScript.
 
 ## Data and checks
