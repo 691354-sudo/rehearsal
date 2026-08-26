@@ -59,6 +59,12 @@ if (config.telegramBotToken) {
   if (!config.telegramAllowedProfileIds.length) {
     throw new Error("TELEGRAM_ALLOWED_PROFILE_IDS is required when Telegram polling is enabled");
   }
+  if (!config.telegramAllowedUserIds.length) {
+    throw new Error("TELEGRAM_ALLOWED_USER_IDS is required when Telegram polling is enabled");
+  }
+  if (config.telegramAllowedUserIds.some((userId) => !/^\d{1,20}$/.test(userId))) {
+    throw new Error("TELEGRAM_ALLOWED_USER_IDS contains an invalid Telegram user ID");
+  }
   for (const profileId of config.telegramAllowedProfileIds) {
     if (!profiles.hasProfile(profileId)) throw new Error(`Telegram profile is unavailable: ${profileId}`);
   }
@@ -71,6 +77,7 @@ if (config.telegramBotToken) {
     telegramClient,
     config.telegramMiniAppUrl,
     config.telegramAllowedProfileIds,
+    config.telegramAllowedUserIds,
   );
   telegram = new TelegramPollingRuntime(telegramClient, telegramBot, config.telegramMiniAppUrl);
   await telegram.start();

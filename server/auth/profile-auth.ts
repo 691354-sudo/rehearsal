@@ -28,6 +28,7 @@ type AuthOptions = {
   cookieSecure: boolean;
   telegramBotToken: string;
   telegramAllowedProfileIds: readonly string[];
+  telegramAllowedUserIds: readonly string[];
 };
 
 const sessionValue = (profileId: ProfileId) => Buffer.from(JSON.stringify({
@@ -151,11 +152,16 @@ export const registerProfileAuth = (
 
   const telegramProfileAllowed = (profileId: ProfileId) =>
     options.telegramAllowedProfileIds.includes(profileId);
+  const telegramUserAllowed = (userId: string) =>
+    options.telegramAllowedUserIds.includes(userId);
 
   app.post("/api/auth/telegram/session", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const identity = telegramIdentity(request, reply);
     if (!identity) return;
+    if (!telegramUserAllowed(identity.userId)) {
+      return reply.code(403).send({ error: "TELEGRAM_USER_NOT_ALLOWED" });
+    }
     const found = profiles.telegram.get(identity.userId);
     if (!found || !telegramProfileAllowed(found.profileId)) {
       return reply.code(401).send({
@@ -188,6 +194,9 @@ export const registerProfileAuth = (
       limiter.fail(key);
       const code = error instanceof TelegramInitDataError ? error.code : "INVALID_TELEGRAM_INIT_DATA";
       return reply.code(401).send({ error: code });
+    }
+    if (!telegramUserAllowed(identity.userId)) {
+      return reply.code(403).send({ error: "TELEGRAM_USER_NOT_ALLOWED" });
     }
     if (!profiles.hasProfile(body.profileId) || !telegramProfileAllowed(body.profileId)) {
       return reply.code(403).send({ error: "TELEGRAM_PROFILE_NOT_ALLOWED" });

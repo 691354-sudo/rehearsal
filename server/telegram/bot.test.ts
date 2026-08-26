@@ -88,6 +88,7 @@ describe("Echo Telegram bot", () => {
       client,
       "https://example.test/rehearsal/",
       ["roman"],
+      ["101", "202"],
       serviceFor,
     );
   });
@@ -95,6 +96,15 @@ describe("Echo Telegram bot", () => {
   afterEach(() => {
     manager.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("rejects Telegram users outside the runtime allowlist", async () => {
+    manager.telegram.bind({ profileId: "roman", userId: "303", chatId: "303", language: "en" });
+    await bot.processUpdate(messageUpdate(1, 303, { text: "Should not be saved" }));
+
+    expect(client.messages).toHaveLength(1);
+    expect(client.messages[0]?.text).toBe("This bot is private.");
+    expect(manager.get("roman").repository.capture.list("en")).toEqual([]);
   });
 
   it("uses Notebook by default and keeps repeated text, voice, and .txt updates idempotent", async () => {

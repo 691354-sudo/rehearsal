@@ -48,6 +48,7 @@ export const config = {
   sessionSecret: secretFromEnv("SESSION_SECRET"),
   telegramBotToken: secretFromFile("TELEGRAM_BOT_TOKEN"),
   telegramAllowedProfileIds: listFromEnv("TELEGRAM_ALLOWED_PROFILE_IDS"),
+  telegramAllowedUserIds: listFromEnv("TELEGRAM_ALLOWED_USER_IDS"),
   telegramMiniAppUrl: process.env.TELEGRAM_MINI_APP_URL?.trim() || "",
   sessionCookieSecure: booleanFromEnv(
     process.env.SESSION_COOKIE_SECURE,
