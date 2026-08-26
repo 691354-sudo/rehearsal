@@ -257,6 +257,23 @@ export class TelegramEchoBot {
       await this.confirmNote(chatId, language, publicId, repository.capture.list(language).filter((candidate) => candidate.status === "ready").length);
       return;
     }
+    const caption = message.caption?.trim();
+    if (caption) {
+      if (caption.length > 30_000) {
+        await this.client.sendMessage(chatId, "This caption is too long. Keep it under 30,000 characters.", this.support.notebookKeyboard(language));
+        return;
+      }
+      const note = repository.capture.createText({
+        publicId: deterministicUuid("notebook-caption", userId, update.update_id),
+        language,
+        transcript: caption,
+      });
+      const readyCount = repository.capture.list(language).filter((candidate) => candidate.status === "ready").length;
+      await this.client.sendMessage(chatId,
+        `The attachment is not supported, but its caption was saved to Notebook. ${readyCount} ready ${readyCount === 1 ? "note" : "notes"}.`,
+        this.support.noteActions(language, note.publicId));
+      return;
+    }
     await this.support.unsupported(chatId, language);
   }
 
