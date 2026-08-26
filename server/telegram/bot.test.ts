@@ -89,6 +89,7 @@ describe("Echo Telegram bot", () => {
       "https://example.test/rehearsal/",
       ["roman"],
       ["101", "202"],
+      { 101: ["roman"], 202: ["roman"] },
       serviceFor,
     );
   });

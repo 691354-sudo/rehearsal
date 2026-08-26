@@ -42,6 +42,13 @@ describe("Telegram profile auth", () => {
       telegramBotToken: token,
       telegramAllowedProfileIds: ["roman", "oliver"],
       telegramAllowedUserIds: ["101", "202", "303", "404", "505"],
+      telegramUserProfileAccess: {
+        101: ["roman"],
+        202: ["roman"],
+        303: ["roman", "oliver"],
+        404: ["roman"],
+        505: ["roman"],
+      },
     });
   });
 
@@ -66,8 +73,9 @@ describe("Telegram profile auth", () => {
     expect(unbound.statusCode).toBe(401);
     expect(unbound.json()).toEqual({
       error: "TELEGRAM_BINDING_REQUIRED",
-      profiles: [{ id: "roman", name: "Roman" }, { id: "oliver", name: "Oliver" }],
+      profiles: [{ id: "roman", name: "Roman" }],
     });
+    expect((await bind(101, "oliver", "5678")).statusCode).toBe(403);
     expect((await bind(101, "roman", "9999")).statusCode).toBe(401);
     const first = await bind(101, "roman", "1234");
     const second = await bind(202, "roman", "1234");
@@ -90,6 +98,14 @@ describe("Telegram profile auth", () => {
   });
 
   it("rejects one Telegram id in two profiles and rate-limits bad PIN attempts", async () => {
+    const chooser = await app.inject({
+      method: "POST", url: "/api/auth/telegram/session",
+      headers: { "x-rehearsal-client": "web" }, payload: { initData: initData(303) },
+    });
+    expect(chooser.json().profiles).toEqual([
+      { id: "roman", name: "Roman" },
+      { id: "oliver", name: "Oliver" },
+    ]);
     expect((await bind(303, "roman", "1234")).statusCode).toBe(200);
     expect((await bind(303, "oliver", "5678")).statusCode).toBe(409);
     for (let attempt = 0; attempt < 10; attempt += 1) {

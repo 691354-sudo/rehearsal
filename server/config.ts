@@ -2,6 +2,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import type { LanguageCode } from "../contracts/api.js";
+import { parseTelegramUserProfileAccess } from "./telegram/access.js";
 
 const root = process.cwd();
 const databasePath = path.resolve(root, process.env.DATABASE_PATH || ".data/rehearsal.sqlite");
@@ -49,6 +50,7 @@ export const config = {
   telegramBotToken: secretFromFile("TELEGRAM_BOT_TOKEN"),
   telegramAllowedProfileIds: listFromEnv("TELEGRAM_ALLOWED_PROFILE_IDS"),
   telegramAllowedUserIds: listFromEnv("TELEGRAM_ALLOWED_USER_IDS"),
+  telegramUserProfileAccess: parseTelegramUserProfileAccess(secretFromEnv("TELEGRAM_USER_PROFILE_ACCESS")),
   telegramMiniAppUrl: process.env.TELEGRAM_MINI_APP_URL?.trim() || "",
   sessionCookieSecure: booleanFromEnv(
     process.env.SESSION_COOKIE_SECURE,

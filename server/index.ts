@@ -65,6 +65,19 @@ if (config.telegramBotToken) {
   if (config.telegramAllowedUserIds.some((userId) => !/^\d{1,20}$/.test(userId))) {
     throw new Error("TELEGRAM_ALLOWED_USER_IDS contains an invalid Telegram user ID");
   }
+  for (const userId of config.telegramAllowedUserIds) {
+    if (!config.telegramUserProfileAccess[userId]?.length) {
+      throw new Error(`Telegram profile access is missing for user: ${userId}`);
+    }
+  }
+  for (const [userId, allowedProfileIds] of Object.entries(config.telegramUserProfileAccess)) {
+    if (!config.telegramAllowedUserIds.includes(userId)) {
+      throw new Error(`Telegram profile access contains a user outside the allowlist: ${userId}`);
+    }
+    if (allowedProfileIds.some((profileId) => !config.telegramAllowedProfileIds.includes(profileId))) {
+      throw new Error(`Telegram profile access exceeds the profile allowlist for user: ${userId}`);
+    }
+  }
   for (const profileId of config.telegramAllowedProfileIds) {
     if (!profiles.hasProfile(profileId)) throw new Error(`Telegram profile is unavailable: ${profileId}`);
   }
@@ -78,6 +91,7 @@ if (config.telegramBotToken) {
     config.telegramMiniAppUrl,
     config.telegramAllowedProfileIds,
     config.telegramAllowedUserIds,
+    config.telegramUserProfileAccess,
   );
   telegram = new TelegramPollingRuntime(telegramClient, telegramBot, config.telegramMiniAppUrl);
   await telegram.start();
