@@ -41,6 +41,7 @@ describe("Telegram profile auth", () => {
       cookieSecure: true,
       telegramBotToken: token,
       telegramAllowedProfileIds: ["roman", "oliver"],
+      telegramAllowedUserIds: ["101", "202", "303", "404", "505"],
     });
   });
 
@@ -112,5 +113,19 @@ describe("Telegram profile auth", () => {
     });
     expect(expired.statusCode).toBe(401);
     expect(manager.telegram.get("505")).toBeNull();
+  });
+
+  it("rejects existing and new Telegram users outside the runtime allowlist", async () => {
+    manager.telegram.bind({ profileId: "roman", userId: "606", chatId: "606", language: "en" });
+    const session = await app.inject({
+      method: "POST", url: "/api/auth/telegram/session",
+      headers: { "x-rehearsal-client": "web" }, payload: { initData: initData(606) },
+    });
+    expect(session.statusCode).toBe(403);
+    expect(session.json()).toEqual({ error: "TELEGRAM_USER_NOT_ALLOWED" });
+
+    const binding = await bind(707, "roman", "1234");
+    expect(binding.statusCode).toBe(403);
+    expect(manager.telegram.get("707")).toBeNull();
   });
 });

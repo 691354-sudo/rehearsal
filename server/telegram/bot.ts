@@ -17,6 +17,7 @@ export class TelegramEchoBot {
   private readonly queues = new Map<string, Promise<void>>();
   private readonly services = new Map<string, BotServices>();
   private readonly allowedProfiles: Set<string>;
+  private readonly allowedUsers: Set<string>;
   private readonly support: TelegramBotSupport;
 
   constructor(
@@ -24,9 +25,11 @@ export class TelegramEchoBot {
     private readonly client: TelegramBotClient,
     miniAppUrl: string,
     allowedProfileIds: readonly string[],
+    allowedUserIds: readonly string[],
     private readonly serviceFactory?: (profileId: string) => BotServices,
   ) {
     this.allowedProfiles = new Set(allowedProfileIds);
+    this.allowedUsers = new Set(allowedUserIds);
     this.support = new TelegramBotSupport(client, miniAppUrl);
   }
 
@@ -48,6 +51,10 @@ export class TelegramEchoBot {
     if (!message?.from || message.chat.type !== "private") return;
     const userId = String(message.from.id);
     const chatId = String(message.chat.id);
+    if (!this.allowedUsers.has(userId)) {
+      await this.client.sendMessage(chatId, "This bot is private.");
+      return;
+    }
     const found = this.profiles.telegram.get(userId);
     if (!found || !this.allowedProfiles.has(found.profileId)) {
       await this.support.sendConnect(chatId);
@@ -129,6 +136,10 @@ export class TelegramEchoBot {
     }
     const userId = String(callback.from.id);
     const chatId = String(message.chat.id);
+    if (!this.allowedUsers.has(userId)) {
+      await this.client.answerCallbackQuery(callback.id, "This bot is private.");
+      return;
+    }
     const found = this.profiles.telegram.get(userId);
     if (!found || !this.allowedProfiles.has(found.profileId)) {
       await this.client.answerCallbackQuery(callback.id, "Connect Echo first.");

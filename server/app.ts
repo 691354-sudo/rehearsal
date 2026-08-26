@@ -25,6 +25,7 @@ type AppOptions = ServiceOverrides & {
   cookieSecure?: boolean;
   telegramBotToken?: string;
   telegramAllowedProfileIds?: string[];
+  telegramAllowedUserIds?: string[];
 };
 
 export const buildApp = async (
@@ -94,6 +95,7 @@ export const buildApp = async (
     cookieSecure,
     telegramBotToken: options.telegramBotToken ?? config.telegramBotToken,
     telegramAllowedProfileIds: options.telegramAllowedProfileIds ?? config.telegramAllowedProfileIds,
+    telegramAllowedUserIds: options.telegramAllowedUserIds ?? config.telegramAllowedUserIds,
   });
   registerLanguageAccess(app, dependencies);
   registerSystemRoutes(app, dependencies);
