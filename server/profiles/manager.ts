@@ -89,7 +89,7 @@ const tableCounts = (db: Database.Database) => {
   const tables = [
     "languages", "sources", "items", "items_fts", "islands", "island_items",
     "attempts", "review_state", "chat_threads", "chat_messages", "review_batches",
-    "change_events", "app_settings", "audio_cache", "capture_notes",
+    "change_events", "app_settings", "audio_cache", "capture_notes", "ai_usage_events",
   ];
   return Object.fromEntries(tables.map((table) => {
     const row = db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number };

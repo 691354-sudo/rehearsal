@@ -42,7 +42,7 @@ Prompt behavior has a separate paid, non-mutating manual evaluation over synthet
 CONFIRM_PROMPT_EVAL=1 npm run prompts:check
 ```
 
-Tutor uses a stable per-thread prompt-cache key so repeated history can be billed as cached input when OpenAI finds the same prefix. Each completed Tutor reply records and logs input, cache-write, cached-input, output, and reasoning token counts for cost diagnosis without logging message text.
+Tutor uses a stable per-thread prompt-cache key so repeated history can be billed as cached input when OpenAI finds the same prefix. Every paid runtime OpenAI and ElevenLabs generation request records privacy-safe usage in the active profile database: workload, language, provider, model, success/error, latency, token categories, prompt-cache reuse, input size, audio bytes, and application speech-cache hits. It never stores prompt text, generated text, audio, filenames, PINs, or provider errors. Inspect the last 30 days across profiles with `npm run ai-usage:report`; narrow it with `-- --days 7 --profile roman`, or add `--json` for machine-readable output. The report intentionally leaves USD conversion to current provider billing rates.
 
 All LLM material remains a draft until the user confirms it. Prompt sources, Tutor history, individual messages, and model output have server-side size limits. API keys never reach browser JavaScript.
 

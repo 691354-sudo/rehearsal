@@ -7,6 +7,14 @@ import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode, LearningItem, ReviewBatchKind, ReviewCandidate } from "../types.js";
 import { aiLimits, assertAiSourceWithinBudget, conversationSourceWithinBudget } from "./ai-limits.js";
 import {
+  embeddingTokenUsage,
+  recordAiCacheHit,
+  responseTokenUsage,
+  trackAiRequest,
+  transcriptionTokenUsage,
+  type AiWorkload,
+} from "./ai-usage.js";
+import {
   resolveCaptureReview as resolveCaptureReviewService,
   resolveReviewBatch,
 } from "./capture-review.js";
@@ -24,24 +32,9 @@ import { genericLearnerPersona, type LearnerPersona } from "./learner-persona.js
 import { rewriteLibraryItem as rewriteLibraryItemService } from "./library-item-rewrite.js";
 import { prepareDelimitedImport } from "./delimited-import.js";
 import { reviseReviewCandidate } from "./review-candidate.js";
-import { normalizeNfc } from "../../contracts/text.js";
+import { localEvaluation, type AttemptEvaluation } from "./attempt-evaluation.js";
 
-const evaluationSchema = z.object({
-  score: z.number().min(0).max(1),
-  verdict: z.enum(["exact", "close", "retry"]),
-  meaningPreserved: z.boolean(),
-  naturalAnswer: z.string(),
-  correctedAnswer: z.string(),
-  summaryRu: z.string(),
-  mistakes: z.array(
-    z.object({
-      original: z.string(),
-      correction: z.string(),
-      explanationRu: z.string(),
-      type: z.enum(["grammar", "collocation", "word_choice", "missing_word", "spelling", "style"]),
-    }),
-  ),
-});
+export type { AttemptEvaluation };
 
 const currencyCheckSchema = z.object({
   items: z.array(z.object({
@@ -51,62 +44,16 @@ const currencyCheckSchema = z.object({
   })).max(8),
 });
 
-export type AttemptEvaluation = z.infer<typeof evaluationSchema>;
 
-const normalize = (value: string) =>
-  normalizeNfc(value)
-    .toLocaleLowerCase()
-    .replace(/[’‘]/g, "'")
-    .replace(/[^\p{L}\p{N}'\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+type OpenAIRepositories = Pick<RehearsalRepository, "aiUsage" | "audio" | "reviews">;
 
-const levenshtein = (left: string, right: string) => {
-  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
-  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
-    const current = [leftIndex];
-    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
-      current[rightIndex] = Math.min(
-        current[rightIndex - 1] + 1,
-        previous[rightIndex] + 1,
-        previous[rightIndex - 1] + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1),
-      );
-    }
-    previous.splice(0, previous.length, ...current);
-  }
-  return previous[right.length];
+const batchWorkloads: Record<ReviewBatchKind, AiWorkload> = {
+  chat_review: "tutor_review",
+  vocab: "vocabulary_prepare",
+  text_import: "text_import_prepare",
+  pattern_drill: "pattern_drill_prepare",
+  capture: "capture_prepare",
 };
-
-const localEvaluation = (item: LearningItem, answer: string): AttemptEvaluation => {
-  const candidates = [item.target, ...item.acceptedAnswers];
-  const normalizedAnswer = normalize(answer);
-  const best = candidates
-    .map((candidate) => {
-      const normalizedCandidate = normalize(candidate);
-      const distance = levenshtein(normalizedAnswer, normalizedCandidate);
-      const score = 1 - distance / Math.max(normalizedAnswer.length, normalizedCandidate.length, 1);
-      return { candidate, score };
-    })
-    .sort((left, right) => right.score - left.score)[0];
-  const score = Math.max(0, Math.min(1, best.score));
-  const verdict = score >= 0.98 ? "exact" : score >= 0.72 ? "close" : "retry";
-  return {
-    score,
-    verdict,
-    meaningPreserved: score >= 0.62,
-    naturalAnswer: item.target,
-    correctedAnswer: item.target,
-    summaryRu:
-      verdict === "exact"
-        ? "Точно. Фраза воспроизведена естественно."
-        : verdict === "close"
-          ? "Смысл понятен. Сравни свой вариант с естественной формулировкой."
-          : "Попробуй ещё раз и опирайся на готовую конструкцию целиком.",
-    mistakes: [],
-  };
-};
-
-type OpenAIRepositories = Pick<RehearsalRepository, "audio" | "reviews">;
 
 export class OpenAIService {
   private readonly client = openAIConfigured
@@ -132,25 +79,32 @@ export class OpenAIService {
   }) {
     if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
     const file = new File([new Uint8Array(input.audio)], input.filename, { type: input.audioMime });
-    const transcription = await this.client.audio.transcriptions.create({
-      file,
-      model: config.transcriptionModel,
-      languages: input.languages || ["ru"],
+    const transcription = await trackAiRequest({
+      repository: this.repository.aiUsage, provider: "openai", workload: "transcription",
+      language: input.languages?.length === 1 ? input.languages[0] : input.languages?.length ? "multi" : "ru",
+      model: config.transcriptionModel, inputAudioBytes: input.audio.length,
+      inputCharacters: input.prompt?.length || 0, measure: transcriptionTokenUsage,
+    }, () => this.client!.audio.transcriptions.create({
+      file, model: config.transcriptionModel, languages: input.languages || ["ru"],
       prompt: input.prompt || "Личная голосовая заметка на русском языке о том, что говорящий хотел бы уметь сказать.",
-    });
+    }));
     const text = transcription.text.trim();
     if (!text) throw new Error("EMPTY_TRANSCRIPTION");
     return text;
   }
 
-  async embed(text: string) {
+  async embed(text: string, language?: LanguageCode) {
     if (!this.client) return null;
-    const response = await this.client.embeddings.create({
+    const normalized = text.replace(/\s+/g, " ").trim();
+    const response = await trackAiRequest({
+      repository: this.repository.aiUsage, provider: "openai", workload: "embedding",
+      language, model: config.embeddingModel, inputCharacters: normalized.length, measure: embeddingTokenUsage,
+    }, () => this.client!.embeddings.create({
       model: config.embeddingModel,
-      input: text.replace(/\s+/g, " ").trim(),
+      input: normalized,
       encoding_format: "float",
       dimensions: config.embeddingDimensions,
-    });
+    }));
     return response.data[0]?.embedding || null;
   }
 
@@ -162,7 +116,11 @@ export class OpenAIService {
     if (!this.client) return candidates;
     const uncertain = candidates.filter((candidate) => candidate.currency === "uncertain").slice(0, 8);
     if (!uncertain.length) return candidates;
-    const response = await this.client.responses.parse({
+    const requestInput = JSON.stringify(uncertain.map(({ id, target, focusTerms }) => ({ id, target, focusTerms })));
+    const response = await trackAiRequest({
+      repository: this.repository.aiUsage, provider: "openai", workload: "currency_check",
+      language, model: config.utilityModel, inputCharacters: requestInput.length, measure: responseTokenUsage,
+    }, () => this.client!.responses.parse({
       model: config.utilityModel,
       reasoning: { effort: "low" },
       tools: [{ type: "web_search", search_context_size: "low" }],
@@ -170,10 +128,10 @@ export class OpenAIService {
         `Verify whether these ${targetLanguageName(language)} expressions are current and naturally used by adults in ${new Date().getFullYear()}. ` +
         "Use web search only for this linguistic currency check. Classify frequency conservatively. " +
         "Current means normal adult usage, not merely attested, historical, or forced youth slang. Return every supplied id.",
-      input: JSON.stringify(uncertain.map(({ id, target, focusTerms }) => ({ id, target, focusTerms }))),
+      input: requestInput,
       text: { format: zodTextFormat(currencyCheckSchema, "currency_check") },
       max_output_tokens: aiLimits.utilityOutputTokens,
-    });
+    }));
     const checks = new Map((response.output_parsed?.items || []).map((item) => [item.id, item]));
     return candidates.map((candidate) => {
       const check = checks.get(candidate.id);
@@ -190,18 +148,28 @@ export class OpenAIService {
     if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
     const cacheKey = this.speechCacheKey(input);
     const cached = this.repository.audio.get(cacheKey);
-    if (cached) return { ...cached, cached: true };
+    if (cached) {
+      recordAiCacheHit({ repository: this.repository.aiUsage, provider: "openai", workload: "speech",
+        language: input.language, model: config.ttsModel, inputCharacters: input.text.length });
+      return { ...cached, cached: true };
+    }
     const pending = this.inflightSpeech.get(cacheKey);
-    if (pending) return { ...await pending, cached: true };
+    if (pending) {
+      recordAiCacheHit({ repository: this.repository.aiUsage, provider: "openai", workload: "speech",
+        language: input.language, model: config.ttsModel, inputCharacters: input.text.length });
+      return { ...await pending, cached: true };
+    }
     const voice = input.voice || config.ttsVoice;
     const speed = Math.max(0.5, Math.min(1.5, input.speed || 1));
-    const generation = this.client.audio.speech.create({
-      model: config.ttsModel,
-      voice,
-      input: input.text.trim().normalize("NFC"),
-      speed,
-      response_format: "mp3",
-    }).then(async (response) => {
+    const speechInput = input.text.trim().normalize("NFC");
+    const generation = trackAiRequest({
+      repository: this.repository.aiUsage, provider: "openai", workload: "speech",
+      language: input.language, model: config.ttsModel, inputCharacters: speechInput.length,
+      measure: (result: { audio: Buffer }) => ({ outputAudioBytes: result.audio.length }),
+    }, async () => {
+      const response = await this.client!.audio.speech.create({
+        model: config.ttsModel, voice, input: speechInput, speed, response_format: "mp3",
+      });
       const audio = Buffer.from(await response.arrayBuffer());
       this.repository.audio.save({
         cacheKey,
@@ -217,7 +185,10 @@ export class OpenAIService {
   }
 
   cachedSpeech(input: { text: string; language: LanguageCode | "ru"; voice?: string; speed?: number }) {
-    return this.repository.audio.get(this.speechCacheKey(input));
+    const cached = this.repository.audio.get(this.speechCacheKey(input));
+    if (cached) recordAiCacheHit({ repository: this.repository.aiUsage, provider: "openai", workload: "speech",
+      language: input.language, model: config.ttsModel, inputCharacters: input.text.length });
+    return cached;
   }
 
   private speechCacheKey(input: { text: string; language: LanguageCode | "ru"; voice?: string; speed?: number }) {
@@ -242,18 +213,22 @@ export class OpenAIService {
       });
       return { batch, mode: "stored" as const };
     }
-    const response = await this.client.responses.parse({
+    const requestInput = JSON.stringify({
+      targetLanguage: targetLanguageName(input.language), title: input.title,
+      material: assertAiSourceWithinBudget(input.sourceText),
+    });
+    const response = await trackAiRequest({
+      repository: this.repository.aiUsage, provider: "openai", workload: batchWorkloads[input.kind],
+      language: input.language, model: config.balancedModel,
+      inputCharacters: requestInput.length, measure: responseTokenUsage,
+    }, () => this.client!.responses.parse({
       model: config.balancedModel,
       reasoning: { effort: "low" },
       instructions: materialInstructions(this.learner, input.language, input.task),
-      input: JSON.stringify({
-        targetLanguage: targetLanguageName(input.language),
-        title: input.title,
-        material: assertAiSourceWithinBudget(input.sourceText),
-      }),
+      input: requestInput,
       text: { format: zodTextFormat(generatedMaterialSchema, "learning_candidates") },
       max_output_tokens: aiLimits.batchOutputTokens,
-    });
+    }));
     if (!response.output_parsed) throw new Error("The tutor did not return prepared material");
     const candidates = await this.verifyUncertainCandidates(
       response.output_parsed.items.slice(0, 100).map(toCandidate),
@@ -321,7 +296,17 @@ export class OpenAIService {
     const batch = this.repository.reviews.get(input.batchPublicId);
     if (!batch || batch.status !== "draft") return null;
     if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
-    const response = await this.client.responses.parse({
+    const requestInput = JSON.stringify({
+      title: batch.title,
+      source: assertAiSourceWithinBudget(batch.sourceText),
+      currentCandidates: batch.candidates.map((candidate, index) => ({ number: index + 1, ...candidate })),
+      feedback: input.feedback.trim(),
+    });
+    const response = await trackAiRequest({
+      repository: this.repository.aiUsage, provider: "openai", workload: "batch_revision",
+      language: batch.language, model: config.balancedModel,
+      inputCharacters: requestInput.length, measure: responseTokenUsage,
+    }, () => this.client!.responses.parse({
       model: config.balancedModel,
       reasoning: { effort: "low" },
       instructions: materialInstructions(
@@ -332,15 +317,10 @@ export class OpenAIService {
           "Keep good candidates, rewrite the requested ones, remove rejected ones, and do not add unrelated material. " +
           "Return the complete revised batch, not only changed items.",
       ),
-      input: JSON.stringify({
-        title: batch.title,
-        source: assertAiSourceWithinBudget(batch.sourceText),
-        currentCandidates: batch.candidates.map((candidate, index) => ({ number: index + 1, ...candidate })),
-        feedback: input.feedback.trim(),
-      }),
+      input: requestInput,
       text: { format: zodTextFormat(generatedMaterialSchema, "revised_learning_candidates") },
       max_output_tokens: aiLimits.batchOutputTokens,
-    });
+    }));
     if (!response.output_parsed) throw new Error("The tutor did not return revised material");
     const candidates = await this.verifyUncertainCandidates(
       response.output_parsed.items.slice(0, 100).map(toCandidate),
@@ -424,7 +404,9 @@ export class OpenAIService {
     note: string;
     feedback: string;
   }) {
-    return rewriteLibraryItemService({ client: this.client, learner: this.learner, ...input });
+    return rewriteLibraryItemService({
+      client: this.client, repository: this.repository, learner: this.learner, ...input,
+    });
   }
 
   regenerateCandidate(input: {

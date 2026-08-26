@@ -44,6 +44,18 @@ Required repository secrets:
 
 `deploy/rehearsal-backup.cron` creates a consistent SQLite backup nightly and removes backups older than 30 days. Model availability is checked only by an operator running `npm run models:check` before a deliberate model configuration change. The deployment script removes the retired `/etc/cron.d/rehearsal-model-check` job after a healthy rollout.
 
+## AI usage diagnosis
+
+Run the read-only private report from the current release to find expensive or repeated AI work by profile, workload, language, provider, and model:
+
+```bash
+npm run ai-usage:report
+npm run ai-usage:report -- --days 7 --profile roman
+npm run ai-usage:report -- --days 30 --json
+```
+
+The report shows logical operations versus actual provider requests, failures, input/cached/cache-write/output/reasoning tokens, local speech-cache hits, input characters, audio bytes, and average latency. Its signals flag low Tutor prompt-cache reuse, high reasoning share, multi-round or chunk amplification, failed calls, and low speech-cache reuse. It is intentionally read-only and never prints prompts, responses, audio, filenames, PIN material, or provider error details. Do not hard-code provider prices into historical telemetry; reconcile these stable measured units with the current OpenAI and ElevenLabs billing exports when calculating USD.
+
 The workflow installs the profile/session values as mode-`0600` files under `/opt/apps/rehearsal/secrets`; Compose mounts that directory read-only. Provider credentials remain in `/opt/apps/rehearsal/.env` and `.env.elevenlabs`.
 
 Do not rotate profile PINs by changing the GitHub secret after the registry exists: the registry holds the salted scrypt hashes and remains authoritative. A deliberate PIN-rotation tool is not part of this release. Changing `SESSION_SECRET` invalidates every active browser session at the next deployment.

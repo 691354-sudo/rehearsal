@@ -218,4 +218,30 @@ CREATE TABLE IF NOT EXISTS audio_cache (
   audio BLOB NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS ai_usage_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  operation_id TEXT NOT NULL,
+  provider TEXT NOT NULL CHECK (provider IN ('openai', 'elevenlabs')),
+  workload TEXT NOT NULL,
+  language_code TEXT NOT NULL DEFAULT '',
+  model TEXT NOT NULL,
+  outcome TEXT NOT NULL CHECK (outcome IN ('success', 'error')),
+  external_request INTEGER NOT NULL DEFAULT 1 CHECK (external_request IN (0, 1)),
+  cache_hit INTEGER NOT NULL DEFAULT 0 CHECK (cache_hit IN (0, 1)),
+  input_tokens INTEGER NOT NULL DEFAULT 0 CHECK (input_tokens >= 0),
+  cached_input_tokens INTEGER NOT NULL DEFAULT 0 CHECK (cached_input_tokens >= 0),
+  cache_write_tokens INTEGER NOT NULL DEFAULT 0 CHECK (cache_write_tokens >= 0),
+  output_tokens INTEGER NOT NULL DEFAULT 0 CHECK (output_tokens >= 0),
+  reasoning_tokens INTEGER NOT NULL DEFAULT 0 CHECK (reasoning_tokens >= 0),
+  total_tokens INTEGER NOT NULL DEFAULT 0 CHECK (total_tokens >= 0),
+  input_characters INTEGER NOT NULL DEFAULT 0 CHECK (input_characters >= 0),
+  input_audio_bytes INTEGER NOT NULL DEFAULT 0 CHECK (input_audio_bytes >= 0),
+  output_audio_bytes INTEGER NOT NULL DEFAULT 0 CHECK (output_audio_bytes >= 0),
+  latency_ms INTEGER NOT NULL DEFAULT 0 CHECK (latency_ms >= 0),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_usage_created ON ai_usage_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_workload ON ai_usage_events(workload, model, created_at DESC);
 `;

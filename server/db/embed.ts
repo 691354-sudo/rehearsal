@@ -33,7 +33,9 @@ while (true) {
   const items = repository.items.missingEmbeddings(50);
   if (!items.length) break;
   for (const item of items) {
-    const vector = await openai.embed([item.target, item.cue, item.note, item.tags.join(" ")].join("\n"));
+    const vector = await openai.embed(
+      [item.target, item.cue, item.note, item.tags.join(" ")].join("\n"), item.language,
+    );
     if (!vector) throw new Error("Embedding request returned no vector");
     repository.items.updateEmbedding(item.publicId, vector, config.embeddingModel);
     embedded += 1;
