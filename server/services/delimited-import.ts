@@ -8,6 +8,7 @@ import { config } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode, ReviewCandidate } from "../types.js";
 import { aiLimits } from "./ai-limits.js";
+import { responseTokenUsage, trackAiRequest } from "./ai-usage.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import { materialInstructions } from "./material-generation.js";
 
@@ -72,7 +73,7 @@ const fragmentChunks = (fragments: string[]) => {
 
 export async function prepareDelimitedImport(input: {
   client: OpenAI | null;
-  repository: Pick<RehearsalRepository, "reviews">;
+  repository: Pick<RehearsalRepository, "aiUsage" | "reviews">;
   learner: LearnerPersona;
   language: LanguageCode;
   title: string;
@@ -81,8 +82,14 @@ export async function prepareDelimitedImport(input: {
   if (!input.client) throw new Error("OPENAI_NOT_CONFIGURED");
   const fragments = splitDelimitedImport(input.text);
   const metadata: DelimitedMetadata[] = [];
+  const operationId = randomUUID();
   for (const chunk of fragmentChunks(fragments)) {
-    const response = await input.client.responses.parse({
+    const requestInput = JSON.stringify({ title: input.title, fragments: chunk });
+    const response = await trackAiRequest({
+      repository: input.repository.aiUsage, provider: "openai", workload: "delimited_import_prepare",
+      language: input.language, model: config.balancedModel, operationId,
+      inputCharacters: requestInput.length, measure: responseTokenUsage,
+    }, () => input.client!.responses.parse({
       model: config.balancedModel,
       reasoning: { effort: "low" },
       instructions: materialInstructions(
@@ -92,10 +99,10 @@ export async function prepareDelimitedImport(input: {
           "in the same order. Do not merge, omit, reorder, translate, or rewrite target fragments. Generate only " +
           "a natural complete Russian cue, optional exact focusTerms copied from the target, and the requested metadata.",
       ),
-      input: JSON.stringify({ title: input.title, fragments: chunk }),
+      input: requestInput,
       text: { format: zodTextFormat(delimitedResponseSchema, "delimited_import_metadata") },
       max_output_tokens: aiLimits.batchOutputTokens,
-    });
+    }));
     if (!response.output_parsed) throw new Error("INCOMPLETE_DELIMITED_IMPORT");
     const expectedPositions = chunk.map((fragment) => fragment.position);
     if (response.output_parsed.items.length !== chunk.length || response.output_parsed.items.some(

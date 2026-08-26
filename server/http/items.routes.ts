@@ -107,7 +107,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
       language: languageSchema.default("en"),
       limit: z.coerce.number().int().min(1).max(50).default(20),
     }).parse(request.query);
-    const embedding = await openai.embed(query.q);
+    const embedding = await openai.embed(query.q, query.language);
     return {
       items: repository.items.search(query.q, query.language, embedding || undefined, query.limit),
       mode: embedding ? "hybrid" : "keyword",

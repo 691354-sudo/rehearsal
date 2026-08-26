@@ -103,7 +103,7 @@ describe("profile authentication and database isolation", () => {
     expect(Object.keys(migration.counts)).toEqual([
       "languages", "sources", "items", "items_fts", "islands", "island_items",
       "attempts", "review_state", "chat_threads", "chat_messages", "review_batches",
-      "change_events", "app_settings", "audio_cache", "capture_notes",
+      "change_events", "app_settings", "audio_cache", "capture_notes", "ai_usage_events",
     ]);
     expect(migration.counts.items).toBeGreaterThan(0);
 

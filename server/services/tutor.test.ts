@@ -87,6 +87,19 @@ describe("Tutor OpenAI requests", () => {
         historyCharacters: 31,
       },
     });
+    expect(context.repository.aiUsage.summarize(new Date(Date.now() - 60_000))).toEqual([
+      expect.objectContaining({
+        workload: "tutor_chat",
+        model: expect.any(String),
+        operations: 1,
+        providerRequests: 2,
+        inputTokens: 2_550,
+        cachedInputTokens: 1_800,
+        outputTokens: 200,
+        reasoningTokens: 70,
+        totalTokens: 2_750,
+      }),
+    ]);
   });
 
   it("keeps a growing cacheable prefix beyond thirty short messages", async () => {

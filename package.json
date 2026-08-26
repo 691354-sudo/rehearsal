@@ -24,6 +24,7 @@
     "db:delete-orphans": "node --import tsx scripts/db-delete-orphan-items.ts",
     "db:set-language": "node --import tsx scripts/db-set-language.ts",
     "models:check": "node --import tsx scripts/check-openai-models.ts",
+    "ai-usage:report": "node --import tsx scripts/ai-usage-report.ts",
     "prompts:check": "node --import tsx scripts/check-material-prompts.ts",
     "db:backup": "node --import tsx scripts/db-backup.ts",
     "db:restore": "node --import tsx scripts/db-restore.ts"

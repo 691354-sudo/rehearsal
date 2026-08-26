@@ -12,6 +12,7 @@ describe("review candidate revision", () => {
     const parse = vi.fn().mockResolvedValue({ output_parsed: { items: [replacement] } });
     const replaceCandidate = vi.fn().mockReturnValue({ publicId: "batch-id" });
     const repository = {
+      aiUsage: { record: vi.fn() },
       reviews: {
         get: vi.fn().mockReturnValue({
           publicId: "batch-id",
@@ -21,7 +22,7 @@ describe("review candidate revision", () => {
         }),
         replaceCandidate,
       },
-    } as unknown as Pick<RehearsalRepository, "reviews">;
+    } as unknown as Pick<RehearsalRepository, "aiUsage" | "reviews">;
 
     await reviseReviewCandidate({
       client: { responses: { parse } } as unknown as OpenAI,

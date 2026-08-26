@@ -7,6 +7,7 @@ import {
 import { config, elevenLabsVoices, type ElevenLabsVoiceOption } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode } from "../types.js";
+import { recordAiCacheHit, trackAiRequest } from "./ai-usage.js";
 
 export type ElevenLabsSpeechInput = {
   text: string;
@@ -29,7 +30,7 @@ export type ElevenLabsVoiceStatus = {
   };
   error: string;
 };
-type AudioRepositories = Pick<RehearsalRepository, "audio">;
+type AudioRepositories = Pick<RehearsalRepository, "aiUsage" | "audio">;
 
 export class ElevenLabsError extends Error {
   constructor(
@@ -205,19 +206,35 @@ export class ElevenLabsService {
       );
     }
     const cached = this.repository.audio.get(cacheKey);
-    if (cached) return { ...cached, cached: true };
+    if (cached) {
+      recordAiCacheHit({ repository: this.repository.aiUsage, provider: "elevenlabs", workload: "speech",
+        language: input.language, model: modelId, inputCharacters: text.length });
+      return { ...cached, cached: true };
+    }
 
     const pending = this.inflightSpeech.get(cacheKey);
-    if (pending) return { ...await pending, cached: true };
+    if (pending) {
+      recordAiCacheHit({ repository: this.repository.aiUsage, provider: "elevenlabs", workload: "speech",
+        language: input.language, model: modelId, inputCharacters: text.length });
+      return { ...await pending, cached: true };
+    }
 
-    const generation = this.generateSpeech({ text, language: input.language, voiceId, modelId, settings, cacheKey })
+    const generation = trackAiRequest({
+      repository: this.repository.aiUsage, provider: "elevenlabs", workload: "speech",
+      language: input.language, model: modelId, inputCharacters: text.length,
+      measure: (result: { audio: Buffer }) => ({ outputAudioBytes: result.audio.length }),
+    }, () => this.generateSpeech({ text, language: input.language, voiceId, modelId, settings, cacheKey }))
       .finally(() => this.inflightSpeech.delete(cacheKey));
     this.inflightSpeech.set(cacheKey, generation);
     return { ...await generation, cached: false };
   }
 
   cachedSpeech(input: ElevenLabsSpeechInput) {
-    return this.repository.audio.get(this.resolveSpeech(input).cacheKey);
+    const resolved = this.resolveSpeech(input);
+    const cached = this.repository.audio.get(resolved.cacheKey);
+    if (cached) recordAiCacheHit({ repository: this.repository.aiUsage, provider: "elevenlabs", workload: "speech",
+      language: input.language, model: resolved.modelId, inputCharacters: resolved.text.length });
+    return cached;
   }
 
   private resolveSpeech(input: ElevenLabsSpeechInput) {

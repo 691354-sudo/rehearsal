@@ -5,6 +5,7 @@ import { config } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode, ReviewCandidate } from "../types.js";
 import { aiLimits, assertAiSourceWithinBudget } from "./ai-limits.js";
+import { responseTokenUsage, trackAiRequest } from "./ai-usage.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import { generatedCandidateSchema, materialInstructions, toCandidate } from "./material-generation.js";
 
@@ -20,7 +21,7 @@ type ReviewResolutionDependencies = {
     accepted: CandidateSelection[];
     revisions: Array<CandidateSelection & { feedback: string }>;
   };
-  repository: Pick<RehearsalRepository, "reviews">;
+  repository: Pick<RehearsalRepository, "aiUsage" | "reviews">;
   learner: LearnerPersona;
   verifyCandidates: (candidates: ReviewCandidate[], language: LanguageCode) => Promise<ReviewCandidate[]>;
 };
@@ -48,7 +49,16 @@ async function resolveReview(
       category: edited.category.trim(),
       feedback: edited.feedback.trim(),
     }));
-    const response = await client.responses.parse({
+    const requestInput = JSON.stringify({
+      title: batch.title,
+      source: assertAiSourceWithinBudget(batch.sourceText),
+      candidates: currentCandidates,
+    });
+    const response = await trackAiRequest({
+      repository: repository.aiUsage, provider: "openai", workload: "review_resolution",
+      language: batch.language, model: config.balancedModel,
+      inputCharacters: requestInput.length, measure: responseTokenUsage,
+    }, () => client.responses.parse({
       model: config.balancedModel,
       reasoning: { effort: "low" },
       instructions: materialInstructions(
@@ -58,14 +68,10 @@ async function resolveReview(
           "Return exactly one replacement for every supplied candidateId, preserve that candidateId, " +
           "do not return accepted or unrelated cards, and keep the intended personal meaning.",
       ),
-      input: JSON.stringify({
-        title: batch.title,
-        source: assertAiSourceWithinBudget(batch.sourceText),
-        candidates: currentCandidates,
-      }),
+      input: requestInput,
       text: { format: zodTextFormat(commentedRevisionSchema, "commented_candidate_revisions") },
       max_output_tokens: aiLimits.batchOutputTokens,
-    });
+    }));
     const generated = response.output_parsed?.items || [];
     const expectedIds = new Set(input.revisions.map((candidate) => candidate.id));
     const generatedIds = new Set(generated.map((candidate) => candidate.candidateId));

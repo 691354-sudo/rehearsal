@@ -4,6 +4,7 @@ import { config } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode } from "../types.js";
 import { aiLimits, recentMessagesWithinBudget } from "./ai-limits.js";
+import { responseTokenUsage, trackAiRequest } from "./ai-usage.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import type { OpenAIService } from "./openai.js";
 import { targetLanguageName } from "./material-generation.js";
@@ -91,7 +92,7 @@ Your job is to help the learner speak naturally and automatically, not to teach 
 - Keep the initial answer concise, then deepen when the learner wants it.
 `;
 
-type TutorRepositories = Pick<RehearsalRepository, "items" | "practice" | "tutor">;
+type TutorRepositories = Pick<RehearsalRepository, "aiUsage" | "items" | "practice" | "tutor">;
 
 export class TutorService {
   private readonly client: OpenAI | null;
@@ -154,6 +155,7 @@ export class TutorService {
       content: message.content,
     }));
     const toolCalls: Array<{ name: string; result: unknown }> = [];
+    const instructions = tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide);
     const usage = {
       requests: 0,
       inputTokens: 0,
@@ -164,16 +166,22 @@ export class TutorService {
       totalTokens: 0,
     };
     const createResponse = async () => {
-      const next = await this.client!.responses.create({
+      const next = await trackAiRequest({
+        repository: this.repository.aiUsage, provider: "openai", workload: "tutor_chat", model,
+        language: input.language,
+        operationId: input.clientMessageId,
+        inputCharacters: instructions.length + JSON.stringify(modelInput).length,
+        measure: responseTokenUsage,
+      }, () => this.client!.responses.create({
         model,
         reasoning: { effort: "low" },
-        instructions: tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide),
+        instructions,
         input: modelInput,
         tools,
         parallel_tool_calls: false,
         max_output_tokens: aiLimits.tutorOutputTokens,
         prompt_cache_key: `tutor:${thread.publicId}`,
-      });
+      }));
       usage.requests += 1;
       if (next.usage) {
         usage.inputTokens += next.usage.input_tokens;
@@ -238,7 +246,7 @@ export class TutorService {
     const args: unknown = JSON.parse(rawArguments);
     if (name === "search_library") {
       const parsed = searchArguments.parse(args);
-      const embedding = await this.openaiService.embed(parsed.query);
+      const embedding = await this.openaiService.embed(parsed.query, language);
       return this.repository.items.search(parsed.query, language, embedding || undefined, parsed.limit);
     }
     if (name === "list_due_items") {
