@@ -118,14 +118,20 @@ describe("Echo Telegram bot", () => {
     await bot.processUpdate(messageUpdate(3, 101, {
       document: { file_id: "text-1", file_size: 16, file_name: "note.txt", mime_type: "text/plain" },
     }));
-    await bot.processUpdate(messageUpdate(4, 101, { photo: [{ file_id: "photo-1" }] }));
+    await bot.processUpdate(messageUpdate(4, 101, {
+      caption: "Подпись к неподдерживаемому фото.",
+      photo: [{ file_id: "photo-caption" }],
+    }));
+    expect(client.messages.at(-1)?.text).toContain("caption was saved");
+    await bot.processUpdate(messageUpdate(5, 101, { photo: [{ file_id: "photo-unsupported" }] }));
 
     const notes = manager.get("roman").repository.capture.list("en");
-    expect(notes).toHaveLength(3);
+    expect(notes).toHaveLength(4);
     expect(notes.map((note) => note.transcript)).toEqual(expect.arrayContaining([
       "Первая заметка.",
       "Подпись.\n\nРасшифрованная часть.",
       "Текст из файла.",
+      "Подпись к неподдерживаемому фото.",
     ]));
     expect(client.messages.at(-1)?.text).toContain("not supported");
     expect(openai.transcribe).toHaveBeenCalledTimes(1);
