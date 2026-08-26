@@ -1,5 +1,6 @@
 export const aiLimits = {
   sourceCharacters: 50_000,
+  tutorHistoryMessages: 200,
   tutorHistoryCharacters: 40_000,
   tutorMessageCharacters: 8_000,
   tutorOutputTokens: 2_000,
