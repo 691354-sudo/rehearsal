@@ -28,6 +28,7 @@ export type ReviewBatch = {
   candidates: ReviewCandidate[];
   status: "draft" | "committed";
   destinationTopicTitle: string | null;
+  sourceThreadPublicId?: string | null;
 };
 
 const pageSize = 8;

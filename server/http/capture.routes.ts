@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { HttpContext, HttpDependencies } from "./dependencies.js";
 import { audioUploadExtension } from "./audio-upload.js";
 import { languageSchema } from "./schemas.js";
+import { prepareCaptureNotes } from "../services/capture-processing.js";
 
 export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   const transcribe = async (publicId: string, context: HttpContext) => {
@@ -115,19 +116,14 @@ export const registerCaptureRoutes = (app: FastifyInstance, dependencies: HttpDe
   app.post("/api/captures/process", async (request, reply) => {
     const { repository, openai } = dependencies.forRequest(request);
     const body = z.object({ language: languageSchema }).parse(request.body);
-    const activeBatch = repository.capture.getActiveBatch(body.language);
-    if (activeBatch) return { batch: activeBatch, existing: true, remaining: 0 };
-    const selection = repository.capture.selectReady(body.language, 50_000);
-    if (!selection.notes.length) return reply.code(400).send({ error: "NO_READY_CAPTURES" });
-    const prepared = await openai.prepareCaptureBatch({ language: body.language, notes: selection.notes });
-    repository.capture.attachToBatch(selection.notes.map((note) => note.publicId), prepared.batch.publicId);
-    repository.library.saveSource({
-      language: body.language,
-      title: "Capture Reality",
-      rawText: selection.notes.map((note) => note.transcript).join("\n\n"),
-      kind: "capture_notebook",
-      metadata: { captureNoteIds: selection.notes.map((note) => note.publicId), batchId: prepared.batch.publicId },
-    });
-    return reply.code(201).send({ ...prepared, remaining: selection.remaining });
+    try {
+      const prepared = await prepareCaptureNotes({ repository, openai, language: body.language });
+      return prepared.existing ? prepared : reply.code(201).send(prepared);
+    } catch (error) {
+      if (error instanceof Error && error.message === "NO_READY_CAPTURES") {
+        return reply.code(400).send({ error: error.message });
+      }
+      throw error;
+    }
   });
 };

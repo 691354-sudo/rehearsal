@@ -11,7 +11,7 @@ The Vite dev server proxies `/api` and `/health`. In production, Fastify serves 
 
 ## Delivery targets
 
-The primary phone target is the existing HTTPS client installed as an iPhone Home Screen PWA with standalone display. App Store distribution, a native rewrite, and a separate desktop or iPhone shell are not current targets.
+The HTTPS React client has two phone containers: the installed iPhone Home Screen PWA and the native Telegram iPhone Mini App WebView. Both use the same Fastify origin, routes, profile databases, and review boundary. App Store distribution, a native rewrite, a separate iPhone shell, and Telegram Web iframe support are not current targets.
 
 The server remains the source of truth. The service worker precaches only the versioned application shell and static build assets; it does not cache API mutations, private learning data, or generated audio. See `docs/MOBILE_APP_DIRECTION.md` for interaction constraints and the phone verification gate.
 
@@ -31,9 +31,13 @@ Styles follow the same ownership boundaries under `src/styles`. `base.css` owns 
 
 `server/profiles` owns the backward-compatible Roman/Oliver/Zanna registries, invited-profile registry, invitation registry, and database lifecycle. A verified signed cookie binds every non-auth `/api` request to one profile context; the server then selects that profile's repository. Client input can never select a database path. Once any registry marks a profile ready, a missing database fails startup with a restore instruction; it is never silently recreated or copied. Invitation tokens are stored only as hashes. Joining reserves a UUID profile, creates and verifies a database with only the selected language enabled, marks it ready, consumes the invitation, and establishes the new session. Ordinary invitations keep that database empty. The single Roman-created `onboarding_v1_pilot` purpose is copied from the hashed invitation record into the invited-profile registry; before that profile becomes ready, `server/onboarding` atomically inserts its starter Tutor, Capture, Topic, card, and `app_settings.onboarding_v1` records. That same server-owned eligibility adds the fixed Echo product guide to the pilot Tutor context; client input cannot enable it for another profile. Interrupted `initializing` entries resume idempotently on startup. `server/auth` owns PIN verification, login/join throttling, cookie sessions, logout, and CSRF enforcement.
 
+`server/telegram` owns Mini App `initData` validation, profile bindings, Bot API transport, and long polling. Validation follows Telegram's HMAC data-check-string scheme, requires `user`, `auth_date`, and `hash`, accepts data no older than ten minutes, and compares the computed hash in constant time. `POST /api/auth/telegram/session` exchanges a valid existing binding for the ordinary signed cookie and CSRF session. `POST /api/auth/telegram/bind` additionally verifies the selected profile PIN. One Telegram ID may occur in only one profile, while a profile may contain several Telegram IDs.
+
+Each profile stores `app_settings.telegram_bindings_v1` as a JSON array containing only string `userId`/`chatId`, active language, mode, and Tutor thread. `ProfileManager` builds the cross-profile Telegram ID index at startup and fails closed on a duplicate. Bot updates run through a sequential queue per Telegram user. Text/media capture IDs, Tutor client-message IDs, and bot-created batch IDs are deterministic UUIDs derived from the Telegram update, so a repeated update cannot duplicate a note, Tutor exchange, source, or review batch.
+
 Active `.ts` and `.tsx` files are limited to 450 lines and CSS files to 800 lines. `npm run check:architecture` enforces the boundary in CI. Generated-data exceptions require an explicit, documented allowlist entry; there are currently no exceptions.
 
-The active visual cascade is declared in `src/styles/index.css`. `npm run check:styles` keeps it at 13 domain imports and rejects missing imports, legacy versioned layers, and undefined CSS variables.
+The active visual cascade is declared in `src/styles/index.css`. `npm run check:styles` keeps it at 15 domain imports and rejects missing imports, legacy versioned layers, and undefined CSS variables.
 
 ## Learning data
 
@@ -46,6 +50,8 @@ Related tables store original sources, review batches, capture notes, practice a
 `review_batches` is the safety boundary for all LLM-created material. Chat review, vocabulary, imported text, pattern drills, and Capture Reality store candidates as a draft. A user-confirmed commit validates candidate IDs and writes the selected cards in one SQLite transaction. A candidate-specific revise route replaces only the addressed draft candidate. Capture Review may also resolve a draft incrementally through `/api/review-batches/:id/resolve-capture`; source notes become `processed` only when no revised candidates remain. Delimited text imports store `destination_topic_title`, so their selected cards and single destination Topic are created in the same commit transaction.
 
 `capture_notes` stores one Russian thought. A typed note is created directly as `ready`; a voice note stores its transcript and, only while needed, its uploaded audio BLOB and MIME type. Notes move through `transcribing`, `ready`, `batched`, `processed`, or `failed`. Successful transcription clears the BLOB immediately. Capture commit creates all confirmed cards and marks every source note processed in the same transaction. Review-batch migration rebuilds the SQLite `kind` constraint without discarding existing rows.
+
+Telegram Notebook uses the same table and OpenAI transcription service. Telegram accepts text/captions, UTF-8 `.txt`, and supported audio/video MIME types up to the Bot API download limit of 20 MB. Caption and transcript form one note. Tutor media remains transient and goes directly from transcription into the idempotent Tutor message path.
 
 `islands` and `island_items` implement user-facing Topics. Each card has one owning Topic; membership changes move a card by replacing its prior `island_items` row in the same transaction. Stored membership order is an implementation detail and is not exposed as a learning control. Deleting a Topic transactionally deletes its cards, which cascades through review state and Topic membership. Capture commit creates or reuses a Topic from the confirmed category inside the same transaction as the cards.
 

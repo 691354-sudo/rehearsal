@@ -9,9 +9,9 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(480px, 100%);
-  height: 100dvh;
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  height: var(--echo-viewport-height);
+  padding-top: var(--echo-safe-top);
+  padding-bottom: var(--echo-safe-bottom);
   color: var(--script-ink);
   background: var(--script-surface);
   border-left: 1px solid var(--script-rule-strong);
@@ -696,7 +696,7 @@
   inset: 0;
   width: 100vw;
   max-width: none;
-  height: 100dvh;
+  height: var(--echo-viewport-height);
   max-height: none;
   margin: 0;
   padding: 0;

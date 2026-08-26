@@ -40,7 +40,9 @@ Required repository secrets:
 - `DEPLOY_KNOWN_HOSTS`
 - `PRODUCTION_URL` (the application base URL, currently `https://7662n.cc/rehearsal/`)
 - `ROMAN_PROFILE_PIN`, `OLIVER_PROFILE_PIN`, and `ZANNA_PROFILE_PIN` (4–12 digits);
-- `SESSION_SECRET` (a random value of at least 32 bytes).
+- `SESSION_SECRET` (a random value of at least 32 bytes);
+- `TELEGRAM_BOT_TOKEN` (BotFather token; may be empty to disable polling);
+- `TELEGRAM_ALLOWED_PROFILE_IDS` (comma-separated profile IDs allowed for the installed bot token).
 
 `deploy/rehearsal-backup.cron` creates a consistent SQLite backup nightly and removes backups older than 30 days. Model availability is checked only by an operator running `npm run models:check` before a deliberate model configuration change. The deployment script removes the retired `/etc/cron.d/rehearsal-model-check` job after a healthy rollout.
 
@@ -56,9 +58,30 @@ npm run ai-usage:report -- --days 30 --json
 
 The report shows logical operations versus actual provider requests, failures, input/cached/cache-write/output/reasoning tokens, local speech-cache hits, input characters, audio bytes, and average latency. Its signals flag low Tutor prompt-cache reuse, high reasoning share, multi-round or chunk amplification, failed calls, and low speech-cache reuse. It is intentionally read-only and never prints prompts, responses, audio, filenames, PIN material, or provider error details. Do not hard-code provider prices into historical telemetry; reconcile these stable measured units with the current OpenAI and ElevenLabs billing exports when calculating USD.
 
-The workflow installs the profile/session values as mode-`0600` files under `/opt/apps/rehearsal/secrets`; Compose mounts that directory read-only. Provider credentials remain in `/opt/apps/rehearsal/.env` and `.env.elevenlabs`.
+The workflow installs the profile/session and Telegram values as mode-`0600` files under `/opt/apps/rehearsal/secrets`; Compose mounts that directory read-only. Provider credentials remain in `/opt/apps/rehearsal/.env` and `.env.elevenlabs`. When the token file is empty, the API and CI run without Bot API polling.
+
+nginx makes `/rehearsal/` reachable from Telegram WebViews; there is no source-IP allowlist. The application boundary remains the signed HttpOnly profile session, CSRF on state-changing web requests, PIN/Telegram authentication, and login throttling. Deployment installs the reviewed `deploy/nginx-rehearsal-location.conf`, validates nginx, and restores the previous snippet during automatic rollback.
 
 Do not rotate profile PINs by changing the GitHub secret after the registry exists: the registry holds the salted scrypt hashes and remains authoritative. A deliberate PIN-rotation tool is not part of this release. Changing `SESSION_SECRET` invalidates every active browser session at the next deployment.
+
+## Telegram bot rollout and bindings
+
+Use a separate BotFather token and an isolated profile for the first end-to-end test. Set that exact profile ID in `TELEGRAM_ALLOWED_PROFILE_IDS`; a configured token with an empty or unknown allowlist fails startup. After physical-device acceptance, rotate the exposed test token in BotFather, update `TELEGRAM_BOT_TOKEN`, change the allowlist to `roman`, and set the bot's Main Mini App/menu URL to `https://7662n.cc/rehearsal/`. Never commit, print, or place the token in a command log.
+
+List bindings without mutation:
+
+```bash
+npm run db:telegram-bindings -- --profile roman
+```
+
+Preview one exact unbind, then repeat with the printed confirmation value:
+
+```bash
+npm run db:telegram-bindings -- --profile roman --unbind <telegram-user-id> --dry-run
+CONFIRM_TELEGRAM_UNBIND=roman:<telegram-user-id> npm run db:telegram-bindings -- --profile roman --unbind <telegram-user-id>
+```
+
+An Echo profile may have several bindings, but the same Telegram ID cannot be bound to two profiles. Unbinding removes only the Telegram association; it does not delete Notebook notes, Tutor history, Library cards, or the profile. Bot media must be 20 MB or smaller. Test text, voice, audio, video note, `.txt`, Tutor, Notebook prepare/review/commit, Library, Recall, and foreground Listen & Repeat from native Telegram on a physical iPhone before broadening the allowlist.
 
 ## Profile data and first rollout
 

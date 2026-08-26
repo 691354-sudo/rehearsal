@@ -208,13 +208,13 @@
     grid-template-rows: minmax(0, 1fr);
     gap: 0;
     width: 100%;
-    height: calc(100dvh - var(--h-header) - var(--h-tabbar) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    height: calc(var(--echo-viewport-height) - var(--h-header) - var(--h-tabbar) - var(--echo-safe-top) - var(--echo-safe-bottom));
     padding: 0;
   }
 
   .simple-main--notebook {
     width: 100%;
-    height: calc(100dvh - var(--h-header) - var(--h-tabbar) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    height: calc(var(--echo-viewport-height) - var(--h-header) - var(--h-tabbar) - var(--echo-safe-top) - var(--echo-safe-bottom));
     min-height: 0;
     padding: 0;
   }

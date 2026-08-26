@@ -36,8 +36,15 @@ const captureSelect = `SELECT n.public_id, n.language_code, n.transcript, n.audi
 export class CaptureRepository {
   constructor(private readonly db: RehearsalDatabase) {}
 
-  createText(input: { language: LanguageCode; transcript: string }) {
-    const publicId = randomUUID();
+  createText(input: { publicId?: string; language: LanguageCode; transcript: string }) {
+    const publicId = input.publicId || randomUUID();
+    const existing = input.publicId ? this.get(publicId) : null;
+    if (existing) {
+      if (existing.language !== input.language || existing.transcript !== input.transcript.trim()) {
+        throw new Error("CAPTURE_UPLOAD_CONFLICT");
+      }
+      return existing;
+    }
     this.db.prepare(
       `INSERT INTO capture_notes(public_id, language_code, transcript, status)
        VALUES (?, ?, ?, 'ready')`,
@@ -47,12 +54,25 @@ export class CaptureRepository {
     return note;
   }
 
-  create(input: { publicId?: string; language: LanguageCode; audio: Buffer; audioMime: string }) {
+  create(input: {
+    publicId?: string;
+    language: LanguageCode;
+    audio: Buffer;
+    audioMime: string;
+    transcript?: string;
+  }) {
     const publicId = input.publicId || randomUUID();
+    const existing = input.publicId ? this.get(publicId) : null;
+    if (existing) {
+      if (existing.language !== input.language || existing.audioMime !== input.audioMime) {
+        throw new Error("CAPTURE_UPLOAD_CONFLICT");
+      }
+      return existing;
+    }
     this.db.prepare(
-      `INSERT INTO capture_notes(public_id, language_code, audio, audio_mime, status)
-       VALUES (?, ?, ?, ?, 'transcribing')`,
-    ).run(publicId, input.language, input.audio, input.audioMime);
+      `INSERT INTO capture_notes(public_id, language_code, transcript, audio, audio_mime, status)
+       VALUES (?, ?, ?, ?, ?, 'transcribing')`,
+    ).run(publicId, input.language, input.transcript?.trim() || "", input.audio, input.audioMime);
     const note = this.get(publicId)!;
     logChange(this.db, "user", "create", "capture_note", publicId, null, {
       language: input.language,
@@ -87,7 +107,7 @@ export class CaptureRepository {
     this.db.prepare(
       `UPDATE capture_notes SET transcript = ?, audio = NULL, status = 'ready', error = '',
        updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`,
-    ).run(transcript.trim(), publicId);
+    ).run([previous.transcript.trim(), transcript.trim()].filter(Boolean).join("\n\n"), publicId);
     const updated = this.get(publicId)!;
     logChange(this.db, "system", "transcribe", "capture_note", publicId, previous, updated);
     return updated;

@@ -1,12 +1,12 @@
 .onboarding-tour {
   position: fixed;
   z-index: 90;
-  top: calc(var(--h-header) + env(safe-area-inset-top) + 24px);
+  top: calc(var(--h-header) + var(--echo-safe-top) + 24px);
   right: 24px;
   display: grid;
   gap: 16px;
   width: min(390px, calc(100vw - 48px));
-  max-height: calc(100dvh - var(--h-header) - env(safe-area-inset-top) - 48px);
+  max-height: calc(var(--echo-viewport-height) - var(--h-header) - var(--echo-safe-top) - 48px);
   padding: 16px;
   overflow-y: auto;
   color: var(--script-ink);
@@ -152,10 +152,10 @@
   .onboarding-tour {
     top: auto;
     right: 12px;
-    bottom: calc(72px + env(safe-area-inset-bottom));
+    bottom: calc(72px + var(--echo-safe-bottom));
     left: 12px;
     width: auto;
-    max-height: calc(100dvh - var(--h-header) - 96px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(var(--echo-viewport-height) - var(--h-header) - 96px - var(--echo-safe-top) - var(--echo-safe-bottom));
     padding: 14px;
   }
 
@@ -173,7 +173,7 @@
 @media (max-width: 420px) {
   .onboarding-tour {
     gap: 12px;
-    bottom: calc(68px + env(safe-area-inset-bottom));
+    bottom: calc(68px + var(--echo-safe-bottom));
   }
 
   .onboarding-tour-copy { gap: 8px; }

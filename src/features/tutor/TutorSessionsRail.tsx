@@ -60,7 +60,7 @@ export function TutorSessionsRail({ currentThreadId, onClose, onNewChat, open, r
       <span>{group.label}</span>
       {group.items.map((thread) => <AppLink aria-current={thread.publicId === currentThreadId ? "page" : undefined}
         className={thread.publicId === currentThreadId ? "is-active" : ""} key={thread.publicId} onClick={onClose}
-        route={{ ...route, thread: thread.publicId }}><strong>{thread.title}</strong><small>{formatThreadDate(thread.updatedAt)}</small></AppLink>)}
+        route={{ ...route, thread: thread.publicId, review: null }}><strong>{thread.title}</strong><small>{formatThreadDate(thread.updatedAt)}</small></AppLink>)}
     </section>)}</nav>
     {normalizedQuery && !visibleThreads.length ? <p className="simple-session-empty">No matching sessions.</p> : null}
   </aside>;

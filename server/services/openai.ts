@@ -201,6 +201,10 @@ export class OpenAIService {
 
   private async prepareBatch(input: { publicId?: string; language: LanguageCode; kind: ReviewBatchKind;
     title: string; sourceText: string; task: string; sourceThreadPublicId?: string }) {
+    if (input.publicId) {
+      const existing = this.repository.reviews.get(input.publicId);
+      if (existing) return { batch: existing, mode: "stored" as const };
+    }
     if (!this.client) {
       const batch = this.repository.reviews.create({
         publicId: input.publicId,
@@ -276,6 +280,7 @@ export class OpenAIService {
   }
 
   prepareCaptureBatch(input: {
+    publicId?: string;
     language: LanguageCode;
     notes: Array<{ publicId: string; transcript: string }>;
   }) {
@@ -284,6 +289,7 @@ export class OpenAIService {
       .map((note, index) => `[${index + 1} · ${note.publicId}]\n${note.transcript}`)
       .join("\n\n");
     return this.prepareBatch({
+      publicId: input.publicId,
       language: input.language,
       kind: "capture",
       title: "Capture Reality",
@@ -358,14 +364,20 @@ export class OpenAIService {
   }
 
   reviewConversation(input: {
+    publicId?: string;
     language: LanguageCode;
     threadPublicId: string;
     messages: Array<{ role: "user" | "assistant"; content: string }>;
   }) {
+    if (input.publicId) {
+      const existing = this.repository.reviews.get(input.publicId);
+      if (existing) return { batch: existing, mode: "stored" as const };
+    }
     const sourceText = conversationSourceWithinBudget(input.messages);
     const numberCards = numberCardsFromConversation(input.messages);
     if (numberCards.length) {
       const batch = this.repository.reviews.create({
+        publicId: input.publicId,
         language: input.language,
         kind: "vocab",
         title: "Numbers from Tutor",
@@ -376,6 +388,7 @@ export class OpenAIService {
       return { batch, mode: "stored" as const };
     }
     return this.prepareBatch({
+      publicId: input.publicId,
       language: input.language,
       kind: "chat_review",
       title: "Tutor conversation review",

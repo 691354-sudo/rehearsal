@@ -231,11 +231,12 @@ export class TutorService {
     return { threadId: thread.publicId, content, mode: "openai" as const, toolCalls };
   }
 
-  async review(threadPublicId: string) {
+  async review(threadPublicId: string, batchPublicId?: string) {
     const thread = this.repository.tutor.getThread(threadPublicId);
     if (!thread) return null;
     const messages = this.repository.tutor.getMessages(thread.id, 100);
     return this.openaiService.reviewConversation({
+      publicId: batchPublicId,
       language: thread.language_code,
       threadPublicId,
       messages,

@@ -9,6 +9,8 @@ const audioUploadExtensions = new Map([
   ["audio/mp3", "mp3"],
   ["audio/wav", "wav"],
   ["audio/x-wav", "wav"],
+  ["audio/ogg", "ogg"],
+  ["application/ogg", "ogg"],
 ]);
 
 export const audioUploadExtension = (mimeType: string) =>

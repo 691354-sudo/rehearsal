@@ -56,7 +56,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   onLibrary: () => void;
   onListen: () => void;
 }) {
-  const { mode, thread: threadId } = route;
+  const { mode, thread: threadId, review: reviewId } = route;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [draft, setDraft] = useState(""); const [sending, setSending] = useState(false);
@@ -124,7 +124,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         const stored = window.localStorage.getItem(storageKey);
         const selected = nextThreads.find((thread) => thread.publicId === threadId)
           || nextThreads.find((thread) => thread.publicId === stored);
-        if (selected && selected.publicId !== threadId) onRoute({ ...route, thread: selected.publicId }, "replace");
+        if (selected && selected.publicId !== threadId) onRoute({ ...route, thread: selected.publicId, review: null }, "replace");
       } catch { /* A blank Tutor remains usable when history is unavailable. */ }
     })();
     return () => { cancelled = true; };
@@ -139,7 +139,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       if (response.status === 404) {
         if (!cancelled) {
           clearMissingTutorThread(window.localStorage, storageKey, threadId);
-          setMessages([]); onRoute({ ...route, thread: null }, "replace");
+          setMessages([]); onRoute({ ...route, thread: null, review: null }, "replace");
         } return null;
       }
       if (!response.ok) throw new Error("Could not load session");
@@ -153,6 +153,20 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     }).finally(() => { if (!cancelled) setLoadingThread(false); });
     return () => { cancelled = true; };
   }, [language, threadId]);
+
+  useEffect(() => {
+    if (!reviewId || !threadId) return;
+    let cancelled = false;
+    void apiFetch(`/api/review-batches/${reviewId}`).then(async (response) => {
+      if (!response.ok) throw new Error("Review could not be loaded");
+      const data = await response.json() as { batch: ReviewBatch };
+      if (data.batch.sourceThreadPublicId !== threadId) throw new Error("Review does not belong to this Tutor session");
+      if (!cancelled) setReviewBatch(data.batch);
+    }).catch(() => {
+      if (!cancelled) setSendError("This Tutor review could not be loaded.");
+    });
+    return () => { cancelled = true; };
+  }, [reviewId, threadId]);
 
   useEffect(() => setDraft(window.sessionStorage.getItem(draftKey) || ""), [draftKey]);
   useEffect(() => {
@@ -185,7 +199,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
 
   const newChat = () => {
     window.sessionStorage.removeItem(`rehearsal:${profileId}:tutor-draft:${language}:new`);
-    onRoute({ ...route, thread: null }); setMessages([]); setReviewBatch(null); setDraft(""); setSendError(""); setAdded(false); setSessionsOpen(false);
+    onRoute({ ...route, thread: null, review: null }); setMessages([]); setReviewBatch(null); setDraft(""); setSendError(""); setAdded(false); setSessionsOpen(false);
     window.localStorage.removeItem(storageKey);
   };
 
@@ -196,7 +210,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       const response = await apiFetch(`/api/chat/${threadId}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Chat could not be deleted.");
       const remaining = threads.filter((thread) => thread.publicId !== threadId);
-      setThreads(remaining); onRoute({ ...route, thread: remaining[0]?.publicId || null }, "replace"); setMessages([]); setReviewBatch(null); setAdded(false);
+      setThreads(remaining); onRoute({ ...route, thread: remaining[0]?.publicId || null, review: null }, "replace"); setMessages([]); setReviewBatch(null); setAdded(false);
       window.localStorage.removeItem(storageKey);
     } catch { setSendError("Chat could not be deleted."); }
     finally { setDeletingThread(false); }
@@ -222,13 +236,13 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     try {
       if (looksLikeVocabList(content)) {
         const data = await prepareVocab(content, clientMessageId);
-        setReviewBatch(data.batch); onRoute({ ...route, thread: data.threadId }, "replace"); window.localStorage.setItem(storageKey, data.threadId);
+        setReviewBatch(data.batch); onRoute({ ...route, thread: data.threadId, review: data.batch.publicId }, "replace"); window.localStorage.setItem(storageKey, data.threadId);
         setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
       } else {
         const response = await apiFetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ language, message: content, threadId, clientMessageId }) });
         if (!response.ok) throw new Error("Chat unavailable");
-        const data = await response.json() as { threadId: string; content: string }; onRoute({ ...route, thread: data.threadId }, "replace");
+        const data = await response.json() as { threadId: string; content: string }; onRoute({ ...route, thread: data.threadId, review: null }, "replace");
         window.localStorage.setItem(storageKey, data.threadId);
         setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
       }
@@ -342,6 +356,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       const response = await apiFetch(`/api/chat/${threadId}/review`, { method: "POST" });
       if (!response.ok) throw new Error("Review failed");
       const data = await response.json() as { batch: ReviewBatch }; scrollIntentRef.current = "smooth"; setReviewBatch(data.batch);
+      onRoute({ ...route, review: data.batch.publicId }, "replace");
     } catch { scrollIntentRef.current = "smooth"; setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: "Review could not be prepared. Nothing was added to Library." }]); }
     finally { setReviewing(false); }
   };
@@ -360,7 +375,8 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         railRef={sessionsRailRef} route={route} threads={threads} />
       <div className={`simple-chat-pane${reviewBatch ? " simple-chat-pane--review" : ""}`} data-onboarding-target="tutor">
         {reviewBatch ? <div className="simple-review-pane"><ReviewBatchPanel batch={reviewBatch} context="tutor" feed onBatch={setReviewBatch}
-          onDismiss={() => setReviewBatch(null)} onCommitted={() => { setReviewBatch(null); setAdded(true); }} /></div> : <>
+          onDismiss={() => { setReviewBatch(null); onRoute({ ...route, review: null }, "replace"); }}
+          onCommitted={() => { setReviewBatch(null); setAdded(true); onRoute({ ...route, review: null }, "replace"); }} /></div> : <>
         <div className="simple-chat-toolbar"><div className="simple-chat-context">
           <button aria-label="Open sessions" className="simple-sessions-trigger" onClick={() => setSessionsOpen(true)} ref={sessionsButtonRef}
             title="Sessions" type="button"><PanelLeft aria-hidden="true" size={16} /></button>

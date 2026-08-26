@@ -23,6 +23,8 @@ import type { LanguageCode } from "./types.js";
 type AppOptions = ServiceOverrides & {
   sessionSecret?: string;
   cookieSecure?: boolean;
+  telegramBotToken?: string;
+  telegramAllowedProfileIds?: string[];
 };
 
 export const buildApp = async (
@@ -43,7 +45,7 @@ export const buildApp = async (
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        scriptSrc: ["'self'", "https://telegram.org"],
         styleSrc: ["'self'"],
         fontSrc: ["'self'", "data:"],
         imgSrc: ["'self'", "data:", "blob:"],
@@ -88,7 +90,11 @@ export const buildApp = async (
     void reply.code(response.statusCode).send(response.body);
   });
 
-  registerProfileAuth(app, dependencies, { cookieSecure });
+  registerProfileAuth(app, dependencies, {
+    cookieSecure,
+    telegramBotToken: options.telegramBotToken ?? config.telegramBotToken,
+    telegramAllowedProfileIds: options.telegramAllowedProfileIds ?? config.telegramAllowedProfileIds,
+  });
   registerLanguageAccess(app, dependencies);
   registerSystemRoutes(app, dependencies);
   registerOnboardingRoutes(app, dependencies);

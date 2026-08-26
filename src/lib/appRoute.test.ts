@@ -48,9 +48,25 @@ describe("app routes", () => {
   });
 
   it("uses the configured base path and preserves Tutor threads", () => {
-    const route: AppRoute = { section: "tutor", mode: "chat", thread: "9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4", language: "en", settings: false };
+    const route: AppRoute = { section: "tutor", mode: "chat", thread: "9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4", review: null, language: "en", settings: false };
     const href = serializeAppRoute(route, "/rehearsal");
     expect(href).toBe("/rehearsal/tutor?lang=en&thread=9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4");
+    const url = new URL(href, "https://example.test");
+    expect(parseAppRoute(location(url.pathname, url.search), "/rehearsal/")).toEqual(route);
+  });
+
+  it("round-trips an exact Tutor review deep link", () => {
+    const route: AppRoute = {
+      section: "tutor",
+      mode: "chat",
+      thread: "9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4",
+      review: "c2afc185-8de8-4a13-96c1-721610c7445f",
+      language: "en",
+      settings: false,
+    };
+    const href = serializeAppRoute(route, "/rehearsal/");
+    expect(href).toContain("thread=9bbf06f1-0d51-4d95-83a4-e72c09c7a3f4");
+    expect(href).toContain("review=c2afc185-8de8-4a13-96c1-721610c7445f");
     const url = new URL(href, "https://example.test");
     expect(parseAppRoute(location(url.pathname, url.search), "/rehearsal/")).toEqual(route);
   });
@@ -71,7 +87,7 @@ describe("app routes", () => {
     const routes: AppRoute[] = [
       { section: "practice", mode: "listen", scope: "library", topic: "topic", cards: "50", order: "original", review: null, language: "en", settings: true },
       { section: "practice", mode: "listen", scope: "due", topic: "", cards: "all", order: "newest", review: null, language: "en", settings: false },
-      { section: "tutor", mode: "notebook", thread: null, language: "lv", settings: false },
+      { section: "tutor", mode: "notebook", thread: null, review: null, language: "lv", settings: false },
       { ...defaultLibraryRoute("en"), view: "topics", topic: "topic", page: 2, panel: "create", edit: null },
     ];
     routes.forEach((route) => {

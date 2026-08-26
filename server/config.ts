@@ -23,6 +23,14 @@ const secretFromEnv = (name: string) => {
   return process.env[name]?.trim() || "";
 };
 
+const secretFromFile = (name: string) => {
+  const filePath = process.env[`${name}_FILE`]?.trim();
+  return filePath ? fs.readFileSync(filePath, "utf8").trim() : "";
+};
+
+const listFromEnv = (name: string) => secretFromEnv(name).split(",")
+  .map((value) => value.trim()).filter(Boolean);
+
 const openAiTtsVoiceFromEnv = () => {
   const configured = process.env.OPENAI_TTS_VOICE?.trim();
   return openAiTtsVoices.find((voice) => voice === configured) || "onyx";
@@ -38,6 +46,9 @@ export const config = {
   oliverProfilePin: secretFromEnv("OLIVER_PROFILE_PIN"),
   zannaProfilePin: secretFromEnv("ZANNA_PROFILE_PIN"),
   sessionSecret: secretFromEnv("SESSION_SECRET"),
+  telegramBotToken: secretFromFile("TELEGRAM_BOT_TOKEN"),
+  telegramAllowedProfileIds: listFromEnv("TELEGRAM_ALLOWED_PROFILE_IDS"),
+  telegramMiniAppUrl: process.env.TELEGRAM_MINI_APP_URL?.trim() || "",
   sessionCookieSecure: booleanFromEnv(
     process.env.SESSION_COOKIE_SECURE,
     process.env.NODE_ENV === "production",

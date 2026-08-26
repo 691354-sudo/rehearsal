@@ -31,6 +31,7 @@ import {
   getPilotOnboardingState,
   unavailableOnboardingState,
 } from "../onboarding/pilot.js";
+import { ProfileTelegramBindings } from "../telegram/profile-bindings.js";
 
 const baseProfileIds = ["roman", "oliver"] as const;
 export const profileIds = [...baseProfileIds, "zanna"] as const;
@@ -268,6 +269,7 @@ const initializeProfileDatabases = async (
 export class ProfileManager {
   private readonly contexts = new Map<ProfileId, ProfileContext>();
   private readonly records = new Map<ProfileId, ProfileRecord>();
+  readonly telegram: ProfileTelegramBindings;
 
   private constructor(
     profiles: ProfileRecord[],
@@ -286,6 +288,7 @@ export class ProfileManager {
         repository: new RehearsalRepository(db),
       });
     }
+    this.telegram = new ProfileTelegramBindings(this.contexts);
   }
 
   static async create(options: ProfileManagerOptions) {
@@ -442,8 +445,5 @@ export class ProfileManager {
     return [...this.contexts].map(([id, context]) => ({ id, ok: context.repository.system.quickCheck() }));
   }
 
-  close() {
-    for (const context of this.contexts.values()) context.db.close();
-    this.contexts.clear();
-  }
+  close() { for (const context of this.contexts.values()) context.db.close(); this.contexts.clear(); }
 }
