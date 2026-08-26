@@ -357,7 +357,7 @@
     inset: 0;
     z-index: 39;
     display: block;
-    background: color-mix(in srgb, var(--rh-ink) 58%, transparent);
+    background: color-mix(in srgb, var(--rh-on-accent) 58%, transparent);
     border: 0;
   }
 
@@ -370,7 +370,6 @@
     background: var(--rh-inset);
     border-right: 1px solid var(--rh-rule);
     border-radius: 0 20px 20px 0;
-    box-shadow: 16px 0 42px color-mix(in srgb, var(--rh-ink) 36%, transparent);
     transform: translateX(-100%);
     transition: transform 180ms cubic-bezier(.23, 1, .32, 1);
   }
