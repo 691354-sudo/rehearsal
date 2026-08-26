@@ -139,7 +139,10 @@ describe("ElevenLabsService", () => {
   it("lists and caches every saved ElevenLabs voice across pages", async () => {
     const request = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        voices: [{ voice_id: "voice-b", name: "Beta", verified_languages: [{ language: "vi" }] }],
+        voices: [
+          { voice_id: "voice-b", name: "Beta", verified_languages: [{ language: "vi" }] },
+          { voice_id: "voice-c", name: "Citra", verified_languages: [{ language: "id-ID" }] },
+        ],
         has_more: true,
         next_page_token: "next-page",
       }), { status: 200, headers: { "Content-Type": "application/json" } }))
@@ -155,6 +158,7 @@ describe("ElevenLabsService", () => {
 
     expect(first).toEqual(expect.arrayContaining([
       { id: "voice-b", name: "Beta", languages: ["vi"] },
+      { id: "voice-c", name: "Citra", languages: ["id"] },
       { id: "voice-a", name: "Alpha", languages: ["no"] },
     ]));
     expect(second).toEqual(first);
@@ -238,5 +242,19 @@ describe("ElevenLabsService", () => {
     await expect(service.speech({
       text: "Xin chào", language: "vi", modelId: "eleven_multilingual_v2",
     })).rejects.toMatchObject({ code: "VIETNAMESE_MODEL_UNSUPPORTED", statusCode: 400 });
+  });
+
+  it("uses Flash v2.5 with Indonesian language metadata", async () => {
+    const request = vi.fn().mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    const service = new ElevenLabsService(repository, "test-key");
+
+    await service.speech({ text: "Selamat pagi", language: "id", voiceId: "id-voice" });
+
+    const body = JSON.parse(String((request.mock.calls[0][1] as RequestInit).body));
+    expect(body).toMatchObject({ model_id: "eleven_flash_v2_5", language_code: "id" });
+    await expect(service.speech({
+      text: "Selamat pagi", language: "id", modelId: "eleven_multilingual_v2",
+    })).rejects.toMatchObject({ code: "INDONESIAN_MODEL_UNSUPPORTED", statusCode: 400 });
   });
 });

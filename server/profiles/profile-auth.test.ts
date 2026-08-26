@@ -279,31 +279,32 @@ describe("profile authentication and database isolation", () => {
     expect(available.json().available).toBe(true);
     expect(available.json().experience).toBe("standard");
     expect(available.json().replayAvailable).toBe(false);
-    expect(available.json().languages.map((language: { code: string }) => language.code)).toEqual(["en", "lv", "vi", "no"]);
+    expect(available.json().languages.map((language: { code: string }) => language.code)).toEqual(["en", "lv", "vi", "no", "id"]);
 
     const shortPin = await app.inject({
       method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },
-      payload: { token, name: "Maya", pin: "123", language: "vi" },
+      payload: { token, name: "Maya", pin: "123", language: "id" },
     });
     expect(shortPin.statusCode).toBe(400);
 
     const joined = await app.inject({
       method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },
-      payload: { token, name: "Maya", pin: "246810", language: "vi" },
+      payload: { token, name: "Maya", pin: "246810", language: "id" },
     });
     expect(joined.statusCode).toBe(200);
     const profile = joined.json().profile as { id: string; name: string };
     expect(profile.name).toBe("Maya");
     expect(profile.id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(joined.json().availableLanguages.map((language: { code: string }) => language.code)).toEqual(["vi"]);
+    expect(joined.json().availableLanguages.map((language: { code: string }) => language.code)).toEqual(["id"]);
     expect(joined.json().onboarding).toEqual({
       version: 1, eligibility: "none", status: "not_available", starterReady: false,
     });
     expect(manager.get(profile.id).repository.system.stats().items).toEqual([]);
     expect(manager.get(profile.id).repository.system.isLanguageEnabled("en")).toBe(false);
     expect(manager.get(profile.id).repository.system.isLanguageEnabled("lv")).toBe(false);
-    expect(manager.get(profile.id).repository.system.isLanguageEnabled("vi")).toBe(true);
+    expect(manager.get(profile.id).repository.system.isLanguageEnabled("vi")).toBe(false);
     expect(manager.get(profile.id).repository.system.isLanguageEnabled("no")).toBe(false);
+    expect(manager.get(profile.id).repository.system.isLanguageEnabled("id")).toBe(true);
 
     expect((await app.inject({ method: "GET", url: `/api/auth/invites/${token}` })).json().available).toBe(false);
     const reused = await app.inject({

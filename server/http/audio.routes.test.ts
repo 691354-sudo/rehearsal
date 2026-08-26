@@ -28,11 +28,13 @@ describe("audio API", () => {
           { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
           { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
         ]),
+        id: [{ id: "3mAVBNEqop5UbHtD8oxQ", name: "Zephlyn" }],
         vi: [{ id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" }],
         no: [],
       },
       speedRange: { min: 0.7, max: 1.2 },
       languageDefaults: {
+        id: { voiceId: "3mAVBNEqop5UbHtD8oxQ", voiceName: "Zephlyn", modelId: "eleven_flash_v2_5" },
         vi: { voiceId: "ueSxRO0nLF1bj93J2hVt", voiceName: "Trung Caha", modelId: "eleven_flash_v2_5" },
       },
     });
@@ -41,7 +43,7 @@ describe("audio API", () => {
 
   it("exposes the saved voices returned by ElevenLabs", async () => {
     const voicesByLanguage = vi.fn().mockResolvedValue({
-      en: [{ id: "saved-voice", name: "Saved Voice" }], lv: [], vi: [], no: [],
+      en: [{ id: "saved-voice", name: "Saved Voice" }], lv: [], vi: [], no: [], id: [],
     });
     const app = await buildApp(context.repository, {
       elevenlabs: { voicesByLanguage } as unknown as ElevenLabsService,
@@ -218,6 +220,34 @@ describe("audio API", () => {
     expect(supported.statusCode).toBe(200);
     expect(compatibleVoiceId).toHaveBeenCalledWith("no", "no-voice");
     expect(speech).toHaveBeenCalledWith(expect.objectContaining({ language: "no", voiceId: "no-voice" }));
+    await app.close();
+  });
+
+  it("requires a compatible ElevenLabs Flash voice for Bahasa Indonesia", async () => {
+    context.repository.system.setLanguageEnabled("id", true);
+    const speech = vi.fn().mockResolvedValue({ audio: Buffer.from([1]), cached: false });
+    const compatibleVoiceId = vi.fn().mockImplementation(async (_language, voiceId) => voiceId);
+    const app = await buildApp(context.repository, {
+      elevenlabs: { compatibleVoiceId, speech } as unknown as ElevenLabsService,
+    });
+    const unsupportedProvider = await app.inject({
+      method: "POST", url: "/api/audio/speech",
+      payload: { text: "Selamat pagi", language: "id", provider: "openai" },
+    });
+    const unsupportedModel = await app.inject({
+      method: "POST", url: "/api/audio/speech",
+      payload: { text: "Selamat pagi", language: "id", provider: "elevenlabs", modelId: "eleven_multilingual_v2" },
+    });
+    const supported = await app.inject({
+      method: "POST", url: "/api/audio/speech",
+      payload: { text: "Selamat pagi", language: "id", provider: "elevenlabs", modelId: "eleven_flash_v2_5", voiceId: "id-voice" },
+    });
+
+    expect(unsupportedProvider.json().error).toBe("INDONESIAN_ELEVENLABS_REQUIRED");
+    expect(unsupportedModel.json().error).toBe("INDONESIAN_MODEL_UNSUPPORTED");
+    expect(supported.statusCode).toBe(200);
+    expect(compatibleVoiceId).toHaveBeenCalledWith("id", "id-voice");
+    expect(speech).toHaveBeenCalledWith(expect.objectContaining({ language: "id", voiceId: "id-voice" }));
     await app.close();
   });
 });

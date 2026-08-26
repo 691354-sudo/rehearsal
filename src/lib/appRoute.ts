@@ -1,6 +1,6 @@
 import type { LibrarySort, LibraryStatus } from "./libraryView";
 import type { Language } from "../shared/contracts";
-import { isLanguageCode } from "../../contracts/api";
+import { isLanguageCode, languageCodes } from "../../contracts/api";
 import { languageHasAudio } from "../shared/config";
 
 export type PracticeCardCount = "all" | "10" | "20" | "50";
@@ -87,7 +87,7 @@ export function parseAppRoute(
   location: Pick<Location, "pathname" | "search">,
   baseUrl: string,
   fallbackLanguage: Language = "en",
-  availableLanguages: readonly Language[] = ["en", "lv", "vi", "no"],
+  availableLanguages: readonly Language[] = languageCodes,
 ): AppRoute {
   const params = new URLSearchParams(location.search);
   const requestedLanguage = params.get("lang");

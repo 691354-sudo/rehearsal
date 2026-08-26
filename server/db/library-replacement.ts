@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { languageCodes } from "../../contracts/api.js";
 import type { LanguageCode } from "../types.js";
 import type { RehearsalDatabase } from "./database.js";
 import { RehearsalRepository } from "./repository.js";
@@ -20,7 +21,7 @@ const normalized = (value: string) => value.toLocaleLowerCase()
 
 export const libraryReplacementSchema = z.object({
   version: z.literal(1),
-  language: z.enum(["en", "lv", "vi"]),
+  language: z.enum(languageCodes as [typeof languageCodes[number], ...typeof languageCodes]),
   title: z.string().trim().min(1).max(300),
   generatedAt: z.string().datetime(),
   cards: z.array(replacementCardSchema).min(1).max(2_000),

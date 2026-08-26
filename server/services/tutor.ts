@@ -13,6 +13,7 @@ const tutorLanguageGuidance: Record<LanguageCode, string> = {
   lv: "Use natural contemporary Latvian.",
   vi: "Use neutral contemporary standard Vietnamese and avoid strongly regional wording unless requested.",
   no: "Use natural contemporary Norwegian Bokmål and avoid dialect-specific or Nynorsk forms unless requested.",
+  id: "Use natural contemporary standard Indonesian. Prefer broadly understood informal-neutral wording and avoid region-specific slang or Malay forms unless requested.",
 };
 
 const searchArguments = z.object({ query: z.string().min(1), limit: z.number().int().min(1).max(20) });

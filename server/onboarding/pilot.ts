@@ -72,6 +72,14 @@ const targets: Record<LanguageCode, string[]> = {
     "Kan dere levere på fredag?",
     "Jeg er hjemme etter klokken seks.",
   ],
+  id: [
+    "Saya pesan satu latte, ya.",
+    "Bisa pakai susu oat?",
+    "Dibawa pulang, ya.",
+    "Saya perlu mengubah jadwal pengiriman paket.",
+    "Bisa dikirim hari Jumat?",
+    "Saya ada di rumah setelah jam enam.",
+  ],
 };
 
 const cues = [
@@ -88,6 +96,7 @@ const tutorPrompts: Record<LanguageCode, string[]> = {
   lv: ["Protams. Ko jūs vēlētos pasūtīt?", "Parasto vai augu pienu?", "Uz vietas vai līdzi?"],
   vi: ["Được thôi. Bạn muốn gọi món gì?", "Sữa thường hay sữa thực vật?", "Dùng tại chỗ hay mang đi?"],
   no: ["Selvfølgelig. Hva vil du bestille?", "Vanlig melk eller plantebasert?", "Her eller ta med?"],
+  id: ["Tentu. Mau pesan apa?", "Susu biasa atau susu nabati?", "Mau minum di sini atau dibawa pulang?"],
 };
 
 const parseStored = (value: string): StoredOnboarding => {

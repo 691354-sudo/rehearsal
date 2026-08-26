@@ -3,7 +3,11 @@ import type {
   PlaybackPreferences,
   SchedulerSettings,
 } from "./contracts";
-import { languageCatalog, languageCodes } from "../../contracts/api";
+import {
+  languageCatalog,
+  languageCodes,
+  requiresStrictElevenLabs,
+} from "../../contracts/api";
 import { defaultElevenLabsSpeedRange } from "../lib/playbackSettings";
 
 export const defaultPlayback: PlaybackPreferences = {
@@ -21,13 +25,14 @@ export const defaultPlayback: PlaybackPreferences = {
 export const defaultPlaybackForLanguage = (
   language: keyof typeof languageCatalog,
   elevenLabs = defaultElevenLabsConfig,
-): PlaybackPreferences => language === "vi" || language === "no" ? {
+): PlaybackPreferences => requiresStrictElevenLabs(language) ? {
   ...defaultPlayback,
   provider: "elevenlabs",
   elevenlabs: {
     ...defaultPlayback.elevenlabs,
     voiceId: elevenLabs.languageDefaults[language]?.voiceId
-      || (language === "vi" ? "ueSxRO0nLF1bj93J2hVt" : ""),
+      || (language === "vi" ? "ueSxRO0nLF1bj93J2hVt"
+        : language === "id" ? "3mAVBNEqop5UbHtD8oxQ" : ""),
     modelId: "eleven_flash_v2_5",
   },
 } : defaultPlayback;
@@ -43,6 +48,7 @@ export const defaultElevenLabsConfig: ElevenLabsConfig = {
       { id: "ZF6FPAbjXT4488VcRRnw", name: "Amelia" },
       { id: "ocDS3nMDsIPV8dFsOOyf", name: "Sean Buckley" },
     ],
+    id: [{ id: "3mAVBNEqop5UbHtD8oxQ", name: "Zephlyn" }],
     vi: [{ id: "ueSxRO0nLF1bj93J2hVt", name: "Trung Caha" }],
     no: [],
   },
@@ -50,6 +56,7 @@ export const defaultElevenLabsConfig: ElevenLabsConfig = {
   speedRange: defaultElevenLabsSpeedRange,
   defaults: { ...defaultPlayback.elevenlabs, speed: 1.05 },
   languageDefaults: {
+    id: { voiceId: "3mAVBNEqop5UbHtD8oxQ", voiceName: "Zephlyn", modelId: "eleven_flash_v2_5" },
     vi: { voiceId: "ueSxRO0nLF1bj93J2hVt", voiceName: "Trung Caha", modelId: "eleven_flash_v2_5" },
   },
   note: "Generated MP3 files are cached on this server.",

@@ -66,6 +66,11 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
                   modelId: "eleven_flash_v2_5" as const,
                 },
               } : {}),
+              id: {
+                voiceId: config.elevenLabsIdVoiceId,
+                voiceName: config.elevenLabsIdVoiceName,
+                modelId: "eleven_flash_v2_5" as const,
+              },
             },
             note: "Generated MP3 files are cached on this server. Identical requests reuse the cached audio.",
           },

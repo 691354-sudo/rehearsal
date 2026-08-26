@@ -92,4 +92,11 @@ describe("app routes", () => {
     expect(parseAppRoute(location("/library", "?lang=toString"), "/", "en", ["en", "lv"]))
       .toMatchObject({ section: "library", language: "en" });
   });
+
+  it("supports Bahasa Indonesia listening and profile-gated deep links", () => {
+    expect(parseAppRoute(location("/practice/listen", "?lang=id"), "/", "en", ["en", "id"]))
+      .toMatchObject({ section: "practice", mode: "listen", language: "id" });
+    expect(parseAppRoute(location("/library", "?lang=id"), "/", "en", ["en"]))
+      .toMatchObject({ section: "library", language: "en" });
+  });
 });

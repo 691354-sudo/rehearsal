@@ -15,6 +15,10 @@ const targetLanguages: Record<LanguageCode, { name: string; guidance: string }> 
     name: "Norwegian Bokmål",
     guidance: "Use natural contemporary Norwegian Bokmål. Avoid dialect-specific or Nynorsk forms unless the source requires them.",
   },
+  id: {
+    name: "Bahasa Indonesia",
+    guidance: "Use natural contemporary standard Indonesian. Prefer broadly understood informal-neutral wording and avoid region-specific slang or Malay forms unless the source requires them.",
+  },
 };
 
 export const generatedCandidateSchema = z.object({

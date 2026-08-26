@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "../database.js";
 import type { Island, IslandSummary, LanguageCode } from "../../types.js";
+import { languageCodes } from "../../../contracts/api.js";
 import { logChange, mapItemWithProgress, parseArray, type DueItemRow } from "./shared.js";
 
 type IslandRow = {
@@ -280,7 +281,7 @@ export class LibraryRepository {
   }
 
   backfillTopicsFromTags(language?: LanguageCode) {
-    const languages = language ? [language] : ["en", "lv", "vi"] as const;
+    const languages = language ? [language] : languageCodes;
     let created = 0; let attached = 0;
     const transaction = this.db.transaction(() => {
       for (const languageCode of languages) {

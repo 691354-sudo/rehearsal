@@ -28,6 +28,10 @@ const expectedTargets: Record<LanguageCode, string[]> = {
     "Kan jeg få en latte, takk?", "Kan jeg få den med havremelk?", "Jeg tar den med.",
     "Jeg må endre leveringsdatoen for pakken.", "Kan dere levere på fredag?", "Jeg er hjemme etter klokken seks.",
   ],
+  id: [
+    "Saya pesan satu latte, ya.", "Bisa pakai susu oat?", "Dibawa pulang, ya.",
+    "Saya perlu mengubah jadwal pengiriman paket.", "Bisa dikirim hari Jumat?", "Saya ada di rumah setelah jam enam.",
+  ],
 };
 
 describe("pilot onboarding workspace", () => {

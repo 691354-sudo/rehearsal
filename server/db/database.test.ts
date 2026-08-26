@@ -69,13 +69,13 @@ describe("database migrations", () => {
     expect(item.preference).toBe("neutral");
     expect(item.frequency_band).toBe("common");
     expect(item.practice_enabled).toBe(1);
-    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(8);
+    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(9);
     expect((migrated.prepare("PRAGMA table_info(review_batches)").all() as Array<{ name: string }>)
       .map((column) => column.name)).toContain("destination_topic_title");
 
     migrated.close();
     const reopened = openDatabase(databasePath);
-    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(8);
+    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(9);
     expect(reopened.pragma("foreign_keys", { simple: true })).toBe(1);
 
     reopened.close();
@@ -191,8 +191,8 @@ describe("database migrations", () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it("adds disabled Vietnamese without changing existing data counters", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rehearsal-vietnamese-migration-"));
+  it("adds profile-gated languages without changing existing data counters", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rehearsal-language-migrations-"));
     const databasePath = path.join(tempDir, "legacy.sqlite");
     const prepared = openDatabase(databasePath);
     const repository = new RehearsalRepository(prepared);
@@ -224,7 +224,8 @@ describe("database migrations", () => {
         SELECT code, name, locale, cue_locale, created_at FROM languages WHERE code IN ('en', 'lv');
         DROP TABLE languages;
         ALTER TABLE languages_legacy RENAME TO languages;
-        DELETE FROM schema_migrations WHERE id = '005-vietnamese-language';
+        DELETE FROM schema_migrations
+        WHERE id IN ('005-vietnamese-language', '006-norwegian-language', '009-indonesian-language');
       `);
     })();
     prepared.pragma("foreign_keys = ON");
@@ -238,7 +239,9 @@ describe("database migrations", () => {
     expect(migrated.prepare("SELECT code, name, locale, enabled FROM languages ORDER BY code").all())
       .toEqual([
         { code: "en", name: "English", locale: "en-US", enabled: 1 },
+        { code: "id", name: "Bahasa Indonesia", locale: "id-ID", enabled: 0 },
         { code: "lv", name: "Latviešu", locale: "lv-LV", enabled: 1 },
+        { code: "no", name: "Norwegian", locale: "nb-NO", enabled: 1 },
         { code: "vi", name: "Vietnamese", locale: "vi-VN", enabled: 0 },
       ]);
     expect(migrated.pragma("foreign_key_check")).toEqual([]);

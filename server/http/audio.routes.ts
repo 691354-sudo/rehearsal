@@ -1,8 +1,18 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import {
+  requiresStrictElevenLabs,
+  type StrictElevenLabsLanguageCode,
+} from "../../contracts/api.js";
 import type { HttpDependencies } from "./dependencies.js";
 import { elevenLabsModelOptions, languageSchema, voiceOptions } from "./schemas.js";
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
+
+const strictAudioCopy: Record<StrictElevenLabsLanguageCode, { name: string; errorPrefix: string }> = {
+  vi: { name: "Vietnamese", errorPrefix: "VIETNAMESE" },
+  no: { name: "Norwegian", errorPrefix: "NORWEGIAN" },
+  id: { name: "Bahasa Indonesia", errorPrefix: "INDONESIAN" },
+};
 
 export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   const speechSettingsSchema = z.object({
@@ -28,17 +38,20 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const body = z.object({
       text: z.string().trim().min(1).max(4_096),
     }).and(speechSettingsSchema).parse(request.body);
-    const strictLanguage = body.language === "vi" || body.language === "no";
+    const strictLanguage = body.language !== "ru" && requiresStrictElevenLabs(body.language)
+      ? body.language : null;
     if (strictLanguage && body.provider !== "elevenlabs") {
+      const copy = strictAudioCopy[strictLanguage];
       return reply.code(400).send({
-        error: body.language === "vi" ? "VIETNAMESE_ELEVENLABS_REQUIRED" : "NORWEGIAN_ELEVENLABS_REQUIRED",
-        message: `${body.language === "vi" ? "Vietnamese" : "Norwegian"} playback requires a compatible ElevenLabs voice.`,
+        error: `${copy.errorPrefix}_ELEVENLABS_REQUIRED`,
+        message: `${copy.name} playback requires a compatible ElevenLabs voice.`,
       });
     }
     if (strictLanguage && body.modelId !== "eleven_flash_v2_5") {
+      const copy = strictAudioCopy[strictLanguage];
       return reply.code(400).send({
-        error: body.language === "vi" ? "VIETNAMESE_MODEL_UNSUPPORTED" : "NORWEGIAN_MODEL_UNSUPPORTED",
-        message: `${body.language === "vi" ? "Vietnamese" : "Norwegian"} playback requires Eleven Flash v2.5.`,
+        error: `${copy.errorPrefix}_MODEL_UNSUPPORTED`,
+        message: `${copy.name} playback requires Eleven Flash v2.5.`,
       });
     }
     if (body.provider === "elevenlabs" && body.speed !== undefined
@@ -69,15 +82,15 @@ export const registerAudioRoutes = (app: FastifyInstance, dependencies: HttpDepe
     if (body.priorityItemId && !body.itemIds.includes(body.priorityItemId)) {
       return reply.code(400).send({ error: "AUDIO_PRIORITY_ITEM_NOT_FOUND" });
     }
-    const strictLanguage = body.language === "vi" || body.language === "no";
+    const strictLanguage = requiresStrictElevenLabs(body.language) ? body.language : null;
     if (strictLanguage && body.provider !== "elevenlabs") {
       return reply.code(400).send({
-        error: body.language === "vi" ? "VIETNAMESE_ELEVENLABS_REQUIRED" : "NORWEGIAN_ELEVENLABS_REQUIRED",
+        error: `${strictAudioCopy[strictLanguage].errorPrefix}_ELEVENLABS_REQUIRED`,
       });
     }
     if (strictLanguage && body.modelId !== "eleven_flash_v2_5") {
       return reply.code(400).send({
-        error: body.language === "vi" ? "VIETNAMESE_MODEL_UNSUPPORTED" : "NORWEGIAN_MODEL_UNSUPPORTED",
+        error: `${strictAudioCopy[strictLanguage].errorPrefix}_MODEL_UNSUPPORTED`,
       });
     }
     if (body.provider === "elevenlabs" && body.speed !== undefined
