@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import {
+  languageCodes,
+  requiresStrictElevenLabs,
+  type StrictElevenLabsLanguageCode,
+} from "../../contracts/api.js";
 import { config, elevenLabsVoices, type ElevenLabsVoiceOption } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode } from "../types.js";
@@ -53,8 +58,22 @@ const voiceListTtlMs = 10 * 60 * 1_000;
 const normalizeVoiceLanguage = (value: string): LanguageCode | null => {
   const code = value.trim().toLowerCase().split(/[-_]/)[0];
   if (code === "nb" || code === "nn") return "no";
-  return ["en", "lv", "vi", "no"].includes(code) ? code as LanguageCode : null;
+  return languageCodes.includes(code as LanguageCode) ? code as LanguageCode : null;
 };
+
+const strictLanguageCopy: Record<StrictElevenLabsLanguageCode, { name: string; error: string }> = {
+  vi: { name: "Vietnamese", error: "VIETNAMESE_MODEL_UNSUPPORTED" },
+  no: { name: "Norwegian", error: "NORWEGIAN_MODEL_UNSUPPORTED" },
+  id: { name: "Bahasa Indonesia", error: "INDONESIAN_MODEL_UNSUPPORTED" },
+};
+
+const defaultVoiceIdForLanguage = (language: LanguageCode) => language === "vi"
+  ? config.elevenLabsViVoiceId
+  : language === "no"
+    ? config.elevenLabsNoVoiceId
+    : language === "id"
+      ? config.elevenLabsIdVoiceId
+      : config.elevenLabsVoiceId;
 
 const mergeVoices = (voices: ElevenLabsVoiceOption[]) => {
   const merged = new Map<string, ElevenLabsVoiceOption>();
@@ -119,16 +138,15 @@ export class ElevenLabsService {
 
   async voicesByLanguage(refresh = false) {
     const voices = await this.listVoices(refresh);
-    return Object.fromEntries(["en", "lv", "vi", "no"].map((language) => [
+    return Object.fromEntries(languageCodes.map((language) => [
       language,
-      voices.filter((voice) => voice.languages.includes(language as LanguageCode))
+      voices.filter((voice) => voice.languages.includes(language))
         .map(({ id, name }) => ({ id, name })),
     ])) as Record<LanguageCode, Array<{ id: string; name: string }>>;
   }
 
   async compatibleVoiceId(language: LanguageCode, requestedVoiceId?: string) {
-    const defaultVoiceId = language === "vi" ? config.elevenLabsViVoiceId
-      : language === "no" ? config.elevenLabsNoVoiceId : config.elevenLabsVoiceId;
+    const defaultVoiceId = defaultVoiceIdForLanguage(language);
     const voiceId = requestedVoiceId || defaultVoiceId;
     if (!voiceId) throw new ElevenLabsError(
       `No compatible ElevenLabs voice is configured for ${language}.`, 400, "VOICE_LANGUAGE_MISMATCH",
@@ -177,11 +195,13 @@ export class ElevenLabsService {
     if (!this.configured) throw new Error("ELEVENLABS_NOT_CONFIGURED");
     const resolved = this.resolveSpeech(input);
     const { voiceId, modelId, text, settings, cacheKey } = resolved;
-    if (["vi", "no"].includes(input.language) && modelId !== "eleven_flash_v2_5") {
+    if (input.language !== "ru" && requiresStrictElevenLabs(input.language)
+      && modelId !== "eleven_flash_v2_5") {
+      const copy = strictLanguageCopy[input.language];
       throw new ElevenLabsError(
-        `${input.language === "vi" ? "Vietnamese" : "Norwegian"} playback requires Eleven Flash v2.5.`,
+        `${copy.name} playback requires Eleven Flash v2.5.`,
         400,
-        input.language === "vi" ? "VIETNAMESE_MODEL_UNSUPPORTED" : "NORWEGIAN_MODEL_UNSUPPORTED",
+        copy.error,
       );
     }
     const cached = this.repository.audio.get(cacheKey);
@@ -201,9 +221,9 @@ export class ElevenLabsService {
   }
 
   private resolveSpeech(input: ElevenLabsSpeechInput) {
-    const voiceId = input.voiceId || (input.language === "vi" ? config.elevenLabsViVoiceId
-      : input.language === "no" ? config.elevenLabsNoVoiceId : config.elevenLabsVoiceId);
-    const modelId = input.modelId || (["vi", "no"].includes(input.language)
+    const voiceId = input.voiceId || (input.language === "ru"
+      ? config.elevenLabsVoiceId : defaultVoiceIdForLanguage(input.language));
+    const modelId = input.modelId || (input.language !== "ru" && requiresStrictElevenLabs(input.language)
       ? "eleven_flash_v2_5"
       : config.elevenLabsModel as NonNullable<ElevenLabsSpeechInput["modelId"]>);
     const text = input.text.trim().normalize("NFC");

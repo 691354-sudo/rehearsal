@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Copy, LoaderCircle, Play, RefreshCw, Share2, UserPlus, X } from "lucide-react";
+import { requiresStrictElevenLabs } from "../../../contracts/api";
 import { speedRangeForProvider } from "../../lib/playbackSettings";
 import { apiFetch } from "../../shared/api";
 import { capitalize, humanizeLabel } from "../../shared/config";
@@ -251,7 +252,7 @@ export function GlobalSettings(props: {
   const voiceDetails = [activeVoice.labels.accent, activeVoice.labels.use_case, activeVoice.labels.gender]
     .filter(Boolean).map(humanizeLabel).join(" · ") || "ElevenLabs voice";
   const speedRange = speedRangeForProvider(props.playback.provider, props.elevenLabs.speedRange);
-  const availableProviders: TtsProvider[] = props.language === "vi" || props.language === "no"
+  const availableProviders: TtsProvider[] = requiresStrictElevenLabs(props.language)
     ? ["elevenlabs"] : ["openai", "elevenlabs"];
 
   return <dialog className="simple-settings-overlay" onMouseDown={(event) => {
@@ -311,7 +312,7 @@ export function GlobalSettings(props: {
                 </div>
                 <div className="simple-model-choice">
                   <span>Model</span><div>
-                    {props.language !== "vi" && props.language !== "no" ? <button className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
+                    {!requiresStrictElevenLabs(props.language) ? <button className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
                       onClick={() => updateElevenLabs("modelId", "eleven_multilingual_v2")} type="button">Quality</button> : null}
                     <button className={props.playback.elevenlabs.modelId === "eleven_flash_v2_5" ? "is-active" : ""}
                       onClick={() => updateElevenLabs("modelId", "eleven_flash_v2_5")} type="button">Fast</button>

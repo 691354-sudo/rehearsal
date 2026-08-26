@@ -171,6 +171,36 @@ const migrateNorwegianLanguage = (db: Database.Database) => {
   `);
 };
 
+const migrateIndonesianLanguage = (db: Database.Database) => {
+  const table = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'languages'",
+  ).get() as { sql: string } | undefined;
+  if (!table) throw new Error("Languages table is unavailable");
+  if (table.sql.includes("'id'")) {
+    db.prepare(
+      `INSERT OR IGNORE INTO languages(code, name, locale, cue_locale, enabled)
+       VALUES ('id', 'Bahasa Indonesia', 'id-ID', 'ru-RU', 0)`,
+    ).run();
+    return;
+  }
+  db.exec(`
+    CREATE TABLE languages_next (
+      code TEXT PRIMARY KEY CHECK (code IN ('en', 'lv', 'vi', 'no', 'id')),
+      name TEXT NOT NULL,
+      locale TEXT NOT NULL,
+      cue_locale TEXT NOT NULL DEFAULT 'ru-RU',
+      enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    INSERT INTO languages_next(code, name, locale, cue_locale, enabled, created_at)
+    SELECT code, name, locale, cue_locale, enabled, created_at FROM languages;
+    DROP TABLE languages;
+    ALTER TABLE languages_next RENAME TO languages;
+    INSERT INTO languages(code, name, locale, cue_locale, enabled)
+    VALUES ('id', 'Bahasa Indonesia', 'id-ID', 'ru-RU', 0);
+  `);
+};
+
 const migrateChatClientMessageIds = (db: Database.Database) => {
   const columns = new Set(
     (db.prepare("PRAGMA table_info(chat_messages)").all() as Array<{ name: string }>)
@@ -208,6 +238,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "006-norwegian-language", run: migrateNorwegianLanguage, requiresForeignKeysOff: true },
   { id: "007-chat-client-message-id", run: migrateChatClientMessageIds },
   { id: "008-review-batch-destination", run: migrateReviewBatchDestination },
+  { id: "009-indonesian-language", run: migrateIndonesianLanguage, requiresForeignKeysOff: true },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {
@@ -264,6 +295,9 @@ export const openDatabase = (databasePath = config.databasePath) => {
     db.prepare(
       "INSERT OR IGNORE INTO languages(code, name, locale, enabled) VALUES (?, ?, ?, ?)",
     ).run("no", "Norwegian", "nb-NO", 1);
+    db.prepare(
+      "INSERT OR IGNORE INTO languages(code, name, locale, enabled) VALUES (?, ?, ?, ?)",
+    ).run("id", "Bahasa Indonesia", "id-ID", 0);
     return db;
   } catch (error) {
     db.close();

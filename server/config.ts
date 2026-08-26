@@ -59,6 +59,8 @@ export const config = {
   elevenLabsViVoiceName: process.env.ELEVENLABS_VI_VOICE_NAME?.trim() || "Trung Caha",
   elevenLabsNoVoiceId: process.env.ELEVENLABS_NO_VOICE_ID?.trim() || "",
   elevenLabsNoVoiceName: process.env.ELEVENLABS_NO_VOICE_NAME?.trim() || "Norwegian voice",
+  elevenLabsIdVoiceId: process.env.ELEVENLABS_ID_VOICE_ID?.trim() || "3mAVBNEqop5UbHtD8oxQ",
+  elevenLabsIdVoiceName: process.env.ELEVENLABS_ID_VOICE_NAME?.trim() || "Zephlyn",
   elevenLabsModel: process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
   elevenLabsSpeed: numberFromEnv(process.env.ELEVENLABS_SPEED, 1.05),
 };
@@ -80,6 +82,11 @@ const configuredElevenLabsVoices: ElevenLabsVoiceOption[] = [
     name: config.elevenLabsNoVoiceName,
     languages: ["no"] as LanguageCode[],
   }] : []),
+  {
+    id: config.elevenLabsIdVoiceId,
+    name: config.elevenLabsIdVoiceName,
+    languages: ["id"] as LanguageCode[],
+  },
 ];
 
 export const elevenLabsVoices = [...configuredElevenLabsVoices.reduce((voices, voice) => {

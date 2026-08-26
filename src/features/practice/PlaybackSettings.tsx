@@ -1,3 +1,4 @@
+import { requiresStrictElevenLabs } from "../../../contracts/api";
 import { speedRangeForProvider } from "../../lib/playbackSettings";
 import type { ElevenLabsConfig, Language, PlaybackPreferences } from "../../shared/contracts";
 
@@ -27,7 +28,7 @@ export function PlaybackSettings(props: {
       } : { ...props.playback, provider, voice });
     }} value={props.playback.provider === "elevenlabs"
       ? `elevenlabs:${selectedElevenLabsVoice.id}` : `openai:${props.playback.voice}`}>
-      {props.language !== "vi" && props.language !== "no" ? props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>) : null}
+      {!requiresStrictElevenLabs(props.language) ? props.voices.map((voice) => <option key={voice} value={`openai:${voice}`}>OpenAI · {voice}</option>) : null}
       {!compatibleElevenLabsVoices.length ? <option value="elevenlabs:" disabled>No compatible voice configured</option> : null}
       {compatibleElevenLabsVoices.map((voice) =>
         <option key={voice.id} value={`elevenlabs:${voice.id}`}>ElevenLabs · {voiceDisplayName(voice.name)}</option>)}

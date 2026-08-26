@@ -7,8 +7,8 @@ This file contains only current state and follow-up work. Start with [AGENTS.md]
 - Roman and Oliver authenticate through fixed PIN profiles with independent SQLite databases, Library data, Tutor history, scheduling, settings, audio cache, and backups.
 - An initialized registry fails closed if either profile database disappears. Ordered schema migrations run once through `schema_migrations`.
 - LLM roles are pinned to Sol, Terra, and Luna. Roman retains the established personal context; Oliver receives a neutral persona. Prompt and output budgets are enforced, and model checks are manual.
-- English and Latvian remain enabled by default. Vietnamese support is profile-gated and migrates in disabled; the first intended enablement is Oliver only.
-- ElevenLabs remains the primary configured English voice. Vietnamese requires its configured ElevenLabs voice with Flash v2.5 and has no automatic English or browser fallback.
+- English and Latvian remain enabled by default. Vietnamese and Indonesian support are profile-gated and migrate in disabled; Norwegian remains enabled for existing profiles.
+- ElevenLabs remains the primary configured English voice. Vietnamese, Norwegian, and Indonesian require language-verified voices with Flash v2.5 and have no automatic English or browser fallback.
 - The PWA keeps already loaded cards visible during network loss and stores one unsent Capture recording per profile and language in IndexedDB until server confirmation.
 - Library supports checkbox multi-selection with atomic batch deletion. Tutor Chat supports transient voice transcription with in-page Retry/Delete recovery and an upward-resizing composer. Listen & Repeat prepares per-card MP3s into phone memory, reports pocket readiness, and supports explicit Loop, Shuffle, and adaptive speaking pauses.
 - The client shell delegates learning data and audio playback to feature hooks. Server tests are split by domain, legacy repository wrappers are gone, and TypeScript rejects unused locals and parameters.
@@ -44,8 +44,10 @@ The focused API suites cover authorization, profile isolation, Practice, Tutor, 
 
 ## Next coordinated work
 
-1. After the Vietnamese-capable release is healthy, configure the existing Vietnamese ElevenLabs voice, obtain separate approval for one paid smoke test, and only then enable `vi` for Oliver with the documented command.
-2. Run the physical iPhone acceptance gate for the Vietnamese keyboard, diacritics, Recall, Safari/Home Screen playback, Media Session, locked-screen audio, and network-error recovery.
-3. Keep the archived legacy database and pre-enable profile backups until Roman and Oliver complete production acceptance.
-4. On a physical iPhone in Brave, run a 20-card Listen & Repeat stack for at least three locked-screen loops and flag any transition longer than its adaptive pause plus two seconds.
-5. Treat `focusTerms` highlighting in cards as a separate UI task; the stored data already exists.
+1. After the Indonesian-capable release is healthy, confirm the saved Indonesian voice metadata, obtain separate approval for one paid smoke test, and only then enable `id` for the intended profile with the documented command.
+2. Run the physical iPhone acceptance gate for Indonesian text entry, Recall, Safari/Home Screen playback, Media Session, locked-screen audio, and network-error recovery.
+3. After the Vietnamese-capable release is healthy, configure the existing Vietnamese ElevenLabs voice, obtain separate approval for one paid smoke test, and only then enable `vi` for Oliver with the documented command.
+4. Run the physical iPhone acceptance gate for the Vietnamese keyboard, diacritics, Recall, Safari/Home Screen playback, Media Session, locked-screen audio, and network-error recovery.
+5. Keep the archived legacy database and pre-enable profile backups until Roman and Oliver complete production acceptance.
+6. On a physical iPhone in Brave, run a 20-card Listen & Repeat stack for at least three locked-screen loops and flag any transition longer than its adaptive pause plus two seconds.
+7. Treat `focusTerms` highlighting in cards as a separate UI task; the stored data already exists.

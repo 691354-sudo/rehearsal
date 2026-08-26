@@ -1,4 +1,4 @@
-export type LanguageCode = "en" | "lv" | "vi" | "no";
+export type LanguageCode = "en" | "lv" | "vi" | "no" | "id";
 export type LanguageOption = {
   code: LanguageCode;
   label: string;
@@ -11,11 +11,18 @@ export const languageCatalog = {
   lv: { code: "lv", label: "Latviešu", locale: "lv-LV", capabilities: { audio: false } },
   vi: { code: "vi", label: "Vietnamese", locale: "vi-VN", capabilities: { audio: true } },
   no: { code: "no", label: "Norwegian", locale: "nb-NO", capabilities: { audio: true } },
+  id: { code: "id", label: "Bahasa Indonesia", locale: "id-ID", capabilities: { audio: true } },
 } as const satisfies Record<LanguageCode, LanguageOption>;
 
 export const languageCodes = Object.keys(languageCatalog) as LanguageCode[];
 export const isLanguageCode = (value: unknown): value is LanguageCode =>
   typeof value === "string" && Object.hasOwn(languageCatalog, value);
+export const strictElevenLabsLanguageCodes = ["vi", "no", "id"] as const;
+export type StrictElevenLabsLanguageCode = typeof strictElevenLabsLanguageCodes[number];
+export const requiresStrictElevenLabs = (
+  language: LanguageCode,
+): language is StrictElevenLabsLanguageCode =>
+  strictElevenLabsLanguageCodes.includes(language as StrictElevenLabsLanguageCode);
 export type ItemKind = "phrase" | "island_line" | "correction" | "story_line";
 export type ItemStatus = "new" | "learning" | "strong";
 export type ItemPreference = "like" | "neutral" | "dislike";
