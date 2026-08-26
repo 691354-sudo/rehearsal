@@ -42,6 +42,8 @@ Prompt behavior has a separate paid, non-mutating manual evaluation over synthet
 CONFIRM_PROMPT_EVAL=1 npm run prompts:check
 ```
 
+Tutor uses a stable per-thread prompt-cache key so repeated history can be billed as cached input when OpenAI finds the same prefix. Each completed Tutor reply records and logs input, cache-write, cached-input, output, and reasoning token counts for cost diagnosis without logging message text.
+
 All LLM material remains a draft until the user confirms it. Prompt sources, Tutor history, individual messages, and model output have server-side size limits. API keys never reach browser JavaScript.
 
 ## Data and checks

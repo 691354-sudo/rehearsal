@@ -106,8 +106,11 @@ export class TutorService {
     private readonly repository: TutorRepositories,
     private readonly openaiService: OpenAIService,
     private readonly includeEchoProductGuide = false,
+    client?: OpenAI | null,
   ) {
-    this.client = openaiService.configured ? new OpenAI({ apiKey: config.openaiApiKey }) : null;
+    this.client = client === undefined
+      ? openaiService.configured ? new OpenAI({ apiKey: config.openaiApiKey }) : null
+      : client;
   }
 
   async chat(input: { language: LanguageCode; message: string; threadPublicId?: string; clientMessageId: string }) {
@@ -142,7 +145,7 @@ export class TutorService {
     }
 
     const history = recentMessagesWithinBudget(
-      this.repository.tutor.getMessages(thread.id, 30),
+      this.repository.tutor.getMessages(thread.id, aiLimits.tutorHistoryMessages),
       aiLimits.tutorHistoryCharacters,
     );
     const model = config.tutorModel;
@@ -151,16 +154,39 @@ export class TutorService {
       content: message.content,
     }));
     const toolCalls: Array<{ name: string; result: unknown }> = [];
+    const usage = {
+      requests: 0,
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      cacheWriteTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      totalTokens: 0,
+    };
+    const createResponse = async () => {
+      const next = await this.client!.responses.create({
+        model,
+        reasoning: { effort: "low" },
+        instructions: tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide),
+        input: modelInput,
+        tools,
+        parallel_tool_calls: false,
+        max_output_tokens: aiLimits.tutorOutputTokens,
+        prompt_cache_key: `tutor:${thread.publicId}`,
+      });
+      usage.requests += 1;
+      if (next.usage) {
+        usage.inputTokens += next.usage.input_tokens;
+        usage.cachedInputTokens += next.usage.input_tokens_details.cached_tokens;
+        usage.cacheWriteTokens += next.usage.input_tokens_details.cache_write_tokens;
+        usage.outputTokens += next.usage.output_tokens;
+        usage.reasoningTokens += next.usage.output_tokens_details.reasoning_tokens;
+        usage.totalTokens += next.usage.total_tokens;
+      }
+      return next;
+    };
 
-    let response = await this.client.responses.create({
-      model,
-      reasoning: { effort: "low" },
-      instructions: tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide),
-      input: modelInput,
-      tools,
-      parallel_tool_calls: false,
-      max_output_tokens: aiLimits.tutorOutputTokens,
-    });
+    let response = await createResponse();
 
     for (let round = 0; round < 4; round += 1) {
       const calls = response.output.filter((item) => item.type === "function_call");
@@ -176,25 +202,24 @@ export class TutorService {
           output: JSON.stringify(result),
         });
       }
-      response = await this.client.responses.create({
-        model,
-        reasoning: { effort: "low" },
-        instructions: tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide),
-        input: modelInput,
-        tools,
-        parallel_tool_calls: false,
-        max_output_tokens: aiLimits.tutorOutputTokens,
-      });
+      response = await createResponse();
     }
 
     const content = response.output_text.trim() || "Done.";
+    const context = {
+      historyMessages: history.length,
+      historyCharacters: history.reduce((characters, message) => characters + message.content.length, 0),
+    };
     this.repository.tutor.addMessage(thread.id, "assistant", content, {
       clientMessageId: input.clientMessageId,
       mode: "openai",
       responseId: response.id,
       model,
       toolCalls: toolCalls.map((call) => call.name),
+      usage,
+      context,
     });
+    console.info(JSON.stringify({ event: "tutor_openai_usage", model, threadId: thread.publicId, usage, context }));
     return { threadId: thread.publicId, content, mode: "openai" as const, toolCalls };
   }
 
