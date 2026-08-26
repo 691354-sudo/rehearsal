@@ -8,7 +8,7 @@ web
 
 ## Users
 
-Echo is a private language-learning tool for a small invited group. Learners use it in short daily sessions on desktop and as an installed phone PWA, often moving between capture, listening, written recall, and library maintenance.
+Echo is a private language-learning tool for a small invited group. Learners use it in short daily sessions in desktop/mobile browsers, as an installed phone PWA, and inside the Telegram iPhone Mini App, often moving between capture, listening, written recall, and library maintenance.
 
 ## Product Purpose
 
@@ -32,7 +32,7 @@ The product rehearses the users' own language and situations rather than a gener
 - FSRS owns future due dates; the focused queue may repeat Again and Hard cards within the current session.
 - Tutor and ingestion produce drafts that require explicit user approval before Library mutation.
 - One audio element and cached responses support playback; browser speech is the fallback.
-- The installed PWA must not require a keyboard, hover, or right-click for core flows.
+- The installed PWA and Telegram Mini App must not require a keyboard, hover, or right-click for core flows.
 - Record and Compare is deferred and is not part of the current product.
 
 ## Brand Commitments
@@ -45,9 +45,9 @@ The product rehearses the users' own language and situations rather than a gener
 
 - Canonical methodology: `docs/METHOD.md`.
 - Architecture and product boundaries: `docs/ARCHITECTURE.md`.
-- Mobile and PWA direction: `docs/MOBILE_APP_DIRECTION.md`.
+- Mobile browser, PWA, and Telegram Mini App direction: `docs/MOBILE_APP_DIRECTION.md`.
 - Current visual rules and theme values: `DESIGN.md` and `src/styles/base.css`.
-- The repository contains the working Practice, Tutor, Notebook, Library, Settings, profile gate, and PWA implementation.
+- The repository contains the working Practice, Tutor, Notebook, Library, Settings, profile gate, PWA, Telegram Mini App bridge, and bot runtime.
 
 ## Product Principles
 

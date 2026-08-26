@@ -6,6 +6,9 @@ import { config } from "./config.js";
 import { seedDatabase } from "./db/seed.js";
 import { ProfileManager, profileIds } from "./profiles/manager.js";
 import { shouldServeAppShell } from "./static-shell.js";
+import { TelegramEchoBot } from "./telegram/bot.js";
+import { TelegramHttpClient } from "./telegram/client.js";
+import { TelegramPollingRuntime } from "./telegram/polling.js";
 
 const profiles = await ProfileManager.create({
   dataDir: config.dataDir,
@@ -22,6 +25,7 @@ for (const profileId of profileIds) {
 }
 
 const app = await buildApp(profiles);
+let telegram: TelegramPollingRuntime | null = null;
 const distPath = path.resolve(process.cwd(), "dist");
 
 if (fs.existsSync(distPath)) {
@@ -39,6 +43,7 @@ if (fs.existsSync(distPath)) {
 }
 
 const shutdown = async () => {
+  await telegram?.stop();
   await app.close();
   profiles.close();
   process.exit(0);
@@ -49,3 +54,25 @@ process.on("SIGTERM", () => void shutdown());
 
 await app.listen({ host: config.host, port: config.port });
 app.log.info(`Rehearsal API ready at http://${config.host}:${config.port}`);
+
+if (config.telegramBotToken) {
+  if (!config.telegramAllowedProfileIds.length) {
+    throw new Error("TELEGRAM_ALLOWED_PROFILE_IDS is required when Telegram polling is enabled");
+  }
+  for (const profileId of config.telegramAllowedProfileIds) {
+    if (!profiles.hasProfile(profileId)) throw new Error(`Telegram profile is unavailable: ${profileId}`);
+  }
+  if (!/^https:\/\//.test(config.telegramMiniAppUrl)) {
+    throw new Error("TELEGRAM_MINI_APP_URL must be an HTTPS URL when Telegram polling is enabled");
+  }
+  const telegramClient = new TelegramHttpClient(config.telegramBotToken);
+  const telegramBot = new TelegramEchoBot(
+    profiles,
+    telegramClient,
+    config.telegramMiniAppUrl,
+    config.telegramAllowedProfileIds,
+  );
+  telegram = new TelegramPollingRuntime(telegramClient, telegramBot, config.telegramMiniAppUrl);
+  await telegram.start();
+  app.log.info("Telegram bot polling started");
+}

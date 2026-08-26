@@ -27,6 +27,7 @@ export type TutorRoute = RouteBase & {
   section: "tutor";
   mode: "chat" | "notebook";
   thread: string | null;
+  review: string | null;
 };
 
 export type LibraryRoute = RouteBase & {
@@ -103,6 +104,7 @@ export function parseAppRoute(
       section: "tutor",
       mode: path.endsWith("notebook") ? "notebook" : "chat",
       thread: path.endsWith("notebook") ? null : uuidOrNull(params, "thread"),
+      review: path.endsWith("notebook") ? null : uuidOrNull(params, "review"),
       language,
       settings,
       ...tourState,
@@ -172,6 +174,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
   } else if (route.section === "tutor") {
     path = route.mode === "chat" ? "tutor" : "tutor/notebook";
     if (route.mode === "chat" && route.thread) params.set("thread", route.thread);
+    if (route.mode === "chat" && route.review) params.set("review", route.review);
   } else {
     path = route.view === "topics" ? "library/topics" : "library";
     if (route.query) params.set("q", route.query);
@@ -216,6 +219,7 @@ export const defaultTutorRoute = (language: Language): TutorRoute => ({
   section: "tutor",
   mode: "chat",
   thread: null,
+  review: null,
   language,
   settings: false,
 });

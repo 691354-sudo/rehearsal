@@ -1,6 +1,6 @@
 .simple-card-dialog {
   width: min(620px, calc(100% - 28px));
-  max-height: min(760px, calc(100dvh - 28px));
+  max-height: min(760px, calc(var(--echo-viewport-height) - 28px));
   padding: 0;
   overflow: hidden;
   color: var(--script-ink);

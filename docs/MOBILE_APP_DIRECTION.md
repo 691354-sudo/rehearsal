@@ -12,6 +12,8 @@ deployment. The application shell and API share one origin and deployment base
 path. Do not add native wrappers or abstractions without a separately approved
 native-only requirement.
 
+The same responsive client also runs as a native Telegram iPhone Mini App. Telegram is a container and authenticated entry point, not a fork of the interface: it opens the existing mobile Tutor, Notebook, Library, Practice, and review routes against the same API and profile data.
+
 ## Rules for future changes
 
 - Keep every core flow fully usable by touch. Desktop keyboard shortcuts remain
@@ -90,6 +92,15 @@ not a general offline queue or offline learning store.
   and protect unfinished input. Tutor and Notebook drafts are restored from
   profile-scoped session storage after reload or Back.
 
+## Telegram Mini App
+
+- Load the official Telegram Web App bridge from `https://telegram.org`; call `ready()` and `expand()` after bootstrap.
+- Exchange validated `initData` for the ordinary profile cookie. An unconnected Telegram user sees the existing profile choice and enters that profile's PIN once.
+- Combine Telegram viewport, safe-area, and content-safe-area values with iOS CSS environment insets. Core controls remain at least 44 px and must not depend on hover.
+- Show Telegram's native BackButton only after the in-app route stack has a previous Echo entry. Initial deep links stay stable.
+- A Telegram `deactivated` event pauses an actively playing Listen & Repeat queue without discarding it. `activated` never resumes automatically; the learner explicitly taps Resume.
+- Native Telegram on iPhone is the v1 verification target. Telegram Desktop/Web iframe behavior and locked-screen playback are out of scope.
+
 ## Verification gate
 
 Changes to a core flow are not phone-ready until they have been checked at common
@@ -103,5 +114,6 @@ updated deployment. Desktop keyboard regression checks still apply.
 - App Store submission, StoreKit, billing, or public multi-user distribution.
 - SwiftUI or React Native rewrites.
 - Native wrapper packaging before a concrete native-only requirement appears.
+- Telegram Web iframe support or locked-screen Telegram playback.
 - Full offline learning packs or background synchronization unless separately
   scoped and designed.

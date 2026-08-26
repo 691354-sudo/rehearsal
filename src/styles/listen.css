@@ -382,7 +382,7 @@
 @media (max-width: 720px) {
   .simple-main--practice:has(.listen-player) {
     display: flex;
-    height: calc(100dvh - var(--h-header) - var(--h-tabbar) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    height: calc(var(--echo-viewport-height) - var(--h-header) - var(--h-tabbar) - var(--echo-safe-top) - var(--echo-safe-bottom));
     min-height: 0;
     padding: 12px 0 0;
   }
@@ -444,8 +444,8 @@
 
   .simple-main--practice:has(.listen-player.is-settings-open) {
     height: auto;
-    min-height: calc(100dvh - var(--h-header) - var(--h-tabbar) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding-bottom: calc(var(--h-tabbar) + 16px + env(safe-area-inset-bottom));
+    min-height: calc(var(--echo-viewport-height) - var(--h-header) - var(--h-tabbar) - var(--echo-safe-top) - var(--echo-safe-bottom));
+    padding-bottom: calc(var(--h-tabbar) + 16px + var(--echo-safe-bottom));
     overflow: visible;
   }
 
@@ -649,7 +649,7 @@
   .listen-start,
   .recall-start {
     position: sticky;
-    bottom: calc(70px + env(safe-area-inset-bottom));
+    bottom: calc(70px + var(--echo-safe-bottom));
     z-index: 12;
     width: 100%;
     min-height: var(--h-control);

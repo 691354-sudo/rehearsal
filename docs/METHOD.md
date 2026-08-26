@@ -82,6 +82,12 @@ Pressing Enter clears the composer immediately, puts the learner's message into 
 
 Tutor and Notebook have the same card-preparation capabilities. Their difference is interaction context: Tutor can clarify and refine a request across a dialogue, while Notebook treats the ready notes as one direct request plus its source material.
 
+### Telegram bot and Mini App
+
+Telegram is another entry point into the same profile and learning cycle, not a separate course or Library. In the private bot chat, Notebook is the default: text, captions, `.txt` files, and supported voice/audio/video messages become profile-local Notebook notes. `Tutor` starts a new internal Tutor session inside the same bot chat; Tutor media is transcribed only for that message and never becomes a Notebook note. Each Telegram account keeps its own active mode, language, and Tutor thread even when several accounts are connected to the same Echo profile.
+
+`Prepare cards` and `Finish & review` create draft review batches only. The learner opens the existing Notebook or Tutor review in the Mini App and must explicitly add selected cards before Library changes. The Mini App then exposes the same Library, Practice, Recall, and foreground Listen & Repeat behavior as the mobile web product. Leaving the Mini App pauses an active Listen queue and returning requires an explicit Resume; locked-screen Telegram playback is not part of this release.
+
 | Input | Tutor `Finish & review` | Notebook review |
 | --- | --- | --- |
 | Ordinary conversation | A small set of meaningful corrections, attempted phrases, and reusable patterns | Not applicable |
@@ -132,4 +138,4 @@ These role assignments are pinned. `npm run models:check` can manually verify th
 
 ## Deferred on purpose
 
-Pronunciation scoring, App Store distribution, fully native mobile rewrites, offline packs, open public registration, and profile administration are not current requirements. The phone delivery is the installed Home Screen PWA in standalone mode; interaction and layout rules live in `docs/MOBILE_APP_DIRECTION.md`.
+Pronunciation scoring, App Store distribution, fully native mobile rewrites, Telegram Web iframe support, locked-screen Telegram playback, offline packs, open public registration, and general profile administration are not current requirements. Phone interaction and layout rules live in `docs/MOBILE_APP_DIRECTION.md`.

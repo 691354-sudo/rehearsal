@@ -539,7 +539,7 @@
 .simple-main--chat {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  height: calc(100dvh - 58px);
+  height: calc(var(--echo-viewport-height) - 58px);
   max-width: none;
   padding: 24px 0;
 }

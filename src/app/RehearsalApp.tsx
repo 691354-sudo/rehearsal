@@ -40,6 +40,7 @@ import type {
   Theme,
 } from "../shared/contracts";
 import { AppLink } from "./AppLink";
+import { configureTelegramBackButton } from "../lib/telegramMiniApp";
 
 export function RehearsalApp({
   availableLanguages,
@@ -78,6 +79,8 @@ export function RehearsalApp({
   const language = route.language;
   const learning = useLearningData(language);
   const audio = usePlaybackController(profile.id, language);
+
+  useEffect(() => configureTelegramBackButton(Boolean(window.history.state?.rehearsal)), [route]);
 
   useEffect(() => {
     if (!followSystemTheme) window.localStorage.setItem(storageKey("theme"), theme);

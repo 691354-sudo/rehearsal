@@ -18,6 +18,9 @@ services:
       OLIVER_PROFILE_PIN_FILE: /run/rehearsal-secrets/oliver_profile_pin
       ZANNA_PROFILE_PIN_FILE: /run/rehearsal-secrets/zanna_profile_pin
       SESSION_SECRET_FILE: /run/rehearsal-secrets/session_secret
+      TELEGRAM_BOT_TOKEN_FILE: /run/rehearsal-secrets/telegram_bot_token
+      TELEGRAM_ALLOWED_PROFILE_IDS_FILE: /run/rehearsal-secrets/telegram_allowed_profile_ids
+      TELEGRAM_MINI_APP_URL: https://7662n.cc/rehearsal/
       SESSION_COOKIE_SECURE: "true"
       TRUST_PROXY: 127.0.0.1
     ports:

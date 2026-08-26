@@ -22,6 +22,7 @@ import { TopicProgressPicker } from "./TopicProgressPicker";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 import { RepeatModeButton } from "./RepeatModeButton";
 import { ListenPlayerSurface } from "./ListenPlayerSurface";
+import { useTelegramPlaybackPause } from "./useTelegramPlaybackPause";
 export function ListenRepeat(props: {
   count: PracticeCardCount;
   dueItemIds: string[];
@@ -117,7 +118,6 @@ export function ListenRepeat(props: {
   const selectedTopicName = props.topics.find((topic) => topic.publicId === props.topicId)?.title || "All Topics";
   const playbackSettings = <PlaybackSettings elevenLabs={props.elevenLabs} language={props.language}
     onPlayback={props.onPlayback} playback={props.playback} voices={props.voices} />;
-
   const bufferKey = (item: LearningItem, playback: PlaybackPreferences) =>
     `${playbackIdentity(props.language, playback)}:${item.publicId}:${item.target}`;
 
@@ -134,7 +134,6 @@ export function ListenRepeat(props: {
     setReadyCount(0);
     setPreparationTotal(0);
   };
-
   const cancelPreparation = (releaseBuffers = false) => {
     preparationRunRef.current += 1;
     for (const jobId of preparationJobRef.current) {
@@ -143,7 +142,6 @@ export function ListenRepeat(props: {
     preparationJobRef.current.clear();
     if (releaseBuffers) clearBuffers();
   };
-
   const ensureBuffered = (item: LearningItem, playback: PlaybackPreferences) => {
     const key = bufferKey(item, playback);
     const ready = buffersRef.current.get(key);
@@ -167,7 +165,6 @@ export function ListenRepeat(props: {
     downloadsRef.current.set(key, download);
     return download;
   };
-
   const pumpPreparation = async (
     jobId: string,
     items: LearningItem[],
@@ -195,7 +192,6 @@ export function ListenRepeat(props: {
       await new Promise((resolve) => window.setTimeout(resolve, missing.length ? 0 : 400));
     }
   };
-
   const beginPreparation = async (
     items: LearningItem[],
     playback: PlaybackPreferences,
@@ -397,6 +393,10 @@ export function ListenRepeat(props: {
       }
     };
   }, []);
+  useTelegramPlaybackPause(phase, status, () => {
+    actionsRef.current.pause();
+    setNote("Paused when Echo left the foreground. Tap Resume to continue.");
+  });
   useEffect(() => () => {
     runRef.current += 1;
     props.onStop();

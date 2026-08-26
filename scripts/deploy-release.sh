@@ -8,6 +8,8 @@ readonly DEPLOY_SHA="${DEPLOY_SHA:?DEPLOY_SHA is required}"
 readonly PRODUCTION_URL="${PRODUCTION_URL:?PRODUCTION_URL is required}"
 readonly RELEASE_DIR="${RELEASES_DIR}/${DEPLOY_SHA}"
 readonly COMPOSE_FILE="${RELEASE_DIR}/compose.production.yml"
+readonly NGINX_SNIPPET="/etc/nginx/snippets/rehearsal-location.conf"
+readonly RELEASE_NGINX_SNIPPET="${RELEASE_DIR}/deploy/nginx-rehearsal-location.conf"
 
 if [[ ! "${DEPLOY_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
   echo "DEPLOY_SHA must be a full Git commit SHA" >&2
@@ -27,7 +29,11 @@ for required_path in \
   "${APP_ROOT}/secrets/roman_profile_pin" \
   "${APP_ROOT}/secrets/oliver_profile_pin" \
   "${APP_ROOT}/secrets/zanna_profile_pin" \
-  "${APP_ROOT}/secrets/session_secret"; do
+  "${APP_ROOT}/secrets/session_secret" \
+  "${APP_ROOT}/secrets/telegram_bot_token" \
+  "${APP_ROOT}/secrets/telegram_allowed_profile_ids" \
+  "${NGINX_SNIPPET}" \
+  "${RELEASE_NGINX_SNIPPET}"; do
   if [[ ! -e "${required_path}" ]]; then
     echo "Required production path is missing: ${required_path}" >&2
     exit 2
@@ -35,6 +41,9 @@ for required_path in \
 done
 
 previous_release=""
+nginx_backup="$(mktemp /tmp/rehearsal-nginx.XXXXXX)"
+nginx_changed=false
+install -m 600 "${NGINX_SNIPPET}" "${nginx_backup}"
 if [[ -L "${CURRENT_LINK}" ]]; then
   previous_release="$(readlink -f "${CURRENT_LINK}")"
 elif [[ -f "${APP_ROOT}/compose.production.yml" ]]; then
@@ -67,6 +76,11 @@ rollback() {
   else
     echo "No previous release is available for automatic rollback" >&2
   fi
+  if [[ "${nginx_changed}" == "true" ]]; then
+    install -m 644 "${nginx_backup}" "${NGINX_SNIPPET}"
+    nginx -t && systemctl reload nginx || true
+  fi
+  rm -f "${nginx_backup}"
   exit "${exit_code}"
 }
 
@@ -81,6 +95,12 @@ compose run --rm --no-deps app npm run db:backup
 echo "Starting release ${DEPLOY_SHA}"
 compose up -d --remove-orphans
 wait_for_local_health
+
+echo "Installing the reviewed nginx location"
+install -m 644 "${RELEASE_NGINX_SNIPPET}" "${NGINX_SNIPPET}"
+nginx_changed=true
+nginx -t
+systemctl reload nginx
 curl -fsS "${PRODUCTION_URL%/}/health" >/dev/null
 
 ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}.next"
@@ -101,4 +121,5 @@ for release in "${old_releases[@]}"; do
 done
 
 trap - ERR
+rm -f "${nginx_backup}"
 echo "Release ${DEPLOY_SHA} is healthy"

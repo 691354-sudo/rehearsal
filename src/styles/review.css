@@ -704,7 +704,7 @@
   .simple-review-batch > footer {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    bottom: calc(var(--h-tabbar) + env(safe-area-inset-bottom));
+    bottom: calc(var(--h-tabbar) + var(--echo-safe-bottom));
     gap: 10px;
     justify-content: stretch;
   }

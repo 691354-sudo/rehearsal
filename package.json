@@ -23,6 +23,7 @@
     "db:replace-library": "node --import tsx scripts/db-replace-library.ts",
     "db:delete-orphans": "node --import tsx scripts/db-delete-orphan-items.ts",
     "db:set-language": "node --import tsx scripts/db-set-language.ts",
+    "db:telegram-bindings": "node --import tsx scripts/db-telegram-bindings.ts",
     "models:check": "node --import tsx scripts/check-openai-models.ts",
     "ai-usage:report": "node --import tsx scripts/ai-usage-report.ts",
     "prompts:check": "node --import tsx scripts/check-material-prompts.ts",

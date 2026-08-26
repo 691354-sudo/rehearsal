@@ -15,6 +15,7 @@ import { EchoLockup } from "../../app/EchoBrand";
 import { defaultPracticeRoute, serializeAppRoute } from "../../lib/appRoute";
 import { apiFetch, setCsrfToken } from "../../shared/api";
 import type { Theme } from "../../shared/contracts";
+import { isTelegramMiniApp, telegramInitData } from "../../lib/telegramMiniApp";
 import {
   isOnboardingLocation,
   onboardingHref,
@@ -43,6 +44,7 @@ export function ProfileGate() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const telegram = isTelegramMiniApp();
   const pinRef = useRef<HTMLInputElement>(null);
   const [joinLanguages, setJoinLanguages] = useState<LanguageOption[]>([]);
   const [joinAvailable, setJoinAvailable] = useState<boolean | null>(invitationToken ? null : false);
@@ -146,6 +148,32 @@ export function ProfileGate() {
           }
           return;
         }
+        if (telegram) {
+          const telegramResponse = await apiFetch("/api/auth/telegram/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ initData: telegramInitData() }),
+          });
+          if (telegramResponse.ok) {
+            applySession(await telegramResponse.json() as AuthSession);
+            return;
+          }
+          const failure = await telegramResponse.json().catch(() => null) as {
+            error?: string;
+            profiles?: ProfileSummary[];
+          } | null;
+          if (failure?.error === "TELEGRAM_BINDING_REQUIRED") {
+            const allowed = failure.profiles || [];
+            setProfiles(allowed);
+            if (allowed[0]) setSelected(allowed[0].id);
+            if (!allowed.length) setError("This Telegram bot is not enabled for any Echo profile yet.");
+            return;
+          }
+          setError(failure?.error === "TELEGRAM_INIT_DATA_EXPIRED"
+            ? "Reopen Echo from Telegram to continue."
+            : "Telegram sign-in could not be verified.");
+          return;
+        }
         const response = await apiFetch("/api/auth/session");
         if (response.ok) {
           const session = await response.json() as AuthSession;
@@ -231,15 +259,20 @@ export function ProfileGate() {
     setSubmitting(true);
     setError("");
     try {
-      const response = await apiFetch(replayInvite ? "/api/auth/pilot-replay" : "/api/auth/login", {
+      const response = await apiFetch(telegram ? "/api/auth/telegram/bind"
+        : replayInvite ? "/api/auth/pilot-replay" : "/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(replayInvite ? { token: invitationToken, pin } : { profileId: selected, pin }),
+        body: JSON.stringify(telegram
+          ? { initData: telegramInitData(), profileId: selected, pin }
+          : replayInvite ? { token: invitationToken, pin } : { profileId: selected, pin }),
       });
       if (!response.ok) {
         setError(response.status === 429
           ? replayInvite ? "Слишком много попыток. Попробуйте снова через 15 минут." : "Too many attempts. Try again in 15 minutes."
-          : replayInvite ? "Неверный PIN тестового профиля." : "Incorrect PIN.");
+          : response.status === 409 ? "This Telegram account is already connected to another Echo profile."
+            : response.status === 403 ? "This profile is not enabled for this test bot."
+              : replayInvite ? "Неверный PIN тестового профиля." : "Incorrect PIN.");
         window.requestAnimationFrame(() => pinRef.current?.focus());
         return;
       }
@@ -354,8 +387,9 @@ export function ProfileGate() {
   return <main className={`profile-gate${replayInvite ? " profile-gate--pilot-theme" : ""}`} id="main-content">
     <section className="profile-card">
       <EchoLockup className="profile-echo-lockup" />
-      <header><span>Say it until it’s yours.</span><h1>{replayInvite ? "Открыть тестовый онбординг" : "Choose your profile"}</h1>
-        <p>{replayInvite ? "Введите PIN, который вы задали при создании тестового профиля Echo. Карточки и данные не будут созданы повторно."
+      <header><span>Say it until it’s yours.</span><h1>{telegram ? "Connect Telegram to Echo" : replayInvite ? "Открыть тестовый онбординг" : "Choose your profile"}</h1>
+        <p>{telegram ? "Choose your Echo profile and enter its PIN once. This Telegram account will reconnect automatically."
+          : replayInvite ? "Введите PIN, который вы задали при создании тестового профиля Echo. Карточки и данные не будут созданы повторно."
           : "Your practice, Tutor history, and settings stay separate."}</p></header>
       {replayInvite ? <div className="profile-replay-identity">
         <UserRoundCheck aria-hidden="true" size={22} />
@@ -374,7 +408,8 @@ export function ProfileGate() {
           }} name="pin" pattern="[0-9]{4,12}" placeholder={replayInvite ? "Например: 1234…" : "For example: 1234…"} ref={pinRef} type="password" value={pin} /></div>
         {error ? <p className="profile-error" id="profile-pin-error" role="alert">{error}</p> : null}
         <button className="profile-submit" disabled={submitting} type="submit">
-          {submitting ? <LoaderCircle className="simple-spin" size={17} /> : null}{replayInvite ? "Открыть онбординг" : `Continue as ${profiles.find((candidate) => candidate.id === selected)?.name || "profile"}`}
+          {submitting ? <LoaderCircle className="simple-spin" size={17} /> : null}{telegram ? "Connect Telegram"
+            : replayInvite ? "Открыть онбординг" : `Continue as ${profiles.find((candidate) => candidate.id === selected)?.name || "profile"}`}
         </button>
       </form>
     </section>

@@ -373,7 +373,7 @@
 .simple-main:has(.simple-library-panel--main):not(:has(.simple-library-secondary, .simple-review-batch)) {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 58px);
+  height: calc(var(--echo-viewport-height) - 58px);
   padding-bottom: 24px;
 }
 
@@ -501,7 +501,7 @@
   .simple-main:has(.simple-library-panel--main):not(:has(.simple-library-secondary, .simple-review-batch)) {
     display: block;
     height: auto;
-    min-height: calc(100dvh - 58px);
+    min-height: calc(var(--echo-viewport-height) - 58px);
   }
   .simple-main:has(.simple-library-panel--main):not(:has(.simple-library-secondary, .simple-review-batch)) .simple-library-panel--main {
     display: block;

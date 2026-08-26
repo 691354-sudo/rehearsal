@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   isLanguageCode,
@@ -9,6 +9,7 @@ import {
 } from "../../contracts/api.js";
 import type { HttpDependencies } from "../http/dependencies.js";
 import type { ProfileId } from "../profiles/manager.js";
+import { TelegramInitDataError, validateTelegramInitData } from "../telegram/init-data.js";
 import { LoginRateLimiter } from "./rate-limit.js";
 
 export const sessionCookieName = "rehearsal_session";
@@ -19,11 +20,14 @@ const publicAuthPath = (request: FastifyRequest) => {
   const pathname = request.url.split("?", 1)[0];
   return pathname === "/api/auth/profiles" || pathname === "/api/auth/login"
     || pathname === "/api/auth/join" || pathname === "/api/auth/pilot-replay"
+    || pathname === "/api/auth/telegram/session" || pathname === "/api/auth/telegram/bind"
     || (request.method === "GET" && pathname.startsWith("/api/auth/invites/"));
 };
 
 type AuthOptions = {
   cookieSecure: boolean;
+  telegramBotToken: string;
+  telegramAllowedProfileIds: readonly string[];
 };
 
 const sessionValue = (profileId: ProfileId) => Buffer.from(JSON.stringify({
@@ -79,7 +83,10 @@ export const registerProfileAuth = (
       void reply.code(403).send({ error: "CLIENT_HEADER_REQUIRED" });
       return;
     }
-    if (["/api/auth/login", "/api/auth/join", "/api/auth/pilot-replay"].includes(request.url)) return done();
+    if ([
+      "/api/auth/login", "/api/auth/join", "/api/auth/pilot-replay",
+      "/api/auth/telegram/session", "/api/auth/telegram/bind",
+    ].includes(request.url)) return done();
     app.csrfProtection(request, reply, done);
   });
 
@@ -116,6 +123,96 @@ export const registerProfileAuth = (
     reply.setCookie(sessionCookieName, sessionValue(body.profileId), cookieOptions);
     const csrfToken = reply.generateCsrf();
     return authSession(body.profileId, csrfToken);
+  });
+
+  const telegramIdentity = (request: FastifyRequest, reply: FastifyReply) => {
+    if (!options.telegramBotToken) {
+      void reply.code(503).send({ error: "TELEGRAM_AUTH_UNAVAILABLE" });
+      return null;
+    }
+    const body = z.object({ initData: z.string().min(1).max(16_000) }).parse(request.body);
+    const key = `${request.ip}:telegram`;
+    const rate = limiter.blocked(key);
+    if (rate.blocked) {
+      void reply.header("Retry-After", rate.retryAfterSeconds).code(429).send({ error: "LOGIN_RATE_LIMITED" });
+      return null;
+    }
+    try {
+      const identity = validateTelegramInitData(body.initData, options.telegramBotToken);
+      limiter.clear(key);
+      return identity;
+    } catch (error) {
+      limiter.fail(key);
+      const code = error instanceof TelegramInitDataError ? error.code : "INVALID_TELEGRAM_INIT_DATA";
+      void reply.code(401).send({ error: code });
+      return null;
+    }
+  };
+
+  const telegramProfileAllowed = (profileId: ProfileId) =>
+    options.telegramAllowedProfileIds.includes(profileId);
+
+  app.post("/api/auth/telegram/session", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const identity = telegramIdentity(request, reply);
+    if (!identity) return;
+    const found = profiles.telegram.get(identity.userId);
+    if (!found || !telegramProfileAllowed(found.profileId)) {
+      return reply.code(401).send({
+        error: "TELEGRAM_BINDING_REQUIRED",
+        profiles: profiles.listProfiles().filter((profile) => telegramProfileAllowed(profile.id)),
+      });
+    }
+    profiles.telegram.update(identity.userId, { chatId: identity.chatId });
+    reply.setCookie(sessionCookieName, sessionValue(found.profileId), cookieOptions);
+    return authSession(found.profileId, reply.generateCsrf());
+  });
+
+  app.post("/api/auth/telegram/bind", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const body = z.object({
+      initData: z.string().min(1).max(16_000),
+      profileId: z.string().min(1).max(64),
+      pin: z.string().regex(/^\d{4,12}$/),
+    }).parse(request.body);
+    if (!options.telegramBotToken) return reply.code(503).send({ error: "TELEGRAM_AUTH_UNAVAILABLE" });
+    const key = `${request.ip}:telegram-bind:${body.profileId}`;
+    const rate = limiter.blocked(key);
+    if (rate.blocked) {
+      return reply.header("Retry-After", rate.retryAfterSeconds).code(429).send({ error: "LOGIN_RATE_LIMITED" });
+    }
+    let identity;
+    try {
+      identity = validateTelegramInitData(body.initData, options.telegramBotToken);
+    } catch (error) {
+      limiter.fail(key);
+      const code = error instanceof TelegramInitDataError ? error.code : "INVALID_TELEGRAM_INIT_DATA";
+      return reply.code(401).send({ error: code });
+    }
+    if (!profiles.hasProfile(body.profileId) || !telegramProfileAllowed(body.profileId)) {
+      return reply.code(403).send({ error: "TELEGRAM_PROFILE_NOT_ALLOWED" });
+    }
+    if (!profiles.verifyPin(body.profileId, body.pin)) {
+      limiter.fail(key);
+      return reply.code(401).send({ error: "INVALID_PROFILE_PIN" });
+    }
+    const enabledLanguages = profiles.get(body.profileId).repository.system.listLanguages();
+    try {
+      profiles.telegram.bind({
+        profileId: body.profileId,
+        userId: identity.userId,
+        chatId: identity.chatId,
+        language: enabledLanguages[0]?.code || "en",
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "TELEGRAM_ID_ALREADY_BOUND") {
+        return reply.code(409).send({ error: error.message });
+      }
+      throw error;
+    }
+    limiter.clear(key);
+    reply.setCookie(sessionCookieName, sessionValue(body.profileId), cookieOptions);
+    return authSession(body.profileId, reply.generateCsrf());
   });
 
   app.post("/api/auth/pilot-replay", async (request, reply) => {

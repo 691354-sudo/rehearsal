@@ -14,7 +14,7 @@
 
 @media (max-width: 720px) {
   .simple-header {
-    height: calc(var(--h-header) + env(safe-area-inset-top));
+    height: calc(var(--h-header) + var(--echo-safe-top));
   }
 
   .simple-brand {
@@ -54,7 +54,7 @@
 
   .simple-mobile-menu {
     position: absolute;
-    top: calc(50px + env(safe-area-inset-top));
+    top: calc(50px + var(--echo-safe-top));
     right: 12px;
     z-index: 33;
     display: grid;
@@ -94,7 +94,7 @@
 
   .simple-update-prompt {
     right: 12px;
-    bottom: calc(74px + env(safe-area-inset-bottom));
+    bottom: calc(74px + var(--echo-safe-bottom));
     left: 12px;
     justify-content: flex-end;
   }
@@ -305,7 +305,7 @@
     font-size: 16px;
   }
   .simple-app select { min-height: var(--h-control); font-size: 15px; }
-  .simple-header { padding: 0; padding-top: env(safe-area-inset-top); }
+  .simple-header { padding: 0; padding-top: var(--echo-safe-top); }
   .simple-header-rail { width: calc(100% - 32px); }
   .simple-header-rail {
     grid-template-columns: minmax(0, 1fr) auto auto;
@@ -332,8 +332,8 @@
     z-index: 20;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    height: calc(var(--h-tabbar) + env(safe-area-inset-bottom));
-    padding: 0 12px env(safe-area-inset-bottom);
+    height: calc(var(--h-tabbar) + var(--echo-safe-bottom));
+    padding: 0 max(12px, var(--echo-safe-right)) var(--echo-safe-bottom) max(12px, var(--echo-safe-left));
     background: var(--rh-surface);
     border-top: 1px solid var(--rh-rule);
   }
@@ -356,7 +356,7 @@
   .simple-nav-icon { display: block; }
 
   .simple-main {
-    padding-bottom: calc(var(--h-tabbar) + 24px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--h-tabbar) + 24px + var(--echo-safe-bottom));
   }
 }
 
