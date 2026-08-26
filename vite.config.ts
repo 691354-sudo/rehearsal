@@ -32,6 +32,7 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{html,js,css,woff2,png,svg}"],
+        globIgnores: ["icons/pwa-*.png"],
         navigateFallbackDenylist: [privatePathPattern, recoveryPathPattern],
         runtimeCaching: [{
           urlPattern: privateUrlPattern,

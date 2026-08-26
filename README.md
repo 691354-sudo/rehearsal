@@ -20,7 +20,7 @@ Set different local profile PINs and a random `SESSION_SECRET` in the untracked 
 - API health: `http://127.0.0.1:8787/health`
 - Isolated Codex browser environment: `npm run dev:codex`
 
-The installed PWA and API use the same origin and deployment base path. OpenAI and ElevenLabs are optional: Recall comparison and FTS search stay local, and ordinary previews may fall back to browser speech. Listen & Repeat keeps its selected server voice strict so a failed ElevenLabs card is never silently pronounced by another provider.
+Desktop/mobile browsers, the installed PWA, Telegram Mini App, and API use the same origin and deployment base path. OpenAI and ElevenLabs are optional: Recall comparison and FTS search stay local, and ordinary previews may fall back to browser speech. Listen & Repeat keeps its selected server voice strict so a failed ElevenLabs card is never silently pronounced by another provider.
 
 ## AI and speech
 
@@ -64,7 +64,7 @@ Once a profile registry exists, a missing registered database stops startup and 
 - [AGENTS.md](AGENTS.md) — starting point and repository rules
 - [docs/METHOD.md](docs/METHOD.md) — product and learning behavior
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — code and data boundaries
-- [docs/MOBILE_APP_DIRECTION.md](docs/MOBILE_APP_DIRECTION.md) — installed PWA and phone constraints
+- [docs/MOBILE_APP_DIRECTION.md](docs/MOBILE_APP_DIRECTION.md) — mobile browser, installed PWA, and Telegram Mini App constraints
 - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — branch, PR, and merge workflow
 - [docs/OPERATIONS.md](docs/OPERATIONS.md) — production, backups, restore, and recovery
 - [docs/HANDOFF.md](docs/HANDOFF.md) — current short-lived status

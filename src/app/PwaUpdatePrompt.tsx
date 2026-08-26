@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { registerSW } from "virtual:pwa-register";
+import { isTelegramMiniApp } from "../lib/telegramMiniApp";
 
 export function PwaUpdatePrompt() {
   const [available, setAvailable] = useState(false);
   const updateRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null);
 
   useEffect(() => {
+    if (isTelegramMiniApp()) return;
     updateRef.current = registerSW({
       immediate: true,
       onNeedRefresh: () => setAvailable(true),
