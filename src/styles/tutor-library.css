@@ -734,5 +734,5 @@
 .simple-app .simple-composer-record { width: 36px; min-width: 36px; height: var(--h-tap); min-height: var(--h-tap); }
 
 .simple-main--chat {
-  width: min(1080px, calc(100% - 48px));
+  width: min(1280px, calc(100% - 48px));
 }
