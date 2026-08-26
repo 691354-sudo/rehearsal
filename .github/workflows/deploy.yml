@@ -101,6 +101,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWED_PROFILE_IDS: ${{ secrets.TELEGRAM_ALLOWED_PROFILE_IDS }}
           TELEGRAM_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_ALLOWED_USER_IDS }}
+          TELEGRAM_USER_PROFILE_ACCESS: ${{ secrets.TELEGRAM_USER_PROFILE_ACCESS }}
         run: |
           umask 077
           secret_stage="/tmp/rehearsal-secrets-${GITHUB_RUN_ID}"
@@ -112,6 +113,7 @@ jobs:
           printf '%s' "$TELEGRAM_BOT_TOKEN" > "$secret_stage/telegram_bot_token"
           printf '%s' "$TELEGRAM_ALLOWED_PROFILE_IDS" > "$secret_stage/telegram_allowed_profile_ids"
           printf '%s' "$TELEGRAM_ALLOWED_USER_IDS" > "$secret_stage/telegram_allowed_user_ids"
+          printf '%s' "$TELEGRAM_USER_PROFILE_ACCESS" > "$secret_stage/telegram_user_profile_access"
           remote_stage="/tmp/rehearsal-secrets-${GITHUB_RUN_ID}"
           ssh -i ~/.ssh/rehearsal_deploy "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "install -d -m 700 '$remote_stage' /opt/apps/rehearsal/secrets"
@@ -126,9 +128,10 @@ jobs:
              install -m 600 '$remote_stage/telegram_bot_token' /opt/apps/rehearsal/secrets/telegram_bot_token
              install -m 600 '$remote_stage/telegram_allowed_profile_ids' /opt/apps/rehearsal/secrets/telegram_allowed_profile_ids
              install -m 600 '$remote_stage/telegram_allowed_user_ids' /opt/apps/rehearsal/secrets/telegram_allowed_user_ids
-             rm -f '$remote_stage/roman_profile_pin' '$remote_stage/oliver_profile_pin' '$remote_stage/zanna_profile_pin' '$remote_stage/session_secret' '$remote_stage/telegram_bot_token' '$remote_stage/telegram_allowed_profile_ids' '$remote_stage/telegram_allowed_user_ids'
+             install -m 600 '$remote_stage/telegram_user_profile_access' /opt/apps/rehearsal/secrets/telegram_user_profile_access
+             rm -f '$remote_stage/roman_profile_pin' '$remote_stage/oliver_profile_pin' '$remote_stage/zanna_profile_pin' '$remote_stage/session_secret' '$remote_stage/telegram_bot_token' '$remote_stage/telegram_allowed_profile_ids' '$remote_stage/telegram_allowed_user_ids' '$remote_stage/telegram_user_profile_access'
              rmdir '$remote_stage'"
-          rm -f "$secret_stage/roman_profile_pin" "$secret_stage/oliver_profile_pin" "$secret_stage/zanna_profile_pin" "$secret_stage/session_secret" "$secret_stage/telegram_bot_token" "$secret_stage/telegram_allowed_profile_ids" "$secret_stage/telegram_allowed_user_ids"
+          rm -f "$secret_stage/roman_profile_pin" "$secret_stage/oliver_profile_pin" "$secret_stage/zanna_profile_pin" "$secret_stage/session_secret" "$secret_stage/telegram_bot_token" "$secret_stage/telegram_allowed_profile_ids" "$secret_stage/telegram_allowed_user_ids" "$secret_stage/telegram_user_profile_access"
           rmdir "$secret_stage"
 
       - name: Upload release

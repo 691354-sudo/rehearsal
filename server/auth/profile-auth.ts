@@ -10,6 +10,7 @@ import {
 import type { HttpDependencies } from "../http/dependencies.js";
 import type { ProfileId } from "../profiles/manager.js";
 import { TelegramInitDataError, validateTelegramInitData } from "../telegram/init-data.js";
+import type { TelegramUserProfileAccess } from "../telegram/access.js";
 import { LoginRateLimiter } from "./rate-limit.js";
 
 export const sessionCookieName = "rehearsal_session";
@@ -29,6 +30,7 @@ type AuthOptions = {
   telegramBotToken: string;
   telegramAllowedProfileIds: readonly string[];
   telegramAllowedUserIds: readonly string[];
+  telegramUserProfileAccess: TelegramUserProfileAccess;
 };
 
 const sessionValue = (profileId: ProfileId) => Buffer.from(JSON.stringify({
@@ -150,10 +152,13 @@ export const registerProfileAuth = (
     }
   };
 
-  const telegramProfileAllowed = (profileId: ProfileId) =>
-    options.telegramAllowedProfileIds.includes(profileId);
+  const telegramProfilesForUser = (userId: string) =>
+    (options.telegramUserProfileAccess[userId] || [])
+      .filter((profileId) => options.telegramAllowedProfileIds.includes(profileId));
+  const telegramProfileAllowed = (userId: string, profileId: ProfileId) =>
+    telegramProfilesForUser(userId).includes(profileId);
   const telegramUserAllowed = (userId: string) =>
-    options.telegramAllowedUserIds.includes(userId);
+    options.telegramAllowedUserIds.includes(userId) && telegramProfilesForUser(userId).length > 0;
 
   app.post("/api/auth/telegram/session", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
@@ -163,10 +168,11 @@ export const registerProfileAuth = (
       return reply.code(403).send({ error: "TELEGRAM_USER_NOT_ALLOWED" });
     }
     const found = profiles.telegram.get(identity.userId);
-    if (!found || !telegramProfileAllowed(found.profileId)) {
+    if (!found || !telegramProfileAllowed(identity.userId, found.profileId)) {
+      const allowedProfiles = telegramProfilesForUser(identity.userId);
       return reply.code(401).send({
         error: "TELEGRAM_BINDING_REQUIRED",
-        profiles: profiles.listProfiles().filter((profile) => telegramProfileAllowed(profile.id)),
+        profiles: profiles.listProfiles().filter((profile) => allowedProfiles.includes(profile.id)),
       });
     }
     profiles.telegram.update(identity.userId, { chatId: identity.chatId });
@@ -198,7 +204,7 @@ export const registerProfileAuth = (
     if (!telegramUserAllowed(identity.userId)) {
       return reply.code(403).send({ error: "TELEGRAM_USER_NOT_ALLOWED" });
     }
-    if (!profiles.hasProfile(body.profileId) || !telegramProfileAllowed(body.profileId)) {
+    if (!profiles.hasProfile(body.profileId) || !telegramProfileAllowed(identity.userId, body.profileId)) {
       return reply.code(403).send({ error: "TELEGRAM_PROFILE_NOT_ALLOWED" });
     }
     if (!profiles.verifyPin(body.profileId, body.pin)) {

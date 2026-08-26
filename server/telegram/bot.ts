@@ -8,6 +8,7 @@ import { TutorService } from "../services/tutor.js";
 import { audioUploadExtension } from "../http/audio-upload.js";
 import { TelegramBotSupport, appendCaption, commandIs, deterministicUuid } from "./bot-support.js";
 import type { TelegramBotClient, TelegramCallbackQuery, TelegramMessage, TelegramUpdate } from "./types.js";
+import type { TelegramUserProfileAccess } from "./access.js";
 
 export type { TelegramBotClient, TelegramMessage, TelegramReplyMarkup, TelegramUpdate } from "./types.js";
 
@@ -18,6 +19,7 @@ export class TelegramEchoBot {
   private readonly services = new Map<string, BotServices>();
   private readonly allowedProfiles: Set<string>;
   private readonly allowedUsers: Set<string>;
+  private readonly userProfileAccess: TelegramUserProfileAccess;
   private readonly support: TelegramBotSupport;
 
   constructor(
@@ -26,11 +28,21 @@ export class TelegramEchoBot {
     miniAppUrl: string,
     allowedProfileIds: readonly string[],
     allowedUserIds: readonly string[],
+    userProfileAccess: TelegramUserProfileAccess,
     private readonly serviceFactory?: (profileId: string) => BotServices,
   ) {
     this.allowedProfiles = new Set(allowedProfileIds);
     this.allowedUsers = new Set(allowedUserIds);
+    this.userProfileAccess = userProfileAccess;
     this.support = new TelegramBotSupport(client, miniAppUrl);
+  }
+
+  private userAllowed(userId: string) {
+    return this.allowedUsers.has(userId) && (this.userProfileAccess[userId]?.length || 0) > 0;
+  }
+
+  private profileAllowed(userId: string, profileId: string) {
+    return this.allowedProfiles.has(profileId) && (this.userProfileAccess[userId] || []).includes(profileId);
   }
 
   enqueue(update: TelegramUpdate) {
@@ -51,12 +63,12 @@ export class TelegramEchoBot {
     if (!message?.from || message.chat.type !== "private") return;
     const userId = String(message.from.id);
     const chatId = String(message.chat.id);
-    if (!this.allowedUsers.has(userId)) {
+    if (!this.userAllowed(userId)) {
       await this.client.sendMessage(chatId, "This bot is private.");
       return;
     }
     const found = this.profiles.telegram.get(userId);
-    if (!found || !this.allowedProfiles.has(found.profileId)) {
+    if (!found || !this.profileAllowed(userId, found.profileId)) {
       await this.support.sendConnect(chatId);
       return;
     }
@@ -136,12 +148,12 @@ export class TelegramEchoBot {
     }
     const userId = String(callback.from.id);
     const chatId = String(message.chat.id);
-    if (!this.allowedUsers.has(userId)) {
+    if (!this.userAllowed(userId)) {
       await this.client.answerCallbackQuery(callback.id, "This bot is private.");
       return;
     }
     const found = this.profiles.telegram.get(userId);
-    if (!found || !this.allowedProfiles.has(found.profileId)) {
+    if (!found || !this.profileAllowed(userId, found.profileId)) {
       await this.client.answerCallbackQuery(callback.id, "Connect Echo first.");
       return;
     }

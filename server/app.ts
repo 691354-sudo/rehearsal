@@ -18,6 +18,7 @@ import { registerPracticeRoutes } from "./http/practice.routes.js";
 import { registerSystemRoutes } from "./http/system.routes.js";
 import { registerTutorRoutes } from "./http/tutor.routes.js";
 import { ProfileManager } from "./profiles/manager.js";
+import type { TelegramUserProfileAccess } from "./telegram/access.js";
 import type { LanguageCode } from "./types.js";
 
 type AppOptions = ServiceOverrides & {
@@ -26,6 +27,7 @@ type AppOptions = ServiceOverrides & {
   telegramBotToken?: string;
   telegramAllowedProfileIds?: string[];
   telegramAllowedUserIds?: string[];
+  telegramUserProfileAccess?: TelegramUserProfileAccess;
 };
 
 export const buildApp = async (
@@ -96,6 +98,7 @@ export const buildApp = async (
     telegramBotToken: options.telegramBotToken ?? config.telegramBotToken,
     telegramAllowedProfileIds: options.telegramAllowedProfileIds ?? config.telegramAllowedProfileIds,
     telegramAllowedUserIds: options.telegramAllowedUserIds ?? config.telegramAllowedUserIds,
+    telegramUserProfileAccess: options.telegramUserProfileAccess ?? config.telegramUserProfileAccess,
   });
   registerLanguageAccess(app, dependencies);
   registerSystemRoutes(app, dependencies);

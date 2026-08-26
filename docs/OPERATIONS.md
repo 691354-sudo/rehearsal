@@ -43,7 +43,8 @@ Required repository secrets:
 - `SESSION_SECRET` (a random value of at least 32 bytes);
 - `TELEGRAM_BOT_TOKEN` (BotFather token; may be empty to disable polling);
 - `TELEGRAM_ALLOWED_PROFILE_IDS` (comma-separated profile IDs allowed for the installed bot token);
-- `TELEGRAM_ALLOWED_USER_IDS` (comma-separated Telegram user IDs allowed to use that bot token).
+- `TELEGRAM_ALLOWED_USER_IDS` (comma-separated Telegram user IDs allowed to use that bot token);
+- `TELEGRAM_USER_PROFILE_ACCESS` (JSON object mapping every allowed Telegram user ID to the profile IDs it may select).
 
 `deploy/rehearsal-backup.cron` creates a consistent SQLite backup nightly and removes backups older than 30 days. Model availability is checked only by an operator running `npm run models:check` before a deliberate model configuration change. The deployment script removes the retired `/etc/cron.d/rehearsal-model-check` job after a healthy rollout.
 
@@ -67,7 +68,7 @@ Do not rotate profile PINs by changing the GitHub secret after the registry exis
 
 ## Telegram bot rollout and bindings
 
-Use a separate BotFather token and an isolated profile for the first end-to-end test. Set the exact pilot scope in `TELEGRAM_ALLOWED_PROFILE_IDS` and `TELEGRAM_ALLOWED_USER_IDS`; a configured token with an empty or unknown profile scope, or an empty or malformed user scope, fails startup. After physical-device acceptance, rotate the exposed test token in BotFather, update `TELEGRAM_BOT_TOKEN`, deliberately update both allowlists, and set the bot's Main Mini App/menu URL to `https://7662n.cc/rehearsal/`. Never commit, print, or place the token in a command log.
+Use a separate BotFather token and an isolated profile for the first end-to-end test. Set the exact pilot scope in both global allowlists and `TELEGRAM_USER_PROFILE_ACCESS`; polling fails closed when a user has no exact profile scope or a rule exceeds either global allowlist. After physical-device acceptance, rotate the exposed test token in BotFather, update `TELEGRAM_BOT_TOKEN`, deliberately update all three access scopes, and set the bot's Main Mini App/menu URL to `https://7662n.cc/rehearsal/`. Never commit, print, or place the token in a command log.
 
 List bindings without mutation:
 
