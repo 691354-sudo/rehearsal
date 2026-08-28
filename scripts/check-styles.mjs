@@ -50,6 +50,12 @@ if (/(?:^|})\s*\.simple-review-actions\s*\{[^}]*\bgrid-(?:column|row)\s*:/ms.tes
   errors.push("review action grid placement must be scoped to its owning parent; a bare .simple-review-actions rule breaks nested mobile forms");
 }
 
+const captureSource = sourceByFile.get("capture.css") || "";
+const notebookReviewBatchRules = [...captureSource.matchAll(/\.capture-notebook--review\s*>\s*\.simple-review-batch\s*\{([^}]*)\}/g)];
+if (!notebookReviewBatchRules.some(([, body]) => /\boverflow:\s*visible\s*;/.test(body))) {
+  errors.push("Notebook review batches must expose expanded adjustments to the outer mobile scroll container");
+}
+
 const authSource = sourceByFile.get("auth.css") || "";
 if (!/\.profile-gate--pilot-theme\s+\.profile-theme-choice button\s*\{[^}]*\bmin-height:\s*44px\s*;/ms.test(authSource)) {
   errors.push("pilot theme controls must keep a 44px minimum touch target after the shared theme button rule");
