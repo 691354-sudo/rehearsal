@@ -56,6 +56,12 @@ if (!notebookReviewBatchRules.some(([, body]) => /\boverflow:\s*visible\s*;/.tes
   errors.push("Notebook review batches must expose expanded adjustments to the outer mobile scroll container");
 }
 
+const listenSource = sourceByFile.get("listen.css") || "";
+const listenPlayerRules = [...listenSource.matchAll(/\.listen-player\s*\{([^}]*)\}/g)];
+if (!listenPlayerRules.some(([, body]) => /\boverflow-y:\s*auto\s*;/.test(body))) {
+  errors.push("the mobile Listen player must scroll when its controls exceed the available viewport height");
+}
+
 const authSource = sourceByFile.get("auth.css") || "";
 if (!/\.profile-gate--pilot-theme\s+\.profile-theme-choice button\s*\{[^}]*\bmin-height:\s*44px\s*;/ms.test(authSource)) {
   errors.push("pilot theme controls must keep a 44px minimum touch target after the shared theme button rule");
