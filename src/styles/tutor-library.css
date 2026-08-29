@@ -596,11 +596,13 @@
 }
 
 .simple-chat-empty > div {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  justify-content: center;
+  width: min(360px, 100%);
   margin-top: 6px;
+  margin-right: auto;
+  margin-left: auto;
 }
 
 .simple-chat-empty button {
@@ -610,6 +612,30 @@
   background: var(--script-inset);
   border: 1px solid var(--script-rule);
   border-radius: 8px;
+}
+
+.simple-chat-empty button:not(.simple-chat-start-primary):hover:not(:disabled) {
+  color: var(--script-ink);
+  background: var(--cue-wash);
+  border-color: var(--script-rule-strong);
+}
+
+.simple-chat-empty .simple-chat-start-primary {
+  color: var(--cue-on);
+  font-weight: 600;
+  background: var(--cue-action);
+  border-color: var(--cue-action);
+}
+
+.simple-chat-empty .simple-chat-start-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.simple-chat-empty .simple-chat-start-primary:disabled {
+  color: var(--script-tertiary);
+  background: var(--script-inset);
+  border-color: var(--script-rule);
 }
 
 .recall-session > header button,

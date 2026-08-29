@@ -3,6 +3,10 @@ import { z } from "zod";
 import { config } from "../config.js";
 import type { RehearsalRepository } from "../db/repository.js";
 import type { LanguageCode } from "../types.js";
+import {
+  comparableGuidedPracticeTarget,
+  guidedPracticeReviewMessages,
+} from "../../contracts/tutor-guided-practice.js";
 import { aiLimits, recentMessagesWithinBudget } from "./ai-limits.js";
 import { responseTokenUsage, trackAiRequest } from "./ai-usage.js";
 import type { LearnerPersona } from "./learner-persona.js";
@@ -78,6 +82,16 @@ Your job is to help the learner speak naturally and automatically, not to teach 
 - Never save phrases, corrections, or islands during normal conversation. Nothing enters the library without ${learner.name} selecting it in Finish & review.
 - When ${learner.name} explicitly asks for card-ready material, follow the requested shape, quantity, and order. “One card for each” means one separate source unit per line, including every member of stated ranges or enumerations. Bare foundational units such as numbers or individual letters may stay atomic; do not add example sentences, merge units, or omit them just because ordinary learning cards prefer contextual utterances.
 - Use read-only tools for database facts. Never invent a database result or imply that you changed the library.
+- When the learner asks to start a guided practice session, call list_due_items with a limit of 5 before choosing. If it returns useful material, usually run Recall & reuse; if it is empty, run Tell it better. Give the exercise name briefly and one immediate action, not a lesson plan or explanation.
+- When the learner asks to choose a guided exercise, offer exactly these three terse choices and wait: Tell it better, Recall & reuse, and Role-play twice.
+- Guided practice has four recipes:
+  1. Tell it better: ask for one real thought; focus on at most two high-value gaps; ask for self-repair before revealing a natural reformulation; have the learner reproduce the whole thought and then reuse the trained chunk in a different context.
+  2. Recall & reuse: use 3–5 due or relevant Library items; show only their Russian cues or situations before recall, never the target answers; then ask the learner to use one or two chunks in a new response. Never grade or reschedule them.
+  3. Role-play twice: run one short real-life scene, give focused feedback, then repeat the same scene with one changed variable.
+  4. Read → retell: use this only when the learner supplied a substantial text; ask for a retell without looking, give focused feedback and 2–3 useful expressions, then ask for one improved retell. Never call a short Tutor-generated passage extensive reading.
+- When the learner supplies a substantial text and asks to practise it or asks Tutor to choose, begin Read → retell instead of generating another passage.
+- In guided practice, give one next action at a time, keep the same topic, and use no more than three training rounds. Speaking and typing are equivalent paths. Do not add timers, scores, streaks, pronunciation ratings, or accent ratings.
+- Guided correction differs from ordinary live correction: first point to the gap without giving the answer and ask the learner to reformulate it. Reveal one natural answer only if the learner needs it, then require the whole thought again. Do not use the Correction block until after that self-repair attempt.
 - Do not interrupt the flow to correct every sentence unless the learner explicitly asks for live correction. Keep useful observations for the end-of-chat review.
 - When live correction is appropriate, keep the conversation moving and use this exact Markdown structure, with blank lines between each part. The conversational reply before the heading is mandatory. After the heading, output exactly the three shown blocks: no alternatives, labels, or bullet lists.
   <one short conversational reply>
@@ -92,7 +106,7 @@ Your job is to help the learner speak naturally and automatically, not to teach 
 - Keep the initial answer concise, then deepen when the learner wants it.
 `;
 
-type TutorRepositories = Pick<RehearsalRepository, "aiUsage" | "items" | "practice" | "tutor">;
+type TutorRepositories = Pick<RehearsalRepository, "aiUsage" | "items" | "practice" | "reviews" | "tutor">;
 
 export class TutorService {
   private readonly client: OpenAI | null;
@@ -235,12 +249,23 @@ export class TutorService {
     const thread = this.repository.tutor.getThread(threadPublicId);
     if (!thread) return null;
     const messages = this.repository.tutor.getMessages(thread.id, 100);
-    return this.openaiService.reviewConversation({
+    const guidedMessages = guidedPracticeReviewMessages(messages);
+    const result = await this.openaiService.reviewConversation({
       publicId: batchPublicId,
       language: thread.language_code,
       threadPublicId,
-      messages,
+      messages: guidedMessages || messages,
+      guidedPractice: Boolean(guidedMessages),
     });
+    if (!guidedMessages) return result;
+    const libraryTargets = new Set(this.repository.items.list(thread.language_code, 5_000)
+      .map((item) => comparableGuidedPracticeTarget(item.target)));
+    const candidates = result.batch.candidates
+      .filter((candidate) => !libraryTargets.has(comparableGuidedPracticeTarget(candidate.target)))
+      .slice(0, 3);
+    if (candidates.length === result.batch.candidates.length) return result;
+    const batch = this.repository.reviews.replaceGeneratedCandidates(result.batch.publicId, candidates);
+    return batch ? { ...result, batch } : result;
   }
 
   private async executeTool(name: string, rawArguments: string, language: LanguageCode) {

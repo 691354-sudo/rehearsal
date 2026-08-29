@@ -94,6 +94,19 @@ export class ReviewsRepository {
     return updated;
   }
 
+  replaceGeneratedCandidates(batchPublicId: string, candidates: ReviewCandidate[]) {
+    const batch = this.get(batchPublicId);
+    if (!batch || batch.status !== "draft") return null;
+    this.db.prepare(
+      "UPDATE review_batches SET candidates = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?",
+    ).run(JSON.stringify(candidates.map(normalizeCandidate)), batchPublicId);
+    const updated = this.get(batchPublicId)!;
+    logChange(this.db, "llm", "revise", "review_batch", batchPublicId,
+      { kind: batch.kind, candidates: batch.candidates.length },
+      { kind: updated.kind, candidates: updated.candidates.length });
+    return updated;
+  }
+
   private selectedCandidates(
     batch: ReviewBatch,
     selected: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,

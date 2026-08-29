@@ -28,6 +28,7 @@ import type { ChatMessage, ChatThread, Language } from "../../shared/contracts";
 import { languageCopy, languageHasAudio } from "../../shared/config";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
 import { TutorChatMessage } from "./TutorChatMessage";
+import { TutorGuidedPracticeStart } from "./TutorGuidedPracticeStart";
 import { TutorSessionsRail } from "./TutorSessionsRail";
 import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimisticMessages";
 import { tutorComposerMinimumHeight, useTutorComposerHeight } from "./useTutorComposerHeight";
@@ -385,10 +386,8 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             <button className="simple-delete-chat" disabled={deletingThread || sending || reviewing} onClick={() => void deleteChat()} type="button">
               {deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}Delete chat</button></div></details> : null}</div>
         <div aria-busy={sending || loadingThread} aria-live="polite" className="simple-chat-messages" ref={messagesRef} role="log">
-          {!messages.length && !loadingThread && !sending ? <div className="simple-chat-empty"><strong>Start with something from real life</strong>
-            <span>Ask Tutor to use your Library, correct a message, or make a short speaking drill.</span><div>
-              {["Find useful phrases from my Library", "Correct a message I wrote", "Give me a short speaking drill"].map((prompt) => <button key={prompt}
-                onClick={() => { setDraft(prompt); window.requestAnimationFrame(() => composerRef.current?.focus()); }} type="button">{prompt}</button>)}</div></div> : null}
+          {!messages.length && !loadingThread && !sending ? <TutorGuidedPracticeStart disabled={sending}
+            onStart={(message) => { void sendContent(message); }} /> : null}
           {messages.map((message, messageIndex) => <TutorChatMessage key={message.id} learnerMessage={message.role === "assistant" ? messages.slice(0, messageIndex).reverse().find((candidate) => candidate.role === "user")?.content : undefined}
             message={message}
             onDelete={(failed) => setMessages((current) => current.filter((currentMessage) => currentMessage.id !== failed.id))}

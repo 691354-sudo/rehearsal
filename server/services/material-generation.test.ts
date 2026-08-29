@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { genericLearnerPersona } from "./learner-persona.js";
 import {
   capturePreparationTask,
+  guidedTutorConversationReviewTask,
   materialInstructions,
   numberCardsFromConversation,
   tutorConversationReviewTask,
@@ -23,6 +24,17 @@ describe("material generation prompt contracts", () => {
     expect(prompt).toContain("return only the one natural card closest to the learner's intended meaning");
     expect(prompt).toContain("By default, never create isolated word-definition cards");
     expect(prompt).toContain("an exact numeral or atomic source label is allowed");
+  });
+
+  it("keeps guided Tutor review narrow and grounded in learner production", () => {
+    const prompt = materialInstructions(genericLearnerPersona, "en", guidedTutorConversationReviewTask);
+
+    expect(prompt).toContain("Return at most 3 high-value proposals");
+    expect(prompt).toContain("learner attempted and then self-repaired, repeated, or reused");
+    expect(prompt).toContain("Do not save Tutor-only suggestions");
+    expect(prompt).toContain("retrieved from Library or the due queue");
+    expect(prompt).toContain("exact trained chunk in focusTerms");
+    expect(prompt).toContain("never use Grammar, Chunks");
   });
 
   it("distinguishes foundational lists from ordinary vocabulary", () => {

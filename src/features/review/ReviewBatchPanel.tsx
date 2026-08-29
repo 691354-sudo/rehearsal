@@ -179,7 +179,9 @@ export function ReviewBatchPanel(props: {
         </div>
     </header>
     {props.source}
-    {!visible.length ? <p className="simple-review-empty">The source is safe, but no study cards were generated. Connect OpenAI or try a clearer sample.</p> : null}
+    {!visible.length ? <p className="simple-review-empty">{props.context === "tutor"
+      ? "Nothing worth saving today. Nothing was added to Library."
+      : "The source is safe, but no study cards were generated. Connect OpenAI or try a clearer sample."}</p> : null}
     <div className="simple-review-list">
       {visible.map((candidate, visibleIndex) => {
         const selectionButton = <button aria-label={selected.has(candidate.id) ? "Remove from selection" : "Select for Library"}

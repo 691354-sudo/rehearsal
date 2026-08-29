@@ -33,4 +33,12 @@ describe("Review batch feed", () => {
     expect(markup).toContain("Target sentence 9");
     expect(markup).not.toContain("Candidate pages");
   });
+
+  it("explains an empty Tutor review without implying anything was saved", () => {
+    const markup = renderToStaticMarkup(<ReviewBatchPanel batch={{ ...batch, candidates: [] }}
+      context="tutor" feed onBatch={() => undefined} />);
+
+    expect(markup).toContain("Nothing worth saving today. Nothing was added to Library.");
+    expect(markup).toContain("0 of 0 selected");
+  });
 });

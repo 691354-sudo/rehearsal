@@ -91,6 +91,15 @@ export const tutorConversationReviewTask =
   "only meaningful recurring mistakes, high-value phrases the learner was trying to say, and a few reusable patterns. " +
   "Correct collocations and sentence structure first, do not nitpick every sentence, and return at most 20 proposals.";
 
+export const guidedTutorConversationReviewTask =
+  "Review only this guided practice session. Return at most 3 high-value proposals, or return none when the learner did " +
+  "not produce anything worth saving. A proposal must be a complete natural utterance that the learner attempted and " +
+  "then self-repaired, repeated, or reused in a new context. Do not save Tutor-only suggestions that the learner never " +
+  "practised. Do not propose a phrase that Tutor retrieved from Library or the due queue unless the learner created a " +
+  "genuinely new corrected utterance from it. Put the exact trained chunk in focusTerms and describe its reusable frame " +
+  "in pattern. Use a real-life category from the utterance; never use Grammar, Chunks, Tell it better, Recall & reuse, " +
+  "Role-play twice, Read → retell, or any other exercise name as the category.";
+
 const cardRequestPattern = /(?:карточ|\bcards?\b)/iu;
 const numberMaterialPattern = /(?:цифр|числ|\bnumbers?\b|\bdigits?\b|\d)/iu;
 const numberRevisionPattern = /(?:убер|удал|добав|остав|замен|remove|delete|add|keep|replace)/iu;
