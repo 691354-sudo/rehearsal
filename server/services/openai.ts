@@ -21,6 +21,7 @@ import {
 import {
   capturePreparationTask,
   generatedMaterialSchema,
+  guidedTutorConversationReviewTask,
   materialInstructions,
   numberCardsFromConversation,
   targetLanguageName,
@@ -368,6 +369,7 @@ export class OpenAIService {
     language: LanguageCode;
     threadPublicId: string;
     messages: Array<{ role: "user" | "assistant"; content: string }>;
+    guidedPractice?: boolean;
   }) {
     if (input.publicId) {
       const existing = this.repository.reviews.get(input.publicId);
@@ -394,7 +396,7 @@ export class OpenAIService {
       title: "Tutor conversation review",
       sourceThreadPublicId: input.threadPublicId,
       sourceText,
-      task: tutorConversationReviewTask,
+      task: input.guidedPractice ? guidedTutorConversationReviewTask : tutorConversationReviewTask,
     });
   }
 

@@ -266,6 +266,10 @@
 
   .simple-chat-empty { margin: 24px auto; }
 
+  .simple-chat-empty > div { grid-template-columns: minmax(0, 1fr); }
+
+  .simple-chat-empty button { min-height: var(--h-tap); }
+
   .simple-composer {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
