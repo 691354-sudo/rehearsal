@@ -83,7 +83,7 @@ The conversational tutor uses the Responses API and receives two read-only tools
 
 There is no arbitrary SQL tool and no mutation tool in ordinary chat. `Finish & review` and the ingestion endpoints create review batches; only an explicit `Add selected` request can commit them. Arguments are validated with Zod and successful mutations write a before/after event to `change_events`. The tool loop is capped at four rounds per user message.
 
-The two guided-practice entry actions send ordinary visible chat messages, so they add no route, schema, or persistent exercise state. The Tutor prompt recognizes four bounded recipes and keeps FSRS read-only. Review detects the latest guided-practice marker, ignores older thread history for that batch, caps generated candidates at three, and removes exact normalized target matches already present in the active language Library before storing the draft. A later explicit card request returns the thread to the ordinary review contract.
+The separate guided-practice primary action and four exercise cards send ordinary visible chat messages, so they add no route, schema, or persistent exercise state. The Tutor prompt recognizes the four bounded recipes and keeps FSRS read-only. Review detects the latest guided-practice marker, ignores older thread history for that batch, caps generated candidates at three, and removes exact normalized target matches already present in the active language Library before storing the draft. A later explicit card request returns the thread to the ordinary review contract.
 
 Routine answer comparison is deterministic and local, so pressing Enter feels immediate. OpenAI handles contextual generation and conversation analysis rather than sitting in the hot recall path.
 

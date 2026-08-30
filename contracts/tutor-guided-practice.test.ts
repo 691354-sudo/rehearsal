@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   comparableGuidedPracticeTarget,
   guidedPracticeMenuMessage,
+  guidedPracticeExercises,
   guidedPracticeReviewMessages,
   guidedPracticeStartMessage,
 } from "./tutor-guided-practice";
@@ -25,6 +26,16 @@ describe("guided practice conversation contract", () => {
       { role: "assistant", content: "1. Tell it better\n2. Recall & reuse\n3. Role-play twice" },
       { role: "user", content: "Now make five separate cards from these phrases." },
     ])).toBeNull();
+  });
+
+  it("treats every directly selected exercise as guided practice", () => {
+    guidedPracticeExercises.forEach((exercise) => {
+      const messages = [
+        { role: "user" as const, content: exercise.message },
+        { role: "assistant" as const, content: "One next action." },
+      ];
+      expect(guidedPracticeReviewMessages(messages)).toEqual(messages);
+    });
   });
 
   it("normalizes exact Library targets without merging different wording", () => {

@@ -112,6 +112,8 @@ describe("Tutor OpenAI requests", () => {
     expect(prompt).toContain("Recall & reuse");
     expect(prompt).toContain("Role-play twice");
     expect(prompt).toContain("Read → retell");
+    expect(prompt).toContain("directly selects Tell it better");
+    expect(prompt).toContain("ask for a pasted or uploaded text when none is present");
     expect(prompt).toContain("ask for self-repair before revealing");
     expect(prompt).toContain("no more than three training rounds");
     expect(prompt).toContain("Speaking and typing are equivalent paths");

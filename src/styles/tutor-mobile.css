@@ -264,11 +264,28 @@
     padding: 14px 16px 8px;
   }
 
-  .simple-chat-empty { margin: 24px auto; }
+  .simple-chat-empty {
+    gap: 6px;
+    margin: 0 auto 16px;
+  }
 
-  .simple-chat-empty > div { grid-template-columns: minmax(0, 1fr); }
+  .simple-chat-auto-start {
+    gap: 4px;
+    margin-top: 2px;
+  }
+
+  .simple-chat-exercise-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    margin-top: 4px;
+  }
 
   .simple-chat-empty button { min-height: var(--h-tap); }
+
+  .simple-chat-empty .simple-chat-exercise-card {
+    min-height: 72px;
+    padding: 12px 14px;
+  }
 
   .simple-composer {
     grid-template-columns: minmax(0, 1fr);
