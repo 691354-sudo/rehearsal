@@ -580,8 +580,8 @@
 .simple-chat-empty {
   display: grid;
   gap: 10px;
-  width: min(560px, 100%);
-  margin: clamp(32px, 10vh, 96px) auto;
+  width: min(680px, 100%);
+  margin: 6px auto 24px;
   text-align: center;
 }
 
@@ -595,10 +595,10 @@
   color: var(--script-support);
 }
 
-.simple-chat-empty > div {
+.simple-chat-auto-start {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
+  justify-items: center;
   width: min(360px, 100%);
   margin-top: 6px;
   margin-right: auto;
@@ -614,13 +614,10 @@
   border-radius: 8px;
 }
 
-.simple-chat-empty button:not(.simple-chat-start-primary):hover:not(:disabled) {
-  color: var(--script-ink);
-  background: var(--cue-wash);
-  border-color: var(--script-rule-strong);
-}
+.simple-chat-auto-start > span { color: var(--script-tertiary); font-size: 13px; }
 
 .simple-chat-empty .simple-chat-start-primary {
+  width: 100%;
   color: var(--cue-on);
   font-weight: 600;
   background: var(--cue-action);
@@ -636,6 +633,43 @@
   color: var(--script-tertiary);
   background: var(--script-inset);
   border-color: var(--script-rule);
+}
+
+.simple-chat-exercise-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.simple-chat-empty .simple-chat-exercise-card {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-height: 76px;
+  padding: 10px 16px;
+  text-align: left;
+  background: var(--script-inset);
+  border-color: var(--script-rule);
+  border-radius: 12px;
+}
+
+.simple-chat-exercise-card > strong {
+  color: var(--script-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.simple-chat-exercise-card > span {
+  color: var(--script-support);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.simple-chat-empty .simple-chat-exercise-card:hover:not(:disabled) {
+  background: var(--cue-wash);
+  border-color: var(--script-rule-strong);
 }
 
 .recall-session > header button,
