@@ -94,6 +94,12 @@ not a general offline queue or offline learning store.
 - Review adjustments open as a separate mobile editor with Back/Done returning to
   the same proposals. Neither action adds a card to Library. Topic and AI
   alternatives have an explicit disclosure indicator.
+- Manage Topics opens a searchable topic list, then the selected topic’s cards. Creating,
+  renaming, moving cards, choosing a merge destination, and confirming the merge are
+  separate steps. Mobile lists scroll between the heading and the visible action footer;
+  retain the current selection when a write fails. Topic deletion states the card and
+  review-history consequences before confirmation. A partial merge must report the
+  completed transfer separately from source deletion.
 - The canonical routes are `/practice/recall`, `/practice/listen`,
   `/tutor/chat`, `/tutor/notebook`, `/library`, and `/library/topics`. Links must
   preserve the selected `lang` and honor the deployment base path.

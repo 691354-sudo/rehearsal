@@ -57,4 +57,4 @@ The focused API suites cover authorization, profile isolation, Practice, Tutor, 
 4. Run the physical iPhone acceptance gate for the Vietnamese keyboard, diacritics, Recall, Safari/Home Screen playback, Media Session, locked-screen audio, and network-error recovery.
 5. Keep the archived legacy database and pre-enable profile backups until Roman and Oliver complete production acceptance.
 6. On a physical iPhone in Brave, run a 20-card Listen & Repeat stack for at least three locked-screen loops and flag any transition longer than its adaptive pause plus two seconds.
-7. Treat `focusTerms` highlighting in cards as a separate UI task; the stored data already exists.
+7. Verify the approved Topics flow on a physical iPhone, including search/name entry with the keyboard. Listen list and revealed Recall answers now underline stored focus phrases; the Listen player and Tutor/Notebook layout remain unchanged by this follow-up.
