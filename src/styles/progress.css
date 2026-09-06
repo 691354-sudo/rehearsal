@@ -493,6 +493,7 @@
 }
 
 .practice-queue-preview .focused-text,
+.listen-player .focused-text,
 .recall-card .focused-text {
   text-decoration: underline;
   text-decoration-color: var(--rh-accent);
