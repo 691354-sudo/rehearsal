@@ -44,6 +44,7 @@ This is a two-person hobby project. Prefer momentum over ceremony while keeping 
 
 - Use `design-arc:design-arc` for product or multi-screen journey decisions. After its setup and objective gates, treat `docs/METHOD.md` and `docs/MOBILE_APP_DIRECTION.md` as binding constraints.
 - Use `impeccable` in Operate mode for approved screen-level design, implementation, and refinement. Do not run its `init` or `document` commands or create `PRODUCT.md` or `DESIGN.md` unless Roman explicitly authorizes a new canonical document.
+- Follow the current hierarchy in `DESIGN.md` for approved UI work. Compare mobile changes against actual app/device evidence, and label simulated keyboard states.
 - Use `web-design-guidelines` for the final independent UI, accessibility, and UX review. Normally use one design skill for a narrow task and no more than three for broad redesign work.
 - `interface-design` is not the default for Rehearsal; use it only when explicitly requested for a compatible interface-craft task.
 

@@ -291,10 +291,17 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     finally { setDeletingSelected(false); }
   };
 
+  const managementActions = <>
+        <button onClick={() => patchRoute({ view: showTopics ? "cards" : "topics", panel: null, edit: null }, "push")} type="button">{showTopics ? "Back to cards" : "Manage topics"}</button>
+        {!showTopics ? <button onClick={() => showImport ? closeSurface("import", { panel: null }) : patchRoute({ panel: "import", edit: null }, "push")} type="button">{showImport ? "Close import" : "Import text"}</button> : null}
+  </>;
+
   return <main className="simple-main" id="main-content"><header className="simple-page-heading"><div><h1>Library</h1><p>{items.length} cards</p></div>
-    <div className="simple-library-heading-actions"><button onClick={() => patchRoute({ view: showTopics ? "cards" : "topics", panel: null, edit: null }, "push")} type="button">{showTopics ? "Back to cards" : "Manage topics"}</button>
-      <button className="simple-add-card" onClick={() => patchRoute({ panel: "create", edit: null }, "push")} type="button"><Plus size={15} />Add card</button>
-      {!showTopics ? <button onClick={() => showImport ? closeSurface("import", { panel: null }) : patchRoute({ panel: "import", edit: null }, "push")} type="button">{showImport ? "Close import" : "Import text"}</button> : null}</div></header>
+    <div className="simple-library-heading-actions"><div className="simple-library-desktop-actions">{managementActions}</div>
+      <button aria-label="Add card" className="simple-add-card" onClick={() => patchRoute({ panel: "create", edit: null }, "push")} type="button"><Plus size={18} /><span>Add card</span></button>
+      <details className="simple-library-management" onClick={(event) => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.open = false; }}><summary aria-label="Library options"><MoreHorizontal aria-hidden="true" size={18} /></summary><div>
+        {managementActions}
+      </div></details></div></header>
     {topicsError ? <div className="simple-unavailable" role="alert"><span>Topics unavailable. Your cards are still here.</span><button onClick={() => void refreshTopics()} type="button"><RefreshCw size={14} />Retry</button></div> : null}
     {showTopics ? <div className="simple-library-secondary"><TopicsManager initialTopicId={route.topic === "all" ? "" : route.topic} key={`${language}:${topicsRevision}`} language={language}
       onClose={() => { patchRoute({ view: "cards" }, "replace"); void refreshTopics(); }}
@@ -325,12 +332,12 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
 
     <section className="simple-library-panel simple-library-panel--main" data-onboarding-target="library">
       <div className="simple-library-tools"><label className="simple-search"><input aria-label="Search cards" autoComplete="off" name="library-search" onChange={(event) => setSearchInput(event.target.value)} placeholder="Search cards…" type="search" value={searchInput} /></label>
-        <select aria-label="Filter by status" name="library-status" onChange={(event) => patchRoute({ status: event.target.value as LibraryStatus, page: 1 })} value={status}>
+        <label><span className="simple-library-filter-label">Status</span><select aria-label="Filter by status" name="library-status" onChange={(event) => patchRoute({ status: event.target.value as LibraryStatus, page: 1 })} value={status}>
           <option value="all">All</option><option value="new">New</option><option value="learning">Learning</option><option value="due">Due</option>
-          <option value="strong">Strong</option><option value="learned">Learned</option></select>
-        <select aria-label="Filter by Topic" name="library-topic" onChange={(event) => patchRoute({ topic: event.target.value, page: 1 })} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title} · {value.progress.dueNow} due · {value.progress.new} not recalled yet</option>)}</select>
-        <select aria-label="Sort cards" name="library-sort" onChange={(event) => patchRoute({ sort: event.target.value as LibrarySort, page: 1 })} value={sort}>
-          <option value="recent">Recent</option><option value="oldest">Oldest</option><option value="due">Due soon</option><option value="least">Least practiced</option><option value="az">A–Z</option></select></div>
+          <option value="strong">Strong</option><option value="learned">Learned</option></select></label>
+        <label><span className="simple-library-filter-label">Topic</span><select aria-label="Filter by Topic" name="library-topic" onChange={(event) => patchRoute({ topic: event.target.value, page: 1 })} value={topic}><option value="all">All Topics</option>{topics.map((value) => <option key={value.publicId} value={value.publicId}>{value.title} · {value.progress.dueNow} due · {value.progress.new} not recalled yet</option>)}</select></label>
+        <label><span className="simple-library-filter-label">Order</span><select aria-label="Sort cards" name="library-sort" onChange={(event) => patchRoute({ sort: event.target.value as LibrarySort, page: 1 })} value={sort}>
+          <option value="recent">Recent</option><option value="oldest">Oldest</option><option value="due">Due soon</option><option value="least">Least practiced</option><option value="az">A–Z</option></select></label></div>
       <div className={`simple-library-selection${selectionMode ? "" : " is-idle"}`}>
         {selectionMode ? <label><input aria-label="Select all visible cards" checked={allVisibleSelected} disabled={!displayedItems.length || deletingSelected} name="select-visible-cards" onChange={toggleVisible} type="checkbox" />
           <span>{displayedItems.length} visible</span></label> : <div className="simple-library-selection-start">

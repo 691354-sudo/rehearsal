@@ -439,7 +439,7 @@ export function ListenRepeat(props: {
   </section>;
 
   return <ListenPlayerSurface current={current} editActive={props.editActive} error={error} index={index} language={props.language} note={note}
-    onEdit={editCurrent} onNext={next} onPause={pause} onPrevious={previous} onReplay={replay} onResume={resume}
+    onEdit={editCurrent} onExit={stop} onNext={next} onPause={pause} onPrevious={previous} onReplay={replay} onResume={resume}
     onRetryPreparation={() => { void beginPreparation(queue, playbackRef.current, current).catch(() => undefined); }}
     onShuffle={shuffle} onToggleRepeat={cycleRepeat} onToggleRussian={() => setShowRussian((shown) => !shown)}
     onToggleSettings={() => setShowPlaybackSettings((shown) => !shown)} playback={props.playback} playbackSettings={playbackSettings}

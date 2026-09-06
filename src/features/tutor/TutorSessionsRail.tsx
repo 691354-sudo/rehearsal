@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { PanelLeftClose, Search, SquarePen } from "lucide-react";
+import { ArrowLeft, Search, SquarePen, Trash2 } from "lucide-react";
 import { AppLink } from "../../app/AppLink";
 import type { TutorRoute } from "../../lib/appRoute";
 import type { ChatThread } from "../../shared/contracts";
@@ -16,10 +16,13 @@ const formatThreadDate = (value: string) => {
   return date.toLocaleDateString("en", { month: "short", day: "numeric" });
 };
 
-export function TutorSessionsRail({ currentThreadId, onClose, onNewChat, open, railRef, route, threads }: {
+export function TutorSessionsRail({ currentThreadId, onClose, onNewChat, onDelete, deleting, modal, open, railRef, route, threads }: {
   currentThreadId: string | null;
   onClose: () => void;
   onNewChat: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+  modal: boolean;
   open: boolean;
   railRef: RefObject<HTMLElement | null>;
   route: TutorRoute;
@@ -45,10 +48,10 @@ export function TutorSessionsRail({ currentThreadId, onClose, onNewChat, open, r
     if (searchOpen) window.requestAnimationFrame(() => searchRef.current?.focus());
   }, [searchOpen]);
 
-  return <aside aria-hidden={!open ? "true" : undefined} className={`simple-session-rail ${open ? "is-open" : ""}`}
+  return <aside role={modal && open ? "dialog" : undefined} aria-modal={modal && open ? true : undefined} aria-label="Sessions" aria-hidden={!open ? "true" : undefined} className={`simple-session-rail ${open ? "is-open" : ""}`}
     inert={!open} ref={railRef}>
     <div className="simple-session-rail-heading">
-      <button aria-label="Close sessions" className="simple-session-close" onClick={onClose} type="button"><PanelLeftClose aria-hidden="true" size={18} /></button>
+      <button aria-label="Close sessions" className="simple-session-close" onClick={onClose} type="button"><ArrowLeft aria-hidden="true" size={18} /></button>
       <strong>Sessions</strong>
       <button aria-expanded={searchOpen} aria-label="Search sessions" onClick={() => setSearchOpen((shown) => !shown)}
         title="Search sessions" type="button"><Search aria-hidden="true" size={16} /></button></div>
@@ -62,6 +65,7 @@ export function TutorSessionsRail({ currentThreadId, onClose, onNewChat, open, r
         className={thread.publicId === currentThreadId ? "is-active" : ""} key={thread.publicId} onClick={onClose}
         route={{ ...route, thread: thread.publicId, review: null }}><strong>{thread.title}</strong><small>{formatThreadDate(thread.updatedAt)}</small></AppLink>)}
     </section>)}</nav>
+    {currentThreadId ? <button className="simple-session-delete" disabled={deleting} onClick={onDelete} type="button"><Trash2 aria-hidden="true" size={15} />Delete current chat</button> : null}
     {normalizedQuery && !visibleThreads.length ? <p className="simple-session-empty">No matching sessions.</p> : null}
   </aside>;
 }

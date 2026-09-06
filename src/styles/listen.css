@@ -135,7 +135,7 @@
 
 .listen-player > header {
   display: grid;
-  grid-template-columns: auto minmax(72px, 1fr) minmax(0, auto);
+  grid-template-columns: 44px auto minmax(32px, 1fr) minmax(0, auto);
   gap: 12px;
   align-items: center;
   min-height: var(--h-control);
@@ -663,3 +663,5 @@
   }
 
 }
+
+.listen-player > header .listen-exit { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; background: transparent; border: 0; }

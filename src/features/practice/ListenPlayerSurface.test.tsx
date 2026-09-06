@@ -32,7 +32,7 @@ describe("Listen player surface", () => {
   it("keeps Edit compact beside the repeat prompt and exposes a non-editable focus target", () => {
     const noop = () => undefined;
     const markup = renderToStaticMarkup(<ListenPlayerSurface current={item} editActive={false} error="" index={0} language="en" note=""
-      onEdit={noop} onNext={noop} onPause={noop} onPrevious={noop} onReplay={noop} onResume={noop}
+      onEdit={noop} onExit={noop} onNext={noop} onPause={noop} onPrevious={noop} onReplay={noop} onResume={noop}
       onRetryPreparation={noop} onShuffle={noop} onToggleRepeat={noop} onToggleRussian={noop} onToggleSettings={noop}
       playback={defaultPlayback} playbackSettings={null} preparationError="" preparationTotal={1} previousDisabled
       queueLength={1} readyCount={1} repeatMode="off" selectedTopicName="Personal stories" selectedVoiceName="Justin Time"
@@ -43,5 +43,6 @@ describe("Listen player surface", () => {
     expect(markup).toContain('tabindex="-1"');
     expect(promptRow).toContain("Repeat after the speaker");
     expect(promptRow).toContain("practice-active-edit");
+    expect(markup).toContain('aria-label="Back to selection"');
   });
 });

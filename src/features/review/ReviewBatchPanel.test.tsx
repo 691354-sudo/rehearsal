@@ -38,7 +38,16 @@ describe("Review batch feed", () => {
     const markup = renderToStaticMarkup(<ReviewBatchPanel batch={{ ...batch, candidates: [] }}
       context="tutor" feed onBatch={() => undefined} />);
 
-    expect(markup).toContain("Nothing worth saving today. Nothing was added to Library.");
-    expect(markup).toContain("0 of 0 selected");
+    expect(markup).toContain("No cards were proposed. Your chat is still here.");
+    expect(markup).not.toContain("0 of 0 selected");
+    expect(markup).not.toContain("Add selected");
+  });
+  it("keeps the original Notebook source available without guessing a provider failure", () => {
+    const markup = renderToStaticMarkup(<ReviewBatchPanel batch={{ ...batch, candidates: [], kind: "capture" }}
+      context="notebook" feed onBatch={() => undefined} onReset={async () => undefined} source={<p>Original note</p>} />);
+    expect(markup).toContain("Original note");
+    expect(markup).toContain("Reset");
+    expect(markup).not.toContain("Connect OpenAI");
+    expect(markup).not.toContain("Add to Library");
   });
 });
