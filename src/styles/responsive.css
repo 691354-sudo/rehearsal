@@ -414,83 +414,6 @@
   .simple-settings-panel .simple-fsrs-details input:focus { font-size: 16px; }
 }
 
-@media (max-width: 900px) {
-  .topic-items article { align-items: start; }
-  .topic-selection-toolbar { flex-wrap: wrap; }
-}
-
-@media (max-width: 720px) {
-  .topics-manager > header {
-    align-items: flex-start;
-  }
-
-  .topic-mobile-select {
-    display: block;
-    width: calc(100% - (2 * var(--pad-x)));
-    height: var(--h-control);
-    margin: var(--gap) auto 0;
-  }
-
-  .topics-layout > nav { display: none; }
-
-  .topics-manager button,
-  .topics-manager input,
-  .topics-manager select {
-    min-height: var(--h-control);
-  }
-}
-
-@media (max-width: 480px) {
-  .topics-manager > header {
-    display: grid;
-  }
-
-  .topics-header-actions,
-  .topic-create {
-    width: 100%;
-  }
-
-  .topic-create input {
-    flex: 1;
-  }
-
-  .topics-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .topic-detail-heading,
-  .topic-title-edit {
-    display: grid;
-  }
-
-  .topic-detail-heading {
-    position: relative;
-    padding: 12px;
-  }
-
-  .topic-title-summary {
-    padding-inline-end: 44px;
-  }
-
-  .topic-detail-heading > div:last-child {
-    justify-content: start;
-  }
-
-  .topic-items article {
-    gap: 9px;
-  }
-
-  .topic-selection-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 9px; }
-  .topic-selection-toolbar > label { grid-column: 1 / -1; }
-  .topic-selection-toolbar select { width: 100%; margin: 0; }
-  .topic-selection-toolbar .topic-remove-selected { grid-column: 1 / -1; }
-
-  .topic-add-footer,
-  .topic-items-empty > div {
-    align-items: stretch;
-  }
-}
-
 @media (max-width: 720px) {
   .simple-main .simple-primary,
   .simple-main .simple-import-card button,
@@ -515,23 +438,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .topics-layout { grid-template-columns: 1fr; }
 
-  .topic-create button,
-  .topic-manager-close {
-    width: 44px;
-    min-width: 44px;
-  }
-  .topic-detail { padding: 16px; }
-  .topic-item-side .learning-counts { display: none; }
-  .topic-card-overflow > button { width: 44px; min-width: 44px; height: var(--h-control); min-height: var(--h-control) !important; }
-
-  .topic-detail-heading {
-    align-items: flex-start;
-    padding-bottom: 12px;
-  }
-
-  .topic-detail-heading > div:last-child { justify-content: flex-start; }
 }
 
 @media (max-width: 720px) {

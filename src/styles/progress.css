@@ -491,3 +491,11 @@
   .practice-control-header { border-radius: 12px 12px 0 0; }
 
 }
+
+.practice-queue-preview .focused-text,
+.recall-card .focused-text {
+  text-decoration: underline;
+  text-decoration-color: var(--rh-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}

@@ -5,6 +5,7 @@ import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/s
 import { capitalize, languageCopy, languageHasAudio } from "../../shared/config";
 import type { AttemptDraft, ElevenLabsConfig, IslandSummary, Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
 import { PlaybackSettings } from "./PlaybackSettings";
+import { FocusedText } from "../progress/FocusedText";
 import { AnswerDiff } from "./AnswerDiff";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { LearningProgressBadge } from "../progress/LearningProgress";
@@ -153,11 +154,11 @@ export function RecallSession(props: {
       </div>
       {attempt.evaluation ? <div aria-live="polite" className={`recall-result recall-result--${attempt.evaluation.verdict}`}>
         <span>{attempt.evaluation.verdict === "exact" ? "Correct" : "Compare"}</span>
-        {attempt.evaluation.verdict === "exact" ? <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}>{attempt.evaluation.naturalAnswer}</p>
+        {attempt.evaluation.verdict === "exact" ? <div className="recall-natural-row"><p className="recall-natural-answer" lang={props.language}><FocusedText text={attempt.evaluation.naturalAnswer} focusTerms={current.focusTerms} /></p>
           {languageHasAudio(props.language) ? <button aria-label="Play natural answer" onClick={() => {
             void props.onPlay(current.target, props.playback).then(() => props.onListened(current.publicId));
           }} title="Play" type="button"><Volume2 size={16} /></button> : null}</div> : <AnswerDiff answerTokens={attempt.evaluation.answerTokens}
-          expectedTokens={attempt.evaluation.expectedTokens} language={props.language} onPlay={languageHasAudio(props.language) ? () => {
+          expectedTokens={attempt.evaluation.expectedTokens} naturalAnswer={attempt.evaluation.naturalAnswer} focusTerms={current.focusTerms} language={props.language} onPlay={languageHasAudio(props.language) ? () => {
             void props.onPlay(current.target, props.playback).then(() => props.onListened(current.publicId));
           } : undefined} />}
         <div className="recall-grades" aria-label="Memory grade">{reviewRatings.map((rating) => <button aria-pressed={state.selectedRating === rating}
