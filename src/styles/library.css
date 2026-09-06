@@ -735,3 +735,30 @@
   .simple-phrase-copy > strong,
   .simple-phrase-copy > small { overflow-wrap: anywhere; }
 }
+
+.simple-library-filter-label { display: none; }
+.simple-library-tools > label { min-width: 0; }
+@media (max-width: 720px) {
+  .simple-library-tools { grid-template-columns: 1fr 1.3fr 1fr; gap: 8px; }
+  .simple-library-tools .simple-search { grid-column: 1 / -1; }
+  .simple-library-filter-label { display: block; margin-bottom: 4px; color: var(--rh-support); font-size: 11px; }
+  .simple-library-tools select { padding-inline: 8px; }
+}
+
+.simple-library-management { display: none; }
+.simple-library-desktop-actions { display: flex; gap: 8px; }
+.simple-library-management > summary { display: none; }
+.simple-library-management > div { display: flex; gap: 8px; }
+@media (max-width: 720px) {
+  .simple-library-heading-actions { display: flex; flex-wrap: nowrap; }
+  .simple-library-desktop-actions { display: none; }
+  .simple-library-heading-actions .simple-add-card { width: 44px; min-width: 44px; padding: 0; }
+  .simple-add-card > span { display: none; }
+  .simple-library-management { display: block; position: relative; }
+  .simple-library-management > summary { display: grid; width: 44px; min-height: 44px; place-items: center; list-style: none; cursor: pointer; }
+  .simple-library-management > summary::-webkit-details-marker { display: none; }
+  .simple-library-management > div { display: none; }
+  .simple-library-management[open] > div { display: grid; position: absolute; top: 100%; right: 0; z-index: 24; width: 170px; padding: 6px; background: var(--rh-surface); border: 1px solid var(--rh-rule-strong); border-radius: 10px; }
+  .simple-library-management > div > button { width: 100%; text-align: left; font-size: 14px; }
+}
+.simple-library-tools > label > select { width: 100%; min-width: 0; }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw, RotateCcw, Shuffle, WandSparkles } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, LoaderCircle, RotateCcw, Pencil } from "lucide-react";
+import { ReviewAdjustment } from "./ReviewAdjustment";
 import { apiFetch } from "../../shared/api";
 import { FocusedText } from "../progress/FocusedText";
 import type { Language } from "../../shared/contracts";
@@ -180,11 +181,11 @@ export function ReviewBatchPanel(props: {
     </header>
     {props.source}
     {!visible.length ? <p className="simple-review-empty">{props.context === "tutor"
-      ? "Nothing worth saving today. Nothing was added to Library."
-      : "The source is safe, but no study cards were generated. Connect OpenAI or try a clearer sample."}</p> : null}
-    <div className="simple-review-list">
+      ? "No cards were proposed. Your chat is still here."
+      : "No cards were proposed. Your source notes are still here. Reset the suggestions to edit your notes and try again."}</p> : null}
+    <div className={`simple-review-list${!visible.length ? " is-empty" : ""}`}>
       {visible.map((candidate, visibleIndex) => {
-        const selectionButton = <button aria-label={selected.has(candidate.id) ? "Remove from selection" : "Select for Library"}
+        const selectionButton = <button aria-pressed={selected.has(candidate.id)} aria-label={selected.has(candidate.id) ? "Remove from selection" : "Select for Library"}
           className="simple-review-check" onClick={() => toggle(candidate.id)} type="button">
           <span aria-hidden="true">{selected.has(candidate.id) ? <Check size={14} /> : null}</span></button>;
         return <article className={`simple-review-candidate${selected.has(candidate.id) ? " is-selected" : ""}`} key={candidate.id}>
@@ -197,35 +198,17 @@ export function ReviewBatchPanel(props: {
           <p className="simple-review-cue" lang="ru">{candidate.cue}</p>
           <button aria-expanded={adjustingCandidateId === candidate.id} className="simple-review-adjust-toggle" onClick={() => {
             setAdjustingCandidateId((current) => current === candidate.id ? null : candidate.id);
-          }} type="button"><ChevronDown aria-hidden="true" size={15} />{adjustingCandidateId === candidate.id ? "Hide adjustments" : "Adjust"}</button>
-          {adjustingCandidateId === candidate.id ? <div className="simple-review-adjustment">
-            <label><span>Target sentence</span><textarea aria-label="Target phrase" autoComplete="off" lang={props.batch.language} name={`review-target-${candidate.id}`} onChange={(event) => update(candidate.id, { target: event.target.value })} rows={2} value={candidate.target} /></label>
-            <label><span>Russian cue</span><textarea aria-label="Russian cue" autoComplete="off" lang="ru" name={`review-cue-${candidate.id}`} onChange={(event) => update(candidate.id, { cue: event.target.value })} rows={2} value={candidate.cue} /></label>
-            <label><span>Topic</span><input aria-label="Category" autoComplete="off" name={`review-category-${candidate.id}`} onChange={(event) => update(candidate.id, { category: event.target.value })} value={candidate.category} /></label>
-            <textarea aria-label={`Comment for card ${props.feed ? visibleIndex + 1 : page * pageSize + visibleIndex + 1}`}
-              autoComplete="off" className="simple-review-comment" name={`review-comment-${candidate.id}`} onChange={(event) => {
-                const value = event.target.value;
-                setComments((current) => ({ ...current, [candidate.id]: value }));
-                if (value.trim()) setSelected((current) => new Set(current).add(candidate.id));
-              }} placeholder="What should change? Leave empty if this card is OK…" rows={2}
-              value={comments[candidate.id] || ""} />
-            <div className="simple-review-actions">
-              <button disabled={Boolean(regenerating)} onClick={() => void regenerate(candidate.id, "another")} type="button">
-                {regenerating?.candidateId === candidate.id && regenerating.instruction === "another"
-                  ? <LoaderCircle aria-hidden="true" className="simple-spin" size={13} /> : <RefreshCw aria-hidden="true" size={13} />}Another</button>
-              <button disabled={Boolean(regenerating)} onClick={() => void regenerate(candidate.id, "different_context")} type="button">
-                {regenerating?.candidateId === candidate.id && regenerating.instruction === "different_context"
-                  ? <LoaderCircle aria-hidden="true" className="simple-spin" size={13} /> : <Shuffle aria-hidden="true" size={13} />}Change Context</button>
-              <button className="simple-review-revise" disabled={!comments[candidate.id]?.trim() || Boolean(regenerating)}
-                onClick={() => void revise(candidate)} type="button">
-                {regenerating?.candidateId === candidate.id && regenerating.instruction === "revise"
-                  ? <LoaderCircle aria-hidden="true" className="simple-spin" size={13} /> : <WandSparkles aria-hidden="true" size={14} />}Revise</button>
-            </div>
-          </div> : null}
+          }} type="button"><Pencil aria-hidden="true" size={15} />{adjustingCandidateId === candidate.id ? "Hide adjustments" : "Adjust"}</button>
+          {adjustingCandidateId === candidate.id ? <ReviewAdjustment candidate={candidate} language={props.batch.language}
+            comment={comments[candidate.id] || ""} regenerating={regenerating} notice={notice}
+            onClose={() => setAdjustingCandidateId(null)} onUpdate={(patch) => update(candidate.id, patch)}
+            onComment={(value) => { setNotice(""); setComments((current) => ({ ...current, [candidate.id]: value }));
+              if (value.trim()) setSelected((current) => new Set(current).add(candidate.id)); }}
+            onRegenerate={(instruction) => regenerate(candidate.id, instruction)} onRevise={() => revise(candidate)} /> : null}
         </div>
       </article>;})}
     </div>
-    <footer><span><span className="simple-review-selected-count">{selected.size} of {props.batch.candidates.length} selected</span>
+    {props.batch.candidates.length ? <footer><span><span className="simple-review-selected-count">{selected.size} of {props.batch.candidates.length} selected</span>
       {props.batch.kind === "capture" && props.batch.candidates.length ? <button className="simple-review-footer-clear" disabled={!selected.size} onClick={toggleAll} type="button">Clear</button> : null}
       <span aria-live="polite">{notice}</span></span><div className="simple-review-footer-actions">
       <button className="simple-primary" disabled={!selected.size || commentedCount > 0 || saving || resetting || props.batch.status === "committed"}
@@ -233,6 +216,6 @@ export function ReviewBatchPanel(props: {
       {saving ? <LoaderCircle aria-hidden="true" className="simple-spin" size={15} /> : null}
       {props.batch.status === "committed" ? "Saved" : props.batch.kind === "capture"
         ? commentedCount ? `Revise ${commentedCount} first` : selected.size ? `Add ${selected.size} to Library` : "Add to Library"
-        : commentedCount ? `Revise ${commentedCount} first` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></div></footer>
+        : commentedCount ? `Revise ${commentedCount} first` : `Add selected${selected.size ? ` (${selected.size})` : ""}`}</button></div></footer> : notice ? <p role="status">{notice}</p> : null}
   </section>;
 }

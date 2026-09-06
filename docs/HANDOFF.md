@@ -14,6 +14,13 @@ This file contains only current state and follow-up work. Start with [AGENTS.md]
 - The client shell delegates learning data and audio playback to feature hooks. Server tests are split by domain, legacy repository wrappers are gone, and TypeScript rejects unused locals and parameters.
 - Production uses immutable CI-checked releases and separate verified profile backups. No production application files are edited manually.
 
+## Mobile UX verification, September 6, 2026
+
+- Implemented the approved direction in [DESIGN.md](../DESIGN.md) and [MOBILE_APP_DIRECTION.md](MOBILE_APP_DIRECTION.md).
+- Browser checks used the actual app at 320/393px and 1280px: Tutor Return/newlines, draft navigation, Sessions/new chat, correction, Notebook empty review, Review adjustment and commit, Library hierarchy, Recall, Listen setup/player/exit.
+- Keyboard layout was exercised by shrinking the viewport while editing. Physical iPhone Telegram/Safari keyboard, safe-area transitions, native select zoom, dictation, and audio acceptance remain unverified.
+- `dev:codex` now exports empty paid-provider keys and disables dotenv's secondary file load. Previously `unset` could restore keys from `.env`; one local fixture revision reached the provider before this was found. Subsequent unavailable-provider checks returned errors without paid calls.
+
 ## Main code map
 
 - `src/app/RehearsalApp.tsx` — authenticated shell and page composition.

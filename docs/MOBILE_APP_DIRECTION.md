@@ -82,9 +82,18 @@ not a general offline queue or offline learning store.
 - Tutor Chat exposes a touch-sized voice-message action and keeps failed transcription audio available for Retry or Delete while the page remains open.
 - Library shows cards before management tools. Topic management and transcript
   import use secondary dialogs or panels.
-- Mobile keeps the three-item bottom navigation. The top bar shows the current
-  section and one compact menu rather than every profile, language, theme, and
-  settings control at once.
+- Mobile normally keeps the three-item bottom navigation. In Tutor/Notebook, a
+  software keyboard moves section access to the labelled Tutor dropdown in the
+  top bar; closing the keyboard restores the bottom bar. Focus alone or pinch
+  zoom must not hide navigation. Drafts survive section and chat changes.
+- Tutor has a compact Chat/Notebook switch, a Sessions entry, and an app menu.
+  Review cards stays beside the input in Chat and Notebook. Mobile Return inserts
+  a newline; sending uses the visible arrow. Desktop Enter sends, Shift+Enter
+  inserts a newline, and IME composition never submits. The mobile composer grows
+  from several readable lines to a bounded height, then scrolls internally.
+- Review adjustments open as a separate mobile editor with Back/Done returning to
+  the same proposals. Neither action adds a card to Library. Topic and AI
+  alternatives have an explicit disclosure indicator.
 - The canonical routes are `/practice/recall`, `/practice/listen`,
   `/tutor/chat`, `/tutor/notebook`, `/library`, and `/library/topics`. Links must
   preserve the selected `lang` and honor the deployment base path.
@@ -96,7 +105,7 @@ not a general offline queue or offline learning store.
 
 - Load the official Telegram Web App bridge from `https://telegram.org`; call `ready()` and `expand()` after bootstrap.
 - Exchange validated `initData` for the ordinary profile cookie. An unconnected Telegram user sees the existing profile choice and enters that profile's PIN once.
-- Combine Telegram viewport, safe-area, and content-safe-area values with iOS CSS environment insets. Core controls remain at least 44 px and must not depend on hover.
+- Combine Telegram viewport, safe-area, and content-safe-area values with iOS CSS environment insets. Use the visible viewport for keyboard layout; never hard-code the height of Telegram chrome or an iOS keyboard. Apply the touch-target rule above to effective hit areas, not icon artwork.
 - Show Telegram's native BackButton only after the in-app route stack has a previous Echo entry. Initial deep links stay stable.
 - A Telegram `deactivated` event pauses an actively playing Listen & Repeat queue without discarding it. `activated` never resumes automatically; the learner explicitly taps Resume.
 - Native Telegram on iPhone is the v1 verification target. Telegram Desktop/Web iframe behavior and locked-screen playback are out of scope.

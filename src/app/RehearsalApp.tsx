@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, ChevronDown, Headphones, MessageCircle, Moon, Search, Settings2, Sun, UserRound } from "lucide-react";
+import { BookOpen, ChevronDown, Headphones, MessageCircle, Moon, PanelLeft, Search, Settings2, Sun, UserRound } from "lucide-react";
 import {
   isLanguageCode,
   type LanguageOption,
@@ -18,6 +18,7 @@ import {
   type OnboardingMode,
 } from "../features/onboarding/onboardingRoute";
 import { TutorPage } from "../features/tutor/TutorPage";
+import { useMobileKeyboard } from "../hooks/useMobileKeyboard";
 import { useAppRoute } from "../hooks/useAppRoute";
 import { EchoMark } from "./EchoBrand";
 import {
@@ -68,6 +69,13 @@ export function RehearsalApp({
     ? storedLanguage : availableCodes[0] || "en";
   const { route, goTo } = useAppRoute(savedLanguage, availableCodes);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [sectionsOpen, setSectionsOpen] = useState(false);
+  const keyboardOpen = useMobileKeyboard();
+  const topNavigation = route.section === "tutor" && (keyboardOpen || sectionsOpen);
+  const sessionsButtonRef = useRef<HTMLButtonElement>(null);
+  const sectionButtonRef = useRef<HTMLButtonElement>(null);
+  const navigationRef = useRef<HTMLElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [schedulerSettings, setSchedulerSettings] = useState(defaultSchedulerSettings);
@@ -98,7 +106,16 @@ export function RehearsalApp({
     setThemeExplicit(true);
     setTheme((current) => current === "dark" ? "light" : "dark");
   };
-  useEffect(() => setMobileMenuOpen(false), [route.section]);
+  useEffect(() => { setMobileMenuOpen(false); setSectionsOpen(false); setSessionsOpen(false); }, [route.section]);
+  useEffect(() => {
+    if (!sectionsOpen) return;
+    navigationRef.current?.querySelector<HTMLElement>("a[aria-current]")?.focus();
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setSectionsOpen(false); sectionButtonRef.current?.focus(); }
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [sectionsOpen]);
   useEffect(() => {
     window.localStorage.setItem(storageKey("language"), language);
   }, [language]);
@@ -180,22 +197,31 @@ export function RehearsalApp({
 
   const onboardingStep = onboardingMode ? parseOnboardingStep(window.location) : null;
 
-  return <div className={`simple-app simple-app--${theme}${onboardingMode ? " has-onboarding-tour" : ""}`} data-theme={theme}>
+  return <div className={`simple-app simple-app--${theme}${keyboardOpen && route.section === "tutor" ? " has-keyboard" : ""}${topNavigation ? " has-top-navigation" : ""}${sectionsOpen ? " has-sections-open" : ""}${onboardingMode ? " has-onboarding-tour" : ""}`} data-theme={theme}>
     <a className="simple-skip-link" href="#main-content">Skip to Main Content</a>
     <header className="simple-header">
       <div className="simple-header-rail">
       <AppLink className="simple-brand" route={practiceRoute()}><EchoMark />
         <strong className="simple-brand-product">Echo</strong><strong className="simple-brand-route">{sectionLabel}</strong></AppLink>
+      {route.section === "tutor" ? <>
+        <button aria-label="Open sessions" className="simple-header-sessions" ref={sessionsButtonRef} onClick={() => {
+          goTo({ ...route, mode: "chat" }); setSessionsOpen(true);
+        }} type="button"><PanelLeft aria-hidden="true" size={18} /></button>
+        <button aria-expanded={sectionsOpen} aria-controls="main-navigation" className="simple-section-picker" ref={sectionButtonRef}
+          onClick={() => setSectionsOpen((value) => !value)} type="button">Tutor<ChevronDown aria-hidden="true" size={14} /></button>
+      </> : null}
       {route.section === "tutor" ? <nav aria-label="Tutor mode" className="simple-mobile-tutor-mode">
         <AppLink aria-current={route.mode === "chat" ? "page" : undefined} className={route.mode === "chat" ? "is-active" : ""}
           route={{ ...route, mode: "chat" }}>Chat</AppLink>
         <AppLink aria-current={route.mode === "notebook" ? "page" : undefined} className={route.mode === "notebook" ? "is-active" : ""}
-          route={{ ...route, mode: "notebook", thread: null }}>Notebook</AppLink>
+          route={{ ...route, mode: "notebook" }}>Notebook</AppLink>
       </nav> : null}
-      <nav className="simple-nav" aria-label="Main navigation">
+      {sectionsOpen ? <button aria-label="Close navigation" className="simple-sections-backdrop" onClick={() => setSectionsOpen(false)} type="button" /> : null}
+      <nav className="simple-nav" aria-label="Main navigation" id="main-navigation" ref={navigationRef}
+        onClick={() => setSectionsOpen(false)}>
         <AppLink aria-current={route.section === "practice" ? "page" : undefined} className={route.section === "practice" ? "is-active" : ""} route={practiceRoute()}>
           <Headphones aria-hidden="true" className="simple-nav-icon" size={19} /><span>Practice</span></AppLink>
-        <AppLink aria-current={route.section === "tutor" ? "page" : undefined} className={route.section === "tutor" ? "is-active" : ""} route={defaultTutorRoute(language)}>
+        <AppLink aria-current={route.section === "tutor" ? "page" : undefined} className={route.section === "tutor" ? "is-active" : ""} route={route.section === "tutor" ? route : defaultTutorRoute(language)}>
           <MessageCircle aria-hidden="true" className="simple-nav-icon" size={19} /><span>Tutor</span></AppLink>
         <AppLink aria-current={route.section === "library" ? "page" : undefined} className={route.section === "library" ? "is-active" : ""} route={defaultLibraryRoute(language)}>
           <BookOpen aria-hidden="true" className="simple-nav-icon" size={19} /><span>Library</span></AppLink>
@@ -223,6 +249,7 @@ export function RehearsalApp({
         onClick={() => setMobileMenuOpen((open) => !open)} ref={mobileMenuButtonRef} type="button"><Settings2 size={19} /></button>
       {mobileMenuOpen ? <><button aria-label="Close app menu" className="simple-mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} type="button" />
         <div className="simple-mobile-menu" ref={mobileMenuRef}>
+          {route.section === "tutor" ? <button onClick={() => { setMobileMenuOpen(false); goTo({ ...route, mode: "chat" }); setSessionsOpen(true); }} type="button"><PanelLeft size={17} />Sessions</button> : null}
           <label><span>Language</span><select name="mobile-language" onChange={(event) => { changeLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
             {availableLanguages.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
           <button onClick={() => { setMobileMenuOpen(false); onSwitchProfile(); }} type="button"><UserRound size={17} />{profile.name}</button>
@@ -274,7 +301,7 @@ export function RehearsalApp({
       onPlayPrepared={audio.playPreparedAudio} onPrepareAudio={audio.fetchTargetAudio}
       onResumePlayback={audio.resumePlayback} onStopPlayback={audio.stopPlayback}
       playback={audio.playback} voices={audio.voices} />}
-    {route.section === "tutor" && <TutorPage language={language} profileId={profile.id} route={route}
+    {route.section === "tutor" && <TutorPage onCardsAdded={() => { void learning.loadItems(language); }} sessionsOpen={sessionsOpen} onSessionsOpen={setSessionsOpen} sessionsButtonRef={sessionsButtonRef} language={language} profileId={profile.id} route={route}
       onRoute={(next, historyMode) => goTo(next, historyMode)}
       onLibrary={() => goTo(defaultLibraryRoute(language))}
       onListen={() => { goTo(practiceRoute("listen")); void learning.loadItems(language); }} />}

@@ -304,7 +304,7 @@
     min-height: var(--h-control);
     font-size: 16px;
   }
-  .simple-app select { min-height: var(--h-control); font-size: 15px; }
+  .simple-app select { min-height: var(--h-control); font-size: 14px; font-weight: 400; }
   .simple-header { padding: 0; padding-top: var(--echo-safe-top); }
   .simple-header-rail { width: calc(100% - 32px); }
   .simple-header-rail {
@@ -506,7 +506,8 @@
     min-width: 0;
     min-height: var(--h-control);
     height: var(--h-control);
-    font-size: 16px;
+    font-size: 14px;
+    font-weight: 400;
   }
 
   .recall-setup-fields,
@@ -531,4 +532,29 @@
   }
 
   .topic-detail-heading > div:last-child { justify-content: flex-start; }
+}
+
+@media (max-width: 720px) {
+  .simple-app .simple-library-tools select,
+  .simple-app .practice-playback-settings select { font-size: 14px; font-weight: 400; }
+  .simple-library-selection button { font-size: 14px; font-weight: 400; }
+  .simple-app input::placeholder, .simple-app textarea::placeholder { font-size: 14px; font-weight: 400; }
+  .simple-app .simple-composer textarea::placeholder { font-size: 16px; }
+  .simple-nav a.is-active { color: var(--rh-note); }
+  .simple-app .practice-modes a { font-size: 13px; font-weight: 500; }
+  .simple-app .practice-modes a.is-active { color: var(--rh-accent); background: var(--rh-wash); }
+  .simple-app .recall-check { font-weight: 400; }
+  .listen-player > article > p { font-weight: 450; line-height: 1.45; }
+  .listen-player > article .focused-text { font-weight: 550; }
+  .listen-player .listen-prompt { font-size: 11px; font-weight: 400; letter-spacing: .04em; }
+  .listen-player .listen-russian { font-size: 14px; font-weight: 400; }
+  .simple-app .listen-selection-grid { gap: 8px; }
+  .simple-app .listen-setup, .simple-app .recall-setup { padding: 12px; }
+  .simple-app .practice-playback-settings { gap: 12px; }
+  .simple-app .practice-playback-settings label > span { font-size: 12px; font-weight: 400; }
+  .simple-library-panel .simple-phrase-list { display: grid; gap: 12px; padding: 12px; background: var(--rh-canvas); }
+  .simple-library-panel .simple-phrase-row { padding: 12px; background: var(--rh-surface); border: 1px solid var(--rh-rule-strong); border-radius: 12px; }
+  .simple-phrase-copy .focused-text { font-weight: 600; text-decoration: underline; text-decoration-color: var(--rh-accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .simple-row-actions > button, .simple-row-more > button { background: transparent; border-color: transparent; }
+  .simple-settings-panel select { font-size: 14px; font-weight: 400; }
 }

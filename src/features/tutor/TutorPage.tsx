@@ -1,12 +1,12 @@
+import { useSessionDraft } from "../../hooks/useSessionDraft";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import {
   ArrowUp,
   Ellipsis,
   LoaderCircle,
   Mic,
   MoveDiagonal2,
-  PanelLeft,
   Plus,
   RefreshCw,
   Square,
@@ -32,6 +32,7 @@ import { TutorGuidedPracticeStart } from "./TutorGuidedPracticeStart";
 import { TutorSessionsRail } from "./TutorSessionsRail";
 import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimisticMessages";
 import { tutorComposerMinimumHeight, useTutorComposerHeight } from "./useTutorComposerHeight";
+import { shouldSendTutorOnEnter } from "./tutorInput";
 import { clearMissingTutorThread } from "./tutorThreadRecovery";
 const looksLikeVocabList = (content: string) => {
   const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -49,7 +50,11 @@ const voiceErrorMessage = (error: unknown) => {
   return "Voice recording failed.";
 };
 
-export function TutorPage({ language, route, onLibrary, onListen, onRoute, profileId }: {
+export function TutorPage({ language, route, onLibrary, onListen, onRoute, profileId, onCardsAdded, sessionsOpen, onSessionsOpen: setSessionsOpen, sessionsButtonRef }: {
+  onCardsAdded: () => void;
+  sessionsOpen: boolean;
+  onSessionsOpen: (open: boolean) => void;
+  sessionsButtonRef: RefObject<HTMLButtonElement | null>;
   language: Language;
   route: TutorRoute;
   onRoute: (route: TutorRoute, historyMode?: HistoryMode) => void;
@@ -60,9 +65,9 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const { mode, thread: threadId, review: reviewId } = route;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [draft, setDraft] = useState(""); const [sending, setSending] = useState(false);
+  const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(""); const [added, setAdded] = useState(false);
-  const [loadingThread, setLoadingThread] = useState(false); const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [loadingThread, setLoadingThread] = useState(false);
   const [deletingThread, setDeletingThread] = useState(false);
   const [reviewing, setReviewing] = useState(false); const [reviewBatch, setReviewBatch] = useState<ReviewBatch | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -75,11 +80,18 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const recordingIntervalRef = useRef<number | null>(null); const recordingTimeoutRef = useRef<number | null>(null);
   const voiceSessionRef = useRef(0); const voiceAbortRef = useRef<AbortController | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
-  const sessionsButtonRef = useRef<HTMLButtonElement>(null);
+
   const sessionsRailRef = useRef<HTMLElement>(null);
   const resizeStartRef = useRef<{ clientY: number; height: number } | null>(null);
   const storageKey = `rehearsal:${profileId}:tutor-thread:${language}`;
   const draftKey = `rehearsal:${profileId}:tutor-draft:${language}:${threadId || "new"}`;
+  const [draft, setDraft] = useSessionDraft(draftKey);
+  useLayoutEffect(() => {
+    const field = composerRef.current;
+    if (!isNarrow || !field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.max(80, Math.min(176, field.scrollHeight))}px`;
+  }, [draft, isNarrow, mode, reviewBatch]);
 
   const refreshThreads = async () => {
     const response = await apiFetch(`/api/chat/threads?language=${language}&limit=50`);
@@ -125,11 +137,11 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         const stored = window.localStorage.getItem(storageKey);
         const selected = nextThreads.find((thread) => thread.publicId === threadId)
           || nextThreads.find((thread) => thread.publicId === stored);
-        if (selected && selected.publicId !== threadId) onRoute({ ...route, thread: selected.publicId, review: null }, "replace");
+        if (mode === "chat" && selected && selected.publicId !== threadId) onRoute({ ...route, thread: selected.publicId, review: null }, "replace");
       } catch { /* A blank Tutor remains usable when history is unavailable. */ }
     })();
     return () => { cancelled = true; };
-  }, [language, profileId]);
+  }, [language, profileId, mode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,17 +181,17 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     return () => { cancelled = true; };
   }, [reviewId, threadId]);
 
-  useEffect(() => setDraft(window.sessionStorage.getItem(draftKey) || ""), [draftKey]);
-  useEffect(() => {
-    if (draft) window.sessionStorage.setItem(draftKey, draft);
-    else window.sessionStorage.removeItem(draftKey);
-  }, [draft, draftKey]);
+
   useEffect(() => {
     if (!sessionsOpen || !isNarrow) return;
     window.requestAnimationFrame(() => sessionsRailRef.current?.querySelector<HTMLElement>("button, a[href]")?.focus());
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      closeSessions();
+      if (event.key === "Escape") closeSessions();
+      if (event.key !== "Tab") return;
+      const controls = [...(sessionsRailRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], input") || [])];
+      const first = controls[0], last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
@@ -200,7 +212,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
 
   const newChat = () => {
     window.sessionStorage.removeItem(`rehearsal:${profileId}:tutor-draft:${language}:new`);
-    onRoute({ ...route, thread: null, review: null }); setMessages([]); setReviewBatch(null); setDraft(""); setSendError(""); setAdded(false); setSessionsOpen(false);
+    onRoute({ ...route, thread: null, review: null }); setMessages([]); setReviewBatch(null); if (!threadId) setDraft(""); setSendError(""); setAdded(false); setSessionsOpen(false);
     window.localStorage.removeItem(storageKey);
   };
 
@@ -352,13 +364,13 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   };
 
   const finishReview = async () => {
-    if (!threadId || reviewing) return; setReviewing(true); setAdded(false);
+    if (!threadId || reviewing) return; setReviewing(true); setAdded(false); setSendError(""); composerRef.current?.blur();
     try {
       const response = await apiFetch(`/api/chat/${threadId}/review`, { method: "POST" });
       if (!response.ok) throw new Error("Review failed");
       const data = await response.json() as { batch: ReviewBatch }; scrollIntentRef.current = "smooth"; setReviewBatch(data.batch);
       onRoute({ ...route, review: data.batch.publicId }, "replace");
-    } catch { scrollIntentRef.current = "smooth"; setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: "Review could not be prepared. Nothing was added to Library." }]); }
+    } catch { setSendError("Review could not be prepared. Your chat is safe. Try Review cards again."); }
     finally { setReviewing(false); }
   };
 
@@ -368,19 +380,17 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     <header className="simple-page-heading simple-tutor-heading"><h1>Tutor</h1>
       <div aria-label="Tutor mode" className="simple-tutor-mode" role="group">
         <AppLink aria-current={mode === "chat" ? "page" : undefined} className={mode === "chat" ? "is-active" : ""} route={{ ...route, mode: "chat" }}>Chat</AppLink>
-        <AppLink aria-current={mode === "notebook" ? "page" : undefined} className={mode === "notebook" ? "is-active" : ""} route={{ ...route, mode: "notebook", thread: null }}>Notebook</AppLink>
+        <AppLink aria-current={mode === "notebook" ? "page" : undefined} className={mode === "notebook" ? "is-active" : ""} route={{ ...route, mode: "notebook" }}>Notebook</AppLink>
       </div></header>
-    {mode === "notebook" ? <CaptureNotebook language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
+    {mode === "notebook" ? <CaptureNotebook onCardsAdded={onCardsAdded} language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={closeSessions} type="button" /> : null}
-      <TutorSessionsRail currentThreadId={threadId} onClose={closeSessions} onNewChat={newChat} open={!isNarrow || sessionsOpen}
+      <TutorSessionsRail currentThreadId={threadId} onClose={closeSessions} onNewChat={newChat} modal={isNarrow} onDelete={() => void deleteChat()} deleting={deletingThread || sending || reviewing} open={!isNarrow || sessionsOpen}
         railRef={sessionsRailRef} route={route} threads={threads} />
-      <div className={`simple-chat-pane${reviewBatch ? " simple-chat-pane--review" : ""}`} data-onboarding-target="tutor">
+      <div inert={isNarrow && sessionsOpen} className={`simple-chat-pane${reviewBatch ? " simple-chat-pane--review" : ""}`} data-onboarding-target="tutor">
         {reviewBatch ? <div className="simple-review-pane"><ReviewBatchPanel batch={reviewBatch} context="tutor" feed onBatch={setReviewBatch}
           onDismiss={() => { setReviewBatch(null); onRoute({ ...route, review: null }, "replace"); }}
-          onCommitted={() => { setReviewBatch(null); setAdded(true); onRoute({ ...route, review: null }, "replace"); }} /></div> : <>
+          onCommitted={() => { onCardsAdded(); setReviewBatch(null); setAdded(true); onRoute({ ...route, review: null }, "replace"); }} /></div> : <>
         <div className="simple-chat-toolbar"><div className="simple-chat-context">
-          <button aria-label="Open sessions" className="simple-sessions-trigger" onClick={() => setSessionsOpen(true)} ref={sessionsButtonRef}
-            title="Sessions" type="button"><PanelLeft aria-hidden="true" size={16} /></button>
           <strong>{currentThread?.title || "New chat"}</strong></div>
           {threadId ? <details className="simple-chat-actions"><summary aria-label="More chat actions" role="button"><Ellipsis aria-hidden="true" size={18} /></summary><div>
             <button className="simple-delete-chat" disabled={deletingThread || sending || reviewing} onClick={() => void deleteChat()} type="button">
@@ -397,6 +407,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}
             <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
         </div>
+        {reviewing ? <div className="simple-review-preparing" role="status"><LoaderCircle aria-hidden="true" className="simple-spin" size={17} />Preparing cards from this chat…</div> : null}
         {sendError ? <div className="simple-composer-error" role="alert"><span>{sendError}</span><button onClick={() => setSendError("")} type="button">Dismiss</button></div> : null}
         {recording || transcribing || voiceError || pendingVoice ? <div aria-live="polite" className={`simple-composer-voice-status${voiceError ? " is-error" : ""}`}>
           <span>{recording ? `Listening · ${formatDuration(recordingSeconds)} · tap Stop to send`
@@ -406,8 +417,8 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         </div> : null}
         <div className="simple-composer">
           <div className="simple-composer-input"><label className="simple-visually-hidden" htmlFor="tutor-message">Message your tutor</label><textarea autoComplete="off" id="tutor-message" name="tutor-message" onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }}
-            placeholder="Message your tutor…" ref={composerRef} rows={2} style={isNarrow ? undefined : { height: `${composerHeight}px` }} value={draft} />
+            onKeyDown={(event) => { if (shouldSendTutorOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing }, isNarrow || window.matchMedia("(pointer: coarse)").matches)) { event.preventDefault(); void send(); } }}
+            enterKeyHint={isNarrow ? "enter" : "send"} placeholder="Message your tutor…" ref={composerRef} rows={2} style={isNarrow ? undefined : { height: `${composerHeight}px` }} value={draft} />
             <button aria-label="Resize message field" className="simple-composer-resize" onKeyDown={(event) => {
               if (event.key === "ArrowUp") { event.preventDefault(); setComposerHeight((height) => height + 40); }
               if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(tutorComposerMinimumHeight(isNarrow), height - 40)); }
@@ -419,7 +430,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
               const file = event.target.files?.[0]; if (file) setDraft(await file.text()); event.target.value = "";
             }} type="file" /></label>
             {threadId ? <button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
-              {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}<span>Finish &amp; review</span></button> : null}
+              {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}<span>{reviewing ? "Preparing…" : "Review cards"}</span></button> : null}
             <button aria-label={recording ? "Stop and send voice message" : "Record and send voice message"}
               className={`simple-composer-record${recording ? " is-recording" : ""}`}
               disabled={sending || transcribing || Boolean(pendingVoice)} onClick={recording ? stopVoiceRecording : () => void startVoiceRecording()}

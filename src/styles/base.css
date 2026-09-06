@@ -16,6 +16,8 @@ body,
   --tg-content-safe-area-inset-bottom: 0px;
   --tg-content-safe-area-inset-left: 0px;
   --echo-viewport-height: 100dvh;
+  --echo-visual-height: 100dvh;
+  --echo-visual-top: 0px;
   --echo-safe-top: max(env(safe-area-inset-top), var(--tg-safe-area-inset-top), var(--tg-content-safe-area-inset-top));
   --echo-safe-right: max(env(safe-area-inset-right), var(--tg-safe-area-inset-right), var(--tg-content-safe-area-inset-right));
   --echo-safe-bottom: max(env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom), var(--tg-content-safe-area-inset-bottom));
