@@ -54,7 +54,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
     try {
       const next = await getTopic(id);
       if (request !== requestId.current) return;
-      setTopic(next); setSelecting(false); setSelected(new Set()); setNotice(""); setMovedTo("");
+      setTopic(next); setRefreshPendingId(null); setSelecting(false); setSelected(new Set()); setNotice(""); setMovedTo("");
       changeScreen("detail"); onTopic(id);
     } catch (failure) { if (request === requestId.current) report(failure); }
     finally { if (request === requestId.current) setLoading(false); }

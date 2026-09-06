@@ -23,6 +23,11 @@ describe("Topic transfers", () => {
       .mockResolvedValueOnce(island(["b", "a"])).mockResolvedValueOnce(island([])).mockResolvedValueOnce(new Response(null, { status: 500 }));
     await expect(mergeTopics("source", "destination")).resolves.toEqual({ sourceRemoved: false });
   });
+  it("keeps the completed transfer explicit when the delete response is lost", async () => {
+    fetch.mockResolvedValueOnce(island(["a"])).mockResolvedValueOnce(island(["b"]))
+      .mockResolvedValueOnce(island(["b", "a"])).mockResolvedValueOnce(island([])).mockRejectedValueOnce(new TypeError("Network error"));
+    await expect(mergeTopics("source", "destination")).resolves.toEqual({ sourceRemoved: false });
+  });
   it("does not delete cards added to the source during the transfer", async () => {
     fetch.mockResolvedValueOnce(island(["a"])).mockResolvedValueOnce(island(["b"]))
       .mockResolvedValueOnce(island(["b", "a"])).mockResolvedValueOnce(island(["new arrival"]));
