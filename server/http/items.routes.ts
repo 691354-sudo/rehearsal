@@ -4,6 +4,7 @@ import { aiLimits } from "../services/ai-limits.js";
 import type { HttpDependencies } from "./dependencies.js";
 import { itemBodySchema, languageSchema, nfcText } from "./schemas.js";
 import { focusTermsInTarget } from "../../contracts/text.js";
+import { normalizeSchedulerSettings } from "../services/scheduler.js";
 
 export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   app.get("/api/items", async (request) => {
@@ -13,7 +14,8 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
       limit: z.coerce.number().int().min(1).max(2_000).default(100),
       includeSchedule: z.coerce.boolean().default(false),
     }).parse(request.query);
-    const items = repository.practice.listInventory(query.language, query.limit);
+    const items = repository.practice.listInventory(query.language, query.limit, new Date(),
+      query.language === "en" ? normalizeSchedulerSettings(repository.pilot.store.settings().scheduler) : undefined);
     return {
       items: query.includeSchedule ? items : items.map(({ schedule: _schedule, ...item }) => item),
     };

@@ -26,6 +26,7 @@
     "db:telegram-bindings": "node --import tsx scripts/db-telegram-bindings.ts",
     "models:check": "node --import tsx scripts/check-openai-models.ts",
     "ai-usage:report": "node --import tsx scripts/ai-usage-report.ts",
+    "pilot": "node --import tsx scripts/learning-pilot.ts",
     "prompts:check": "node --import tsx scripts/check-material-prompts.ts",
     "db:backup": "node --import tsx scripts/db-backup.ts",
     "db:restore": "node --import tsx scripts/db-restore.ts"

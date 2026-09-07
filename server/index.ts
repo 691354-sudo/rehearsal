@@ -25,6 +25,14 @@ for (const profileId of profileIds) {
 }
 
 const app = await buildApp(profiles);
+const closePilotWindows = () => {
+  for (const profile of profiles.listProfiles()) profiles.get(profile.id).repository.pilot.participants.closeExpired();
+};
+closePilotWindows();
+const pilotWindowTimer = setInterval(() => {
+  try { closePilotWindows(); } catch (error) { app.log.error({ err: error }, "Could not close an expired pilot window"); }
+}, 60_000);
+pilotWindowTimer.unref();
 let telegram: TelegramPollingRuntime | null = null;
 const distPath = path.resolve(process.cwd(), "dist");
 
@@ -43,6 +51,7 @@ if (fs.existsSync(distPath)) {
 }
 
 const shutdown = async () => {
+  clearInterval(pilotWindowTimer);
   await telegram?.stop();
   await app.close();
   profiles.close();

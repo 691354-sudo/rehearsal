@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
+import { TutorSemanticMessage } from "./TutorSemanticMessage";
 
 const renderInlineMarkdown = (text: string) => text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) =>
   part.startsWith("**") && part.endsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong> : part);
 
-const renderMarkdownBlocks = (content: string, keyPrefix: string) => {
+export const renderMarkdownBlocks = (content: string, keyPrefix: string) => {
   const lines = content.split(/\r?\n/);
   const nodes: ReactNode[] = [];
   for (let index = 0; index < lines.length;) {
@@ -64,7 +65,8 @@ export const splitTutorCorrection = (content: string, learnerMessage?: string) =
   };
 };
 
-export function TutorMarkdownMessage({ content, learnerMessage }: { content: string; learnerMessage?: string }) {
+export function TutorMarkdownMessage({ content, learnerMessage, semantic = false }: { content: string; learnerMessage?: string; semantic?: boolean }) {
+  if (semantic) return <TutorSemanticMessage content={content} learnerMessage={learnerMessage} />;
   const correction = splitTutorCorrection(content, learnerMessage);
   if (!correction) return <div className="simple-message-copy">{renderMarkdownBlocks(content, "message")}</div>;
 

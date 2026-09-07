@@ -14,6 +14,7 @@ type RouteBase = {
 };
 
 export type PracticeRoute = RouteBase & {
+  homework?: string;
   section: "practice";
   mode: "recall" | "listen";
   scope: PracticeScopeRoute;
@@ -24,6 +25,7 @@ export type PracticeRoute = RouteBase & {
 };
 
 export type TutorRoute = RouteBase & {
+  homework?: string;
   section: "tutor";
   mode: "chat" | "notebook";
   thread: string | null;
@@ -108,6 +110,7 @@ export function parseAppRoute(
       language,
       settings,
       ...tourState,
+      ...(language === "en" && !path.endsWith("notebook") && uuidOrNull(params, "homework") ? { homework: uuidOrNull(params, "homework")! } : {}),
     };
   }
 
@@ -153,6 +156,7 @@ export function parseAppRoute(
     language,
     settings,
     ...tourState,
+    ...(language === "en" && mode === "recall" && uuidOrNull(params, "homework") ? { homework: uuidOrNull(params, "homework")! } : {}),
   };
 }
 
@@ -161,6 +165,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
   const params = new URLSearchParams({ lang: route.language });
   if (route.settings) params.set("settings", "1");
   if (route.tour) params.set("tour", route.tour);
+  if ((route.section === "practice" && route.mode === "recall" || route.section === "tutor" && route.mode === "chat") && route.homework && route.language === "en") params.set("homework", route.homework);
   let path: string;
 
   if (route.section === "practice") {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { submitPilotRecall } from "../testing/pilot-requests.js";
 import { buildApp } from "../app.js";
 import { createApiTestContext, type ApiTestContext } from "../testing/api-test-context.js";
 
@@ -17,19 +18,10 @@ describe("practice and library API", () => {
 
   it("records recall and listening while changing only the recall schedule", async () => {
     const app = await buildApp(context.repository);
-    const recall = await app.inject({
-      method: "POST",
-      url: "/api/attempts/evaluate",
-      payload: {
-        itemId: "en-drawn-to",
-        answer: "I've always been drawn to places near the ocean.",
-        mode: "recall",
-        rating: "easy",
-      },
-    });
+    const topic = context.repository.library.createIsland({ language: "en", title: "Progress topic", itemPublicIds: ["en-drawn-to"] });
+    const recall = await submitPilotRecall((input) => app.inject(input), "en-drawn-to", "easy");
     expect(recall.statusCode).toBe(200);
-    expect(recall.json()).toMatchObject({ mode: "local", evaluation: { verdict: "exact" } });
-    expect(recall.json().attempt.schedule).toMatchObject({ state: "review" });
+    expect(recall.json().schedule).toMatchObject({ state: "review" });
 
     const shadow = await app.inject({
       method: "POST",
@@ -43,17 +35,14 @@ describe("practice and library API", () => {
       method: "GET",
       url: "/api/practice/progress?language=en&since=2000-01-01T00:00:00.000Z",
     });
-    expect(progress.json()).toMatchObject({ completed: 1, recall: 1, shadow: 1, pattern: 0 });
+    expect(progress.json()).toMatchObject({ completed: 1, recall: 1, shadow: 6, pattern: 0 });
     const inventory = await app.inject({
       method: "GET", url: "/api/items?language=en&limit=500&includeSchedule=true",
     });
     expect(inventory.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to").progress)
-      .toMatchObject({ recalls: 1, listens: 1, stage: "strong" });
-    const topic = context.repository.library.createIsland({
-      language: "en", title: "Progress topic", itemPublicIds: ["en-drawn-to"],
-    });
+      .toMatchObject({ recalls: 1, listens: 6, stage: "strong" });
     expect(context.repository.library.getIsland(topic.publicId)?.progress)
-      .toMatchObject({ strong: 1, recalls: 1, listens: 1 });
+      .toMatchObject({ strong: 1, recalls: 1, listens: 6 });
     await app.close();
   });
 
@@ -82,8 +71,9 @@ describe("practice and library API", () => {
   });
 
   it("returns the full ordered recommendation queue beyond one hundred cards", async () => {
+    const topic = context.repository.library.createIsland({ language: "en", title: "Large queue" });
     for (let index = 0; index < 105; index += 1) {
-      const item = context.repository.items.save({ language: "en", cue: `Очередь ${index}`, target: `Queue card ${index}.` });
+      const item = context.repository.items.create({ language: "en", cue: `Очередь ${index}`, target: `Queue card ${index}.` }, topic.publicId);
       context.repository.practice.recordAttempt({ itemPublicId: item.publicId, mode: "recall", answer: item.target,
         score: 1, verdict: "easy", feedback: {}, rating: "easy", reviewedAt: new Date("2020-01-01T00:00:00.000Z") });
     }

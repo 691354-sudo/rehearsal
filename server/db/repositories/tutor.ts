@@ -132,8 +132,9 @@ export class TutorRepository {
     if (!message) return null;
     const assistant = this.db.prepare(
       `SELECT content, metadata FROM chat_messages
-       WHERE thread_id = ? AND id > ? AND role = 'assistant' ORDER BY id LIMIT 1`,
-    ).get(message.thread_id, message.message_id) as { content: string; metadata: string } | undefined;
+       WHERE thread_id = ? AND id > ? AND role = 'assistant'
+         AND json_extract(metadata, '$.clientMessageId') = ? ORDER BY id LIMIT 1`,
+    ).get(message.thread_id, message.message_id, clientMessageId) as { content: string; metadata: string } | undefined;
     if (!assistant) return null;
     let metadata: Record<string, unknown> = {};
     try { metadata = JSON.parse(assistant.metadata) as Record<string, unknown>; } catch { /* legacy metadata */ }

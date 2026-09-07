@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { apiFetch } from "../../shared/api";
-import type { Island, IslandSummary, Language } from "../../shared/contracts";
+import { getTopic, getTopics } from "../library/topicRequests";
+import type { IslandSummary, Language } from "../../shared/contracts";
 
 export function usePracticeTopics(
   language: Language,
@@ -9,6 +9,7 @@ export function usePracticeTopics(
 ) {
   const [topics, setTopics] = useState<IslandSummary[]>([]);
   const [topicItems, setTopicItems] = useState<string[]>([]);
+  const [likedItems, setLikedItems] = useState<import("../../shared/contracts").LearningItem[]>([]);
   const [topicsLanguage, setTopicsLanguage] = useState<Language | null>(null);
   const onTopicRef = useRef(onTopic);
   onTopicRef.current = onTopic;
@@ -17,10 +18,9 @@ export function usePracticeTopics(
     const controller = new AbortController();
     setTopics([]);
     setTopicsLanguage(null);
-    void apiFetch(`/api/islands?language=${language}`, { signal: controller.signal }).then(async (response) => {
-      if (!response.ok) throw new Error("Topics unavailable");
-      const data = await response.json() as { islands: IslandSummary[] };
-      setTopics(data.islands || []);
+    void getTopics(language, controller.signal).then((data) => {
+      if (controller.signal.aborted) return;
+      setTopics(data);
       setTopicsLanguage(language);
     }).catch(() => {
       if (!controller.signal.aborted) setTopics([]);
@@ -34,13 +34,14 @@ export function usePracticeTopics(
   }, [language, topicId, topics, topicsLanguage]);
 
   useEffect(() => {
+    setLikedItems([]);
     if (!topicId) { setTopicItems([]); return; }
     const controller = new AbortController();
     setTopicItems([]);
-    void apiFetch(`/api/islands/${encodeURIComponent(topicId)}`, { signal: controller.signal }).then(async (response) => {
-      if (!response.ok) throw new Error("Topic unavailable");
-      const data = await response.json() as { island: Island };
-      setTopicItems(data.island.items.map((item) => item.publicId));
+    void getTopic(topicId, controller.signal).then((data) => {
+      if (controller.signal.aborted) return;
+      setTopicItems(data.items.map((item) => item.publicId));
+      if (topicId === "liked") setLikedItems(data.items);
     }).catch(() => {
       if (!controller.signal.aborted) setTopicItems([]);
     });
@@ -49,5 +50,5 @@ export function usePracticeTopics(
 
   const selectedTopicItems = topicId ? topicItems : null;
 
-  return { selectedTopicItems, topics };
+  return { selectedTopicItems, topics, likedItems };
 }

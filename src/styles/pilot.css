@@ -1,0 +1,80 @@
+/* English pilot additions use the existing Echo typography and surface tokens. */
+.pilot-recall > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 8px; }
+.pilot-recall > header::after { display: none; }
+.pilot-recall-utilities { display: flex; flex: 0 0 auto; gap: 4px; }
+.pilot-recall-utilities > button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }
+.pilot-recall-prompt { display: block; margin-bottom: 18px; color: var(--script-tertiary); font-size: 13px; }
+.pilot-recall .recall-answer-row textarea { min-height: 44px; max-height: 164px; padding: 9px 12px; overflow-y: auto; }
+.pilot-reveal { margin-top: 12px; min-height: 44px; }
+.pilot-recall .recall-natural-row { display: flex; align-items: center; justify-content: space-between; }
+.pilot-recall .recall-natural-row > span { font-size: 12px; color: var(--script-tertiary); }
+.pilot-recall .recall-natural-row > button { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
+.pilot-recall .pilot-grades { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pilot-grade--again {
+  --grade: #813831; }
+.pilot-grade--hard {
+  --grade: #6f430f; }
+.pilot-grade--good {
+  --grade: #3f7b60; }
+.pilot-grade--easy {
+  --grade: #294d6b; }
+:root[data-theme="dark"] .pilot-grade--again {
+  --grade: #d08078; }
+:root[data-theme="dark"] .pilot-grade--hard {
+  --grade: #d8b57f; }
+:root[data-theme="dark"] .pilot-grade--good {
+  --grade: #7fb294; }
+:root[data-theme="dark"] .pilot-grade--easy {
+  --grade: #8bb1ce; }
+.pilot-grades > .pilot-grade { min-width: 0; min-height: 44px; padding: 10px 4px; font-size: 14px; font-weight: 500; color: var(--grade); background: color-mix(in srgb, var(--grade) 10%, var(--rh-surface)); border: 1px solid color-mix(in srgb, var(--grade) 32%, transparent); }
+.pilot-grades > .pilot-grade[aria-pressed="true"] { color: #fff; background: var(--grade); border-color: var(--grade); }
+:root[data-theme="dark"] .pilot-grades > .pilot-grade[aria-pressed="true"] { color: #1d2420; }
+.pilot-grades > .pilot-grade:focus-visible { outline: 2px solid var(--grade); outline-offset: 3px; }
+.pilot-actions, .pilot-homework-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.pilot-actions > button, .pilot-homework-heading > button { min-height: 44px; }
+.listen-player > article:has(.pilot-listen-progress) { min-height: 0; align-content: start; }
+.pilot-listen-progress { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--rh-rule); }
+.pilot-listen-progress > span { color: var(--script-tertiary); font-size: 12px; }
+.pilot-listen-progress > button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px; }
+.pilot-listen-progress > button[aria-pressed="true"] { color: var(--rh-accent); }
+.pilot-sync { flex-basis: 100%; margin: 0; color: var(--script-tertiary); font-size: 12px; }
+.topic-card-list footer > .pilot-liked-actions { display: flex; align-items: center; gap: 4px; }
+.pilot-liked-actions > button { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
+.pilot-liked-actions > button[aria-pressed="true"] { color: var(--rh-accent); }
+.topic-toolbar > a { display: inline-flex; align-items: center; min-height: 44px; color: var(--script-ink); text-decoration: none; }
+.simple-chat-pane:has(.pilot-homework-bar) { display: flex; flex-direction: column; }
+.simple-chat-pane:has(.pilot-homework-bar) > :not(.simple-chat-messages) { flex-shrink: 0; }
+.simple-chat-pane:has(.pilot-homework-bar) > .simple-chat-messages { flex: 1; min-height: 0; }
+.pilot-homework-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 16px; border-bottom: 1px solid var(--rh-rule); }
+.pilot-homework-bar > span { flex: 1; color: var(--script-tertiary); font-size: 12px; }
+.pilot-homework-bar > button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.pilot-homework-panel { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--rh-rule); }
+.pilot-homework-panel h2 { margin: 0 0 12px; font-size: 18px; }
+.pilot-homework-panel p { line-height: 1.6; }
+.pilot-homework-panel button { min-height: 44px; }
+.pilot-minutes { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.pilot-minutes label { display: grid; gap: 8px; width: 100px; font-size: 13px; }
+.pilot-minutes input { width: 100%; min-height: 44px; }
+.pilot-notice { color: var(--script-tertiary); font-size: 12px; }
+.pilot-feedback { display: grid; gap: 18px; }
+.pilot-feedback form, .pilot-feedback details { display: grid; gap: 18px; }
+.pilot-feedback label { display: grid; gap: 8px; font-size: 13px; }
+.pilot-feedback select, .pilot-feedback textarea { width: 100%; min-height: 44px; }
+.pilot-feedback textarea { min-height: 80px; resize: vertical; }
+.pilot-tutor-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rh-rule); }
+.pilot-tutor-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.pilot-tutor-section > h3 { margin: 0 0 8px; font-size: 12px; font-weight: 400; color: var(--script-tertiary); }
+.pilot-tutor-section > p:first-of-type { margin-top: 0; }
+.pilot-tutor-section > :last-child { margin-bottom: 0; }
+.pilot-tutor-section[data-part="your phrase"] > p { color: var(--script-tertiary); }
+.pilot-homework-bar > button,
+.pilot-homework-panel button:not(.simple-primary),
+.pilot-actions > button:not(.simple-primary) { padding: 8px 12px; color: var(--script-ink); background: transparent; border: 1px solid var(--rh-rule); border-radius: 8px; font-size: 13px; }
+.pilot-homework-bar > button:hover,
+.pilot-homework-panel button:not(.simple-primary):hover,
+.pilot-actions > button:not(.simple-primary):hover { background: var(--rh-wash); }
+.pilot-minutes input, .pilot-feedback select, .pilot-feedback textarea { padding: 9px 12px; color: var(--script-ink); background: var(--script-inset); border: 1px solid var(--script-rule-strong); border-radius: 8px; }
+.pilot-liked-actions > button, .pilot-listen-progress > button { color: var(--script-ink); background: transparent; border: 0; border-radius: 8px; }
+.pilot-liked-actions > button:hover, .pilot-listen-progress > button:hover { background: var(--rh-wash); }
+.pilot-liked-actions > button[aria-pressed="true"], .pilot-listen-progress > button[aria-pressed="true"] { color: var(--rh-accent); }
+.pilot-tutor-copy { overflow-wrap: anywhere; }

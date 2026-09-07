@@ -14,9 +14,10 @@ import {
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 import { CardEditorDialog } from "./CardEditorDialog";
 import { CardCreateDialog } from "./CardCreateDialog";
+import { getTopic, getTopics } from "./topicRequests";
 import { TopicsManager } from "./TopicsManager";
 import { apiFetch } from "../../shared/api";
-import type { Island, IslandSummary, Language, LearningItem } from "../../shared/contracts";
+import type { IslandSummary, Language, LearningItem } from "../../shared/contracts";
 import { languageHasAudio } from "../../shared/config";
 import { filterLibraryItems, type LibrarySort, type LibraryStatus } from "../../lib/libraryView";
 import type { AppRoute, HistoryMode, LibraryRoute } from "../../lib/appRoute";
@@ -40,6 +41,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
 }) {
   const [searchInput, setSearchInput] = useState(route.query);
   const [topics, setTopics] = useState<IslandSummary[]>([]);
+  const [collectionItems, setCollectionItems] = useState<LearningItem[]>([]);
   const [topicItemIds, setTopicItemIds] = useState<string[]>([]);
   const [topicsError, setTopicsError] = useState(false);
   const [title, setTitle] = useState("");
@@ -60,7 +62,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   const showTopics = route.view === "topics";
   const showImport = route.panel === "import";
   const showCreate = route.panel === "create";
-  const editingItem = route.edit ? items.find((item) => item.publicId === route.edit) || null : null;
+  const editingItem = route.edit ? [...items, ...collectionItems].find((item) => item.publicId === route.edit) || null : null;
   const visibleCount = route.page * 20;
   const { query, status, sort, topic } = route;
   const patchRoute = (patch: Partial<LibraryRoute>, historyMode: HistoryMode = "replace") => onRoute({ ...route, ...patch }, historyMode);
@@ -141,17 +143,11 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     };
   }, [openActionsId]);
 
-  const loadTopics = async (nextLanguage = language) => {
-    const response = await apiFetch(`/api/islands?language=${nextLanguage}`);
-    if (!response.ok) throw new Error("Topics unavailable");
-    const data = await response.json() as { islands: IslandSummary[] };
-    return data.islands || [];
-  };
+  const loadTopics = (nextLanguage = language) => getTopics(nextLanguage);
   const loadTopicItemIds = async (topicId: string) => {
-    const response = await apiFetch(`/api/islands/${encodeURIComponent(topicId)}`);
-    if (!response.ok) throw new Error("Topic unavailable");
-    const data = await response.json() as { island: Island };
-    return data.island.items.map((item) => item.publicId);
+    const data = await getTopic(topicId);
+    setCollectionItems(data.items);
+    return data.items.map((item) => item.publicId);
   };
   const refreshTopics = async () => {
     try {
@@ -169,7 +165,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
 
   useEffect(() => {
     let active = true;
-    setTopicItemIds([]); setBatch(null); setAdded(false); setSelectedItemIds(new Set());
+    setCollectionItems([]); setTopicItemIds([]); setBatch(null); setAdded(false); setSelectedItemIds(new Set());
     setTopics([]); setTopicsError(false);
     void loadTopics(language).then((loadedTopics) => {
       if (active) setTopics(loadedTopics);
@@ -238,9 +234,9 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   const topicItemSet = useMemo(() => new Set(topicItemIds), [topicItemIds]);
   const delimitedImport = text.includes("$");
   const importFragmentCount = delimitedImport ? text.split("$").filter((fragment) => fragment.trim()).length : 0;
-  const visibleItems = useMemo(() => filterLibraryItems(items, {
+  const visibleItems = useMemo(() => filterLibraryItems(topic === "liked" ? collectionItems : items, {
     query, status, sort, topicItemIds: topic === "all" ? null : topicItemSet, language,
-  }), [items, language, query, sort, status, topic, topicItemSet]);
+  }), [items, collectionItems, language, query, sort, status, topic, topicItemSet]);
   const displayedItems = visibleItems.slice(0, visibleCount);
   const selectedVisibleCount = displayedItems.filter((item) => selectedItemIds.has(item.publicId)).length;
   const allVisibleSelected = Boolean(displayedItems.length) && selectedVisibleCount === displayedItems.length;
@@ -394,7 +390,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
         patchRoute({ edit: null }, "replace");
         if (showTopics) setTopicsRevision((revision) => revision + 1);
       }} /> : null}
-    {showCreate ? <CardCreateDialog initialTopicId={route.topic === "all" ? "" : route.topic} language={language} topics={topics}
+    {showCreate ? <CardCreateDialog initialTopicId={["all", "liked"].includes(route.topic) ? "" : route.topic} language={language} topics={topics.filter((candidate) => candidate.publicId !== "liked")}
       onClose={() => closeSurface("create", { panel: null })} onCreated={() => {
         closeSurface("create", { panel: null }); void onItemsReload(); void refreshTopics();
         if (showTopics) setTopicsRevision((revision) => revision + 1);

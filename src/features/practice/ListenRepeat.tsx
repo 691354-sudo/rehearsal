@@ -1,5 +1,6 @@
+import { ListenSetup } from "./ListenSetup";
+import { useListenAppearances } from "../pilot/useListenAppearances";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Play, Settings2, Shuffle } from "lucide-react";
 import type {
   ElevenLabsConfig,
   IslandSummary,
@@ -16,11 +17,8 @@ import {
   playbackIdentity, preparationBody, shuffleQueue,
   type AudioPreparationJob, type PreparedAudio, type RepeatMode,
 } from "../audio/listenAudio";
-import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { PlaybackSettings, voiceDisplayName } from "./PlaybackSettings";
-import { TopicProgressPicker } from "./TopicProgressPicker";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
-import { RepeatModeButton } from "./RepeatModeButton";
 import { ListenPlayerSurface } from "./ListenPlayerSurface";
 import { useTelegramPlaybackPause } from "./useTelegramPlaybackPause";
 export function ListenRepeat(props: {
@@ -38,7 +36,7 @@ export function ListenRepeat(props: {
   onEdit: (item: LearningItem) => void;
   onPause: () => void;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
-  onPlayPrepared: (url: string, repetitions: number) => Promise<number>;
+  onPlayPrepared: (url: string, repetitions: number, onFirstCompleted?: () => void) => Promise<number>;
   onPlayback: (playback: PlaybackPreferences) => void;
   onPrepareAudio: (
     text: string,
@@ -84,6 +82,10 @@ export function ListenRepeat(props: {
   const buffersRef = useRef(new Map<string, string>());
   const downloadsRef = useRef(new Map<string, Promise<string>>());
   const urlsRef = useRef(new Set<string>());
+  const appearances = useListenAppearances(props.language, props.items, (restored, position) => {
+    queueRef.current = restored; setQueue(restored); setIndex(position); setPhase("player");
+    pausedRef.current = true; replayEditedRef.current = true; setStatus("paused");
+  });
   playbackRef.current = props.playback;
   queueRef.current = queue;
   repeatModeRef.current = repeatMode;
@@ -240,7 +242,7 @@ export function ListenRepeat(props: {
     }
   };
 
-  const playAt = async (nextIndex: number, nextQueue = queueRef.current, preservePause = false) => {
+  const playAt = async (nextIndex: number, nextQueue = queueRef.current, preservePause = false, newAppearance = false) => {
     const item = nextQueue[nextIndex];
     if (!item) { setPhase("complete"); return; }
     replayEditedRef.current = false;
@@ -254,6 +256,7 @@ export function ListenRepeat(props: {
     setPhase("player");
     setStatus("playing");
     setError("");
+    const appearance = appearances.enter(nextIndex, nextQueue, newAppearance);
     if ("mediaSession" in navigator && "MediaMetadata" in window) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: item.target,
@@ -269,20 +272,22 @@ export function ListenRepeat(props: {
       }
       const url = await ensureBuffered(item, activePlayback);
       if (run !== runRef.current) return;
-      const durationMs = await props.onPlayPrepared(url, activePlayback.repetitions);
+      const durationMs = await props.onPlayPrepared(url, activePlayback.repetitions, () => {
+        if (appearance && run === runRef.current) appearances.complete(appearance, activePlayback.repetitions);
+      });
       if (run !== runRef.current) return;
-      markListenedOnce(listenedRef.current, item.publicId, props.onListened);
+      if (props.language !== "en") markListenedOnce(listenedRef.current, item.publicId, props.onListened);
       await waitForPause(adaptivePauseMs(durationMs), run);
       if (run !== runRef.current) return;
       const shuffled = pendingShuffleRef.current;
       if (shuffled) {
         pendingShuffleRef.current = null;
         setNote("");
-        void playAt(0, shuffled, true);
+        void playAt(0, shuffled, true, true);
       } else {
         const followingIndex = nextAutomaticIndex(nextIndex, nextQueue.length, repeatModeRef.current);
-        if (followingIndex === null) setPhase("complete");
-        else void playAt(followingIndex, nextQueue, true);
+        if (followingIndex === null) { appearances.clear(); setPhase("complete"); }
+        else void playAt(followingIndex, nextQueue, true, true);
       }
     } catch (caught) {
       if (run !== runRef.current) return;
@@ -294,6 +299,7 @@ export function ListenRepeat(props: {
   const start = async () => {
     const nextQueue = visibleCandidates;
     if (!nextQueue.length) return;
+    appearances.start(nextQueue);
     pausedRef.current = false;
     listenedRef.current.clear();
     queueRef.current = nextQueue;
@@ -311,6 +317,7 @@ export function ListenRepeat(props: {
   };
 
   const stop = () => {
+    appearances.clear();
     runRef.current += 1;
     pausedRef.current = false;
     pendingShuffleRef.current = null;
@@ -323,6 +330,7 @@ export function ListenRepeat(props: {
   };
   const restart = () => {
     listenedRef.current.clear();
+    appearances.start(queueRef.current);
     void playAt(0);
   };
   const previous = () => {
@@ -333,7 +341,7 @@ export function ListenRepeat(props: {
   const next = () => {
     const nextIndex = nextQueueIndex(index, queue.length, repeatModeRef.current === "all");
     if (nextIndex !== null) void playAt(nextIndex);
-    else { runRef.current += 1; props.onStop(); setPhase("complete"); }
+    else { runRef.current += 1; props.onStop(); appearances.clear(); setPhase("complete"); }
   };
   const replay = () => { if (current) void playAt(index); };
   const pause = () => { pausedRef.current = true; props.onPause(); setStatus("paused"); };
@@ -402,36 +410,9 @@ export function ListenRepeat(props: {
     props.onStop();
     cancelPreparation(true);
   }, [props.onStop]);
-  if (phase === "setup") return <div className="practice-ready-layout">
-    <section className="listen-setup" aria-label="Listen and Repeat setup">
-      <div className={`listen-selection-grid${props.scope === "custom" ? " has-order" : ""}`}>
-        <div className="practice-topic-field"><TopicProgressPicker onChange={props.onTopic} progressPill topics={props.topics} value={props.topicId} /></div>
-        <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" className="practice-card-select" name="listen-count" onChange={(event) => {
-          const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
-          props.onSelection(scope, count);
-        }} value={`${props.scope}:${props.count}`}>
-          <option value="due:all">All recommended</option><option value="due:10">10 recommended</option><option value="due:20">20 recommended</option><option value="due:50">50 recommended</option>
-          <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
-        </select></label>
-        {props.scope === "custom" ? <label><span className="simple-visually-hidden">Order</span><select aria-label="Card order" className="practice-order-select" name="listen-order"
-          onChange={(event) => props.onOrder(event.target.value as PracticeOrder)} value={props.order}>
-          <option value="original">{props.topicId ? "Original order" : "Oldest first"}</option><option value="newest">Newest first</option></select></label> : null}
-      </div>
-      {showPlaybackSettings ? <div className="listen-setup-playback">{playbackSettings}</div> : null}
-      <div className="listen-start-options">
-        <RepeatModeButton mode={repeatMode} onClick={cycleRepeat} size={17} />
-        <button aria-label="Shuffle cards" onClick={shuffle} title="Shuffle" type="button"><Shuffle size={17} /></button>
-        <button aria-expanded={showPlaybackSettings} aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
-          onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Playback settings" type="button"><Settings2 size={17} /></button>
-        <span>{visibleComposition.due} due · {visibleComposition.new} not recalled yet</span>
-      </div>
-    </section>
-    <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
-      <Play fill="currentColor" size={15} />Play {visibleCandidates.length || "recommended"} cards
-    </button>
-    <PracticeQueuePreview emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit}
-      onListened={props.onListened} onPlay={(item) => props.onPlay(item.target, props.playback)} scope={props.scope} />
-  </div>;
+  if (phase === "setup") return <ListenSetup props={props} visibleCandidates={visibleCandidates} visibleComposition={visibleComposition}
+    playbackSettings={playbackSettings} showPlaybackSettings={showPlaybackSettings} setShowPlaybackSettings={setShowPlaybackSettings}
+    repeatMode={repeatMode} cycleRepeat={cycleRepeat} shuffle={shuffle} start={start} />;
 
   if (phase === "complete") return <section className="recall-complete" aria-label="Listening complete">
     <span>Listening complete</span><strong>{queue.length} listened</strong>

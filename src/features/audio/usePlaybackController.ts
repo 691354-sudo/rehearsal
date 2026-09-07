@@ -239,7 +239,7 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     }
   };
 
-  const playPreparedAudio = async (url: string, repetitions = 1) => {
+  const playPreparedAudio = async (url: string, repetitions = 1, onFirstCompleted?: () => void) => {
     stopPlayback();
     const sequence = audioSequenceRef.current;
     const audio = audioElementRef.current || new Audio();
@@ -266,7 +266,10 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
             if (error) reject(error); else resolve();
           };
           const cancel = () => finish();
-          const onEnded = () => finish();
+          const onEnded = () => {
+            if (repetition === 0 && sequence === audioSequenceRef.current) onFirstCompleted?.();
+            finish();
+          };
           const onError = () => finish(new Error("Audio playback failed."));
           audioCancelRef.current = cancel;
           audioPauseRef.current = () => audio.pause();

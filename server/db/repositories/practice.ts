@@ -55,19 +55,23 @@ export class PracticeRepository {
     feedback: Record<string, unknown>;
     rating?: ReviewRating;
     reviewedAt?: Date;
+    publicId?: string;
+    schedulerSettings?: SchedulerSettings;
+    schedulingPreference?: LearningItem["preference"];
   }) {
     const item = this.db.prepare(
       "SELECT id, preference FROM items WHERE public_id = ?",
     ).get(input.itemPublicId) as { id: number; preference: LearningItem["preference"] } | undefined;
     if (!item) throw new Error("Item not found");
-    const publicId = randomUUID();
+    const publicId = input.publicId ?? randomUUID();
     const reviewedAt = input.reviewedAt || new Date();
-    const schedulerSettings = this.getSettings();
+    const schedulerSettings = input.schedulerSettings ?? this.getSettings();
+    const preference = input.schedulingPreference ?? item.preference;
     let schedule = null;
     const transaction = this.db.transaction(() => {
       this.db.prepare(
-        `INSERT INTO attempts(public_id, item_id, mode, answer, score, verdict, feedback)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO attempts(public_id, item_id, mode, answer, score, verdict, feedback, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         publicId,
         item.id,
@@ -76,13 +80,14 @@ export class PracticeRepository {
         input.score,
         input.verdict,
         JSON.stringify(input.feedback),
+        reviewedAt.toISOString(),
       );
       if (input.mode === "recall" && input.rating) {
         const currentRow = this.db.prepare(
           "SELECT * FROM review_state WHERE item_id = ?",
         ).get(item.id) as ReviewStateRow | undefined;
         const currentCard = cardFromStoredState(mapReviewState(currentRow), reviewedAt);
-        const result = scheduleReview(currentCard, input.rating, reviewedAt, item.preference, schedulerSettings);
+        const result = scheduleReview(currentCard, input.rating, reviewedAt, preference, schedulerSettings);
         const next = storedStateFromCard(result.card);
         this.db.prepare(
           `INSERT INTO review_state(
@@ -116,7 +121,7 @@ export class PracticeRepository {
           next.learningSteps,
           next.lastReview,
         );
-        schedule = previewReview(result.card, result.card.due, item.preference, schedulerSettings);
+        schedule = previewReview(result.card, result.card.due, preference, schedulerSettings);
       }
     });
     transaction();
@@ -147,8 +152,7 @@ export class PracticeRepository {
     return counts;
   }
 
-  listInventory(language: LanguageCode, limit = 500, now = new Date()) {
-    const settings = this.getSettings();
+  listInventory(language: LanguageCode, limit = 500, now = new Date(), settings = this.getSettings()) {
     const rows = this.db.prepare(
       `SELECT i.*,
               r.due_at AS review_due_at,

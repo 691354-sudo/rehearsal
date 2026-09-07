@@ -63,7 +63,7 @@ export function TutorSessionsRail({ currentThreadId, onClose, onNewChat, onDelet
       <span>{group.label}</span>
       {group.items.map((thread) => <AppLink aria-current={thread.publicId === currentThreadId ? "page" : undefined}
         className={thread.publicId === currentThreadId ? "is-active" : ""} key={thread.publicId} onClick={onClose}
-        route={{ ...route, thread: thread.publicId, review: null }}><strong>{thread.title}</strong><small>{formatThreadDate(thread.updatedAt)}</small></AppLink>)}
+        route={{ ...route, thread: thread.publicId, review: null, homework: undefined }}><strong>{thread.title}</strong><small>{formatThreadDate(thread.updatedAt)}</small></AppLink>)}
     </section>)}</nav>
     {currentThreadId ? <button className="simple-session-delete" disabled={deleting} onClick={onDelete} type="button"><Trash2 aria-hidden="true" size={15} />Delete current chat</button> : null}
     {normalizedQuery && !visibleThreads.length ? <p className="simple-session-empty">No matching sessions.</p> : null}

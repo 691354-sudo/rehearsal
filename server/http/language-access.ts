@@ -38,10 +38,12 @@ export const registerLanguageAccess = (app: FastifyInstance, dependencies: HttpD
   app.addHook("preHandler", async (request, reply) => {
     if (!request.url.startsWith("/api/") || request.url.startsWith("/api/auth/")) return;
     const context = dependencies.forRequest(request);
+    context.repository.pilot.participants.closeExpired();
     const query = recordOf(request.query);
     const body = recordOf(request.body);
     const languages = [query.language, body.language]
       .filter(isLanguageCode);
+    if (request.url.startsWith("/api/pilot")) languages.push("en");
     languages.push(...resourceLanguage(request, dependencies));
     if (languages.some((language) => !context.repository.system.isLanguageEnabled(language))) {
       return reply.code(403).send({ error: "LANGUAGE_NOT_ENABLED" });
