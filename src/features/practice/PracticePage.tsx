@@ -18,6 +18,7 @@ import type {
 } from "../../shared/contracts";
 import { languageHasAudio } from "../../shared/config";
 import type { PreparedAudio } from "../audio/listenAudio";
+import { PilotRecall } from "../pilot/PilotRecall";
 
 export function PracticePage(props: {
   attempts: Record<string, AttemptDraft>;
@@ -32,11 +33,12 @@ export function PracticePage(props: {
   onCheck: (itemId: string) => void;
   onListened: (itemId: string) => Promise<void>;
   onModeSelected: () => void;
+  onPilotUpdated: () => void;
   onItemUpdated: (item: LearningItem) => void;
   onRoute: (route: PracticeRoute, historyMode?: HistoryMode) => void;
   onPausePlayback: () => void;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
-  onPlayPrepared: (url: string, repetitions: number) => Promise<number>;
+  onPlayPrepared: (url: string, repetitions: number, onFirstCompleted?: () => void) => Promise<number>;
   onPlayback: (playback: PlaybackPreferences) => void;
   onPracticeEnabled: (itemId: string, practiceEnabled: boolean) => Promise<boolean>;
   onPrepareAudio: (
@@ -52,7 +54,7 @@ export function PracticePage(props: {
 }) {
   const [editingItem, setEditingItem] = useState<LearningItem | null>(null);
   const onTopic = useCallback((topic: string) => props.onRoute({ ...props.route, topic, review: null }, "replace"), [props.onRoute, props.route]);
-  const { selectedTopicItems, topics } = usePracticeTopics(props.language, props.route.topic, onTopic);
+  const { selectedTopicItems, topics, likedItems } = usePracticeTopics(props.language, props.route.topic, onTopic);
   const listeningAvailable = languageHasAudio(props.language);
 
   return <main className="simple-main simple-main--practice" data-onboarding-target="practice" id="main-content">
@@ -67,7 +69,8 @@ export function PracticePage(props: {
       <p>{props.recommended.due} due · {props.recommended.new} not recalled yet · {props.dailyProgress.recall} recalled today{listeningAvailable ? ` · ${props.dailyProgress.shadow} listened today` : ""}</p>
     </section>
 
-    {props.route.mode === "recall" || !listeningAvailable ? <RecallSession
+    {props.route.mode === "recall" && props.language === "en" ? <PilotRecall key={props.route.homework ?? "standalone"} props={props} topics={topics} onTopic={onTopic} onEdit={setEditingItem} />
+      : props.route.mode === "recall" || !listeningAvailable ? <RecallSession
       attempts={props.attempts}
       count={props.route.cards}
       dueItemIds={props.dueItemIds}
@@ -98,7 +101,7 @@ export function PracticePage(props: {
       playback={props.playback}
       voices={props.voices}
     /> : <ListenRepeat count={props.route.cards} dueItemIds={props.dueItemIds} editActive={Boolean(editingItem)} emptyAction={<AppLink route={defaultLibraryRoute(props.language)}>Browse Library</AppLink>}
-      elevenLabs={props.elevenLabs} items={props.items} language={props.language}
+      elevenLabs={props.elevenLabs} items={props.route.topic === "liked" ? likedItems : props.items} language={props.language}
       recommended={props.recommended}
       onEdit={setEditingItem} onListened={props.onListened} onPause={props.onPausePlayback} onPlay={props.onPlay}
       onPlayPrepared={props.onPlayPrepared} onPrepareAudio={props.onPrepareAudio}

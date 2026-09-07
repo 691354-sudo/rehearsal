@@ -46,7 +46,8 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
   app.delete("/api/chat/:threadId", async (request, reply) => {
     const { repository } = dependencies.forRequest(request);
     const params = z.object({ threadId: z.string().uuid() }).parse(request.params);
-    if (!repository.tutor.deleteThread(params.threadId)) {
+    const deleted = repository.pilot.homework.deleteChat(params.threadId);
+    if (!deleted) {
       return reply.code(404).send({ error: "THREAD_NOT_FOUND" });
     }
     return reply.code(204).send();
@@ -59,9 +60,11 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
       message: z.string().trim().min(1).max(aiLimits.tutorMessageCharacters),
       threadId: optionalThreadIdSchema,
       clientMessageId: z.string().uuid(),
+      homeworkId: z.string().uuid().optional(),
+      homeworkPlanning: z.boolean().optional(),
     }).parse(request.body);
     return tutor.chat({ language: body.language, message: body.message, threadPublicId: body.threadId,
-      clientMessageId: body.clientMessageId });
+      clientMessageId: body.clientMessageId, homeworkId: body.homeworkId, homeworkPlanning: body.homeworkPlanning });
   });
 
   app.post("/api/chat/transcribe", async (request, reply) => {

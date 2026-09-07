@@ -15,6 +15,7 @@ import { registerItemRoutes } from "./http/items.routes.js";
 import { registerLanguageAccess } from "./http/language-access.js";
 import { registerOnboardingRoutes } from "./http/onboarding.routes.js";
 import { registerPracticeRoutes } from "./http/practice.routes.js";
+import { registerPilotRoutes } from "./http/pilot.routes.js";
 import { registerSystemRoutes } from "./http/system.routes.js";
 import { registerTutorRoutes } from "./http/tutor.routes.js";
 import { ProfileManager } from "./profiles/manager.js";
@@ -105,6 +106,7 @@ export const buildApp = async (
   registerOnboardingRoutes(app, dependencies);
   registerItemRoutes(app, dependencies);
   registerPracticeRoutes(app, dependencies);
+  registerPilotRoutes(app, dependencies);
   registerTutorRoutes(app, dependencies);
   registerAudioRoutes(app, dependencies);
   registerCaptureRoutes(app, dependencies);

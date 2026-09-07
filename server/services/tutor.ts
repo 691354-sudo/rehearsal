@@ -12,6 +12,8 @@ import { responseTokenUsage, trackAiRequest } from "./ai-usage.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import type { OpenAIService } from "./openai.js";
 import { targetLanguageName } from "./material-generation.js";
+import { englishTutorLayout, homeworkReplyFormat, homeworkTutorInstructions, parseHomeworkReply } from "./tutor-homework.js";
+import { PilotError } from "../db/pilot/store.js";
 
 const tutorLanguageGuidance: Record<LanguageCode, string> = {
   en: "Use natural contemporary English.",
@@ -94,7 +96,7 @@ Your job is to help the learner speak naturally and automatically, not to teach 
 - In guided practice, give one next action at a time, keep the same topic, and use no more than three training rounds. Speaking and typing are equivalent paths. Do not add timers, scores, streaks, pronunciation ratings, or accent ratings.
 - Guided correction differs from ordinary live correction: first point to the gap without giving the answer and ask the learner to reformulate it. Reveal one natural answer only if the learner needs it, then require the whole thought again. Do not use the Correction block until after that self-repair attempt.
 - Do not interrupt the flow to correct every sentence unless the learner explicitly asks for live correction. Keep useful observations for the end-of-chat review.
-- When live correction is appropriate, keep the conversation moving and use this exact Markdown structure, with blank lines between each part. The conversational reply before the heading is mandatory. After the heading, output exactly the three shown blocks: no alternatives, labels, or bullet lists.
+${language === "en" ? englishTutorLayout : `- When live correction is appropriate, keep the conversation moving and use this exact Markdown structure, with blank lines between each part. The conversational reply before the heading is mandatory. After the heading, output exactly the three shown blocks: no alternatives, labels, or bullet lists.
   <one short conversational reply>
 
   ### Correction
@@ -103,11 +105,11 @@ Your job is to help the learner speak naturally and automatically, not to teach 
 
   **<one natural corrected sentence>**
 
-  <one brief explanation; no bullet list>
+  <one brief explanation; no bullet list>`}
 - Keep the initial answer concise, then deepen when the learner wants it.
 `;
 
-type TutorRepositories = Pick<RehearsalRepository, "aiUsage" | "items" | "practice" | "reviews" | "tutor">;
+type TutorRepositories = Pick<RehearsalRepository, "aiUsage" | "items" | "practice" | "reviews" | "tutor" | "pilot">;
 
 export class TutorService {
   private readonly client: OpenAI | null;
@@ -129,7 +131,8 @@ export class TutorService {
       : client;
   }
 
-  async chat(input: { language: LanguageCode; message: string; threadPublicId?: string; clientMessageId: string }) {
+  async chat(input: { language: LanguageCode; message: string; threadPublicId?: string; clientMessageId: string;
+    homeworkId?: string; homeworkPlanning?: boolean }) {
     const message = this.repository.tutor.getOrCreateClientMessage({
       clientMessageId: input.clientMessageId,
       content: input.message,
@@ -140,14 +143,22 @@ export class TutorService {
     if (completed) return completed;
     const running = this.inFlight.get(input.clientMessageId);
     if (running) return running;
-    const request = this.createReply(input, { id: message.thread_id, publicId: message.thread_public_id });
+    const homework = input.language === "en" ? input.homeworkId
+      ? this.repository.pilot.store.homework(input.homeworkId)
+      : this.repository.pilot.homework.active(message.thread_public_id) : null;
+    if (input.homeworkId && (!homework || homework.tutorChatId !== message.thread_public_id)) throw new PilotError("HOMEWORK_CHAT_MISMATCH");
+    const homeworkId = homework?.status === "tutor_in_progress" ? homework.homeworkId : undefined;
+    if (input.homeworkId && !homeworkId) throw new PilotError("HOMEWORK_TUTOR_NOT_STARTED");
+    if (homeworkId) this.repository.pilot.tutor.attachUser(homeworkId, message.message_id, Boolean(input.homeworkPlanning));
+    const request = this.createReply({ ...input, homeworkId, userMessageId: message.message_id },
+      { id: message.thread_id, publicId: message.thread_public_id });
     this.inFlight.set(input.clientMessageId, request);
     try { return await request; }
     finally { this.inFlight.delete(input.clientMessageId); }
   }
 
   private async createReply(
-    input: { language: LanguageCode; message: string; clientMessageId: string },
+    input: { language: LanguageCode; message: string; clientMessageId: string; homeworkId?: string; userMessageId: number },
     thread: { id: number; publicId: string },
   ) {
 
@@ -170,7 +181,9 @@ export class TutorService {
       content: message.content,
     }));
     const toolCalls: Array<{ name: string; result: unknown }> = [];
-    const instructions = tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide);
+    const homework = input.homeworkId ? this.repository.pilot.tutor.receive(input.homeworkId, thread.publicId) : null;
+    const instructions = tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide)
+      + (homework ? homeworkTutorInstructions(homework, this.repository.pilot.tutor.previousActivities(homework.homeworkId)) : "");
     const usage = {
       requests: 0,
       inputTokens: 0,
@@ -194,6 +207,7 @@ export class TutorService {
         input: modelInput,
         tools,
         parallel_tool_calls: false,
+        ...(homework ? { text: { format: homeworkReplyFormat } } : {}),
         max_output_tokens: aiLimits.tutorOutputTokens,
         prompt_cache_key: `tutor:${thread.publicId}`,
       }));
@@ -228,12 +242,13 @@ export class TutorService {
       response = await createResponse();
     }
 
-    const content = response.output_text.trim() || "Done.";
+    const structured = homework ? parseHomeworkReply(response.output_text) : null;
+    const content = structured?.content.trim() || response.output_text.trim() || "Done.";
     const context = {
       historyMessages: history.length,
       historyCharacters: history.reduce((characters, message) => characters + message.content.length, 0),
     };
-    this.repository.tutor.addMessage(thread.id, "assistant", content, {
+    const metadata = {
       clientMessageId: input.clientMessageId,
       mode: "openai",
       responseId: response.id,
@@ -241,7 +256,10 @@ export class TutorService {
       toolCalls: toolCalls.map((call) => call.name),
       usage,
       context,
-    });
+    };
+    if (homework && structured) this.repository.pilot.tutor.saveReply({ ...structured, content, metadata,
+      homeworkId: homework.homeworkId, userMessageId: input.userMessageId });
+    else this.repository.tutor.addMessage(thread.id, "assistant", content, metadata);
     console.info(JSON.stringify({ event: "tutor_openai_usage", model, threadId: thread.publicId, usage, context }));
     return { threadId: thread.publicId, content, mode: "openai" as const, toolCalls };
   }
@@ -278,7 +296,8 @@ export class TutorService {
     }
     if (name === "list_due_items") {
       const parsed = dueArguments.parse(args);
-      return this.repository.practice.listDue(language, parsed.limit);
+      return language === "en" ? this.repository.pilot.queue.list({ limit: parsed.limit })
+        : this.repository.practice.listDue(language, parsed.limit);
     }
     return { error: `Unknown tool: ${name}` };
   }

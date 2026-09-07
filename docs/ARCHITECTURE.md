@@ -21,7 +21,7 @@ The server remains the source of truth. The service worker precaches only the ve
 
 The browser keeps no session credential in `localStorage`. The signed session and CSRF cookies are server-managed, while the matching CSRF token stays in memory. Theme and Tutor thread selection use keys namespaced by the authenticated profile; playback settings are namespaced by profile and language. English reads the legacy profile-only playback key once when no language-specific value exists. Runtime Library and Practice data is never replaced with client seed content when the API is unavailable; already loaded per-language snapshots remain visible with an explicit retry state. Changing language stops playback and aborts the previous language's in-flight learning-data requests.
 
-IndexedDB stores at most one unsent Capture recording per profile and language. The Blob is written before upload and removed only after the server confirms success or the user explicitly deletes it. Private learning data, API responses, generated audio, and credentials are not placed in offline storage.
+IndexedDB stores at most one unsent Capture recording per profile and language. The Blob is written before upload and removed only after the server confirms success or the user explicitly deletes it. Generated audio and credentials are not placed in offline storage. The English pilot additionally persists only its active Recall draft, paused Listen queue, idempotent pending events, timing intervals and feedback draft under profile/language-scoped keys; the API remains authoritative.
 
 Styles follow the same ownership boundaries under `src/styles`. `base.css` owns tokens and global controls, domain files own their screens and local responsive states, and `responsive.css` contains cross-domain viewport adjustments. The removed prototype is not a runtime route or architectural fallback.
 
@@ -124,3 +124,11 @@ The installed PWA precaches only the versioned application shell and static buil
 ## Backup and rollback
 
 `npm run db:backup` uses SQLite's online backup API and writes a separate backup for every registered profile. Restore requires an explicit `--profile`, requires `CONFIRM_RESTORE=1`, validates the candidate, and preserves only the selected profile database as `pre-restore-<profile>-*.sqlite` first.
+
+## English learning pilot
+
+`contracts/learning-pilot*.ts` defines requests and the eight analytics datasets. `server/db/pilot` owns measured Listen appearances, request assignment, whole-DB Recall selection, immutable Homework plans, FSRS transactions, Tutor metadata, timing and observation snapshots. Migration 011 adds profile-local tables without resetting reviews, migrating unreliable listens or enrolling users. Derived Liked uses original card IDs and membership. `/api/pilot` resolves the authenticated repository, requires English enabled, and checks the expected profile on browser writes; a client cannot choose another database.
+
+The pilot outbox stores each event under its own key so another tab's append survives an acknowledgment. The server dedupes appearance and event IDs, attempts, Homework creation, feedback and time batches; conflicting reuse fails. Accepted grading and FSRS state advance in one immediate SQLite transaction. Settings are frozen for each Homework and standalone attempt. Active time is a union of bounded visible intervals, sent at actions/stage changes rather than once per second; interrupted measurements remain null. Analytics public-ID references intentionally survive card/chat deletion, with no replicated chat/audio payloads.
+
+`src/features/pilot` composes the existing Practice/Tutor/Library surfaces. `pilot.css` contains scoped additions; existing type and surface tokens remain authoritative. English Homework uses the same Tutor Responses call with a validated structured text envelope for content, card activities and related message IDs. Incomplete envelopes are recoverable and cannot fabricate activity. General Tutor and other languages retain their existing provider path. Export and metrics make no model calls.

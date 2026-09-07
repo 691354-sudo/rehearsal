@@ -8,6 +8,7 @@ import { PracticeRepository } from "./repositories/practice.js";
 import { ReviewsRepository } from "./repositories/reviews.js";
 import { SystemRepository } from "./repositories/system.js";
 import { TutorRepository } from "./repositories/tutor.js";
+import { PilotRepository } from "./pilot/repository.js";
 
 /** Database composition root. Runtime modules should depend on a narrow domain property. */
 export class RehearsalRepository {
@@ -20,6 +21,7 @@ export class RehearsalRepository {
   readonly reviews: ReviewsRepository;
   readonly system: SystemRepository;
   readonly tutor: TutorRepository;
+  readonly pilot: PilotRepository;
 
   constructor(db: RehearsalDatabase) {
     this.aiUsage = new AiUsageRepository(db);
@@ -31,5 +33,6 @@ export class RehearsalRepository {
     this.reviews = new ReviewsRepository(db, this.items, this.library);
     this.system = new SystemRepository(db);
     this.tutor = new TutorRepository(db);
+    this.pilot = new PilotRepository(db, this.practice, this.tutor);
   }
 }

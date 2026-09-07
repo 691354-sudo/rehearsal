@@ -1,3 +1,4 @@
+import { submitPilotRecall } from "../testing/pilot-requests.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../app.js";
 import { OpenAIService } from "../services/openai.js";
@@ -281,12 +282,8 @@ describe("Capture review API", () => {
       method: "POST", url: "/api/reviews", payload: { itemId, mode: "shadow", rating: "good" },
     });
     expect(listened.json().review.schedule).toBeNull();
-    const recalled = await app.inject({
-      method: "POST",
-      url: "/api/attempts/evaluate",
-      payload: { itemId, answer: candidate.target, mode: "recall", rating: "good" },
-    });
-    expect(recalled.json().attempt.schedule.dueAt).toBeTruthy();
+    const recalled = await submitPilotRecall((input) => app.inject(input), itemId, "good", candidate.target);
+    expect(recalled.json().schedule.dueAt).toBeTruthy();
     context.db.prepare(
       "UPDATE review_state SET due_at = '2000-01-01T00:00:00.000Z' WHERE item_id = (SELECT id FROM items WHERE public_id = ?)",
     ).run(itemId);

@@ -1,3 +1,4 @@
+import { submitPilotRecall } from "../testing/pilot-requests.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -171,16 +172,7 @@ describe("profile authentication and database isolation", () => {
         newItemsPerDay: 7,
       },
     })).statusCode).toBe(200);
-    expect((await mutate(app, roman, {
-      method: "POST",
-      url: "/api/attempts/evaluate",
-      payload: {
-        itemId: "en-drawn-to",
-        answer: "I've always been drawn to places near the ocean.",
-        mode: "recall",
-        rating: "easy",
-      },
-    })).statusCode).toBe(200);
+    expect((await submitPilotRecall((input) => mutate(app, roman, input), "en-drawn-to", "easy")).statusCode).toBe(200);
     expect((await mutate(app, roman, {
       method: "POST",
       url: "/api/chat",
@@ -203,6 +195,20 @@ describe("profile authentication and database isolation", () => {
     const romanItems = await read(app, roman, "/api/items?language=en&limit=500");
     expect(romanItems.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to").target)
       .not.toBe("Oliver owns this edit.");
+  });
+
+  it("guards delayed pilot writes against profile switching and foreign card IDs", async () => {
+    const roman = (await login(app, "roman")).session!;
+    const oliver = (await login(app, "oliver")).session!;
+    const topic = manager.get("roman").repository.library.createIsland({ language: "en", title: "Private liked topic" });
+    const item = manager.get("roman").repository.items.create({ language: "en", cue: "Личная фраза", target: "Private pilot phrase." }, topic.publicId);
+    const input = { method: "POST" as const, url: "/api/pilot/likes", payload: { language: "en", cardId: item.publicId,
+      eventId: "7dcb2e85-2947-48c4-92bc-e869f6b8e2ba", occurredAt: new Date().toISOString(), liked: true } };
+    expect((await mutate(app, oliver, { ...input, headers: { "x-rehearsal-profile": "roman" } })).statusCode).toBe(409);
+    expect((await mutate(app, oliver, input)).statusCode).toBe(404);
+    expect((await mutate(app, roman, input)).statusCode).toBe(200);
+    expect((await read(app, oliver, "/api/pilot/liked?language=en")).json().island.items.some((card: { publicId: string }) => card.publicId === item.publicId)).toBe(false);
+    expect((await app.inject({ method: "GET", url: "/api/pilot?language=en" })).statusCode).toBe(401);
   });
 
   it("limits failed attempts per IP and profile and preserves existing profile databases", async () => {

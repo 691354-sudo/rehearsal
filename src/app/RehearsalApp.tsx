@@ -42,6 +42,7 @@ import type {
 } from "../shared/contracts";
 import { AppLink } from "./AppLink";
 import { configureTelegramBackButton } from "../lib/telegramMiniApp";
+import { PilotProvider } from "../features/pilot/PilotProvider";
 
 export function RehearsalApp({
   availableLanguages,
@@ -197,7 +198,11 @@ export function RehearsalApp({
 
   const onboardingStep = onboardingMode ? parseOnboardingStep(window.location) : null;
 
-  return <div className={`simple-app simple-app--${theme}${keyboardOpen && route.section === "tutor" ? " has-keyboard" : ""}${topNavigation ? " has-top-navigation" : ""}${sectionsOpen ? " has-sections-open" : ""}${onboardingMode ? " has-onboarding-tour" : ""}`} data-theme={theme}>
+  return <PilotProvider profileId={profile.id} language={language} onChange={(cardId, patch) => {
+    const item = learning.items.find((entry) => entry.publicId === cardId);
+    if (item) learning.updateItem({ ...item, preference: patch.liked === undefined ? item.preference : patch.liked ? "like" : "neutral",
+      progress: { ...item.progress, listens: patch.listenCount ?? item.progress.listens } });
+  }}><div className={`simple-app simple-app--${theme}${keyboardOpen && route.section === "tutor" ? " has-keyboard" : ""}${topNavigation ? " has-top-navigation" : ""}${sectionsOpen ? " has-sections-open" : ""}${onboardingMode ? " has-onboarding-tour" : ""}`} data-theme={theme}>
     <a className="simple-skip-link" href="#main-content">Skip to Main Content</a>
     <header className="simple-header">
       <div className="simple-header-rail">
@@ -294,6 +299,7 @@ export function RehearsalApp({
       elevenLabs={audio.elevenLabsConfig}
       onAnswer={learning.setAnswer} onCheck={learning.checkAnswer} onListened={learning.commitListening}
       onModeSelected={learning.resetAttempts}
+      onPilotUpdated={() => { void learning.loadItems(language); }}
       onItemUpdated={learning.updateItem}
       onRoute={(next, historyMode) => { goTo(next, historyMode); learning.resetAttempts(); }} onRecallReview={learning.commitRecall}
       onPracticeEnabled={learning.updatePracticeEnabled}
@@ -318,5 +324,5 @@ export function RehearsalApp({
       onStep={(step) => goTo(onboardingRoute(
         step, language, onboardingMode, onboarding.starterTutorThreadId,
       ))} step={onboardingStep} /> : null}
-  </div>;
+  </div></PilotProvider>;
 }

@@ -1,3 +1,4 @@
+import { PilotProvider } from "../pilot/PilotProvider";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { defaultPlayback } from "../../shared/config";
@@ -31,12 +32,12 @@ const item = {
 describe("Listen player surface", () => {
   it("keeps Edit compact beside the repeat prompt and exposes a non-editable focus target", () => {
     const noop = () => undefined;
-    const markup = renderToStaticMarkup(<ListenPlayerSurface current={item} editActive={false} error="" index={0} language="en" note=""
+    const markup = renderToStaticMarkup(<PilotProvider profileId="test" language="en" onChange={() => undefined}><ListenPlayerSurface current={item} editActive={false} error="" index={0} language="en" note=""
       onEdit={noop} onExit={noop} onNext={noop} onPause={noop} onPrevious={noop} onReplay={noop} onResume={noop}
       onRetryPreparation={noop} onShuffle={noop} onToggleRepeat={noop} onToggleRussian={noop} onToggleSettings={noop}
       playback={defaultPlayback} playbackSettings={null} preparationError="" preparationTotal={1} previousDisabled
       queueLength={1} readyCount={1} repeatMode="off" selectedTopicName="Personal stories" selectedVoiceName="Justin Time"
-      showPlaybackSettings={false} showRussian={false} status="playing" />);
+      showPlaybackSettings={false} showRussian={false} status="playing" /></PilotProvider>);
 
     const promptRowStart = markup.indexOf("listen-prompt-row");
     const promptRow = markup.slice(promptRowStart, markup.indexOf("</div>", promptRowStart));

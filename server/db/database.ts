@@ -3,6 +3,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { config } from "../config.js";
 import { schema } from "./schema.js";
+import { migrateLearningPilot } from "./pilot-schema.js";
 
 const migrateReviewBatches = (db: Database.Database) => {
   const row = db.prepare(
@@ -270,6 +271,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "008-review-batch-destination", run: migrateReviewBatchDestination },
   { id: "009-indonesian-language", run: migrateIndonesianLanguage, requiresForeignKeysOff: true },
   { id: "010-ai-usage-events", run: migrateAiUsageEvents },
+  { id: "011-learning-pilot", run: migrateLearningPilot },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {

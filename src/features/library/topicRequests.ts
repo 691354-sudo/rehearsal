@@ -1,14 +1,17 @@
 import { apiFetch } from "../../shared/api";
 import type { Island, IslandSummary, Language } from "../../shared/contracts";
 
-export async function getTopics(language: Language): Promise<IslandSummary[]> {
-  const response = await apiFetch(`/api/islands?language=${language}`);
+export async function getTopics(language: Language, signal?: AbortSignal): Promise<IslandSummary[]> {
+  const response = await apiFetch(`/api/islands?language=${language}`, { signal });
   if (!response.ok) throw new Error("Topics could not be loaded. Try again.");
-  return (await response.json()).islands;
+  const topics = (await response.json()).islands as IslandSummary[];
+  if (language !== "en") return topics;
+  const { items: _items, ...liked } = await getTopic("liked", signal);
+  return [liked, ...topics];
 }
 
-export async function getTopic(id: string): Promise<Island> {
-  const response = await apiFetch(`/api/islands/${id}`);
+export async function getTopic(id: string, signal?: AbortSignal): Promise<Island> {
+  const response = await apiFetch(id === "liked" ? "/api/pilot/liked?language=en" : `/api/islands/${encodeURIComponent(id)}`, { signal });
   if (!response.ok) throw new Error("Topic could not be loaded. Try again.");
   return (await response.json()).island;
 }

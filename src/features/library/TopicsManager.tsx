@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowDown, Check, ChevronRight, LoaderCircle, MoreHorizontal
 import { apiFetch } from "../../shared/api";
 import type { Island, IslandSummary, Language, LearningItem } from "../../shared/contracts";
 import { normalizeNfc } from "../../../contracts/text";
+import { LikedTopicDetail } from "../pilot/LikedTopicDetail";
 import { TopicCards } from "./TopicCards";
 import { getTopic, getTopics, mergeTopics, moveTopicCards, saveTopic } from "./topicRequests";
 
@@ -80,6 +81,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
     if (screen === "list") { onClose(); return; }
     if (screen === "confirm-merge") { changeScreen("merge"); return; }
     if (screen === "detail" || screen === "create") {
+      if (topic?.publicId === "liked") void refresh().catch(report);
       changeScreen("list"); setTopic(null); setSelecting(false); setSelected(new Set()); onTopic("");
     } else changeScreen("detail");
   };
@@ -107,7 +109,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
     if (!topic) return;
     changeScreen("add"); setSelected(new Set()); setLoading(true);
     try {
-      const all = await Promise.all(topics.filter((candidate) => candidate.publicId !== topic.publicId).map((candidate) => getTopic(candidate.publicId)));
+      const all = await Promise.all(topics.filter((candidate) => candidate.publicId !== "liked" && candidate.publicId !== topic.publicId).map((candidate) => getTopic(candidate.publicId)));
       setOtherItems(all.flatMap((candidate) => candidate.items));
       setSources(Object.fromEntries(all.flatMap((candidate) => candidate.items.map((item) => [item.publicId, candidate.title]))));
     } catch (failure) { report(failure); }
@@ -165,7 +167,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
   const destination = topics.find((candidate) => candidate.publicId === destinationId);
   const duplicate = topics.find((candidate) => normalized(candidate.title) === normalized(name) && !(screen === "rename" && candidate.publicId === topic?.publicId));
   const choosingDestination = screen === "move" || screen === "merge";
-  const topicOptions = topics.filter((candidate) => (!choosingDestination || candidate.publicId !== topic?.publicId) && normalized(candidate.title).includes(normalized(screen === "list" ? listQuery : query)));
+  const topicOptions = topics.filter((candidate) => (!choosingDestination || candidate.publicId !== "liked" && candidate.publicId !== topic?.publicId) && normalized(candidate.title).includes(normalized(screen === "list" ? listQuery : query)));
   const matchingItems = otherItems.filter((item) => normalized(`${item.target} ${item.cue} ${sources[item.publicId] || ""}`).includes(normalized(query)));
   const title = screen === "list" ? "Manage topics" : screen === "detail" ? "Topics" : screen === "create" ? "New topic" : screen === "rename" ? "Rename topic"
     : screen === "add" ? "Add cards" : screen === "move" ? `Move ${cardCount(selected.size)}` : screen === "delete" ? "Delete topic" : "Merge topics";
@@ -177,7 +179,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
     <header className="topics-flow-header"><button className="topic-icon" aria-label={screen === "list" ? "Back to Library" : "Back"} disabled={busy} onClick={back} type="button"><ArrowLeft aria-hidden="true" size={18} /></button>
       <h2 ref={heading} tabIndex={-1}>{title}</h2>
       {screen === "list" ? <button className="topic-icon" aria-label="New topic" disabled={busy} onClick={() => { setName(""); changeScreen("create"); }} type="button"><Plus aria-hidden="true" size={18} /></button> : null}
-      {screen === "detail" && topic && !selecting ? <details className="topic-actions" onKeyDown={(event) => {
+      {screen === "detail" && topic && topic.publicId !== "liked" && !selecting ? <details className="topic-actions" onKeyDown={(event) => {
         if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); }
       }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}>
         <summary aria-label="More Topic actions"><MoreHorizontal aria-hidden="true" size={18} /></summary><div onClick={(event) => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.closest("details")!.open = false; }}>
@@ -205,7 +207,8 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
           <p className="topic-meta">{screen === "rename" ? "Cards and practice history stay with this Topic." : "You can add or move cards after creating the Topic."}</p>
           {duplicate ? <p id="topic-duplicate" role="status">A Topic with this name already exists. <button type="button" onClick={() => void openTopic(duplicate.publicId)}>Open topic</button></p> : null}
         </form> : null}
-        {screen === "detail" && topic ? <>
+        {screen === "detail" && topic?.publicId === "liked" ? <LikedTopicDetail topic={topic} visibleCount={visibleCount} onMore={() => setVisibleCount((count) => count + 20)} onEdit={onEdit} /> : null}
+        {screen === "detail" && topic && topic.publicId !== "liked" ? <>
           <h3>{topic.title}</h3><p className="topic-meta">{cardCount(topic.items.length)}</p>
           <div className="topic-toolbar">{selecting ? <><label><input type="checkbox" checked={Boolean(topic.items.length) && selected.size === topic.items.length} disabled={saving}
             onChange={() => setSelected(selected.size === topic.items.length ? new Set() : new Set(topic.items.map((item) => item.publicId)))} />Select all</label>

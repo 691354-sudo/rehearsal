@@ -32,23 +32,12 @@ import { TutorGuidedPracticeStart } from "./TutorGuidedPracticeStart";
 import { TutorSessionsRail } from "./TutorSessionsRail";
 import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimisticMessages";
 import { tutorComposerMinimumHeight, useTutorComposerHeight } from "./useTutorComposerHeight";
-import { shouldSendTutorOnEnter } from "./tutorInput";
+import { formatDuration, looksLikeVocabList, shouldSendTutorOnEnter, voiceErrorMessage } from "./tutorInput";
 import { clearMissingTutorThread } from "./tutorThreadRecovery";
-const looksLikeVocabList = (content: string) => {
-  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  return lines.length >= 5 && lines.reduce((sum, line) => sum + line.split(/\s+/).length, 0) / lines.length <= 8;
-};
-
+import { useTutorHomework } from "../pilot/useTutorHomework";
+import { pilotErrorMessage } from "../pilot/pilotApi";
+import type { Homework } from "../../../contracts/learning-pilot";
 type PendingTutorRecording = { blob: Blob; filename: string };
-
-const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-const voiceErrorMessage = (error: unknown) => {
-  if (error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError")) {
-    return "Microphone access is blocked. Allow it in your browser or Home Screen app settings and try again.";
-  }
-  if (error instanceof Error) return error.message;
-  return "Voice recording failed.";
-};
 
 export function TutorPage({ language, route, onLibrary, onListen, onRoute, profileId, onCardsAdded, sessionsOpen, onSessionsOpen: setSessionsOpen, sessionsButtonRef }: {
   onCardsAdded: () => void;
@@ -86,6 +75,8 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const storageKey = `rehearsal:${profileId}:tutor-thread:${language}`;
   const draftKey = `rehearsal:${profileId}:tutor-draft:${language}:${threadId || "new"}`;
   const [draft, setDraft] = useSessionDraft(draftKey);
+  const homework = useTutorHomework({ route, onRoute, busy: sending,
+    onStartTutor: (session) => sendContent("Давай начнём homework.", session.homeworkId, session) });
   useLayoutEffect(() => {
     const field = composerRef.current;
     if (!isNarrow || !field) return;
@@ -212,7 +203,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
 
   const newChat = () => {
     window.sessionStorage.removeItem(`rehearsal:${profileId}:tutor-draft:${language}:new`);
-    onRoute({ ...route, thread: null, review: null }); setMessages([]); setReviewBatch(null); if (!threadId) setDraft(""); setSendError(""); setAdded(false); setSessionsOpen(false);
+    onRoute({ ...route, thread: null, review: null, homework: undefined }); setMessages([]); setReviewBatch(null); if (!threadId) setDraft(""); setSendError(""); setAdded(false); setSessionsOpen(false);
     window.localStorage.removeItem(storageKey);
   };
 
@@ -223,7 +214,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       const response = await apiFetch(`/api/chat/${threadId}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Chat could not be deleted.");
       const remaining = threads.filter((thread) => thread.publicId !== threadId);
-      setThreads(remaining); onRoute({ ...route, thread: remaining[0]?.publicId || null, review: null }, "replace"); setMessages([]); setReviewBatch(null); setAdded(false);
+      setThreads(remaining); onRoute({ ...route, thread: remaining[0]?.publicId || null, review: null, homework: undefined }, "replace"); setMessages([]); setReviewBatch(null); setAdded(false);
       window.localStorage.removeItem(storageKey);
     } catch { setSendError("Chat could not be deleted."); }
     finally { setDeletingThread(false); }
@@ -239,29 +230,30 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     return data;
   };
 
-  const sendContent = async (rawContent: string, existingClientMessageId?: string) => {
+  const sendContent = async (rawContent: string, existingClientMessageId?: string, homeworkStart?: Homework) => {
     const content = rawContent.trim(); if (!content || sending) return false;
     const clientMessageId = existingClientMessageId || crypto.randomUUID();
     setSending(true); setSendError(""); setAdded(false);
-    setDraft((current) => current.trim() === content ? "" : current);
-    scrollIntentRef.current = "smooth";
-    setMessages((current) => beginTutorSend(current, content, clientMessageId));
     try {
-      if (looksLikeVocabList(content)) {
+      const homeworkInput = homeworkStart ? { homeworkId: homeworkStart.homeworkId, homeworkPlanning: true } : await homework.beforeSend();
+      setDraft((current) => current.trim() === content ? "" : current); scrollIntentRef.current = "smooth";
+      setMessages((current) => beginTutorSend(current, content, clientMessageId));
+      if (looksLikeVocabList(content) && !homework.active && !homeworkStart) {
         const data = await prepareVocab(content, clientMessageId);
         setReviewBatch(data.batch); onRoute({ ...route, thread: data.threadId, review: data.batch.publicId }, "replace"); window.localStorage.setItem(storageKey, data.threadId);
         setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
       } else {
         const response = await apiFetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ language, message: content, threadId, clientMessageId }) });
-        if (!response.ok) throw new Error("Chat unavailable");
-        const data = await response.json() as { threadId: string; content: string }; onRoute({ ...route, thread: data.threadId, review: null }, "replace");
+          body: JSON.stringify({ language, message: content, threadId: homeworkStart?.tutorChatId ?? threadId, clientMessageId, ...homeworkInput }) });
+        if (!response.ok) throw new Error((await response.json()).error || "Chat unavailable");
+        const data = await response.json() as { threadId: string; content: string }; onRoute({ ...route, thread: data.threadId, review: null, ...(homeworkStart ? { homework: homeworkStart.homeworkId } : {}) }, "replace");
         window.localStorage.setItem(storageKey, data.threadId);
         setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
       }
       void refreshThreads().catch(() => undefined);
       return true;
-    } catch {
+    } catch (caught) {
+      setSendError(pilotErrorMessage(caught));
       setMessages((current) => failTutorSend(current, clientMessageId));
       return false;
     }
@@ -395,8 +387,8 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
           {threadId ? <details className="simple-chat-actions"><summary aria-label="More chat actions" role="button"><Ellipsis aria-hidden="true" size={18} /></summary><div>
             <button className="simple-delete-chat" disabled={deletingThread || sending || reviewing} onClick={() => void deleteChat()} type="button">
               {deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}Delete chat</button></div></details> : null}</div>
-        <div aria-busy={sending || loadingThread} aria-live="polite" className="simple-chat-messages" ref={messagesRef} role="log">
-          {!messages.length && !loadingThread && !sending ? <TutorGuidedPracticeStart disabled={sending}
+        {homework.toolbar}<div aria-busy={sending || loadingThread} aria-live="polite" className="simple-chat-messages" ref={messagesRef} role="log">
+          {homework.panel}{!homework.active && !messages.length && !loadingThread && !sending ? <TutorGuidedPracticeStart disabled={sending}
             onStart={(message) => { void sendContent(message); }} /> : null}
           {messages.map((message, messageIndex) => <TutorChatMessage key={message.id} learnerMessage={message.role === "assistant" ? messages.slice(0, messageIndex).reverse().find((candidate) => candidate.role === "user")?.content : undefined}
             message={message}

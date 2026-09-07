@@ -4,6 +4,7 @@ import type { Language, LearningItem, PlaybackPreferences } from "../../shared/c
 import { FocusedText } from "../progress/FocusedText";
 import { RepeatModeButton } from "./RepeatModeButton";
 import type { RepeatMode } from "../audio/listenAudio";
+import { ListenLike } from "../pilot/ListenLike";
 
 export function ListenPlayerSurface(props: {
   current: LearningItem;
@@ -59,7 +60,8 @@ export function ListenPlayerSurface(props: {
       <button aria-label={`Edit ${props.current.target}`} className="practice-active-edit" onClick={props.onEdit} title="Edit card" type="button"><Pencil aria-hidden="true" size={14} /></button></div>
       <p lang={props.language}><FocusedText focusTerms={props.current.focusTerms} text={props.current.target} /></p>
       {props.showRussian ? <span className="listen-russian-cue" lang="ru">{props.current.cue}</span> : null}
-      <button className="listen-russian" onClick={props.onToggleRussian} type="button">{props.showRussian ? "Hide Russian" : "Show Russian"}</button></article>
+      <button className="listen-russian" onClick={props.onToggleRussian} type="button">{props.showRussian ? "Hide Russian" : "Show Russian"}</button>
+      {props.language === "en" ? <ListenLike item={props.current} /> : null}</article>
     <div className="listen-player-dock"><div className="listen-controls">
       <button aria-label="Shuffle after this card" onClick={props.onShuffle} type="button"><Shuffle aria-hidden="true" size={18} /></button>
       <button aria-label="Previous" disabled={props.previousDisabled} onClick={props.onPrevious} type="button"><SkipBack aria-hidden="true" fill="currentColor" size={17} /></button>

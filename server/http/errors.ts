@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { ElevenLabsError } from "../services/elevenlabs.js";
 import { AudioPreparationError } from "../services/audio-preparation.js";
+import { PilotError } from "../db/pilot/store.js";
 
 export const toErrorResponse = (error: unknown) => {
+  if (error instanceof PilotError) return { statusCode: error.statusCode, body: { error: error.message } };
   if (error instanceof z.ZodError) {
     return { statusCode: 400, body: { error: "INVALID_REQUEST", details: error.issues } };
   }

@@ -187,3 +187,22 @@ curl -fsS https://7662n.cc/rehearsal/health
 If either health check fails, the deployment script starts the previous release again without replacing persistent data. Restore a database only when application rollback is insufficient, and always preserve a pre-restore safety copy.
 
 The first release treats the existing `/opt/apps/rehearsal` directory as the rollback target. After the first successful deployment, `current` is the canonical compose path for cron and operator commands.
+
+## English learning pilot
+
+Feature availability is English-only and does not enroll participants. Confirm the two tester profiles and tell them that learning events, study time and feedback will be recorded before starting the observation window. Do not invent historical snapshots or automatically enroll existing likes.
+
+Use the deployed container so the registered profile store resolves the exact database. Commands below are examples for a confirmed Roman participant; substitute only a verified registered ID:
+
+```sh
+docker compose --project-name rehearsal -f /opt/apps/rehearsal/current/compose.production.yml exec -T app npm run pilot -- start --profile roman --timezone Europe/Riga
+docker compose --project-name rehearsal -f /opt/apps/rehearsal/current/compose.production.yml exec -T app npm run pilot -- export --profile roman --output /backups/roman-english-pilot.json
+```
+
+The server closes an expired seven-day window before the next authenticated learning request and checks every minute. If the server was offline, the end snapshot records the actual later closing time. `end --profile roman` closes early explicitly. `export` opens the database read-only; `--from` and `--to` accept UTC ISO timestamps for a partial period and missing boundaries stay marked. The default is the latest observation window. Output files are exclusive-create, mode 0600; use a new filename for a later export. Export includes all eight datasets, like events, snapshot boundaries and metrics, but no audio, full chats or typed Recall text.
+
+Pilot defaults are in `contracts/learning-pilot.ts`; a profile's `app_settings.learning_pilot` JSON can override calibration values via a reviewed operational change. Change `experimentVersion` when calibration changes; existing Homework and attempts retain their settings snapshot. `APP_VERSION` can identify an operator-supplied release version; the v1 default is `0.1.0+echo-pilot-v1`. Report limitations alongside the numbers: a week is a pilot observation, not evidence of durable retention. An end-of-week report requires the real completed window and is not generated at deployment.
+
+Migration 011 only adds tables/indexes/triggers. The normal deployment creates fresh backups of every registered profile first; its previous application release remains compatible with the additive tables for code rollback. Restoring data is a separate explicit operation under the backup/restore procedure.
+
+Local measurement, 2026-09-07: 1,500 Listen events on 100 synthetic cards, median write 0.244 ms, p95 0.373 ms, export plus metrics 14.3 ms, compact JSON 906,494 bytes. These are local SQLite measurements, not production latency guarantees.
