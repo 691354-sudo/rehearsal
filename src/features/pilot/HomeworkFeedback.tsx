@@ -26,7 +26,7 @@ export function HomeworkFeedback({ homework, onSaved, onClose }: {
     finally { setSaving(false); }
   };
   return <section className="pilot-feedback" aria-label="Homework feedback">
-    <h2>How did it go?</h2>
+    <h2 tabIndex={-1}>How did it go?</h2>
     <form onSubmit={(event) => { event.preventDefault(); void submit(); }}>
       <label>How difficult was it?<select disabled={saving || Boolean(pending)} name="difficulty" autoComplete="off" required value={draft.difficulty || ""} onChange={(event) => update({ difficulty: event.target.value as Feedback["difficulty"] })}>
         <option value="" disabled>Choose</option><option value="too_easy">Too easy</option><option value="about_right">About right</option><option value="too_hard">Too hard</option></select></label>

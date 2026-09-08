@@ -75,6 +75,7 @@ export type Homework = {
   actualRecallSeconds: number | null;
   actualTutorSeconds: number | null;
   startedAt: string;
+  timezone?: string;
   recallFinishedAt: string | null;
   returnedToTutorAt: string | null;
   tutorFinishedAt: string | null;
@@ -82,6 +83,13 @@ export type Homework = {
   status: HomeworkStatus;
   continued: boolean;
   feedback: HomeworkFeedback | null;
+};
+export type HomeworkSummary = Pick<Homework, "homeworkId" | "tutorChatId" | "startedAt" | "status"> & { title: string };
+export const homeworkTitle = (homework: Pick<Homework, "startedAt" | "timezone">) => {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: homework.timezone || "UTC",
+    day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(new Date(homework.startedAt));
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)!.value;
+  return `${value("day")}.${value("month")}.${value("year")} - Homework`;
 };
 export type PilotAttemptStart = {
   attemptId: string;

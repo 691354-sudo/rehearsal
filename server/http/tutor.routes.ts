@@ -39,7 +39,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
         createdAt: thread.created_at,
         updatedAt: thread.updated_at,
       },
-      messages: repository.tutor.getMessages(thread.id, 200),
+      messages: repository.tutor.getMessages(thread.id, 200, true),
     };
   });
 

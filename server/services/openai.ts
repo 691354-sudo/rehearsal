@@ -34,6 +34,7 @@ import { rewriteLibraryItem as rewriteLibraryItemService } from "./library-item-
 import { prepareDelimitedImport } from "./delimited-import.js";
 import { reviseReviewCandidate } from "./review-candidate.js";
 import { localEvaluation, type AttemptEvaluation } from "./attempt-evaluation.js";
+import { createRecallChecker } from "./recall-check.js";
 
 export type { AttemptEvaluation };
 
@@ -61,11 +62,12 @@ export class OpenAIService {
     ? new OpenAI({ apiKey: config.openaiApiKey })
     : null;
   private readonly inflightSpeech = new Map<string, Promise<{ format: string; audio: Buffer }>>();
+  readonly checkRecall: ReturnType<typeof createRecallChecker>;
 
   constructor(
     private readonly repository: OpenAIRepositories,
     readonly learner: LearnerPersona = genericLearnerPersona,
-  ) {}
+  ) { this.checkRecall = createRecallChecker(this.client, repository.aiUsage); }
 
   get configured() {
     return Boolean(this.client);

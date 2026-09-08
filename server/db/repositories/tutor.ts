@@ -147,13 +147,15 @@ export class TutorRepository {
     };
   }
 
-  getMessages(threadId: number, limit = 30) {
-    return this.db.prepare(
-      `SELECT role, content FROM (
-       SELECT id, role, content FROM chat_messages
+  getMessages(threadId: number, limit = 30, includeMessageIds = false) {
+    const messages = this.db.prepare(
+      `SELECT role, content, client_message_id AS clientMessageId FROM (
+       SELECT id, role, content, client_message_id FROM chat_messages
          WHERE thread_id = ? AND role IN ('user', 'assistant') ORDER BY id DESC LIMIT ?
        ) ORDER BY id`,
-    ).all(threadId, limit) as Array<{ role: "user" | "assistant"; content: string }>;
+    ).all(threadId, limit) as Array<{ role: "user" | "assistant"; content: string; clientMessageId: string | null }>;
+    return messages.map(({ clientMessageId, ...message }) => includeMessageIds && clientMessageId
+      ? { ...message, clientMessageId } : message);
   }
 
   deleteThread(publicId: string) {

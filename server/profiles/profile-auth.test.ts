@@ -209,6 +209,18 @@ describe("profile authentication and database isolation", () => {
     expect((await mutate(app, roman, input)).statusCode).toBe(200);
     expect((await read(app, oliver, "/api/pilot/liked?language=en")).json().island.items.some((card: { publicId: string }) => card.publicId === item.publicId)).toBe(false);
     expect((await app.inject({ method: "GET", url: "/api/pilot?language=en" })).statusCode).toBe(401);
+    const repository = manager.get("roman").repository;
+    const attemptId = "86b43268-957b-4a03-8fc9-701b1ec1228a";
+    repository.practice.recordAttempt({ itemPublicId: item.publicId, mode: "recall", answer: "", score: 1,
+      verdict: "easy", rating: "easy", feedback: {}, reviewedAt: new Date("2020-01-01T00:00:00.000Z") });
+    repository.pilot.recall.begin({ attemptId, cardId: item.publicId, shownAt: new Date().toISOString(), timezone: "Europe/Riga" });
+    const check = { method: "POST" as const, url: "/api/pilot/attempts/check", payload: { attemptId, answer: item.target } };
+    expect((await mutate(app, roman, check)).json().check.verdict).toBe("correct");
+    expect((await mutate(app, oliver, check)).statusCode).toBe(404);
+    expect((await mutate(app, oliver, { ...check, headers: { "x-rehearsal-profile": "roman" } })).statusCode).toBe(409);
+    const homework = repository.pilot.homework.create({ homeworkId: attemptId, requestedMinutes: 1, timezone: "Europe/Riga" });
+    expect((await read(app, roman, "/api/pilot/homework?language=en")).json().sessions[0].homeworkId).toBe(homework.homeworkId);
+    expect((await read(app, oliver, "/api/pilot/homework?language=en")).json().sessions).toEqual([]);
   });
 
   it("limits failed attempts per IP and profile and preserves existing profile databases", async () => {

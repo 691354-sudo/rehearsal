@@ -113,6 +113,7 @@ export class PilotStore {
     const feedback = this.db.prepare("SELECT data FROM pilot_feedback WHERE homework_id = ?")
       .get(id) as { data: string } | undefined;
     return { ...JSON.parse(row.plan), ...JSON.parse(row.state), homeworkId: id, tutorChatId: row.tutor_chat_id,
+      timezone: JSON.parse(row.plan).timezone ?? this.timezone(),
       language: "en", startedAt: row.started_at, status: row.status,
       feedback: feedback ? JSON.parse(feedback.data) : null };
   }

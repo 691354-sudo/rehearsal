@@ -33,7 +33,7 @@ import { TutorSessionsRail } from "./TutorSessionsRail";
 import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimisticMessages";
 import { tutorComposerMinimumHeight, useTutorComposerHeight } from "./useTutorComposerHeight";
 import { formatDuration, looksLikeVocabList, shouldSendTutorOnEnter, voiceErrorMessage } from "./tutorInput";
-import { clearMissingTutorThread } from "./tutorThreadRecovery";
+import { useTutorThreadMessages } from "./useTutorThreadMessages";
 import { useTutorHomework } from "../pilot/useTutorHomework";
 import { pilotErrorMessage } from "../pilot/pilotApi";
 import type { Homework } from "../../../contracts/learning-pilot";
@@ -52,11 +52,12 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   onListen: () => void;
 }) {
   const { mode, thread: threadId, review: reviewId } = route;
+  const context = `${profileId}:${language}:${threadId}:${route.homework}`;
+  const contextRef = useRef(context); contextRef.current = context;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(""); const [added, setAdded] = useState(false);
-  const [loadingThread, setLoadingThread] = useState(false);
   const [deletingThread, setDeletingThread] = useState(false);
   const [reviewing, setReviewing] = useState(false); const [reviewBatch, setReviewBatch] = useState<ReviewBatch | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -75,7 +76,9 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const storageKey = `rehearsal:${profileId}:tutor-thread:${language}`;
   const draftKey = `rehearsal:${profileId}:tutor-draft:${language}:${threadId || "new"}`;
   const [draft, setDraft] = useSessionDraft(draftKey);
-  const homework = useTutorHomework({ route, onRoute, busy: sending,
+  const { loadingThread, threadReady } = useTutorThreadMessages({ route, storageKey, onRoute,
+    onMessages: setMessages, onError: setSendError, onLoaded: () => { scrollIntentRef.current = "instant"; } });
+  const homework = useTutorHomework({ route, onRoute, ready: threadReady, busy: sending,
     onStartTutor: (session) => sendContent("Давай начнём homework.", session.homeworkId, session) });
   useLayoutEffect(() => {
     const field = composerRef.current;
@@ -128,35 +131,13 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         const stored = window.localStorage.getItem(storageKey);
         const selected = nextThreads.find((thread) => thread.publicId === threadId)
           || nextThreads.find((thread) => thread.publicId === stored);
-        if (mode === "chat" && selected && selected.publicId !== threadId) onRoute({ ...route, thread: selected.publicId, review: null }, "replace");
+        if (mode === "chat" && !threadId && selected) onRoute({ ...route, thread: selected.publicId, review: null }, "replace");
       } catch { /* A blank Tutor remains usable when history is unavailable. */ }
     })();
     return () => { cancelled = true; };
   }, [language, profileId, mode]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setReviewBatch(null); setSendError(""); setAdded(false);
-    if (!threadId) { setMessages([]); return; }
-    setLoadingThread(true);
-    void apiFetch(`/api/chat/${threadId}/messages`).then(async (response) => {
-      if (response.status === 404) {
-        if (!cancelled) {
-          clearMissingTutorThread(window.localStorage, storageKey, threadId);
-          setMessages([]); onRoute({ ...route, thread: null, review: null }, "replace");
-        } return null;
-      }
-      if (!response.ok) throw new Error("Could not load session");
-      const data = await response.json() as { messages: Array<{ role: "user" | "assistant"; content: string }> };
-      if (cancelled) return;
-      scrollIntentRef.current = "instant";
-      setMessages(data.messages.map((message) => ({ ...message, id: crypto.randomUUID() })));
-      window.localStorage.setItem(storageKey, threadId);
-    }).catch(() => {
-      if (!cancelled) setSendError("This Tutor session could not be loaded. Start a new chat or choose another session.");
-    }).finally(() => { if (!cancelled) setLoadingThread(false); });
-    return () => { cancelled = true; };
-  }, [language, threadId]);
+  useEffect(() => { setReviewBatch(null); setSendError(""); setAdded(false); }, [language, threadId]);
 
   useEffect(() => {
     if (!reviewId || !threadId) return;
@@ -201,6 +182,14 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     scrollIntentRef.current = null;
   }, [messages, reviewBatch]);
 
+  useLayoutEffect(() => {
+    const list = messagesRef.current;
+    const panel = list?.querySelector<HTMLElement>(".pilot-homework-panel");
+    if (!list || !panel || !homework.open) return;
+    list.scrollTo({ top: list.scrollTop + panel.getBoundingClientRect().top - list.getBoundingClientRect().top - 16, behavior: "auto" });
+    panel.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+  }, [homework.open, homework.homework?.status, loadingThread]);
+
   const newChat = () => {
     window.sessionStorage.removeItem(`rehearsal:${profileId}:tutor-draft:${language}:new`);
     onRoute({ ...route, thread: null, review: null, homework: undefined }); setMessages([]); setReviewBatch(null); if (!threadId) setDraft(""); setSendError(""); setAdded(false); setSessionsOpen(false);
@@ -214,7 +203,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       const response = await apiFetch(`/api/chat/${threadId}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Chat could not be deleted.");
       const remaining = threads.filter((thread) => thread.publicId !== threadId);
-      setThreads(remaining); onRoute({ ...route, thread: remaining[0]?.publicId || null, review: null, homework: undefined }, "replace"); setMessages([]); setReviewBatch(null); setAdded(false);
+      void homework.refreshSessions(); setThreads(remaining); onRoute({ ...route, thread: remaining[0]?.publicId || null, review: null, homework: undefined }, "replace"); setMessages([]); setReviewBatch(null); setAdded(false);
       window.localStorage.removeItem(storageKey);
     } catch { setSendError("Chat could not be deleted."); }
     finally { setDeletingThread(false); }
@@ -231,28 +220,33 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   };
 
   const sendContent = async (rawContent: string, existingClientMessageId?: string, homeworkStart?: Homework) => {
-    const content = rawContent.trim(); if (!content || sending) return false;
+    const content = rawContent.trim(); if (!content || sending || (homeworkStart && !threadReady)) return false;
     const clientMessageId = existingClientMessageId || crypto.randomUUID();
     setSending(true); setSendError(""); setAdded(false);
     try {
       const homeworkInput = homeworkStart ? { homeworkId: homeworkStart.homeworkId, homeworkPlanning: true } : await homework.beforeSend();
+      if (contextRef.current !== context) return false;
       setDraft((current) => current.trim() === content ? "" : current); scrollIntentRef.current = "smooth";
       setMessages((current) => beginTutorSend(current, content, clientMessageId));
       if (looksLikeVocabList(content) && !homework.active && !homeworkStart) {
         const data = await prepareVocab(content, clientMessageId);
+        if (contextRef.current !== context) return false;
         setReviewBatch(data.batch); onRoute({ ...route, thread: data.threadId, review: data.batch.publicId }, "replace"); window.localStorage.setItem(storageKey, data.threadId);
         setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
       } else {
         const response = await apiFetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ language, message: content, threadId: homeworkStart?.tutorChatId ?? threadId, clientMessageId, ...homeworkInput }) });
         if (!response.ok) throw new Error((await response.json()).error || "Chat unavailable");
-        const data = await response.json() as { threadId: string; content: string }; onRoute({ ...route, thread: data.threadId, review: null, ...(homeworkStart ? { homework: homeworkStart.homeworkId } : {}) }, "replace");
+        const data = await response.json() as { threadId: string; content: string };
+        if (contextRef.current !== context) return false;
+        onRoute({ ...route, thread: data.threadId, review: null, ...(homeworkStart ? { homework: homeworkStart.homeworkId } : {}) }, "replace");
         window.localStorage.setItem(storageKey, data.threadId);
         setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
       }
       void refreshThreads().catch(() => undefined);
       return true;
     } catch (caught) {
+      if (contextRef.current !== context) return false;
       setSendError(pilotErrorMessage(caught));
       setMessages((current) => failTutorSend(current, clientMessageId));
       return false;
@@ -367,6 +361,8 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   };
 
   const currentThread = threads.find((thread) => thread.publicId === threadId);
+  const homeworkTitle = homework.sessions.find((session) => route.homework
+    ? session.homeworkId === route.homework : session.tutorChatId === threadId)?.title;
 
   return <main className={`simple-main ${mode === "chat" ? "simple-main--chat" : "simple-main--notebook"}`} id="main-content">
     <header className="simple-page-heading simple-tutor-heading"><h1>Tutor</h1>
@@ -377,18 +373,18 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     {mode === "notebook" ? <CaptureNotebook onCardsAdded={onCardsAdded} language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={closeSessions} type="button" /> : null}
       <TutorSessionsRail currentThreadId={threadId} onClose={closeSessions} onNewChat={newChat} modal={isNarrow} onDelete={() => void deleteChat()} deleting={deletingThread || sending || reviewing} open={!isNarrow || sessionsOpen}
-        railRef={sessionsRailRef} route={route} threads={threads} />
+        railRef={sessionsRailRef} route={route} threads={threads} homeworks={homework.sessions} homeworkError={homework.sessionsError} onRetryHomework={() => void homework.refreshSessions()} />
       <div inert={isNarrow && sessionsOpen} className={`simple-chat-pane${reviewBatch ? " simple-chat-pane--review" : ""}`} data-onboarding-target="tutor">
         {reviewBatch ? <div className="simple-review-pane"><ReviewBatchPanel batch={reviewBatch} context="tutor" feed onBatch={setReviewBatch}
           onDismiss={() => { setReviewBatch(null); onRoute({ ...route, review: null }, "replace"); }}
           onCommitted={() => { onCardsAdded(); setReviewBatch(null); setAdded(true); onRoute({ ...route, review: null }, "replace"); }} /></div> : <>
         <div className="simple-chat-toolbar"><div className="simple-chat-context">
-          <strong>{currentThread?.title || "New chat"}</strong></div>
+          <strong>{homeworkTitle || currentThread?.title || "New chat"}</strong></div>
           {threadId ? <details className="simple-chat-actions"><summary aria-label="More chat actions" role="button"><Ellipsis aria-hidden="true" size={18} /></summary><div>
             <button className="simple-delete-chat" disabled={deletingThread || sending || reviewing} onClick={() => void deleteChat()} type="button">
               {deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}Delete chat</button></div></details> : null}</div>
         {homework.toolbar}<div aria-busy={sending || loadingThread} aria-live="polite" className="simple-chat-messages" ref={messagesRef} role="log">
-          {homework.panel}{!homework.active && !messages.length && !loadingThread && !sending ? <TutorGuidedPracticeStart disabled={sending}
+          {!homework.active && !messages.length && !loadingThread && !sending ? <TutorGuidedPracticeStart disabled={sending}
             onStart={(message) => { void sendContent(message); }} /> : null}
           {messages.map((message, messageIndex) => <TutorChatMessage key={message.id} learnerMessage={message.role === "assistant" ? messages.slice(0, messageIndex).reverse().find((candidate) => candidate.role === "user")?.content : undefined}
             message={message}
@@ -398,6 +394,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
           {added ? <div className="simple-tutor-added"><strong>Added to Library</strong><div>
             {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}
             <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
+          {homework.panel}
         </div>
         {reviewing ? <div className="simple-review-preparing" role="status"><LoaderCircle aria-hidden="true" className="simple-spin" size={17} />Preparing cards from this chat…</div> : null}
         {sendError ? <div className="simple-composer-error" role="alert"><span>{sendError}</span><button onClick={() => setSendError("")} type="button">Dismiss</button></div> : null}
