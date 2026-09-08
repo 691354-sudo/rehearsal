@@ -5,6 +5,7 @@ import { languageCopy } from "../../shared/config";
 import type { Language, LearningItem } from "../../shared/contracts";
 import type { AppRoute } from "../../lib/appRoute";
 import { focusTermsInTarget } from "../../../contracts/text";
+import { createCardDialogDismiss } from "./cardDialogDismiss";
 
 export function CardEditorDialog(props: {
   item: LearningItem;
@@ -13,6 +14,7 @@ export function CardEditorDialog(props: {
   onSaved: (item: LearningItem) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const dismiss = useRef(createCardDialogDismiss()).current;
   const [target, setTarget] = useState(props.item.target);
   const [cue, setCue] = useState(props.item.cue);
   const [note, setNote] = useState(props.item.note);
@@ -103,7 +105,8 @@ export function CardEditorDialog(props: {
 
   return <dialog aria-labelledby="card-editor-title" className="simple-card-dialog"
     onCancel={(event) => { event.preventDefault(); requestClose(); }}
-    onClick={(event) => { if (event.target === event.currentTarget) requestClose(); }} ref={dialogRef}>
+    onPointerDownCapture={dismiss.onPointerDownCapture} onPointerCancel={dismiss.onPointerCancel}
+    onClick={(event) => { if (dismiss.shouldClose(event)) requestClose(); }} ref={dialogRef}>
     <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
       <header><div><h2 id="card-editor-title">Edit card</h2><span>{props.item.source || "Personal library"}</span></div>
         <button aria-label="Close editor" onClick={requestClose} type="button"><X size={17} /></button></header>

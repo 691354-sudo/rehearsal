@@ -29,8 +29,10 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
   app.get("/api/pilot", async (request) => {
     const { repository } = dependencies.forRequest(request);
     const query = z.object({ language, tutorChatId: id.optional(), timezone: timezone.optional() }).parse(request.query);
+    const homework = repository.pilot.homework.active(query.tutorChatId);
     return { settings: repository.pilot.store.settings(), timezone: repository.pilot.store.timezone(query.timezone),
-      pending: repository.pilot.listening.pending(), homework: repository.pilot.homework.active(query.tutorChatId) };
+      pending: repository.pilot.listening.pending(), homework,
+      tutorStarted: Boolean(homework && repository.tutor.getCompletedClientExchange(homework.homeworkId)) };
   });
   app.get("/api/pilot/liked", async (request) => {
     const { repository } = dependencies.forRequest(request);
@@ -79,11 +81,26 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
       answer: z.string().max(4000).transform((value) => value.normalize("NFC")) }).parse(request.body);
     return repository.pilot.recall.grade(body);
   });
+  app.post("/api/pilot/attempts/check", async (request) => {
+    const { repository, openai } = dependencies.forRequest(request);
+    const body = z.object({ language, attemptId: id,
+      answer: z.string().trim().min(1).max(4000).transform((value) => value.normalize("NFC")) }).parse(request.body);
+    const attempt = repository.pilot.recall.get(body.attemptId);
+    if (!attempt) throw new PilotError("ATTEMPT_NOT_FOUND", 404);
+    const item = repository.pilot.store.item(attempt.card_id);
+    try { return { check: await openai.checkRecall(item, body.answer, body.attemptId) }; }
+    catch { throw new PilotError("RECALL_CHECK_UNAVAILABLE", 503); }
+  });
   app.post("/api/pilot/homework", async (request) => {
     const { repository } = dependencies.forRequest(request);
     const body = z.object({ language, homeworkId: id, tutorChatId: id.optional(),
       requestedMinutes: z.number().int().min(1).max(1440), timezone }).parse(request.body);
     return { homework: repository.pilot.homework.create(body) };
+  });
+  app.get("/api/pilot/homework", async (request) => {
+    const { repository } = dependencies.forRequest(request);
+    z.object({ language }).parse(request.query);
+    return { sessions: repository.pilot.homework.list() };
   });
   app.get("/api/pilot/homework/:homeworkId", async (request) => {
     const { repository } = dependencies.forRequest(request);

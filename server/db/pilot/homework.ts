@@ -1,4 +1,4 @@
-import type { Homework, HomeworkFeedback } from "../../../contracts/learning-pilot.js";
+import { homeworkTitle, type Homework, type HomeworkFeedback, type HomeworkSummary } from "../../../contracts/learning-pilot.js";
 import type { TutorRepository } from "../repositories/tutor.js";
 import { PilotListening } from "./listening.js";
 import { PilotQueue } from "./queue.js";
@@ -14,6 +14,17 @@ export class PilotHomework {
         ${tutorChatId ? "AND tutor_chat_id = ?" : ""} ORDER BY started_at DESC LIMIT 1`)
       .get(...(tutorChatId ? [tutorChatId] : [])) as { homework_id: string } | undefined;
     return row ? this.store.homework(row.homework_id) : null;
+  }
+
+  list(): HomeworkSummary[] {
+    const rows = this.store.db.prepare(`SELECT h.homework_id, h.tutor_chat_id, h.started_at, h.status, h.plan
+      FROM pilot_homework h JOIN chat_threads t ON t.public_id = h.tutor_chat_id
+      WHERE t.language_code = 'en' ORDER BY h.started_at DESC, h.rowid DESC`).all() as Array<{
+        homework_id: string; tutor_chat_id: string; started_at: string; status: Homework["status"]; plan: string;
+      }>;
+    return rows.map((row) => ({ homeworkId: row.homework_id, tutorChatId: row.tutor_chat_id,
+      startedAt: row.started_at, status: row.status,
+      title: homeworkTitle({ startedAt: row.started_at, timezone: JSON.parse(row.plan).timezone ?? this.store.timezone() }) }));
   }
 
   create(input: { homeworkId: string; tutorChatId?: string; requestedMinutes: number; timezone: string },
@@ -41,6 +52,7 @@ export class PilotHomework {
       const cards = this.queue.list({ timezone: input.timezone, excludeIds: selectedLikes.map((request) => request.cardId) }, now, settings)
         .slice(0, capacity);
       const plan = {
+        timezone: this.store.timezone(input.timezone),
         requestedMinutes: input.requestedMinutes, plannedRecallCards: cards.length,
         plannedRecallSeconds: cards.length * settings.estimatedRecallSeconds,
         plannedTutorSeconds: likeSeconds + cards.length * settings.estimatedTutorSecondsPerCard,

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createCardDialogDismiss } from "./cardDialogDismiss";
 import { ChevronDown, X } from "lucide-react";
 import { focusTermsInTarget } from "../../../contracts/text";
 import type { AppRoute } from "../../lib/appRoute";
@@ -14,6 +15,7 @@ export function CardCreateDialog(props: {
   onCreated: (item: LearningItem) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const dismiss = useRef(createCardDialogDismiss()).current;
   const allowNavigationRef = useRef(false);
   const [target, setTarget] = useState("");
   const [cue, setCue] = useState("");
@@ -78,7 +80,8 @@ export function CardCreateDialog(props: {
 
   return <dialog aria-labelledby="card-create-title" className="simple-card-dialog"
     onCancel={(event) => { event.preventDefault(); requestClose(); }}
-    onClick={(event) => { if (event.target === event.currentTarget) requestClose(); }} ref={dialogRef}>
+    onPointerDownCapture={dismiss.onPointerDownCapture} onPointerCancel={dismiss.onPointerCancel}
+    onClick={(event) => { if (dismiss.shouldClose(event)) requestClose(); }} ref={dialogRef}>
     <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
       <header><div><h2 id="card-create-title">Add card</h2><span>Manual entry</span></div>
         <button aria-label="Close new card" onClick={requestClose} type="button"><X size={17} /></button></header>

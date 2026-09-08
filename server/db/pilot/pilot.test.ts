@@ -271,4 +271,23 @@ describe("English learning pilot", () => {
     expect(pilot().recall.grade(grade(attempt), later(20)).fsrsStateAfter?.repetitions).toBe(1);
   });
 
+  it("lists all Homework records independently of chat recency and freezes their local date", () => {
+    const first = pilot().homework.create({ homeworkId: randomUUID(), requestedMinutes: 1, timezone: "Europe/Riga" }, "2026-09-07T22:30:00.000Z");
+    pilot().homework.cancel(first.homeworkId);
+    context.db.prepare("UPDATE app_settings SET value = ? WHERE key = 'pilot_timezone'").run(JSON.stringify("America/Los_Angeles"));
+    const second = pilot().homework.create({ homeworkId: randomUUID(), tutorChatId: first.tutorChatId,
+      requestedMinutes: 1, timezone: "America/Los_Angeles" }, "2026-09-09T01:00:00.000Z");
+    for (let n = 0; n < 55; n++) {
+      const chat = context.repository.tutor.getOrCreateThread(undefined, "en");
+      context.repository.tutor.addMessage(chat.id, "user", "Regular chat");
+    }
+    expect(context.repository.tutor.listThreads("en", 50).some((chat) => chat.publicId === first.tutorChatId)).toBe(false);
+    context.reopen();
+    expect(pilot().homework.list()).toEqual([
+      expect.objectContaining({ homeworkId: second.homeworkId, tutorChatId: first.tutorChatId, title: "08.09.2026 - Homework" }),
+      expect.objectContaining({ homeworkId: first.homeworkId, title: "08.09.2026 - Homework", status: "cancelled" }),
+    ]);
+    expect(pilot().store.homework(first.homeworkId).timezone).toBe("Europe/Riga");
+  });
+
 });

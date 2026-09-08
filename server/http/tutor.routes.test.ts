@@ -43,7 +43,7 @@ describe("Tutor and review API", () => {
     expect(retried.json()).toMatchObject({ threadId, content: response.json().content, mode: "setup" });
     const history = await app.inject({ method: "GET", url: `/api/chat/${threadId}/messages` });
     expect(history.json().messages).toHaveLength(2);
-    expect(history.json().messages[0]).toEqual({ role: "user", content: "Help me practice small talk" });
+    expect(history.json().messages[0]).toEqual({ role: "user", content: "Help me practice small talk", clientMessageId });
     expect((await app.inject({ method: "DELETE", url: `/api/chat/${threadId}` })).statusCode).toBe(204);
     expect((await app.inject({ method: "GET", url: "/api/chat/threads?language=en" })).json().threads).toEqual([]);
     await app.close();

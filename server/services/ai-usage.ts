@@ -17,6 +17,7 @@ export type AiWorkload =
   | "review_resolution"
   | "candidate_revision"
   | "library_item_rewrite"
+  | "recall_check"
   | "currency_check"
   | "embedding"
   | "transcription"

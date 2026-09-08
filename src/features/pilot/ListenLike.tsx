@@ -11,11 +11,10 @@ export function ListenLike({ item }: { item: LearningItem }) {
   const count = progress?.listenCount ?? 0;
   const threshold = pilot.settings?.listenAppearancesForRecall ?? 5;
   return <div className="pilot-listen-progress">
-    <span>{count >= threshold ? "Ready for Recall" : `Listened ${count} / ${threshold}`}</span>
+    {pilot.syncError ? <span className="pilot-sync-error" role="status"><span title={pilot.syncError}>Not synced</span>
+      <button onClick={pilot.retry} type="button">Retry</button></span>
+      : <span>{count >= threshold ? "Ready for Recall" : `Listened ${count} / ${threshold}`}</span>}
     <button aria-pressed={liked} className="pilot-like" onClick={() => pilot.like(item.publicId, !liked)} type="button">
       <Heart aria-hidden="true" fill={liked ? "currentColor" : "none"} size={18} />Like</button>
-    {pilot.pendingCount || pilot.syncError ? <small className="pilot-sync" role="status">
-      {pilot.syncError || "Saving progress…"}{pilot.syncError ? <button onClick={pilot.retry} type="button">Retry</button> : null}
-    </small> : null}
   </div>;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Clock3 } from "lucide-react";
-import type { Homework } from "../../../contracts/learning-pilot";
+import type { Homework, HomeworkSummary } from "../../../contracts/learning-pilot";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
 import { defaultPracticeRoute, navigate } from "../../lib/appRoute";
 import { usePilot } from "./PilotProvider";
@@ -8,9 +8,9 @@ import { browserTimezone, pilotErrorMessage, pilotRequest } from "./pilotApi";
 import { useHomeworkTime } from "./useActiveTime";
 import { HomeworkFeedback } from "./HomeworkFeedback";
 
-export function useTutorHomework({ route, onRoute, onStartTutor, busy: chatBusy }: {
+export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: chatBusy }: {
   route: TutorRoute; onRoute: (route: TutorRoute, mode?: HistoryMode) => void;
-  onStartTutor: (homework: Homework) => Promise<boolean>; busy: boolean;
+  onStartTutor: (homework: Homework) => Promise<boolean>; ready: boolean; busy: boolean;
 }) {
   const pilot = usePilot();
   const enabled = route.language === "en" && route.mode === "chat";
@@ -18,20 +18,34 @@ export function useTutorHomework({ route, onRoute, onStartTutor, busy: chatBusy 
   const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false);
   const [error, setError] = useState(""); const [minutes, setMinutes] = useState("");
   const [introDone, setIntroDone] = useState(false);
+  const [loaded, setLoaded] = useState("");
+  const [sessions, setSessions] = useState<HomeworkSummary[]>([]);
+  const [sessionsError, setSessionsError] = useState("");
+  const attemptedIntro = useRef("");
   const startRef = useRef(onStartTutor); startRef.current = onStartTutor;
   const creationKey = `rehearsal:${pilot.profileId}:en:homework-create:${route.thread ?? "new"}`;
   const time = useHomeworkTime(homework, "tutor", enabled && homework?.status === "tutor_in_progress" && !route.review);
-  const intro = async (session: Homework) => {
-    const key = `rehearsal:${pilot.profileId}:en:homework-intro:${session.homeworkId}`;
-    localStorage.setItem(key, "pending"); setBusy(true); setError("");
-    try {
-      const sent = await startRef.current(session);
-      if (sent) { localStorage.setItem(key, "done"); setIntroDone(true); setOpen(false); }
-      else { setError("Tutor could not finish the first reply. Your Homework is saved."); setOpen(true); }
-    } finally { setBusy(false); }
-  };
   const identity = `${pilot.profileId}:${route.language}:${route.mode}:${route.thread}:${route.homework}`;
   const identityRef = useRef(identity); identityRef.current = identity;
+  const intro = async (session: Homework) => {
+    if (!ready || chatBusy || busy) return;
+    attemptedIntro.current = identity;
+    setBusy(true); setError(""); setOpen(true);
+    try {
+      const sent = await startRef.current(session);
+      if (identityRef.current !== identity) return;
+      if (sent) { setIntroDone(true); setOpen(false); }
+      else setError("Tutor could not finish the first reply. Your Homework is saved. Try Start Tutor again.");
+    } catch (caught) { if (identityRef.current === identity) setError(pilotErrorMessage(caught)); }
+    finally { if (identityRef.current === identity) setBusy(false); }
+  };
+  const refreshSessions = async () => {
+    if (!enabled) return;
+    try {
+      const result = await pilotRequest<{ sessions: HomeworkSummary[] }>(pilot.profileId, "/homework?language=en");
+      if (identityRef.current === identity) { setSessions(result.sessions); setSessionsError(""); }
+    } catch { if (identityRef.current === identity) setSessionsError("Homework could not be loaded."); }
+  };
   const refresh = async () => {
     if (!enabled) return;
     const result = route.homework ? await pilotRequest<{ homework: Homework; tutorStarted: boolean }>(pilot.profileId, `/homework/${route.homework}?language=en`)
@@ -39,19 +53,29 @@ export function useTutorHomework({ route, onRoute, onStartTutor, busy: chatBusy 
         `?language=en${route.thread ? `&tutorChatId=${route.thread}` : ""}`);
     if (identityRef.current !== identity) return;
     const next = result.homework;
-    setHomework(next);
+    setHomework(next); setLoaded(identity);
     if (route.homework && next?.status === "recall_in_progress") setOpen(true);
     if (next && next.tutorChatId === route.thread && next.status === "tutor_in_progress") {
-      const state = localStorage.getItem(`rehearsal:${pilot.profileId}:en:homework-intro:${next.homeworkId}`);
-      const completed = Boolean(result.tutorStarted || state === "done"); setIntroDone(completed);
-      if (route.homework && !state && !completed) void intro(next);
+      setIntroDone(Boolean(result.tutorStarted));
     }
     if (next?.status === "awaiting_feedback") setOpen(true);
   };
   useEffect(() => {
-    setHomework(null); setOpen(false); setIntroDone(false); setError("");
-    if (enabled) void refresh().catch((caught) => setError(pilotErrorMessage(caught)));
-  }, [route.language, route.mode, route.thread, route.homework]);
+    setHomework(null); setOpen(false); setBusy(false); setIntroDone(false); setError(""); setLoaded("");
+    attemptedIntro.current = "";
+    if (enabled) {
+      void refreshSessions();
+      void refresh().catch((caught) => {
+        if (identityRef.current === identity) { setError(pilotErrorMessage(caught)); setOpen(true); }
+      });
+    } else { setSessions([]); setSessionsError(""); }
+  }, [identity]);
+  useEffect(() => {
+    if (loaded !== identity || !route.homework || !ready || busy || chatBusy || introDone || error
+      || !homework || homework.tutorChatId !== route.thread || homework.status !== "tutor_in_progress"
+      || attemptedIntro.current === identity) return;
+    void intro(homework);
+  }, [identity, loaded, ready, busy, chatBusy, introDone, error, homework]);
   const create = async () => {
     if (busy || chatBusy) return;
     const requestedMinutes = Number(minutes);
@@ -76,7 +100,7 @@ export function useTutorHomework({ route, onRoute, onStartTutor, busy: chatBusy 
     try {
       if (homework.status === "tutor_in_progress") await time.flush();
       const result = await pilotRequest<{ homework: Homework }>(pilot.profileId, `/homework/${homework.homeworkId}/${kind}`, {});
-      setHomework(result.homework); setOpen(true); void pilot.refresh();
+      setHomework(result.homework); setOpen(true); void pilot.refresh(); void refreshSessions();
     } catch (caught) { setError(pilotErrorMessage(caught)); }
     finally { setBusy(false); }
   };
@@ -106,15 +130,15 @@ export function useTutorHomework({ route, onRoute, onStartTutor, busy: chatBusy 
   const panel = !enabled || !open ? null : <div className="pilot-homework-panel">
     {error ? <p role="alert">{error}</p> : null}
     {waiting ? <><p>Your saved Homework is in another chat.</p><button className="simple-primary" onClick={() => onRoute({ ...route, thread: homework.tutorChatId, homework: homework.homeworkId })} type="button">Continue Homework</button></>
-      : homework?.status === "awaiting_feedback" ? <HomeworkFeedback homework={homework} onSaved={(updated) => { setHomework(updated); void pilot.refresh(); }} onClose={() => setOpen(false)} />
+      : homework?.status === "awaiting_feedback" ? <HomeworkFeedback key={homework.homeworkId} homework={homework} onSaved={(updated) => { setHomework(updated); void pilot.refresh(); void refreshSessions(); }} onClose={() => setOpen(false)} />
         : active ? <>
           {homework.status === "recall_in_progress" ? <><h2>Homework</h2><p>{homework.plannedRecallCards} Recall {homework.plannedRecallCards === 1 ? "card" : "cards"} · {homework.plannedTutorRequestIds.length} liked phrases for Tutor</p>
             <p>Recall ~{Math.ceil(homework.plannedRecallSeconds / 60)} min · Tutor ~{Math.ceil(homework.plannedTutorSeconds / 60)} min</p>
             <button className="simple-primary" onClick={startRecall} type="button">Start Active Recall</button></>
             : timeFinished ? <><h2>{homework.actualRecallSeconds === null || homework.actualTutorSeconds === null ? "Study time is unavailable" : "Planned time is up"}</h2><div className="pilot-actions"><button className="simple-primary" disabled={busy} onClick={() => void action("finish")} type="button">End session</button>
               <button disabled={busy} onClick={() => void action("continue")} type="button">Continue</button></div></>
-              : !introDone ? <button className="simple-primary" disabled={busy || chatBusy} onClick={() => void intro(homework)} type="button">{busy ? "Starting Tutor…" : "Start Tutor"}</button>
-                : <p>Continue with Tutor below. When you're ready, choose End session.</p>}
+              : !introDone ? <button className="simple-primary" disabled={!ready || busy || chatBusy} onClick={() => void intro(homework)} type="button">{busy ? "Starting Tutor…" : "Start Tutor"}</button>
+                : <p>Continue chatting with Tutor. When you're ready, choose End session.</p>}
           <button disabled={busy || chatBusy} onClick={() => void action("cancel")} type="button">Cancel Homework</button>
         </> : <>
           {homework ? <h2>{homework.status === "completed" ? "Homework complete" : "Homework cancelled"}</h2> : null}
@@ -125,5 +149,5 @@ export function useTutorHomework({ route, onRoute, onStartTutor, busy: chatBusy 
           <p className="pilot-notice">The English pilot records listening, ratings, study time and optional feedback. Audio and full chats are excluded from the pilot export.</p>
         </>}
   </div>;
-  return { toolbar, panel, beforeSend, refresh, active: enabled && Boolean(active || open), homework };
+  return { toolbar, panel, open, sessions, sessionsError, refreshSessions, beforeSend, refresh, active: enabled && Boolean(active || open), homework };
 }

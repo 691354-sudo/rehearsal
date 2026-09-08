@@ -13,10 +13,12 @@ import { usePilot } from "./PilotProvider";
 import { browserTimezone, pilotErrorMessage, pilotRequest } from "./pilotApi";
 import { useActiveTime, useHomeworkTime } from "./useActiveTime";
 import { HomeworkFeedback } from "./HomeworkFeedback";
+import type { RecallCheck } from "../../../contracts/recall-check";
+import { PilotRecallAnswer } from "./PilotRecallAnswer";
 
 type RecallRun = { selectedIds: string[]; completed: number; current: PilotCard | null;
   attemptId: string; shownAt: string; revealedAt: string | null; answer: string; begun: boolean;
-  submission?: PilotAttemptGrade };
+  submission?: PilotAttemptGrade; check?: RecallCheck };
 const ratings: ReviewRating[] = ["again", "hard", "good", "easy"];
 export function PilotRecall({ props, topics, onTopic, onEdit }: {
   props: ComponentProps<typeof PracticePage>; topics: IslandSummary[];
@@ -62,7 +64,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit }: {
   useEffect(() => {
     const latest = props.items.find((item) => item.publicId === run?.current?.publicId);
     if (latest && run?.current && (latest.target !== run.current.target || latest.cue !== run.current.cue)) {
-      persist({ ...run, current: { ...run.current, target: latest.target, cue: latest.cue, focusTerms: latest.focusTerms } });
+      persist({ ...run, check: undefined, current: { ...run.current, target: latest.target, cue: latest.cue, focusTerms: latest.focusTerms } });
     }
   }, [props.items]);
   useLayoutEffect(() => {
@@ -164,12 +166,14 @@ export function PilotRecall({ props, topics, onTopic, onEdit }: {
         <button aria-label="End session" disabled={busy || Boolean(run.submission)} onClick={exit} type="button"><X size={18} aria-hidden="true" /></button></div></header>
     {showSettings ? <PlaybackSettings elevenLabs={props.elevenLabs} language="en" onPlayback={props.onPlayback} playback={props.playback} voices={props.voices} /> : null}
     <article className="recall-card"><span className="pilot-recall-prompt">Say the phrase in English</span><p className="recall-cue" lang="ru">{run.current.cue}</p>
-      <div className="recall-answer-row"><textarea ref={input} aria-label="Your answer in English" autoComplete="off" lang="en" name="recall-answer"
-        placeholder="Type in English…" rows={1} readOnly={Boolean(run.revealedAt)} value={run.answer} onChange={(event) => persist({ ...run, answer: event.target.value })} /></div>
-      {!run.revealedAt ? <button className="simple-primary pilot-reveal" disabled={busy || !run.begun} onClick={reveal} type="button">Show answer</button>
-        : <div className="recall-result" aria-live="polite"><div className="recall-natural-row"><span>Answer</span><button aria-label="Play answer" onClick={() => void props.onPlay(run.current!.target, props.playback)} type="button"><Volume2 size={18} aria-hidden="true" /></button></div>
+      {!run.revealedAt ? <div className="recall-answer-row"><textarea ref={input} aria-label="Your answer in English" autoComplete="off" lang="en" name="recall-answer" maxLength={4000}
+        placeholder="Type in English…" rows={1} value={run.answer} onChange={(event) => persist({ ...run, answer: event.target.value })} /></div>
+        : <PilotRecallAnswer key={`${run.attemptId}:${run.current.target}:${run.current.cue}`} profileId={pilot.profileId} attemptId={run.attemptId}
+          answer={run.answer} saved={run.check} onChecked={(check) => persist({ ...run, check })} />}
+      {!run.revealedAt ? <button className="simple-primary pilot-reveal" disabled={busy || !run.begun} onClick={reveal} type="button">{run.answer.trim() ? "Check answer" : "Show answer"}</button>
+        : <div className="recall-result"><div className="recall-natural-row"><span>Card answer</span><button aria-label="Play answer" onClick={() => void props.onPlay(run.current!.target, props.playback)} type="button"><Volume2 size={18} aria-hidden="true" /></button></div>
           <p className="recall-natural-answer" lang="en"><FocusedText text={run.current.target} focusTerms={run.current.focusTerms} /></p>
-          <div className="recall-grades pilot-grades" aria-label="Memory grade">{ratings.map((value) => <button key={value} data-rating={value} ref={value === "good" ? good : undefined}
+          <p className="pilot-memory-prompt">How well did you remember?</p><div className="recall-grades pilot-grades" aria-label="Memory grade">{ratings.map((value) => <button key={value} data-rating={value} ref={value === "good" ? good : undefined}
             className={`pilot-grade pilot-grade--${value}`} aria-pressed={rating === value} disabled={busy || Boolean(run.submission && run.submission.rating !== value)} onClick={() => void grade(value)} type="button">{value[0].toUpperCase() + value.slice(1)}</button>)}</div>
         </div>}{failure}</article>
     {homework ? <div className="pilot-actions"><button disabled={busy || Boolean(run.submission)} onClick={() => void homeworkAction("return")} type="button">Return to Tutor</button><button disabled={busy || Boolean(run.submission)} onClick={() => void homeworkAction("cancel")} type="button">Cancel Homework</button></div> : null}
