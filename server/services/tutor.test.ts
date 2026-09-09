@@ -120,6 +120,17 @@ describe("Tutor OpenAI requests", () => {
     expect(prompt).toContain("Do not interrupt the flow to correct every sentence");
   });
 
+  it("uses the approved feedback and next-task protocol in every learning language", () => {
+    for (const language of ["en", "lv", "vi", "no", "id"] as const) {
+      const prompt = tutorInstructions(genericLearnerPersona, language);
+      expect(prompt).toContain("### Feedback");
+      expect(prompt).toContain("### Next Task");
+      expect(prompt).toContain("both the instruction and the exact Russian cue inside Next Task");
+      expect(prompt).toContain("The app hides these internal marker labels");
+      expect(prompt).not.toContain("output exactly the three shown blocks");
+    }
+  });
+
   it("limits guided review to three new learner-practised targets and leaves Library unchanged", async () => {
     const context = createApiTestContext();
     contexts.push(context);

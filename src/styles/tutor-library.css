@@ -726,57 +726,11 @@
 .simple-message--assistant > span { margin: 0 0 8px; }
 
 .simple-message--assistant > .simple-message-copy,
-.simple-message--assistant > .simple-chat-loading,
-.simple-tutor-reply {
+.simple-message--assistant > .simple-chat-loading {
   padding: 13px 15px;
   background: var(--rh-inset);
   border: 1px solid var(--rh-rule);
   border-radius: 4px 12px 12px;
-}
-
-.simple-message--assistant > .simple-message-copy--structured {
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-}
-
-.simple-correction {
-  margin-top: 16px;
-  padding: 4px 0 4px 14px;
-  border-left: 2px solid var(--rh-note);
-}
-
-.simple-correction > h3 {
-  margin: 0 0 8px;
-  color: var(--rh-note);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.simple-correction-copy {
-  display: grid;
-  gap: 6px;
-}
-
-.simple-correction-copy > p,
-.simple-correction-copy > ul { margin: 0; }
-
-.simple-correction-copy > p:first-child {
-  color: var(--rh-faint);
-  font-size: 14px;
-}
-
-.simple-correction-copy > p:nth-child(2) {
-  color: var(--rh-ink);
-  font-size: 16px;
-  font-weight: 550;
-}
-
-.simple-correction-copy > p:nth-child(n + 3),
-.simple-correction-copy > ul {
-  color: var(--rh-support);
-  font-size: 14px;
 }
 
 .simple-composer { background: var(--rh-surface); }

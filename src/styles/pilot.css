@@ -64,12 +64,6 @@
 .pilot-feedback label { display: grid; gap: 8px; font-size: 13px; }
 .pilot-feedback select, .pilot-feedback textarea { width: 100%; min-height: 44px; }
 .pilot-feedback textarea { min-height: 80px; resize: vertical; }
-.pilot-tutor-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rh-rule); }
-.pilot-tutor-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
-.pilot-tutor-section > h3 { margin: 0 0 8px; font-size: 12px; font-weight: 400; color: var(--script-tertiary); }
-.pilot-tutor-section > p:first-of-type { margin-top: 0; }
-.pilot-tutor-section > :last-child { margin-bottom: 0; }
-.pilot-tutor-section[data-part="your phrase"] > p { color: var(--script-tertiary); }
 .pilot-homework-bar > button,
 .pilot-homework-panel button:not(.simple-primary),
 .pilot-actions > button:not(.simple-primary) { padding: 8px 12px; color: var(--script-ink); background: transparent; border: 1px solid var(--rh-rule); border-radius: 8px; font-size: 13px; }
@@ -80,7 +74,6 @@
 .pilot-liked-actions > button, .pilot-listen-progress > button { color: var(--script-ink); background: transparent; border: 0; border-radius: 8px; }
 .pilot-liked-actions > button:hover, .pilot-listen-progress > button:hover { background: var(--rh-wash); }
 .pilot-liked-actions > button[aria-pressed="true"], .pilot-listen-progress > button[aria-pressed="true"] { color: var(--rh-accent); }
-.pilot-tutor-copy { overflow-wrap: anywhere; }
 
 .pilot-homework-folder > button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px; color: var(--script-ink); background: var(--rh-wash); border: 0; border-radius: 8px; text-align: left; }
 .pilot-homework-folder > button strong { flex: 1; font-size: 13px; font-weight: 500; }

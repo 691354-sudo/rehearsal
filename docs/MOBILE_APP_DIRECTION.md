@@ -87,7 +87,7 @@ not a general offline queue or offline learning store.
   top bar; closing the keyboard restores the bottom bar. Focus alone or pinch
   zoom must not hide navigation. Drafts survive section and chat changes.
 - Tutor has a compact Chat/Notebook switch, a Sessions entry, and an app menu.
-  Review cards stays beside the input in Chat and Notebook. Mobile Return inserts
+  Create cards stays beside the input in Chat and Notebook. Mobile Return inserts
   a newline; sending uses the visible arrow. Desktop Enter sends, Shift+Enter
   inserts a newline, and IME composition never submits. The mobile composer grows
   from several readable lines to a bounded height, then scrolls internally.

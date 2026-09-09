@@ -315,7 +315,7 @@ export function CaptureNotebook({ language, profileId, onLibrary, onListen, onCa
         {activeNotes.length ? <button className="capture-review-trigger" disabled={processing || (!batch && (!readyCount || activeNotes.some((note) => note.status === "ready" && (drafts[note.publicId] ?? note.transcript) !== note.transcript)))}
           onClick={() => batch ? setReviewVisible(true) : void prepare()} type="button">
           {processing ? <LoaderCircle aria-hidden="true" className="simple-spin" size={15} /> : <WandSparkles aria-hidden="true" size={15} />}
-          {processing ? "Preparing…" : batch ? "Continue review" : `Review cards (${readyCount})`}</button> : null}
+          {processing ? "Preparing…" : batch ? "Continue review" : `Create cards (${readyCount})`}</button> : null}
         <button aria-label={recording ? "Stop recording" : "Start recording"} className={`capture-record${recording ? " is-recording" : ""}`}
           disabled={uploading || Boolean(pendingRecording)} onClick={recording ? stopRecording : () => void startRecording()}
           title={recording ? `Stop recording · ${formatDuration(elapsed)}` : uploading ? "Transcribing" : "Record"} type="button">
