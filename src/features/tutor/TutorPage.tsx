@@ -64,7 +64,6 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const [recording, setRecording] = useState(false); const [transcribing, setTranscribing] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0); const [voiceError, setVoiceError] = useState("");
   const [pendingVoice, setPendingVoice] = useState<PendingTutorRecording | null>(null);
-  const { composerHeight, isNarrow, setComposerHeight } = useTutorComposerHeight();
   const scrollIntentRef = useRef<"instant" | "smooth" | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null); const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingIntervalRef = useRef<number | null>(null); const recordingTimeoutRef = useRef<number | null>(null);
@@ -76,16 +75,11 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const storageKey = `rehearsal:${profileId}:tutor-thread:${language}`;
   const draftKey = `rehearsal:${profileId}:tutor-draft:${language}:${threadId || "new"}${route.homework ? `:${route.homework}` : ""}`;
   const [draft, setDraft] = useSessionDraft(draftKey);
+  const { composerHeight, isNarrow, setComposerHeight } = useTutorComposerHeight(composerRef, draft, mode === "chat" && !reviewBatch);
   const { loadingThread, threadReady } = useTutorThreadMessages({ route, storageKey, onRoute,
     onMessages: setMessages, onError: setSendError, onLoaded: () => { scrollIntentRef.current = "instant"; } });
   const homework = useTutorHomework({ route, onRoute, ready: threadReady, busy: sending,
     onStartTutor: (session) => sendContent("Давай начнём homework.", session.homeworkId, session) });
-  useLayoutEffect(() => {
-    const field = composerRef.current;
-    if (!isNarrow || !field) return;
-    field.style.height = "auto";
-    field.style.height = `${Math.max(64, Math.min(176, field.scrollHeight))}px`;
-  }, [draft, isNarrow, mode, reviewBatch]);
 
   const refreshThreads = async () => {
     const response = await apiFetch(`/api/chat/threads?language=${language}&limit=50`);
@@ -412,7 +406,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         <div className="simple-composer">
           <div className="simple-composer-input"><label className="simple-visually-hidden" htmlFor="tutor-message">Message your tutor</label><textarea autoComplete="off" id="tutor-message" name="tutor-message" onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => { if (shouldSendTutorOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing }, isNarrow || window.matchMedia("(pointer: coarse)").matches)) { event.preventDefault(); void send(); } }}
-            enterKeyHint={isNarrow ? "enter" : "send"} placeholder="Message your tutor…" ref={composerRef} rows={2} style={isNarrow ? undefined : { height: `${composerHeight}px` }} value={draft} />
+            enterKeyHint={isNarrow ? "enter" : "send"} placeholder="Message your tutor…" ref={composerRef} rows={2} style={{ height: `${composerHeight}px` }} value={draft} />
             <button aria-label="Resize message field" className="simple-composer-resize" onKeyDown={(event) => {
               if (event.key === "ArrowUp") { event.preventDefault(); setComposerHeight((height) => height + 40); }
               if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(tutorComposerMinimumHeight, height - 40)); }

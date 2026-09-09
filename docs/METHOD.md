@@ -105,6 +105,8 @@ Automatic pasted-list preparation applies only to a new chat. In an existing con
 
 Tutor Chat accepts either typed messages or a voice message. A voice message records after an explicit microphone action, is transcribed on the server, and sends the transcript immediately. A failed transcription keeps the recording available in the current page for Retry or Delete rather than silently discarding it.
 
+The message field automatically grows and shrinks with the draft, up to 40% of the visible viewport, capped at 400px on desktop and 240px on narrow screens. Longer text scrolls inside the field; clearing or sending returns it to its compact size. The desktop resize handle remains available within those bounds until the next edit. Keyboard viewport changes recalculate the limit so the conversation and send controls remain reachable.
+
 Pressing Enter clears the composer immediately, puts the learner's message into the conversation with a sending state, and shows a Tutor placeholder. If delivery fails, the message remains in the conversation with explicit Retry, Edit, and Delete actions; its text is never silently returned to the composer. Retry reuses the same delivery identity and cannot create a duplicate Tutor message or vocabulary review batch.
 
 Tutor and Notebook have the same card-preparation capabilities. Their difference is interaction context: Tutor can clarify and refine a request across a dialogue, while Notebook treats the ready notes as one direct request plus its source material.
