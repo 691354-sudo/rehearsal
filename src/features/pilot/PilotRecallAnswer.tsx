@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, CircleX, Clock3, Ear, WifiOff } from "lucide-react";
-import type { RecallCheck } from "../../../contracts/recall-check";
+import { CheckCircle2, CircleAlert, CircleX, Clock3, Ear, WifiOff } from "lucide-react";
+import { matchesRecallAnswer, type RecallCheck } from "../../../contracts/recall-check";
 import { pilotRequest } from "./pilotApi";
 
 export function RecallCheckedText({ answer, mistakes }: { answer: string; mistakes: RecallCheck["mistakes"] }) {
@@ -17,8 +17,8 @@ export function RecallCheckedText({ answer, mistakes }: { answer: string; mistak
   return <>{parts}</>;
 }
 
-export function PilotRecallAnswer({ profileId, attemptId, answer, saved, onChecked }: {
-  profileId: string; attemptId: string; answer: string; saved?: RecallCheck;
+export function PilotRecallAnswer({ profileId, attemptId, answer, reference, saved, onChecked }: {
+  profileId: string; attemptId: string; answer: string; reference: string; saved?: RecallCheck;
   onChecked: (check: RecallCheck) => void;
 }) {
   const [check, setCheck] = useState(saved);
@@ -34,14 +34,16 @@ export function PilotRecallAnswer({ profileId, attemptId, answer, saved, onCheck
     return () => { cancelled = true; };
   }, [profileId, attemptId, answer, retry, saved]);
   const oral = !answer.trim();
-  const verdict = oral ? "oral" : check?.verdict ?? (failed ? "unavailable" : "checking");
-  const Icon = oral ? Ear : verdict === "correct" ? CheckCircle2 : verdict === "incorrect" ? CircleX : failed ? WifiOff : Clock3;
+  const verdict = oral ? "oral" : check?.verdict === "correct" && !matchesRecallAnswer(answer, [reference])
+    ? "alternative" : check?.verdict ?? (failed ? "unavailable" : "checking");
+  const Icon = oral ? Ear : verdict === "correct" ? CheckCircle2 : verdict === "alternative" ? CircleAlert : verdict === "incorrect" ? CircleX : failed ? WifiOff : Clock3;
   const title = oral ? "Compare your answer" : verdict === "correct" ? "Correct"
-    : verdict === "incorrect" ? "Needs a correction" : failed ? "Answer not checked" : "Checking your answer…";
+    : verdict === "alternative" ? "Valid alternative" : verdict === "incorrect" ? "Needs a correction" : failed ? "Answer not checked" : "Checking your answer…";
   return <div className={`pilot-answer-check pilot-answer-check--${verdict}`} role="status">
     <strong><Icon aria-hidden="true" size={18} />{title}</strong>
     {!oral ? <p lang="en"><RecallCheckedText answer={answer} mistakes={check?.mistakes ?? []} /></p> : null}
-    {check ? <p className="pilot-check-explanation" lang="ru">{check.explanationRu}</p>
+    {verdict === "alternative" ? <p className="pilot-check-explanation">This works too. The card uses different wording.</p>
+      : check ? check.verdict === "incorrect" ? <p className="pilot-check-explanation" lang="ru">{check.explanationRu}</p> : null
       : oral ? <p className="pilot-check-explanation">Compare your spoken answer with the card, then rate your memory.</p>
         : failed ? <><p className="pilot-check-explanation">Try again or compare your answer yourself.</p>
           <button onClick={() => { setFailed(false); setRetry((value) => value + 1); }} type="button">Retry check</button></> : null}
