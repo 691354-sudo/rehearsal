@@ -19,8 +19,8 @@ export const parseHomeworkReply = (text: string) => {
   } catch { throw new PilotError("TUTOR_REPLY_INCOMPLETE", 502); }
 };
 
-export const tutorReplyLayout = `
-Use the same compact response structure in every language and in ordinary conversation, corrections and Homework.
+const homeworkReplyLayout = `
+Use this compact response structure during the active Homework.
 Explanations and feedback are in Russian unless the learner requests immersion; target examples use the selected learning language.
 The app displays only two sections: Feedback and Next Task. Use ### Feedback for the reply about what the learner said or asked,
 and ### Next Task for exactly one concrete next action, in Russian unless immersion was requested.
@@ -40,6 +40,7 @@ Avoid vague offers such as "Want to continue?". At the end of a session, name th
 
 export const homeworkTutorInstructions = (context: HomeworkTutorContext, activities: unknown[]) => `
 This conversation is the Tutor stage of an existing Homework. Continue the existing exercise recipes with one next action at a time.
+${homeworkReplyLayout}
 Return only Feedback in content and exactly one complete next task in nextAction, in Russian. Do not repeat the next task or its heading in content; the app appends Next Task.
 For translation or recall, nextAction must contain the instruction AND the exact Russian cue, with the cue in a separate paragraph starting with >. The instruction and cue must not appear in content.
 After a grammar or wording question, answer it and use nextAction to resume the unfinished task. Do not silently advance past the learner's unanswered exercise.

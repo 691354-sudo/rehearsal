@@ -12,7 +12,7 @@ import { responseTokenUsage, trackAiRequest } from "./ai-usage.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import type { OpenAIService } from "./openai.js";
 import { targetLanguageName } from "./material-generation.js";
-import { tutorReplyLayout, homeworkReplyFormat, homeworkTutorInstructions, parseHomeworkReply } from "./tutor-homework.js";
+import { homeworkReplyFormat, homeworkTutorInstructions, parseHomeworkReply } from "./tutor-homework.js";
 import { PilotError } from "../db/pilot/store.js";
 
 const tutorLanguageGuidance: Record<LanguageCode, string> = {
@@ -67,7 +67,8 @@ Echo product guide (closed onboarding pilot only):
 - Settings can reopen How Echo works. Theme can be changed with the light/dark control. Never claim a screen, button, or capability that is not listed here.
 `;
 
-export const tutorInstructions = (learner: LearnerPersona, language: LanguageCode, includeEchoProductGuide = false) => `
+export const tutorInstructions = (learner: LearnerPersona, language: LanguageCode, includeEchoProductGuide = false,
+  mode: "chat" | "homework" = "chat") => `
 You are ${learner.name}'s personal ${targetLanguageName(language)} tutor inside a private learning system.
 ${learner.context}
 ${tutorLanguageGuidance[language]}
@@ -94,9 +95,17 @@ Your job is to help the learner speak naturally and automatically, not to teach 
   4. Read → retell: use this only when the learner supplied a substantial text; ask for a retell without looking, give focused feedback and 2–3 useful expressions, then ask for one improved retell. Never call a short Tutor-generated passage extensive reading.
 - When the learner supplies a substantial text and asks to practise it or asks Tutor to choose, begin Read → retell instead of generating another passage.
 - In guided practice, give one next action at a time, keep the same topic, and use no more than three training rounds. Speaking and typing are equivalent paths. Do not add timers, scores, streaks, pronunciation ratings, or accent ratings.
-- Guided correction differs from ordinary live correction: first point to the gap without giving the answer and ask the learner to reformulate it. Reveal one natural answer only if the learner needs it, then require the whole thought again. Do not use the Correction block until after that self-repair attempt.
+- Guided correction differs from ordinary live correction: first point to the gap without giving the answer and ask the learner to reformulate it. Reveal one natural answer only if the learner needs it, then require the whole thought again. Do not reveal the correction until after that self-repair attempt.
 - Do not interrupt the flow to correct every sentence unless the learner explicitly asks for live correction. Keep useful observations for the end-of-chat review.
-${tutorReplyLayout}
+${mode === "chat" ? `
+Current mode: ordinary Tutor chat, not Homework.
+- Follow the learner's latest intent. A request to chat, talk about life, practise speaking, or brush up for a call means natural conversation, even if the learner mentions a daily duration. Respond to their story and keep the conversation on that topic, in the language they use or request.
+- Guided practice starts only when the learner explicitly requests a structured exercise or selects one of the recipes above. Do not call list_due_items or search_library just to turn a conversation into a drill.
+- An exercise introduced by an earlier assistant reply is not learner consent to guided practice. If the learner asked for conversation, resume that conversation. If they ask to stop an exercise and just chat, switch immediately.
+- Use normal conversational paragraphs without Feedback or Next Task headings. Answer grammar, meaning, and wording questions directly; do not append an exercise, translation cue, mandatory next action, or End session instruction.
+- Only during an explicitly requested guided exercise, use ### Feedback when feedback is needed and ### Next Task for one concrete task. Keep a recall instruction and its exact Russian cue together in Next Task, with the cue in a separate paragraph starting with >; do not reveal the target answer before the attempt.
+- Keep text upright; do not use italics. In corrections, bold only the changed fragment. Do not invent corrections or explanations to fill a template.
+` : ""}
 - Keep the initial answer concise, then deepen when the learner wants it.
 `;
 
@@ -174,7 +183,7 @@ export class TutorService {
     }));
     const toolCalls: Array<{ name: string; result: unknown }> = [];
     const homework = input.activeHomeworkId ? this.repository.pilot.tutor.receive(input.activeHomeworkId, thread.publicId) : null;
-    const instructions = tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide)
+    const instructions = tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide, homework ? "homework" : "chat")
       + (homework ? homeworkTutorInstructions(homework, this.repository.pilot.tutor.previousActivities(homework.homeworkId)) : "");
     const usage = {
       requests: 0,

@@ -39,6 +39,9 @@ export function splitTutorSections(content: string, learnerMessage?: string) {
 
 export function TutorSemanticMessage({ content, learnerMessage }: { content: string; learnerMessage?: string }) {
   const { feedback, tasks } = splitTutorSections(content, learnerMessage);
+  if (!content.match(headingPattern) && !tasks.length && feedback.every((part) => part.label === "feedback")) {
+    return <div className="simple-message-copy tutor-message-copy">{renderMarkdownBlocks(content, "reply", true)}</div>;
+  }
   const renderParts = (parts: TutorPart[]) => parts.map((part, index) =>
     <div className="tutor-response-part" data-part={part.label} key={index}>{renderMarkdownBlocks(part.content, `part-${index}`, true)}</div>);
   return <div className="simple-message-copy tutor-message-copy">

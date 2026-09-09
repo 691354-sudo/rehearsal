@@ -120,14 +120,17 @@ describe("Tutor OpenAI requests", () => {
     expect(prompt).toContain("Do not interrupt the flow to correct every sentence");
   });
 
-  it("uses the approved feedback and next-task protocol in every learning language", () => {
+  it("keeps ordinary chat conversational and exercises opt-in in every learning language", () => {
     for (const language of ["en", "lv", "vi", "no", "id"] as const) {
       const prompt = tutorInstructions(genericLearnerPersona, language);
-      expect(prompt).toContain("### Feedback");
-      expect(prompt).toContain("### Next Task");
-      expect(prompt).toContain("both the instruction and the exact Russian cue inside Next Task");
-      expect(prompt).toContain("The app hides these internal marker labels");
-      expect(prompt).not.toContain("output exactly the three shown blocks");
+      expect(prompt).toContain("Current mode: ordinary Tutor chat, not Homework");
+      expect(prompt).toContain("even if the learner mentions a daily duration");
+      expect(prompt).toContain("Guided practice starts only when the learner explicitly requests a structured exercise");
+      expect(prompt).toContain("An exercise introduced by an earlier assistant reply is not learner consent");
+      expect(prompt).toContain("Use normal conversational paragraphs without Feedback or Next Task headings");
+      expect(prompt).toContain("Answer grammar, meaning, and wording questions directly");
+      expect(prompt).not.toContain("End every reply with a concrete next action");
+      expect(prompt).not.toContain("After a side question, answer it first and return to the current exercise");
     }
   });
 
