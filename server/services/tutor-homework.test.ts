@@ -32,6 +32,8 @@ describe("Homework Tutor provider contract", () => {
     expect(call.instructions).toContain('"source":"listen_like"');
     expect(call.instructions).toContain("in Russian");
     expect(call.instructions).toContain("After a grammar or wording question");
+    expect(call.instructions).toContain("End every reply with a concrete next action");
+    expect(call.instructions).not.toContain("Current mode: ordinary Tutor chat");
     const thread = context.repository.tutor.getThread(hw.tutorChatId)!;
     expect(context.repository.tutor.getMessages(thread.id, 100).filter((entry) => entry.role === "user")).toHaveLength(1);
     expect(context.db.prepare("SELECT COUNT(*) AS n FROM pilot_tutor_activities").get()).toEqual({ n: 1 });
@@ -39,6 +41,38 @@ describe("Homework Tutor provider contract", () => {
     await service.chat(request);
     expect(create).toHaveBeenCalledTimes(2);
     expect(p.store.review(card.publicId)).toBeNull();
+  });
+  it.each([false, true])("keeps free chat separate from active Homework (earlier mistaken task: %s)", async (hasMistakenTask) => {
+    const p = context.repository.pilot;
+    const topic = context.repository.library.createIsland({ language: "en", title: "Homework only" });
+    const card = context.repository.items.create({ language: "en", cue: "Я справлюсь", target: "I can pull through." }, topic.publicId);
+    p.listening.like({ eventId: randomUUID(), language: "en", cardId: card.publicId, liked: true, occurredAt: new Date().toISOString() });
+    const hw = p.homework.create({ homeworkId: randomUUID(), requestedMinutes: 2, timezone: "Europe/Riga" });
+    const request = "Let's just have a chat about life. I need to brush up my speaking. I will do 20 min speaking practice with you daily. Let's get it rolling now.";
+    const thread = hasMistakenTask ? context.repository.tutor.getOrCreateThread(undefined, "en") : undefined;
+    if (thread) {
+      context.repository.tutor.addMessage(thread.id, "user", request);
+      context.repository.tutor.addMessage(thread.id, "assistant", "### Feedback\n\nSounds good.\n\n### Next Task\n\nRecall & reuse. Скажи по-английски:\n\n> Я всё ещё не разобрался, как это работает.");
+    }
+    const create = vi.fn().mockResolvedValue({ id: "chat", output: [], output_text: "Sure. What's been going on in your life lately?" });
+    const service = new TutorService(context.repository, { configured: true, learner: genericLearnerPersona } as OpenAIService,
+      false, { responses: { create } } as unknown as OpenAI);
+    const result = await service.chat({ language: "en", threadPublicId: thread?.publicId, clientMessageId: randomUUID(),
+      message: hasMistakenTask ? "I asked to just chat, without exercises." : request });
+    const call = create.mock.lastCall![0];
+    expect(call.text).toBeUndefined();
+    expect(call.instructions).toContain("Current mode: ordinary Tutor chat, not Homework");
+    expect(call.instructions).toContain("An exercise introduced by an earlier assistant reply is not learner consent");
+    expect(call.instructions).not.toContain("Homework data:");
+    expect(call.instructions).not.toContain("End every reply with a concrete next action");
+    expect(JSON.stringify(call.input)).not.toContain(card.target);
+    expect(call.input).toHaveLength(hasMistakenTask ? 3 : 1);
+    expect(result.content).toBe("Sure. What's been going on in your life lately?");
+    expect(result.threadId).not.toBe(hw.tutorChatId);
+    expect(p.homework.forChat(result.threadId)).toBeNull();
+    expect(p.homework.active()?.homeworkId).toBe(hw.homeworkId);
+    expect(p.tutor.previousActivities(hw.homeworkId)).toEqual([]);
+    expect(context.repository.tutor.getMessages(context.repository.tutor.getThread(hw.tutorChatId)!.id)).toEqual([]);
   });
   it("rejects malformed or empty provider metadata as a recoverable reply", () => {
     for (const response of ["{}", "null", "[]", '{"content":"","activities":[],"respondedToMessageIds":[]}', '{"content":"text","activities":[{"cardId":"x","activityType":"invented","exerciseType":null}],"respondedToMessageIds":[]}']) {
@@ -60,6 +94,15 @@ describe("Homework Tutor provider contract", () => {
     expect(feedback).toContain("Две фразы воспроизведены.");
     expect(feedback).not.toContain("Я справлюсь.");
     expect(task.trim()).toBe("Напиши фразу по-английски.\n\n> Я справлюсь.");
+  });
+  it("uses only nextAction when the provider repeats a task inside feedback", () => {
+    const reply = { content: "### Feedback\n\nОбъяснение.\n\n### Next Task\n\nЛишнее задание.",
+      nextAction: "Продолжи текущую мысль.", activities: [], respondedToMessageIds: [] };
+    const result = parseHomeworkReply(JSON.stringify(reply));
+    expect(result.content.match(/### Next Task/g)).toHaveLength(1);
+    expect(result.content).not.toContain("Лишнее задание");
+    expect(() => parseHomeworkReply(JSON.stringify({ ...reply, content: "### Next Task\n\nТолько задание." })))
+      .toThrow("TUTOR_REPLY_INCOMPLETE");
   });
   it("keeps legacy Homework history and follow-up messages inside the selected session", async () => {
     const p = context.repository.pilot;

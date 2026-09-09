@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { config } from "../config.js";
 import { schema } from "./schema.js";
 import { migrateLearningPilot } from "./pilot-schema.js";
+import { migrateTutorLearningFocus } from "./tutor-learning-focus-schema.js";
 
 const migrateReviewBatches = (db: Database.Database) => {
   const row = db.prepare(
@@ -272,6 +273,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "009-indonesian-language", run: migrateIndonesianLanguage, requiresForeignKeysOff: true },
   { id: "010-ai-usage-events", run: migrateAiUsageEvents },
   { id: "011-learning-pilot", run: migrateLearningPilot },
+  { id: "012-tutor-learning-focus", run: migrateTutorLearningFocus },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {

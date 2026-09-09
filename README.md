@@ -42,6 +42,14 @@ Prompt behavior has a separate paid, non-mutating manual evaluation over synthet
 CONFIRM_PROMPT_EVAL=1 npm run prompts:check
 ```
 
+A separate synthetic conversation evaluation covers Tutor modes, lightweight corrections, recaps, Homework and personal learning focus. It uses temporary databases, requires the same explicit approval, caps provider requests and writes a report for manual response-quality review:
+
+```bash
+CONFIRM_PROMPT_EVAL=1 node --import tsx scripts/check-tutor-behavior.ts
+```
+
+Select cases with `TUTOR_EVAL_SCENARIOS`, cap calls with `TUTOR_EVAL_REQUEST_LIMIT` (default 60, maximum 80), and set `TUTOR_EVAL_REPORT` for the JSON report path. Set `TUTOR_EVAL_MODEL` to the intended runtime model to fail before spending if configuration differs; the runner always prints the actual model. Local FTS handles synthetic Library search without paid embeddings.
+
 Tutor uses a stable per-thread prompt-cache key so repeated history can be billed as cached input when OpenAI finds the same prefix. Every paid runtime OpenAI and ElevenLabs generation request records privacy-safe usage in the active profile database: workload, language, provider, model, success/error, latency, token categories, prompt-cache reuse, input size, audio bytes, and application speech-cache hits. It never stores prompt text, generated text, audio, filenames, PINs, or provider errors. Inspect the last 30 days across profiles with `npm run ai-usage:report`; narrow it with `-- --days 7 --profile roman`, or add `--json` for machine-readable output. The report intentionally leaves USD conversion to current provider billing rates.
 
 All LLM material remains a draft until the user confirms it. Prompt sources, Tutor history, individual messages, and model output have server-side size limits. API keys never reach browser JavaScript.

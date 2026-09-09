@@ -32,7 +32,7 @@ import { TutorGuidedPracticeStart } from "./TutorGuidedPracticeStart";
 import { TutorSessionsRail } from "./TutorSessionsRail";
 import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimisticMessages";
 import { tutorComposerMinimumHeight, useTutorComposerHeight } from "./useTutorComposerHeight";
-import { formatDuration, looksLikeVocabList, shouldSendTutorOnEnter, voiceErrorMessage } from "./tutorInput";
+import { formatDuration, shouldPrepareVocabList, shouldSendTutorOnEnter, voiceErrorMessage } from "./tutorInput";
 import { useTutorThreadMessages } from "./useTutorThreadMessages";
 import { useTutorHomework } from "../pilot/useTutorHomework";
 import { pilotErrorMessage } from "../pilot/pilotApi";
@@ -230,7 +230,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       if (contextRef.current !== context) return false;
       setDraft((current) => current.trim() === content ? "" : current); scrollIntentRef.current = "smooth";
       setMessages((current) => beginTutorSend(current, content, clientMessageId));
-      if (looksLikeVocabList(content) && !route.homework && !homework.homework && !homework.active && !homeworkStart) {
+      if (shouldPrepareVocabList(content, Boolean(threadId)) && !route.homework && !homework.homework && !homework.active && !homeworkStart) {
         const data = await prepareVocab(content, clientMessageId);
         if (contextRef.current !== context) return false;
         setReviewBatch(data.batch); onRoute({ ...route, thread: data.threadId, review: data.batch.publicId }, "replace"); window.localStorage.setItem(storageKey, data.threadId);

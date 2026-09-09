@@ -2,7 +2,8 @@ export function shouldSendTutorOnEnter(event: { key: string; shiftKey: boolean; 
   return event.key === "Enter" && !event.shiftKey && !event.isComposing && !mobile;
 }
 
-export const looksLikeVocabList = (content: string) => {
+export const shouldPrepareVocabList = (content: string, hasThread: boolean) => {
+  if (hasThread) return false;
   const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   return lines.length >= 5 && lines.reduce((sum, line) => sum + line.split(/\s+/).length, 0) / lines.length <= 8;
 };

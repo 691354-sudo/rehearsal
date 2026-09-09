@@ -38,11 +38,12 @@ const guidedPracticeMessages = new Set([
   guidedPracticeMenuMessage,
   ...guidedPracticeExercises.map((exercise) => exercise.message),
 ]);
+export const isGuidedPracticeStartMessage = (content: string) => guidedPracticeMessages.has(content.trim());
 const directCardRequest = /(?:карточк|\bcards?\b)/iu;
 const reportedCardRequest = /(?:я хотел(?:а)?\s+(?:ответить|сказать|спросить)|\bi wanted to\s+(?:answer|say|ask)\b)/iu;
 const cardRequestDenied = /(?:карточки?\s+(?:делать\s+)?не\s+(?:нужно|надо|делай)|без\s+карточк|\b(?:no|without)\s+cards?\b|\bdon't\s+(?:make|create)\s+cards?\b)/iu;
 
-const isDirectCardRequest = (message: ConversationMessage) => message.role === "user"
+export const isDirectCardRequest = (message: ConversationMessage) => message.role === "user"
   && directCardRequest.test(message.content)
   && !reportedCardRequest.test(message.content)
   && !cardRequestDenied.test(message.content);

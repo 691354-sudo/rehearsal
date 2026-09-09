@@ -7,6 +7,14 @@ const renderReply = (content: string, learnerMessage?: string) => renderToStatic
   <TutorMarkdownMessage semantic content={content} learnerMessage={learnerMessage} />);
 
 describe("Tutor response layout", () => {
+  it("renders ordinary conversation as plain paragraphs without exercise labels", () => {
+    const markup = renderReply("Sure, let's talk.\n\nWhat's been going on in your life lately?");
+    expect(markup).toContain("Sure, let&#x27;s talk.");
+    expect(markup.match(/<p>/g)).toHaveLength(2);
+    expect(markup).not.toContain("Feedback");
+    expect(markup).not.toContain("Next Task");
+    expect(markup).not.toContain("<section");
+  });
   it("groups feedback, alternatives and reasons under one heading with a separate next task", () => {
     const markup = renderReply('Понимаю тебя.\n\n### Your phrase\n\nI goes home.\n\n### Correction\n\nI **go** home.\n\n### Why\n\nПосле I — go.\n\n### Your turn\n\nНапиши фразу снова.');
     expect(markup.match(/<h2>.*?<\/h2>/g)).toEqual(["<h2>Feedback</h2>", "<h2>Next Task</h2>"]);

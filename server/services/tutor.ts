@@ -6,14 +6,17 @@ import type { LanguageCode } from "../types.js";
 import {
   comparableGuidedPracticeTarget,
   guidedPracticeReviewMessages,
+  isGuidedPracticeStartMessage,
+  isDirectCardRequest,
 } from "../../contracts/tutor-guided-practice.js";
 import { aiLimits, recentMessagesWithinBudget } from "./ai-limits.js";
 import { responseTokenUsage, trackAiRequest } from "./ai-usage.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import type { OpenAIService } from "./openai.js";
 import { targetLanguageName } from "./material-generation.js";
-import { tutorReplyLayout, homeworkReplyFormat, homeworkTutorInstructions, parseHomeworkReply } from "./tutor-homework.js";
+import { homeworkReplyFormat, homeworkTutorInstructions, parseHomeworkReply } from "./tutor-homework.js";
 import { PilotError } from "../db/pilot/store.js";
+import { executeTutorControl, tutorControlTools, tutorLearningFocusInstructions } from "./tutor-controls.js";
 
 const tutorLanguageGuidance: Record<LanguageCode, string> = {
   en: "Use natural contemporary English.",
@@ -67,7 +70,8 @@ Echo product guide (closed onboarding pilot only):
 - Settings can reopen How Echo works. Theme can be changed with the light/dark control. Never claim a screen, button, or capability that is not listed here.
 `;
 
-export const tutorInstructions = (learner: LearnerPersona, language: LanguageCode, includeEchoProductGuide = false) => `
+export const tutorInstructions = (learner: LearnerPersona, language: LanguageCode, includeEchoProductGuide = false,
+  mode: "chat" | "guided" | "homework" = "chat") => `
 You are ${learner.name}'s personal ${targetLanguageName(language)} tutor inside a private learning system.
 ${learner.context}
 ${tutorLanguageGuidance[language]}
@@ -76,14 +80,14 @@ ${includeEchoProductGuide ? echoProductGuide : ""}
 Your job is to help the learner speak naturally and automatically, not to teach theory for its own sake.
 - Chat as comfortably and intelligently as a normal ChatGPT conversation.
 - Match the learner's known speaking style without inventing personal details. Prefer common native-like wording, phrasal verbs, and reusable sentence patterns.
-- Correct collocations and sentence structure first.
+- When correction is appropriate, prioritize collocations and sentence structure.
 - Explain briefly in Russian unless the learner asks for immersion.
-- Build language islands: connected lines, short monologues, questions, and answers grounded in the conversation.
-- Offer different natural ways to express one thought and different contexts for one phrase.
+- When requested or during the final review, build language islands: connected lines, short monologues, questions, and answers grounded in the conversation.
+- Offer alternative wording and additional contexts when the learner asks for them or in the final review, not as a routine addition to every chat reply.
 - Search the learner's library when prior phrases or mistakes are relevant.
-- Never save phrases, corrections, or islands during normal conversation. Create cards prepares drafts; nothing enters the library without ${learner.name} selecting and saving them in review.
+- Never save phrases, corrections, or islands to Library during normal conversation. Create cards prepares drafts; nothing enters the library without ${learner.name} selecting and saving them in review.
 - When ${learner.name} explicitly asks for card-ready material, follow the requested shape, quantity, and order. “One card for each” means one separate source unit per line, including every member of stated ranges or enumerations. Bare foundational units such as numbers or individual letters may stay atomic; do not add example sentences, merge units, or omit them just because ordinary learning cards prefer contextual utterances.
-- Use read-only tools for database facts. Never invent a database result or imply that you changed the library.
+- Library and scheduling tools are read-only. Never invent a database result or imply that you changed the library. The separate learning-focus tools may save private study notes as specified below.
 - When the learner asks to start a guided practice session, call list_due_items with a limit of 5 before choosing. If it returns useful material, usually run Recall & reuse; if it is empty, run Tell it better. Give the exercise name briefly and one immediate action, not a lesson plan or explanation.
 - When the learner asks to choose a guided exercise, offer exactly these three terse choices and wait: Tell it better, Recall & reuse, and Role-play twice.
 - When the learner directly selects Tell it better, Recall & reuse, Role-play twice, or Read → retell, start that recipe immediately with one next action. Recall & reuse must call list_due_items with a limit of 5 first. Read → retell must ask for a pasted or uploaded text when none is present; do not generate the source passage.
@@ -94,9 +98,21 @@ Your job is to help the learner speak naturally and automatically, not to teach 
   4. Read → retell: use this only when the learner supplied a substantial text; ask for a retell without looking, give focused feedback and 2–3 useful expressions, then ask for one improved retell. Never call a short Tutor-generated passage extensive reading.
 - When the learner supplies a substantial text and asks to practise it or asks Tutor to choose, begin Read → retell instead of generating another passage.
 - In guided practice, give one next action at a time, keep the same topic, and use no more than three training rounds. Speaking and typing are equivalent paths. Do not add timers, scores, streaks, pronunciation ratings, or accent ratings.
-- Guided correction differs from ordinary live correction: first point to the gap without giving the answer and ask the learner to reformulate it. Reveal one natural answer only if the learner needs it, then require the whole thought again. Do not use the Correction block until after that self-repair attempt.
+- Guided correction differs from ordinary live correction: first point to the gap without giving the answer and ask the learner to reformulate it. Preserve the learner's intended meaning and the trained expression; do not forbid a word needed for the correct answer or replace the exercise with a different meaning. Reveal one natural answer only if the learner needs it, then require the whole thought again. Do not reveal the correction until after that self-repair attempt.
 - Do not interrupt the flow to correct every sentence unless the learner explicitly asks for live correction. Keep useful observations for the end-of-chat review.
-${tutorReplyLayout}
+${mode !== "homework" ? `
+Current mode: ${mode === "guided" ? "learner-requested guided practice" : "ordinary Tutor chat, not Homework"}.
+- Follow the learner's latest intent. A request to chat, talk about life, practise speaking, or brush up for a call means natural conversation, even if the learner mentions a daily duration. Respond to their story and keep the conversation on that topic, in the language they use or request.
+- Guided practice starts only when the learner explicitly requests a structured exercise or selects one of the recipes above. Do not call list_due_items or search_library just to turn a conversation into a drill.
+- An exercise introduced by an earlier assistant reply is not learner consent to guided practice. If the learner asked for conversation, resume that conversation. If they ask to stop an exercise and just chat, switch immediately.
+- Call set_tutor_mode when the learner changes between conversation and a structured exercise, including natural-language requests that do not use a button. Do not call it again when the requested mode is already current. A grammar side question during guided practice does not change mode: answer briefly and resume the same unfinished task. It is not permission to reveal the pending correction before self-repair; give the target answer only when explicitly requested or after a failed repair attempt. A direct card-preparation request switches to chat and takes priority over the exercise.
+- In ordinary chat, respond to meaning first. Occasionally add one short, useful correction or a more natural fragment, then keep talking about the learner's topic. A light correction is at most one brief aside, such as "Small tweak: I went, because it was yesterday." Do not quote and rewrite the entire learner message, add a correction list, give extra alternatives, or ask for repetition. Once a pattern has been pointed out, do not correct the same pattern on the next turn; record its recurrence quietly and discuss it in the final recap. If the learner requests no corrections or more detailed correction, respect that preference.
+- Use normal conversational paragraphs without Feedback or Next Task headings. Answer grammar, meaning, and wording questions directly; in ordinary chat do not append an exercise, translation cue, mandatory next action, or End session instruction.
+- Only during an explicitly requested guided exercise, use ### Feedback when feedback is needed and ### Next Task for one concrete task. Keep a recall instruction and its exact Russian cue together in Next Task, with the cue in a separate paragraph starting with >; do not reveal the target answer before the attempt.
+- When the learner finishes the conversation or asks for a recap, give a fuller but selective review: what went well, the main recurring gaps with brief original-to-natural examples, a few useful improvements and proposed card ideas. Separate actual errors from optional alternatives. Base everything on the learner's own attempts, not Tutor-only text; do not invent a weakness to fill the recap. Point to Create cards to prepare selectable drafts. A recap itself saves no Library cards and starts no new exercise.
+- Keep text upright; do not use italics. In corrections, bold only the changed fragment. Do not invent corrections or explanations to fill a template.
+` : ""}
+${tutorLearningFocusInstructions}
 - Keep the initial answer concise, then deepen when the learner wants it.
 `;
 
@@ -139,6 +155,7 @@ export class TutorService {
     if (message.homework_id && message.homework_id !== homeworkId) throw new Error("CLIENT_MESSAGE_ID_CONFLICT");
     const completed = this.repository.tutor.getCompletedClientExchange(input.clientMessageId);
     if (completed) return completed;
+    if (!homework && isGuidedPracticeStartMessage(input.message)) this.repository.tutor.setMode(message.thread_id, message.message_id, "guided", true);
     const running = this.inFlight.get(input.clientMessageId);
     if (running) return running;
     if (activeHomeworkId) this.repository.pilot.tutor.attachUser(activeHomeworkId, message.message_id, Boolean(input.homeworkPlanning));
@@ -174,8 +191,6 @@ export class TutorService {
     }));
     const toolCalls: Array<{ name: string; result: unknown }> = [];
     const homework = input.activeHomeworkId ? this.repository.pilot.tutor.receive(input.activeHomeworkId, thread.publicId) : null;
-    const instructions = tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide)
-      + (homework ? homeworkTutorInstructions(homework, this.repository.pilot.tutor.previousActivities(homework.homeworkId)) : "");
     const usage = {
       requests: 0,
       inputTokens: 0,
@@ -186,6 +201,11 @@ export class TutorService {
       totalTokens: 0,
     };
     const createResponse = async () => {
+      const mode = homework ? "homework" : this.repository.tutor.getMode(thread.id)?.mode
+        || (guidedPracticeReviewMessages(history) ? "guided" : "chat");
+      const instructions = tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide, mode)
+        + (homework ? homeworkTutorInstructions(homework, this.repository.pilot.tutor.previousActivities(homework.homeworkId)) : "")
+        + `\nSaved learning focus (occurrences=1 means candidate only): ${JSON.stringify(this.repository.tutor.learningFocus.list(input.language, true).slice(0, 30))}`;
       const next = await trackAiRequest({
         repository: this.repository.aiUsage, provider: "openai", workload: "tutor_chat", model,
         language: input.language,
@@ -197,7 +217,7 @@ export class TutorService {
         reasoning: { effort: "low" },
         instructions,
         input: modelInput,
-        tools,
+        tools: [...tools, ...tutorControlTools.filter((tool) => !homework || tool.name !== "set_tutor_mode")],
         parallel_tool_calls: false,
         ...(homework ? { text: { format: homeworkReplyFormat } } : {}),
         max_output_tokens: aiLimits.tutorOutputTokens,
@@ -222,7 +242,8 @@ export class TutorService {
       if (!calls.length) break;
       modelInput.push(...(response.output as unknown as OpenAI.Responses.ResponseInput));
       for (const call of calls) {
-        const result = await this.executeTool(call.name, call.arguments, input.language);
+        const result = await this.executeTool(call.name, call.arguments, input.language,
+          { threadId: thread.id, userMessageId: input.userMessageId, homework: Boolean(homework) });
         toolCalls.push({ name: call.name, result });
         this.repository.tutor.addMessage(thread.id, "tool", JSON.stringify(result), { name: call.name });
         modelInput.push({
@@ -261,7 +282,10 @@ export class TutorService {
     if (!thread) return null;
     const homework = this.repository.pilot.homework.forChat(threadPublicId, homeworkId);
     const messages = this.repository.tutor.getMessages(thread.id, 100, false, homework?.homeworkId);
-    const guidedMessages = guidedPracticeReviewMessages(messages);
+    const mode = homework ? undefined : this.repository.tutor.getMode(thread.id);
+    let guidedMessages = mode ? mode.mode === "guided" ? this.repository.tutor.guidedMessages(thread.id, mode.messageId) : null
+      : guidedPracticeReviewMessages(messages);
+    if (guidedMessages?.slice(1).some(isDirectCardRequest)) guidedMessages = null;
     const result = await this.openaiService.reviewConversation({
       publicId: batchPublicId,
       language: thread.language_code,
@@ -280,8 +304,11 @@ export class TutorService {
     return batch ? { ...result, batch } : result;
   }
 
-  private async executeTool(name: string, rawArguments: string, language: LanguageCode) {
+  private async executeTool(name: string, rawArguments: string, language: LanguageCode,
+    context: { threadId: number; userMessageId: number; homework: boolean }) {
     const args: unknown = JSON.parse(rawArguments);
+    const control = executeTutorControl(this.repository.tutor, name, args, { ...context, language });
+    if (control !== undefined) return control;
     if (name === "search_library") {
       const parsed = searchArguments.parse(args);
       const embedding = await this.openaiService.embed(parsed.query, language);
