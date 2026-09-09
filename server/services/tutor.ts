@@ -133,24 +133,25 @@ export class TutorService {
 
   async chat(input: { language: LanguageCode; message: string; threadPublicId?: string; clientMessageId: string;
     homeworkId?: string; homeworkPlanning?: boolean }) {
+    const homework = input.threadPublicId ? this.repository.pilot.homework.forChat(input.threadPublicId, input.homeworkId) : null;
+    if (input.homeworkId && (!homework || input.language !== "en")) throw new PilotError("HOMEWORK_CHAT_MISMATCH");
+    const homeworkId = homework?.homeworkId;
+    const activeHomeworkId = homework?.status === "tutor_in_progress" ? homeworkId : undefined;
+    if (homework && !activeHomeworkId && !["completed", "cancelled"].includes(homework.status)) throw new PilotError("HOMEWORK_TUTOR_NOT_STARTED");
     const message = this.repository.tutor.getOrCreateClientMessage({
       clientMessageId: input.clientMessageId,
       content: input.message,
       language: input.language,
       threadPublicId: input.threadPublicId,
+      homeworkId: activeHomeworkId ? undefined : homeworkId,
     });
+    if (message.homework_id && message.homework_id !== homeworkId) throw new Error("CLIENT_MESSAGE_ID_CONFLICT");
     const completed = this.repository.tutor.getCompletedClientExchange(input.clientMessageId);
     if (completed) return completed;
     const running = this.inFlight.get(input.clientMessageId);
     if (running) return running;
-    const homework = input.language === "en" ? input.homeworkId
-      ? this.repository.pilot.store.homework(input.homeworkId)
-      : this.repository.pilot.homework.active(message.thread_public_id) : null;
-    if (input.homeworkId && (!homework || homework.tutorChatId !== message.thread_public_id)) throw new PilotError("HOMEWORK_CHAT_MISMATCH");
-    const homeworkId = homework?.status === "tutor_in_progress" ? homework.homeworkId : undefined;
-    if (input.homeworkId && !homeworkId) throw new PilotError("HOMEWORK_TUTOR_NOT_STARTED");
-    if (homeworkId) this.repository.pilot.tutor.attachUser(homeworkId, message.message_id, Boolean(input.homeworkPlanning));
-    const request = this.createReply({ ...input, homeworkId, userMessageId: message.message_id },
+    if (activeHomeworkId) this.repository.pilot.tutor.attachUser(activeHomeworkId, message.message_id, Boolean(input.homeworkPlanning));
+    const request = this.createReply({ ...input, homeworkId, activeHomeworkId, userMessageId: message.message_id },
       { id: message.thread_id, publicId: message.thread_public_id });
     this.inFlight.set(input.clientMessageId, request);
     try { return await request; }
@@ -158,7 +159,7 @@ export class TutorService {
   }
 
   private async createReply(
-    input: { language: LanguageCode; message: string; clientMessageId: string; homeworkId?: string; userMessageId: number },
+    input: { language: LanguageCode; message: string; clientMessageId: string; homeworkId?: string; activeHomeworkId?: string; userMessageId: number },
     thread: { id: number; publicId: string },
   ) {
 
@@ -166,13 +167,13 @@ export class TutorService {
       const content =
         "The backend and database are ready, but OpenAI is not connected yet. Add OPENAI_API_KEY to .env and restart the app to enable Tutor replies and read-only Library search.";
       this.repository.tutor.addMessage(thread.id, "assistant", content, {
-        clientMessageId: input.clientMessageId, mode: "setup",
+        clientMessageId: input.clientMessageId, mode: "setup", homeworkId: input.homeworkId,
       });
       return { threadId: thread.publicId, content, mode: "setup" as const, toolCalls: [] };
     }
 
     const history = recentMessagesWithinBudget(
-      this.repository.tutor.getMessages(thread.id, aiLimits.tutorHistoryMessages),
+      this.repository.tutor.getMessages(thread.id, aiLimits.tutorHistoryMessages, false, input.homeworkId),
       aiLimits.tutorHistoryCharacters,
     );
     const model = config.tutorModel;
@@ -181,7 +182,7 @@ export class TutorService {
       content: message.content,
     }));
     const toolCalls: Array<{ name: string; result: unknown }> = [];
-    const homework = input.homeworkId ? this.repository.pilot.tutor.receive(input.homeworkId, thread.publicId) : null;
+    const homework = input.activeHomeworkId ? this.repository.pilot.tutor.receive(input.activeHomeworkId, thread.publicId) : null;
     const instructions = tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide)
       + (homework ? homeworkTutorInstructions(homework, this.repository.pilot.tutor.previousActivities(homework.homeworkId)) : "");
     const usage = {
@@ -259,15 +260,16 @@ export class TutorService {
     };
     if (homework && structured) this.repository.pilot.tutor.saveReply({ ...structured, content, metadata,
       homeworkId: homework.homeworkId, userMessageId: input.userMessageId });
-    else this.repository.tutor.addMessage(thread.id, "assistant", content, metadata);
+    else this.repository.tutor.addMessage(thread.id, "assistant", content, { ...metadata, homeworkId: input.homeworkId });
     console.info(JSON.stringify({ event: "tutor_openai_usage", model, threadId: thread.publicId, usage, context }));
     return { threadId: thread.publicId, content, mode: "openai" as const, toolCalls };
   }
 
-  async review(threadPublicId: string, batchPublicId?: string) {
+  async review(threadPublicId: string, batchPublicId?: string, homeworkId?: string) {
     const thread = this.repository.tutor.getThread(threadPublicId);
     if (!thread) return null;
-    const messages = this.repository.tutor.getMessages(thread.id, 100);
+    const homework = this.repository.pilot.homework.forChat(threadPublicId, homeworkId);
+    const messages = this.repository.tutor.getMessages(thread.id, 100, false, homework?.homeworkId);
     const guidedMessages = guidedPracticeReviewMessages(messages);
     const result = await this.openaiService.reviewConversation({
       publicId: batchPublicId,

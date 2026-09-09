@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defaultPlayback } from "../../shared/config";
 import {
   adaptivePauseMs, markListenedOnce, nextAutomaticIndex, nextQueueIndex, nextRepeatMode, playbackIdentity,
-  preparationBody, shuffleQueue,
+  preparationBody, reorderRemainingQueue, shuffleQueue,
 } from "./listenAudio";
 
 describe("Listen & Repeat audio helpers", () => {
@@ -23,6 +23,18 @@ describe("Listen & Repeat audio helpers", () => {
     expect(nextQueueIndex(0, 3, false)).toBe(1);
     expect(nextQueueIndex(2, 3, false)).toBeNull();
     expect(nextQueueIndex(2, 3, true)).toBe(0);
+  });
+
+  it("toggles the unplayed queue without interrupting or repeating the current card", () => {
+    const cards = ["one", "two", "three", "four", "five"].map((publicId) => ({ publicId }));
+    const ids = cards.map((card) => card.publicId);
+    const shuffled = reorderRemainingQueue(cards, 1, ids, true, () => 0.999);
+    expect(shuffled.map((card) => card.publicId)).toEqual(["one", "two", "four", "five", "three"]);
+    expect(reorderRemainingQueue(shuffled, 1, ids, false)).toEqual(cards);
+    expect(reorderRemainingQueue(shuffled, 2, ids, false).map((card) => card.publicId))
+      .toEqual(["one", "two", "four", "three", "five"]);
+    expect(reorderRemainingQueue(cards, 4, ids, true)).toEqual(cards);
+    expect(cards.map((card) => card.publicId)).toEqual(ids);
   });
 
   it("cycles repeat from queue to one card and applies it only to automatic progress", () => {

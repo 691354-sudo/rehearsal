@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
-import { Play, Settings2, Shuffle } from "lucide-react";
+import { Play, Settings2 } from "lucide-react";
+import { ShuffleButton } from "./ShuffleButton";
 import type { ListenRepeat } from "./ListenRepeat";
 import type { LearningItem } from "../../shared/contracts";
 import type { PracticeCardCount, PracticeOrder } from "../../lib/appRoute";
@@ -10,7 +11,7 @@ import { RepeatModeButton } from "./RepeatModeButton";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
 
 export function ListenSetup({ props, visibleCandidates, visibleComposition, playbackSettings,
-  showPlaybackSettings, setShowPlaybackSettings, repeatMode, cycleRepeat, shuffle, start }: {
+  showPlaybackSettings, setShowPlaybackSettings, repeatMode, cycleRepeat, shuffleEnabled, shuffle, start }: {
   props: ComponentProps<typeof ListenRepeat>;
   visibleCandidates: LearningItem[];
   visibleComposition: { due: number; new: number };
@@ -20,6 +21,7 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
   repeatMode: RepeatMode;
   cycleRepeat: () => void;
   shuffle: () => void;
+  shuffleEnabled: boolean;
   start: () => Promise<void>;
 }) {
   return <div className="practice-ready-layout">
@@ -40,7 +42,7 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
       {showPlaybackSettings ? <div className="listen-setup-playback">{playbackSettings}</div> : null}
       <div className="listen-start-options">
         <RepeatModeButton mode={repeatMode} onClick={cycleRepeat} size={17} />
-        <button aria-label="Shuffle cards" onClick={shuffle} title="Shuffle" type="button"><Shuffle size={17} /></button>
+        <ShuffleButton enabled={shuffleEnabled} onClick={shuffle} size={17} />
         <button aria-expanded={showPlaybackSettings} aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
           onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Playback settings" type="button"><Settings2 size={17} /></button>
         <span>{visibleComposition.due} due · {visibleComposition.new} not recalled yet</span>

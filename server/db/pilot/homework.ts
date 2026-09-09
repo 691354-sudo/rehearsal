@@ -16,6 +16,16 @@ export class PilotHomework {
     return row ? this.store.homework(row.homework_id) : null;
   }
 
+  forChat(tutorChatId: string, homeworkId?: string) {
+    const id = homeworkId ?? (this.store.db.prepare(`SELECT homework_id FROM pilot_homework
+      WHERE tutor_chat_id = ? ORDER BY started_at DESC, rowid DESC LIMIT 1`)
+      .get(tutorChatId) as { homework_id: string } | undefined)?.homework_id;
+    if (!id) return null;
+    const homework = this.store.homework(id);
+    if (homework.tutorChatId !== tutorChatId) throw new PilotError("HOMEWORK_CHAT_MISMATCH");
+    return homework;
+  }
+
   list(): HomeworkSummary[] {
     const rows = this.store.db.prepare(`SELECT h.homework_id, h.tutor_chat_id, h.started_at, h.status, h.plan
       FROM pilot_homework h JOIN chat_threads t ON t.public_id = h.tutor_chat_id

@@ -31,7 +31,10 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const params = z.object({ threadId: z.string().uuid() }).parse(request.params);
     const thread = repository.tutor.getThread(params.threadId);
     if (!thread) return reply.code(404).send({ error: "THREAD_NOT_FOUND" });
+    const query = z.object({ homeworkId: z.string().uuid().optional() }).parse(request.query);
+    const homework = repository.pilot.homework.forChat(params.threadId, query.homeworkId);
     return {
+      homeworkId: homework?.homeworkId,
       thread: {
         publicId: thread.public_id,
         language: thread.language_code,
@@ -39,7 +42,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
         createdAt: thread.created_at,
         updatedAt: thread.updated_at,
       },
-      messages: repository.tutor.getMessages(thread.id, 200, true),
+      messages: repository.tutor.getMessages(thread.id, 200, true, homework?.homeworkId),
     };
   });
 
@@ -104,7 +107,8 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
   app.post("/api/chat/:threadId/review", async (request, reply) => {
     const { tutor } = dependencies.forRequest(request);
     const params = z.object({ threadId: z.string().uuid() }).parse(request.params);
-    const result = await tutor.review(params.threadId);
+    const query = z.object({ homeworkId: z.string().uuid().optional() }).parse(request.query);
+    const result = await tutor.review(params.threadId, undefined, query.homeworkId);
     return result ? reply.code(201).send(result) : reply.code(404).send({ error: "THREAD_NOT_FOUND" });
   });
 

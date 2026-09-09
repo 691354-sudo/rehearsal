@@ -3,8 +3,9 @@ import type { LearningItem } from "../../shared/contracts";
 import type { ListenAppearance } from "../../../contracts/learning-pilot";
 import { usePilot } from "./PilotProvider";
 
-type ListenRun = { listenSessionId: string; cardIds: string[]; appearances: string[]; index: number; completed: Record<string, ListenAppearance> };
-export function useListenAppearances(language: string, items: LearningItem[], restore: (items: LearningItem[], index: number) => void) {
+type ListenRun = { listenSessionId: string; cardIds: string[]; appearances: string[]; index: number; completed: Record<string, ListenAppearance>;
+  shuffleEnabled?: boolean; originalCardIds?: string[] };
+export function useListenAppearances(language: string, items: LearningItem[], restore: (items: LearningItem[], index: number, shuffleEnabled: boolean, originalCardIds: string[]) => void) {
   const pilot = usePilot();
   const key = `rehearsal:${pilot.profileId}:en:listen-run`;
   const run = useRef<ListenRun | null>(null);
@@ -15,10 +16,17 @@ export function useListenAppearances(language: string, items: LearningItem[], re
       else localStorage.removeItem(key);
     } catch { /* The completed event still has its own durable outbox and sync state. */ }
   };
-  const start = (queue: LearningItem[]) => {
+  const start = (queue: LearningItem[], shuffleEnabled = false, originalCardIds = queue.map((item) => item.publicId)) => {
     if (language !== "en") return;
     run.current = { listenSessionId: crypto.randomUUID(), cardIds: queue.map((item) => item.publicId),
-      appearances: queue.map(() => crypto.randomUUID()), index: 0, completed: {} }; save();
+      appearances: queue.map(() => crypto.randomUUID()), index: 0, completed: {}, shuffleEnabled, originalCardIds }; save();
+  };
+  const setOrder = (queue: LearningItem[], index: number, shuffleEnabled: boolean) => {
+    const current = run.current;
+    if (!current) return;
+    const appearanceByCard = new Map(current.cardIds.map((id, position) => [id, current.appearances[position]]));
+    current.appearances = queue.map((item) => appearanceByCard.get(item.publicId) ?? crypto.randomUUID());
+    current.cardIds = queue.map((item) => item.publicId); current.index = index; current.shuffleEnabled = shuffleEnabled; save();
   };
   const enter = (index: number, queue: LearningItem[], newAppearance: boolean) => {
     if (language !== "en") return undefined;
@@ -39,10 +47,11 @@ export function useListenAppearances(language: string, items: LearningItem[], re
       const saved = JSON.parse(stored) as ListenRun;
       const queue = saved.cardIds.map((id) => items.find((item) => item.publicId === id));
       if (queue.some((item) => !item) || !queue[saved.index]) return;
-      run.current = { ...saved, completed: saved.completed ?? {} }; restore(queue as LearningItem[], saved.index);
+      run.current = { ...saved, completed: saved.completed ?? {} };
+      restore(queue as LearningItem[], saved.index, Boolean(saved.shuffleEnabled), saved.originalCardIds ?? saved.cardIds);
     } catch { /* An unavailable queue can still be started from current Library. */ }
   }, [language, items, key]);
-  return { start, enter, complete: (appearance: NonNullable<ReturnType<typeof enter>>, repetitions: number) => {
+  return { start, enter, setOrder, complete: (appearance: NonNullable<ReturnType<typeof enter>>, repetitions: number) => {
     if (!run.current) return;
     const event = run.current.completed[appearance.appearanceId] ?? { ...appearance, language: "en" as const, eventId: appearance.appearanceId,
       completedAt: new Date().toISOString(), audioRepeatsInAppearance: repetitions };
