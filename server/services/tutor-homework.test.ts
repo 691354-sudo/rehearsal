@@ -25,7 +25,7 @@ describe("Homework Tutor provider contract", () => {
     await expect(service.chat(request)).rejects.toThrow("TUTOR_REPLY_INCOMPLETE");
     const reply = await service.chat(request);
     expect(reply.threadId).toBe(hw.tutorChatId);
-    expect(reply.content).toMatch(/### Your turn\n\nНапиши свой пример с pull through\.$/);
+    expect(reply.content).toMatch(/### Next Task\n\nНапиши свой пример с pull through\.$/);
     const call = create.mock.calls[1][0];
     expect(call.text.format).toMatchObject({ type: "json_schema", name: "homework_tutor_reply", strict: true });
     expect(call.instructions).toContain('"latestRating":null');
@@ -51,7 +51,15 @@ describe("Homework Tutor provider contract", () => {
       expect(() => parseHomeworkReply(JSON.stringify({ ...response, nextAction }))).toThrow("TUTOR_REPLY_INCOMPLETE");
     }
     expect(parseHomeworkReply(JSON.stringify({ ...response, nextAction: "Нажми End session." })).content)
-      .toMatch(/### Your turn\n\nНажми End session\.$/);
+      .toMatch(/### Next Task\n\nНажми End session\.$/);
+  });
+  it("keeps the full instruction and quoted cue together in Next Task", () => {
+    const content = parseHomeworkReply(JSON.stringify({ content: "### Feedback\n\nДве фразы воспроизведены.",
+      nextAction: "Напиши фразу по-английски.\n\n> Я справлюсь.", activities: [], respondedToMessageIds: [] })).content;
+    const [feedback, task] = content.split("### Next Task");
+    expect(feedback).toContain("Две фразы воспроизведены.");
+    expect(feedback).not.toContain("Я справлюсь.");
+    expect(task.trim()).toBe("Напиши фразу по-английски.\n\n> Я справлюсь.");
   });
   it("keeps legacy Homework history and follow-up messages inside the selected session", async () => {
     const p = context.repository.pilot;

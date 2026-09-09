@@ -25,7 +25,7 @@ import {
   supportedRecordingMimeType,
 } from "../../shared/audioRecording";
 import type { ChatMessage, ChatThread, Language } from "../../shared/contracts";
-import { languageCopy, languageHasAudio } from "../../shared/config";
+import { languageHasAudio } from "../../shared/config";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
 import { TutorChatMessage } from "./TutorChatMessage";
 import { TutorGuidedPracticeStart } from "./TutorGuidedPracticeStart";
@@ -84,7 +84,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     const field = composerRef.current;
     if (!isNarrow || !field) return;
     field.style.height = "auto";
-    field.style.height = `${Math.max(80, Math.min(176, field.scrollHeight))}px`;
+    field.style.height = `${Math.max(64, Math.min(176, field.scrollHeight))}px`;
   }, [draft, isNarrow, mode, reviewBatch]);
 
   const refreshThreads = async () => {
@@ -345,7 +345,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   };
   const resizeComposer = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const start = resizeStartRef.current;
-    if (start) setComposerHeight(Math.max(tutorComposerMinimumHeight(isNarrow), Math.round(start.height + start.clientY - event.clientY)));
+    if (start) setComposerHeight(Math.max(tutorComposerMinimumHeight, Math.round(start.height + start.clientY - event.clientY)));
   };
   const finishComposerResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     resizeStartRef.current = null;
@@ -361,7 +361,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       if (contextRef.current !== context) return;
       scrollIntentRef.current = "smooth"; setReviewBatch(data.batch);
       onRoute({ ...route, review: data.batch.publicId }, "replace");
-    } catch { if (contextRef.current === context) setSendError("Review could not be prepared. Your chat is safe. Try Review cards again."); }
+    } catch { if (contextRef.current === context) setSendError("Cards could not be prepared. Your chat is safe. Try Create cards again."); }
     finally { setReviewing(false); }
   };
 
@@ -395,7 +395,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             message={message}
             onDelete={(failed) => setMessages((current) => current.filter((currentMessage) => currentMessage.id !== failed.id))}
             onEdit={editFailedMessage}
-            onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} tutorLabel={languageCopy[language].label} />)}
+            onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} />)}
           {added ? <div className="simple-tutor-added"><strong>Added to Library</strong><div>
             {languageHasAudio(language) ? <button onClick={onListen} type="button">Listen now</button> : null}
             <button onClick={onLibrary} type="button">View in Library</button></div></div> : null}
@@ -415,7 +415,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
             enterKeyHint={isNarrow ? "enter" : "send"} placeholder="Message your tutor…" ref={composerRef} rows={2} style={isNarrow ? undefined : { height: `${composerHeight}px` }} value={draft} />
             <button aria-label="Resize message field" className="simple-composer-resize" onKeyDown={(event) => {
               if (event.key === "ArrowUp") { event.preventDefault(); setComposerHeight((height) => height + 40); }
-              if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(tutorComposerMinimumHeight(isNarrow), height - 40)); }
+              if (event.key === "ArrowDown") { event.preventDefault(); setComposerHeight((height) => Math.max(tutorComposerMinimumHeight, height - 40)); }
             }} onPointerCancel={finishComposerResize} onPointerDown={beginComposerResize} onPointerMove={resizeComposer}
               onPointerUp={finishComposerResize} title="Drag up to enlarge" type="button"><MoveDiagonal2 size={14} /></button></div>
           <div className="simple-composer-controls"><div className="simple-composer-tools">
@@ -424,7 +424,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
               const file = event.target.files?.[0]; if (file) setDraft(await file.text()); event.target.value = "";
             }} type="file" /></label>
             {threadId ? <button className="simple-finish-review" disabled={reviewing || sending} onClick={() => void finishReview()} type="button">
-              {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}<span>{reviewing ? "Preparing…" : "Review cards"}</span></button> : null}
+              {reviewing ? <LoaderCircle className="simple-spin" size={15} /> : <WandSparkles size={15} />}<span>{reviewing ? "Preparing…" : "Create cards"}</span></button> : null}
             <button aria-label={recording ? "Stop and send voice message" : "Record and send voice message"}
               className={`simple-composer-record${recording ? " is-recording" : ""}`}
               disabled={sending || transcribing || Boolean(pendingVoice)} onClick={recording ? stopVoiceRecording : () => void startVoiceRecording()}

@@ -486,10 +486,7 @@
   .simple-chat-pane > :not(.simple-chat-messages):not(.simple-review-pane) { flex-shrink: 0; }
   .simple-review-pane { flex: 1; }
   .simple-message--assistant { width: 100%; }
-  .simple-message--assistant > .simple-message-copy,
-  .simple-tutor-reply { padding: 0; background: transparent; border: 0; }
-  .simple-correction { padding: 12px 14px; border-left-color: var(--rh-accent); background: var(--rh-surface); border-radius: 0 10px 10px 0; }
-  .simple-correction-copy > p:nth-child(2) strong { font-weight: 600; }
+  .simple-message--assistant > .simple-message-copy { padding: 0; background: transparent; border: 0; }
   .simple-composer { flex-shrink: 0; }
   .simple-composer textarea { font-size: 16px; }
   .simple-composer-upload:focus-within { outline: 2px solid var(--rh-accent); outline-offset: 2px; }

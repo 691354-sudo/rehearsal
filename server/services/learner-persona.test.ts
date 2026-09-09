@@ -17,7 +17,7 @@ describe("learner-specific AI context", () => {
 
     expect(romanTutor).toContain("Roman");
     expect(romanTutor).toContain("### Correction");
-    expect(romanTutor).toContain("Keep ordinary conversation as plain paragraphs");
+    expect(romanTutor).toContain("The app displays only two sections: Feedback and Next Task");
     expect(romanTutor).toContain("follow the requested shape, quantity, and order");
     expect(romanTutor).toContain("including every member of stated ranges or enumerations");
     expect(romanTutor).toContain("Bare foundational units such as numbers or individual letters may stay atomic");
@@ -37,7 +37,7 @@ describe("learner-specific AI context", () => {
 
     expect(ordinaryTutor).not.toContain("Echo product guide");
     expect(pilotTutor).toContain("Echo product guide (closed onboarding pilot only)");
-    expect(pilotTutor).toContain("Finish & make cards");
+    expect(pilotTutor).toContain("Create cards prepares a review");
     expect(pilotTutor).toContain("Notebook is for Russian thoughts");
     expect(pilotTutor).toContain("Library contains saved cards grouped by Topics");
     expect(pilotTutor).toContain("Latvian Recall uses a Russian cue");

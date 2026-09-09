@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { TutorSemanticMessage } from "./TutorSemanticMessage";
 
-const renderInlineMarkdown = (text: string) => text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) =>
-  part.startsWith("**") && part.endsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong> : part);
+const renderInlineMarkdown = (text: string) => text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).filter(Boolean).map((part, index) =>
+  part.startsWith("**") && part.endsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong>
+    : part.startsWith("*") && part.endsWith("*") ? <em key={index}>{part.slice(1, -1)}</em> : part);
 
-export const renderMarkdownBlocks = (content: string, keyPrefix: string) => {
+export const renderMarkdownBlocks = (content: string, keyPrefix: string, compact = false) => {
   const lines = content.split(/\r?\n/);
   const nodes: ReactNode[] = [];
   for (let index = 0; index < lines.length;) {
@@ -12,8 +13,17 @@ export const renderMarkdownBlocks = (content: string, keyPrefix: string) => {
     if (!line) { index += 1; continue; }
     const heading = line.match(/^#{1,3}\s+(.+)$/);
     if (heading) {
-      nodes.push(<h3 className="simple-message-heading" key={`${keyPrefix}-heading-${index}`}>{renderInlineMarkdown(heading[1])}</h3>);
+      nodes.push(compact ? <p className="tutor-response-subheading" key={`${keyPrefix}-heading-${index}`}><strong>{renderInlineMarkdown(heading[1])}</strong></p>
+        : <h3 className="simple-message-heading" key={`${keyPrefix}-heading-${index}`}>{renderInlineMarkdown(heading[1])}</h3>);
       index += 1; continue;
+    }
+    if (/^>\s?/.test(line)) {
+      const quote: string[] = [];
+      while (index < lines.length && /^>\s?/.test(lines[index].trim())) {
+        quote.push(lines[index].trim().replace(/^>\s?/, "")); index += 1;
+      }
+      nodes.push(<blockquote key={`${keyPrefix}-quote-${index}`}>{renderInlineMarkdown(quote.join(" "))}</blockquote>);
+      continue;
     }
     if (/^[-*]\s+/.test(line)) {
       const items: string[] = [];
@@ -24,7 +34,7 @@ export const renderMarkdownBlocks = (content: string, keyPrefix: string) => {
       continue;
     }
     const paragraph: string[] = [];
-    while (index < lines.length && lines[index].trim() && !/^#{1,3}\s+/.test(lines[index].trim()) && !/^[-*]\s+/.test(lines[index].trim())) {
+    while (index < lines.length && lines[index].trim() && !/^#{1,3}\s+/.test(lines[index].trim()) && !/^[-*]\s+/.test(lines[index].trim()) && !/^>\s?/.test(lines[index].trim())) {
       paragraph.push(lines[index].trim()); index += 1;
     }
     nodes.push(<p key={`${keyPrefix}-paragraph-${index}`}>{paragraph.map((part, partIndex) => <span key={partIndex}>{renderInlineMarkdown(part)}{partIndex < paragraph.length - 1 ? <br /> : null}</span>)}</p>);
@@ -67,14 +77,5 @@ export const splitTutorCorrection = (content: string, learnerMessage?: string) =
 
 export function TutorMarkdownMessage({ content, learnerMessage, semantic = false }: { content: string; learnerMessage?: string; semantic?: boolean }) {
   if (semantic) return <TutorSemanticMessage content={content} learnerMessage={learnerMessage} />;
-  const correction = splitTutorCorrection(content, learnerMessage);
-  if (!correction) return <div className="simple-message-copy">{renderMarkdownBlocks(content, "message")}</div>;
-
-  return <div className="simple-message-copy simple-message-copy--structured">
-    {correction.reply ? <div className="simple-tutor-reply">{renderMarkdownBlocks(correction.reply, "reply")}</div> : null}
-    <section className="simple-correction">
-      <h3>Correction</h3>
-      <div className="simple-correction-copy">{renderMarkdownBlocks(correction.correction, "correction")}</div>
-    </section>
-  </div>;
+  return <div className="simple-message-copy">{renderMarkdownBlocks(content, "message")}</div>;
 }
