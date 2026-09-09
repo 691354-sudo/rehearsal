@@ -83,13 +83,13 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
       setError("Enter a whole number of minutes, from 1 to 1440."); return;
     }
     const saved = localStorage.getItem(creationKey);
-    const request = saved ? JSON.parse(saved) : { homeworkId: crypto.randomUUID(), tutorChatId: route.thread ?? undefined,
+    const request = saved ? JSON.parse(saved) : { homeworkId: crypto.randomUUID(),
       requestedMinutes, timezone: browserTimezone() };
     localStorage.setItem(creationKey, JSON.stringify(request)); setBusy(true); setError("");
     try {
       const result = await pilotRequest<{ homework: Homework }>(pilot.profileId, "/homework", request);
       setHomework(result.homework); localStorage.removeItem(creationKey);
-      onRoute({ ...route, thread: result.homework.tutorChatId, homework: result.homework.homeworkId }, "replace");
+      onRoute({ ...route, thread: result.homework.tutorChatId, homework: result.homework.homeworkId, review: null }, "replace");
       setOpen(true);
     } catch (caught) { setError(pilotErrorMessage(caught)); }
     finally { setBusy(false); }
@@ -105,7 +105,8 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
     finally { setBusy(false); }
   };
   const beforeSend = async () => {
-    if (!enabled || !homework || homework.tutorChatId !== route.thread || ["completed", "cancelled"].includes(homework.status)) return {};
+    if (!enabled || !homework || homework.tutorChatId !== route.thread) return {};
+    if (["completed", "cancelled"].includes(homework.status)) return { homeworkId: homework.homeworkId };
     if (homework.status !== "tutor_in_progress") { setOpen(true); throw new Error("HOMEWORK_STAGE_FINISHED"); }
     const updated = await time.flush(); if (updated) setHomework(updated);
     if (updated && !updated.continued && (updated.actualRecallSeconds === null || updated.actualTutorSeconds === null || updated.actualRecallSeconds + updated.actualTutorSeconds >= updated.requestedMinutes * 60)) {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { ArrowLeft, Pause, Pencil, Play, Settings2, Shuffle, SkipBack, SkipForward } from "lucide-react";
+import { ArrowLeft, Pause, Pencil, Play, Settings2, SkipBack, SkipForward } from "lucide-react";
+import { ShuffleButton } from "./ShuffleButton";
 import type { Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
 import { FocusedText } from "../progress/FocusedText";
 import { RepeatModeButton } from "./RepeatModeButton";
@@ -33,6 +34,7 @@ export function ListenPlayerSurface(props: {
   queueLength: number;
   readyCount: number;
   repeatMode: RepeatMode;
+  shuffleEnabled: boolean;
   selectedTopicName: string;
   selectedVoiceName: string;
   showPlaybackSettings: boolean;
@@ -63,7 +65,7 @@ export function ListenPlayerSurface(props: {
       <button className="listen-russian" onClick={props.onToggleRussian} type="button">{props.showRussian ? "Hide Russian" : "Show Russian"}</button>
       {props.language === "en" ? <ListenLike item={props.current} /> : null}</article>
     <div className="listen-player-dock"><div className="listen-controls">
-      <button aria-label="Shuffle after this card" onClick={props.onShuffle} type="button"><Shuffle aria-hidden="true" size={18} /></button>
+      <ShuffleButton enabled={props.shuffleEnabled} onClick={props.onShuffle} size={18} />
       <button aria-label="Previous" disabled={props.previousDisabled} onClick={props.onPrevious} type="button"><SkipBack aria-hidden="true" fill="currentColor" size={17} /></button>
       <button aria-label={props.status === "paused" ? "Play" : "Pause"} className="listen-main-control" onClick={props.status === "paused" ? props.onResume : props.onPause} type="button">
         {props.status === "paused" ? <Play aria-hidden="true" fill="currentColor" size={19} /> : <Pause aria-hidden="true" fill="currentColor" size={19} />}</button>

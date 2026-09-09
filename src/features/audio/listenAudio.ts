@@ -56,6 +56,14 @@ export const shuffleQueue = <Item,>(items: readonly Item[], random = Math.random
   return shuffled;
 };
 
+export const reorderRemainingQueue = <Item extends { publicId: string }>(queue: readonly Item[], index: number,
+  originalIds: readonly string[], shuffled: boolean, random = Math.random) => {
+  const remaining = queue.slice(index + 1);
+  const ordered = shuffled ? shuffleQueue(remaining, random)
+    : remaining.sort((a, b) => originalIds.indexOf(a.publicId) - originalIds.indexOf(b.publicId));
+  return [...queue.slice(0, index + 1), ...ordered];
+};
+
 export const playbackIdentity = (language: Language, playback: PlaybackPreferences) => JSON.stringify({
   language,
   provider: playback.provider,

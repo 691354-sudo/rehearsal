@@ -18,6 +18,7 @@ type ClientMessageRow = {
   thread_public_id: string;
   language_code: LanguageCode;
   content: string;
+  homework_id: string | null;
 };
 
 export class TutorRepository {
@@ -104,6 +105,7 @@ export class TutorRepository {
     content: string;
     language: LanguageCode;
     threadPublicId?: string;
+    homeworkId?: string;
   }) {
     return this.db.transaction(() => {
       const existing = this.getClientMessage(input.clientMessageId);
@@ -115,7 +117,8 @@ export class TutorRepository {
         return existing;
       }
       const thread = this.getOrCreateThread(input.threadPublicId, input.language);
-      const messageId = this.addMessage(thread.id, "user", input.content, {}, input.clientMessageId);
+      const messageId = this.addMessage(thread.id, "user", input.content,
+        input.homeworkId ? { homeworkId: input.homeworkId } : {}, input.clientMessageId);
       this.ensureThreadTitle(thread.id, input.content);
       return {
         message_id: messageId,
@@ -123,6 +126,7 @@ export class TutorRepository {
         thread_public_id: thread.publicId,
         language_code: input.language,
         content: input.content,
+        homework_id: input.homeworkId ?? null,
       } satisfies ClientMessageRow;
     })();
   }
@@ -147,13 +151,15 @@ export class TutorRepository {
     };
   }
 
-  getMessages(threadId: number, limit = 30, includeMessageIds = false) {
+  getMessages(threadId: number, limit = 30, includeMessageIds = false, homeworkId?: string) {
     const messages = this.db.prepare(
       `SELECT role, content, client_message_id AS clientMessageId FROM (
        SELECT id, role, content, client_message_id FROM chat_messages
-         WHERE thread_id = ? AND role IN ('user', 'assistant') ORDER BY id DESC LIMIT ?
+         WHERE thread_id = ? AND role IN ('user', 'assistant')
+           ${homeworkId ? `AND (json_extract(metadata, '$.homeworkId') = ?
+             OR client_message_id = ? OR json_extract(metadata, '$.clientMessageId') = ?)` : ""} ORDER BY id DESC LIMIT ?
        ) ORDER BY id`,
-    ).all(threadId, limit) as Array<{ role: "user" | "assistant"; content: string; clientMessageId: string | null }>;
+    ).all(threadId, ...(homeworkId ? [homeworkId, homeworkId, homeworkId] : []), limit) as Array<{ role: "user" | "assistant"; content: string; clientMessageId: string | null }>;
     return messages.map(({ clientMessageId, ...message }) => includeMessageIds && clientMessageId
       ? { ...message, clientMessageId } : message);
   }
@@ -165,7 +171,7 @@ export class TutorRepository {
   private getClientMessage(clientMessageId: string) {
     return this.db.prepare(
       `SELECT m.id AS message_id, t.id AS thread_id, t.public_id AS thread_public_id,
-              t.language_code, m.content
+              t.language_code, m.content, json_extract(m.metadata, '$.homeworkId') AS homework_id
        FROM chat_messages m JOIN chat_threads t ON t.id = m.thread_id
        WHERE m.client_message_id = ? AND m.role = 'user'`,
     ).get(clientMessageId) as ClientMessageRow | undefined;

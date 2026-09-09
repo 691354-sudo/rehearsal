@@ -74,7 +74,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const sessionsRailRef = useRef<HTMLElement>(null);
   const resizeStartRef = useRef<{ clientY: number; height: number } | null>(null);
   const storageKey = `rehearsal:${profileId}:tutor-thread:${language}`;
-  const draftKey = `rehearsal:${profileId}:tutor-draft:${language}:${threadId || "new"}`;
+  const draftKey = `rehearsal:${profileId}:tutor-draft:${language}:${threadId || "new"}${route.homework ? `:${route.homework}` : ""}`;
   const [draft, setDraft] = useSessionDraft(draftKey);
   const { loadingThread, threadReady } = useTutorThreadMessages({ route, storageKey, onRoute,
     onMessages: setMessages, onError: setSendError, onLoaded: () => { scrollIntentRef.current = "instant"; } });
@@ -137,7 +137,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     return () => { cancelled = true; };
   }, [language, profileId, mode]);
 
-  useEffect(() => { setReviewBatch(null); setSendError(""); setAdded(false); }, [language, threadId]);
+  useEffect(() => { setReviewBatch(null); setSendError(""); setAdded(false); }, [language, threadId, route.homework]);
 
   useEffect(() => {
     if (!reviewId || !threadId) return;
@@ -197,7 +197,9 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   };
 
   const deleteChat = async () => {
-    if (!threadId || deletingThread || !window.confirm("Delete this chat?")) return;
+    const homeworkCount = homework.sessions.filter((session) => session.tutorChatId === threadId).length;
+    if (!threadId || deletingThread || !window.confirm(homeworkCount > 1
+      ? `Delete this shared chat and all ${homeworkCount} Homework sessions in it?` : "Delete this chat?")) return;
     setDeletingThread(true); setSendError("");
     try {
       const response = await apiFetch(`/api/chat/${threadId}`, { method: "DELETE" });
@@ -220,7 +222,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   };
 
   const sendContent = async (rawContent: string, existingClientMessageId?: string, homeworkStart?: Homework) => {
-    const content = rawContent.trim(); if (!content || sending || (homeworkStart && !threadReady)) return false;
+    const content = rawContent.trim(); if (!content || sending || !threadReady) return false;
     const clientMessageId = existingClientMessageId || crypto.randomUUID();
     setSending(true); setSendError(""); setAdded(false);
     try {
@@ -228,14 +230,15 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       if (contextRef.current !== context) return false;
       setDraft((current) => current.trim() === content ? "" : current); scrollIntentRef.current = "smooth";
       setMessages((current) => beginTutorSend(current, content, clientMessageId));
-      if (looksLikeVocabList(content) && !homework.active && !homeworkStart) {
+      if (looksLikeVocabList(content) && !route.homework && !homework.homework && !homework.active && !homeworkStart) {
         const data = await prepareVocab(content, clientMessageId);
         if (contextRef.current !== context) return false;
         setReviewBatch(data.batch); onRoute({ ...route, thread: data.threadId, review: data.batch.publicId }, "replace"); window.localStorage.setItem(storageKey, data.threadId);
         setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
       } else {
         const response = await apiFetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ language, message: content, threadId: homeworkStart?.tutorChatId ?? threadId, clientMessageId, ...homeworkInput }) });
+          body: JSON.stringify({ language, message: content, threadId: homeworkStart?.tutorChatId ?? threadId, clientMessageId,
+            homeworkId: route.homework, ...homeworkInput }) });
         if (!response.ok) throw new Error((await response.json()).error || "Chat unavailable");
         const data = await response.json() as { threadId: string; content: string };
         if (contextRef.current !== context) return false;
@@ -350,13 +353,15 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   };
 
   const finishReview = async () => {
-    if (!threadId || reviewing) return; setReviewing(true); setAdded(false); setSendError(""); composerRef.current?.blur();
+    if (!threadId || reviewing || !threadReady) return; setReviewing(true); setAdded(false); setSendError(""); composerRef.current?.blur();
     try {
-      const response = await apiFetch(`/api/chat/${threadId}/review`, { method: "POST" });
+      const response = await apiFetch(`/api/chat/${threadId}/review${route.homework ? `?homeworkId=${route.homework}` : ""}`, { method: "POST" });
       if (!response.ok) throw new Error("Review failed");
-      const data = await response.json() as { batch: ReviewBatch }; scrollIntentRef.current = "smooth"; setReviewBatch(data.batch);
+      const data = await response.json() as { batch: ReviewBatch };
+      if (contextRef.current !== context) return;
+      scrollIntentRef.current = "smooth"; setReviewBatch(data.batch);
       onRoute({ ...route, review: data.batch.publicId }, "replace");
-    } catch { setSendError("Review could not be prepared. Your chat is safe. Try Review cards again."); }
+    } catch { if (contextRef.current === context) setSendError("Review could not be prepared. Your chat is safe. Try Review cards again."); }
     finally { setReviewing(false); }
   };
 

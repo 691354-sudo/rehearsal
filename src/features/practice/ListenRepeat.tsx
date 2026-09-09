@@ -14,7 +14,7 @@ import { languageCopy } from "../../shared/config";
 import type { PracticeCardCount, PracticeOrder } from "../../lib/appRoute";
 import {
   adaptivePauseMs, markListenedOnce, nextAutomaticIndex, nextQueueIndex, nextRepeatMode,
-  playbackIdentity, preparationBody, shuffleQueue,
+  playbackIdentity, preparationBody, reorderRemainingQueue, shuffleQueue,
   type AudioPreparationJob, type PreparedAudio, type RepeatMode,
 } from "../audio/listenAudio";
 import { PlaybackSettings, voiceDisplayName } from "./PlaybackSettings";
@@ -56,6 +56,8 @@ export function ListenRepeat(props: {
 }) {
   const [queue, setQueue] = useState<LearningItem[]>([]);
   const [shuffledCandidates, setShuffledCandidates] = useState<LearningItem[] | null>(null);
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
+  const originalQueueIds = useRef<string[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<"setup" | "player" | "complete">("setup");
   const [status, setStatus] = useState<"playing" | "paused" | "error">("playing");
@@ -77,12 +79,12 @@ export function ListenRepeat(props: {
   const replayEditedRef = useRef(false);
   const playbackRef = useRef(props.playback);
   const queueRef = useRef(queue);
-  const pendingShuffleRef = useRef<LearningItem[] | null>(null);
   const listenedRef = useRef(new Set<string>());
   const buffersRef = useRef(new Map<string, string>());
   const downloadsRef = useRef(new Map<string, Promise<string>>());
   const urlsRef = useRef(new Set<string>());
-  const appearances = useListenAppearances(props.language, props.items, (restored, position) => {
+  const appearances = useListenAppearances(props.language, props.items, (restored, position, shuffled, originalIds) => {
+    setShuffleEnabled(shuffled); originalQueueIds.current = originalIds;
     queueRef.current = restored; setQueue(restored); setIndex(position); setPhase("player");
     pausedRef.current = true; replayEditedRef.current = true; setStatus("paused");
   });
@@ -279,16 +281,9 @@ export function ListenRepeat(props: {
       if (props.language !== "en") markListenedOnce(listenedRef.current, item.publicId, props.onListened);
       await waitForPause(adaptivePauseMs(durationMs), run);
       if (run !== runRef.current) return;
-      const shuffled = pendingShuffleRef.current;
-      if (shuffled) {
-        pendingShuffleRef.current = null;
-        setNote("");
-        void playAt(0, shuffled, true, true);
-      } else {
-        const followingIndex = nextAutomaticIndex(nextIndex, nextQueue.length, repeatModeRef.current);
-        if (followingIndex === null) { appearances.clear(); setPhase("complete"); }
-        else void playAt(followingIndex, nextQueue, true, true);
-      }
+      const followingIndex = nextAutomaticIndex(nextIndex, queueRef.current.length, repeatModeRef.current);
+      if (followingIndex === null) { appearances.clear(); setPhase("complete"); }
+      else void playAt(followingIndex, queueRef.current, true, true);
     } catch (caught) {
       if (run !== runRef.current) return;
       setStatus("error");
@@ -299,7 +294,8 @@ export function ListenRepeat(props: {
   const start = async () => {
     const nextQueue = visibleCandidates;
     if (!nextQueue.length) return;
-    appearances.start(nextQueue);
+    originalQueueIds.current = candidates.map((item) => item.publicId);
+    appearances.start(nextQueue, shuffleEnabled, originalQueueIds.current);
     pausedRef.current = false;
     listenedRef.current.clear();
     queueRef.current = nextQueue;
@@ -309,7 +305,7 @@ export function ListenRepeat(props: {
     try {
       await beginPreparation(nextQueue, playbackRef.current, nextQueue[0]);
       if (pausedRef.current) return;
-      void playAt(0, nextQueue);
+      void playAt(0, queueRef.current);
     } catch (caught) {
       setStatus("error");
       setError(caught instanceof Error ? caught.message : "Could not prepare this stack.");
@@ -320,7 +316,8 @@ export function ListenRepeat(props: {
     appearances.clear();
     runRef.current += 1;
     pausedRef.current = false;
-    pendingShuffleRef.current = null;
+    setShuffleEnabled(false); setShuffledCandidates(null); setNote("");
+    originalQueueIds.current = [];
     props.onStop();
     cancelPreparation(true);
     setPhase("setup");
@@ -330,7 +327,7 @@ export function ListenRepeat(props: {
   };
   const restart = () => {
     listenedRef.current.clear();
-    appearances.start(queueRef.current);
+    appearances.start(queueRef.current, shuffleEnabled, originalQueueIds.current);
     void playAt(0);
   };
   const previous = () => {
@@ -351,10 +348,13 @@ export function ListenRepeat(props: {
     props.onResume(); setStatus("playing");
   };
   const shuffle = () => {
-    if (phase === "setup") setShuffledCandidates(shuffleQueue(candidates));
+    const enabled = !shuffleEnabled;
+    setShuffleEnabled(enabled);
+    if (phase === "setup") setShuffledCandidates(enabled ? shuffleQueue(candidates) : null);
     else {
-      pendingShuffleRef.current = shuffleQueue(queue);
-      setNote("Shuffle starts after this card");
+      const nextQueue = reorderRemainingQueue(queueRef.current, index, originalQueueIds.current, enabled);
+      queueRef.current = nextQueue; setQueue(nextQueue); appearances.setOrder(nextQueue, index, enabled);
+      setNote(enabled ? "Shuffle on. Remaining cards will play in random order." : "Shuffle off. Remaining cards will play in the selected order.");
     }
   };
   const cycleRepeat = () => setRepeatMode((mode) => nextRepeatMode(mode));
@@ -365,7 +365,9 @@ export function ListenRepeat(props: {
   };
   actionsRef.current = { play: resume, pause, previous, next, stop };
 
-  useEffect(() => setShuffledCandidates(null), [candidates]);
+  useEffect(() => {
+    if (phase === "setup" && !originalQueueIds.current.length) { setShuffledCandidates(null); setShuffleEnabled(false); }
+  }, [candidates]);
   useEffect(() => {
     if (!queueRef.current.length) return;
     const latestItems = new Map(props.items.map((item) => [item.publicId, item]));
@@ -412,7 +414,7 @@ export function ListenRepeat(props: {
   }, [props.onStop]);
   if (phase === "setup") return <ListenSetup props={props} visibleCandidates={visibleCandidates} visibleComposition={visibleComposition}
     playbackSettings={playbackSettings} showPlaybackSettings={showPlaybackSettings} setShowPlaybackSettings={setShowPlaybackSettings}
-    repeatMode={repeatMode} cycleRepeat={cycleRepeat} shuffle={shuffle} start={start} />;
+    repeatMode={repeatMode} cycleRepeat={cycleRepeat} shuffleEnabled={shuffleEnabled} shuffle={shuffle} start={start} />;
 
   if (phase === "complete") return <section className="recall-complete" aria-label="Listening complete">
     <span>Listening complete</span><strong>{queue.length} listened</strong>
@@ -425,6 +427,6 @@ export function ListenRepeat(props: {
     onShuffle={shuffle} onToggleRepeat={cycleRepeat} onToggleRussian={() => setShowRussian((shown) => !shown)}
     onToggleSettings={() => setShowPlaybackSettings((shown) => !shown)} playback={props.playback} playbackSettings={playbackSettings}
     preparationError={preparationError} preparationTotal={preparationTotal} previousDisabled={index === 0 && repeatMode !== "all"}
-    queueLength={queue.length} readyCount={readyCount} repeatMode={repeatMode} selectedTopicName={selectedTopicName}
+    queueLength={queue.length} readyCount={readyCount} repeatMode={repeatMode} shuffleEnabled={shuffleEnabled} selectedTopicName={selectedTopicName}
     selectedVoiceName={selectedVoiceName} showPlaybackSettings={showPlaybackSettings} showRussian={showRussian} status={status} />;
 }

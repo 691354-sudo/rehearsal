@@ -36,7 +36,7 @@ describe("Listen player surface", () => {
       onEdit={noop} onExit={noop} onNext={noop} onPause={noop} onPrevious={noop} onReplay={noop} onResume={noop}
       onRetryPreparation={noop} onShuffle={noop} onToggleRepeat={noop} onToggleRussian={noop} onToggleSettings={noop}
       playback={defaultPlayback} playbackSettings={null} preparationError="" preparationTotal={1} previousDisabled
-      queueLength={1} readyCount={1} repeatMode="off" selectedTopicName="Personal stories" selectedVoiceName="Justin Time"
+      queueLength={1} readyCount={1} repeatMode="off" shuffleEnabled selectedTopicName="Personal stories" selectedVoiceName="Justin Time"
       showPlaybackSettings={false} showRussian={false} status="playing" /></PilotProvider>);
 
     const promptRowStart = markup.indexOf("listen-prompt-row");
@@ -45,5 +45,7 @@ describe("Listen player surface", () => {
     expect(promptRow).toContain("Repeat after the speaker");
     expect(promptRow).toContain("practice-active-edit");
     expect(markup).toContain('aria-label="Back to selection"');
+    expect(markup).toContain('aria-label="Shuffle" aria-pressed="true"');
+    expect(markup).toContain("listen-shuffle-dot");
   });
 });

@@ -9,7 +9,7 @@ export function useTutorThreadMessages({ route, storageKey, onRoute, onMessages,
   onRoute: (route: TutorRoute, mode?: HistoryMode) => void;
   onMessages: (messages: ChatMessage[]) => void; onError: (error: string) => void; onLoaded: () => void;
 }) {
-  const identity = `${storageKey}:${route.thread}`;
+  const identity = `${storageKey}:${route.thread}:${route.homework}`;
   const [loaded, setLoaded] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const callbacks = useRef({ onRoute, onMessages, onError, onLoaded });
@@ -17,8 +17,9 @@ export function useTutorThreadMessages({ route, storageKey, onRoute, onMessages,
   useEffect(() => {
     let cancelled = false;
     if (!route.thread) { callbacks.current.onMessages([]); setLoading(false); return; }
+    callbacks.current.onMessages([]);
     setLoading(true);
-    void apiFetch(`/api/chat/${route.thread}/messages`).then(async (response) => {
+    void apiFetch(`/api/chat/${route.thread}/messages${route.homework ? `?homeworkId=${route.homework}` : ""}`).then(async (response) => {
       if (cancelled) return;
       if (response.status === 404) {
         clearMissingTutorThread(window.localStorage, storageKey, route.thread!);
@@ -26,8 +27,11 @@ export function useTutorThreadMessages({ route, storageKey, onRoute, onMessages,
         return;
       }
       if (!response.ok) throw new Error("Could not load session");
-      const data = await response.json() as { messages: Array<Pick<ChatMessage, "role" | "content" | "clientMessageId">> };
+      const data = await response.json() as { homeworkId?: string; messages: Array<Pick<ChatMessage, "role" | "content" | "clientMessageId">> };
       if (cancelled) return;
+      if (data.homeworkId && !route.homework) {
+        callbacks.current.onRoute({ ...route, homework: data.homeworkId }, "replace"); return;
+      }
       callbacks.current.onLoaded();
       callbacks.current.onMessages(data.messages.map((message) => ({ ...message, id: message.clientMessageId || crypto.randomUUID() })));
       window.localStorage.setItem(storageKey, route.thread!); setLoaded(identity);
