@@ -169,7 +169,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit }: {
       {!run.revealedAt ? <div className="recall-answer-row"><textarea ref={input} aria-label="Your answer in English" autoComplete="off" lang="en" name="recall-answer" maxLength={4000}
         placeholder="Type in English…" rows={1} value={run.answer} onChange={(event) => persist({ ...run, answer: event.target.value })} /></div>
         : <PilotRecallAnswer key={`${run.attemptId}:${run.current.target}:${run.current.cue}`} profileId={pilot.profileId} attemptId={run.attemptId}
-          answer={run.answer} saved={run.check} onChecked={(check) => persist({ ...run, check })} />}
+          answer={run.answer} reference={run.current.target} saved={run.check} onChecked={(check) => persist({ ...run, check })} />}
       {!run.revealedAt ? <button className="simple-primary pilot-reveal" disabled={busy || !run.begun} onClick={reveal} type="button">{run.answer.trim() ? "Check answer" : "Show answer"}</button>
         : <div className="recall-result"><div className="recall-natural-row"><span>Card answer</span><button aria-label="Play answer" onClick={() => void props.onPlay(run.current!.target, props.playback)} type="button"><Volume2 size={18} aria-hidden="true" /></button></div>
           <p className="recall-natural-answer" lang="en"><FocusedText text={run.current.target} focusTerms={run.current.focusTerms} /></p>
