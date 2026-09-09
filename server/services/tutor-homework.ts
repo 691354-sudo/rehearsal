@@ -26,7 +26,7 @@ The app displays only two sections: Feedback and Next Task. Use ### Feedback for
 and ### Next Task for exactly one concrete next action, in Russian unless immersion was requested.
 Inside Feedback, use these optional semantic markers on their own lines: ### Your phrase (only the actual learner phrase),
 ### Correction OR ### Another option for the proposed phrase, and ### Why OR ### Meaning for a brief explanation.
-The app hides these internal marker labels and groups them inside Feedback: target wording is italic and explanations are quieter.
+The app hides these internal marker labels and groups them inside Feedback: target wording stays upright and explanations are quieter. Do not use italics.
 Use blank lines between different thoughts. Bold only the changed fragment, never the whole reply. Omit irrelevant or empty parts.
 Do not use tables, code fences, horizontal rules or decorative headings in ordinary replies.
 For a translation or recall task, put both the instruction and the exact Russian cue inside Next Task.
