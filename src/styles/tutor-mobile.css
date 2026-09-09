@@ -302,7 +302,6 @@
   .simple-app .simple-composer textarea {
     height: 80px;
     min-height: 80px;
-    max-height: min(176px, calc(var(--echo-visual-height) * .4));
     overflow-y: auto;
     line-height: 1.5;
     padding: 4px 5px;

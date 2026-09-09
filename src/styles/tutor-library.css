@@ -310,6 +310,7 @@
   width: 100%;
   min-height: 104px;
   max-height: none;
+  overflow-y: auto;
   resize: none;
   padding: 11px 42px 11px 13px;
   color: var(--script-ink);
