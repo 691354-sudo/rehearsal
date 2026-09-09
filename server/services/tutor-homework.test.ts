@@ -95,6 +95,15 @@ describe("Homework Tutor provider contract", () => {
     expect(feedback).not.toContain("Я справлюсь.");
     expect(task.trim()).toBe("Напиши фразу по-английски.\n\n> Я справлюсь.");
   });
+  it("uses only nextAction when the provider repeats a task inside feedback", () => {
+    const reply = { content: "### Feedback\n\nОбъяснение.\n\n### Next Task\n\nЛишнее задание.",
+      nextAction: "Продолжи текущую мысль.", activities: [], respondedToMessageIds: [] };
+    const result = parseHomeworkReply(JSON.stringify(reply));
+    expect(result.content.match(/### Next Task/g)).toHaveLength(1);
+    expect(result.content).not.toContain("Лишнее задание");
+    expect(() => parseHomeworkReply(JSON.stringify({ ...reply, content: "### Next Task\n\nТолько задание." })))
+      .toThrow("TUTOR_REPLY_INCOMPLETE");
+  });
   it("keeps legacy Homework history and follow-up messages inside the selected session", async () => {
     const p = context.repository.pilot;
     const first = p.homework.create({ homeworkId: randomUUID(), requestedMinutes: 2, timezone: "Europe/Riga" });

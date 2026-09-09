@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "../database.js";
 import type { LanguageCode } from "../../types.js";
 import { makeThreadTitle } from "./shared.js";
+import { TutorLearningFocusRepository } from "./tutor-learning-focus.js";
 
 export type TutorThreadRow = {
   id: number;
@@ -22,7 +23,29 @@ type ClientMessageRow = {
 };
 
 export class TutorRepository {
-  constructor(private readonly db: RehearsalDatabase) {}
+  readonly learningFocus: TutorLearningFocusRepository;
+
+  constructor(private readonly db: RehearsalDatabase) {
+    this.learningFocus = new TutorLearningFocusRepository(db);
+  }
+
+  setMode(threadId: number, messageId: number, mode: "chat" | "guided", restart = false) {
+    if (!restart && this.getMode(threadId)?.mode === mode) return;
+    this.db.prepare(`UPDATE chat_messages SET metadata = json_set(metadata, '$.tutorMode', ?)
+      WHERE id = ? AND thread_id = ? AND role = 'user'`).run(mode, messageId, threadId);
+  }
+
+  getMode(threadId: number) {
+    return this.db.prepare(`SELECT id AS messageId, json_extract(metadata, '$.tutorMode') AS mode
+      FROM chat_messages WHERE thread_id = ? AND role = 'user'
+      AND json_extract(metadata, '$.tutorMode') IN ('chat', 'guided') ORDER BY id DESC LIMIT 1`)
+      .get(threadId) as { messageId: number; mode: "chat" | "guided" } | undefined;
+  }
+
+  guidedMessages(threadId: number, fromMessageId: number) {
+    return this.db.prepare(`SELECT role, content FROM chat_messages WHERE thread_id = ? AND id >= ?
+      AND role IN ('user', 'assistant') ORDER BY id LIMIT 100`).all(threadId, fromMessageId) as Array<{ role: "user" | "assistant"; content: string }>;
+  }
 
   getOrCreateThread(publicId: string | undefined, language: LanguageCode) {
     if (publicId) {
