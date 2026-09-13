@@ -45,5 +45,5 @@ export function CardActions({ target, onEdit, onDelete, disabled, extraActions =
       }}><button role="menuitem" type="button" onClick={() => { close(); onEdit(); }}><Pencil size={16} />Edit</button>
       {extraActions.map((action) => <button key={action.label} role="menuitem" type="button" onClick={() => { close(); action.onClick(); }}>{action.label}</button>)}
       {onDelete ? <button className="topic-danger" role="menuitem" type="button" onClick={() => { close(); onDelete(); }}><Trash2 size={16} />Delete</button> : null}
-    </div>, document.body) : null}</>;
+    </div>, trigger.current?.closest(".simple-app") ?? document.body) : null}</>;
 }
