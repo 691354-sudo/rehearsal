@@ -1,3 +1,5 @@
+import type { ReviewCandidateSelection } from "../../contracts/api.js";
+import { preserveCandidateCategories } from "./learning-categories.js";
 import type OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
@@ -13,7 +15,7 @@ const commentedRevisionSchema = z.object({
   items: z.array(generatedCandidateSchema.extend({ candidateId: z.string().uuid() })).max(100),
 });
 
-type CandidateSelection = Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">;
+type CandidateSelection = ReviewCandidateSelection;
 type ReviewResolutionDependencies = {
   client: OpenAI | null;
   input: {
@@ -21,7 +23,7 @@ type ReviewResolutionDependencies = {
     accepted: CandidateSelection[];
     revisions: Array<CandidateSelection & { feedback: string }>;
   };
-  repository: Pick<RehearsalRepository, "aiUsage" | "reviews">;
+  repository: Pick<RehearsalRepository, "aiUsage" | "reviews" | "categories">;
   learner: LearnerPersona;
   verifyCandidates: (candidates: ReviewCandidate[], language: LanguageCode) => Promise<ReviewCandidate[]>;
 };
@@ -43,6 +45,7 @@ async function resolveReview(
     if (!client) throw new Error("OPENAI_NOT_CONFIGURED");
     const currentCandidates = input.revisions.map((edited) => ({
       ...candidates.get(edited.id)!,
+      ...edited,
       target: edited.target.trim(),
       cue: edited.cue.trim(),
       note: edited.note.trim(),
@@ -51,6 +54,7 @@ async function resolveReview(
     }));
     const requestInput = JSON.stringify({
       title: batch.title,
+      learningCategoryCatalog: repository.categories.catalog(batch.language),
       source: assertAiSourceWithinBudget(batch.sourceText),
       candidates: currentCandidates,
     });
@@ -81,7 +85,7 @@ async function resolveReview(
     }
     revisedCandidates = generated.map((candidate) => {
       const { candidateId, ...replacement } = candidate;
-      return { ...toCandidate(replacement), id: candidateId };
+      return { ...preserveCandidateCategories(toCandidate(replacement), currentCandidates.find((entry) => entry.id === candidateId)!), id: candidateId };
     });
     revisedCandidates = await verifyCandidates(revisedCandidates, batch.language);
   }

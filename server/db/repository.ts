@@ -3,6 +3,7 @@ import { AudioRepository } from "./repositories/audio.js";
 import { AiUsageRepository } from "./repositories/ai-usage.js";
 import { CaptureRepository } from "./repositories/capture.js";
 import { ItemsRepository } from "./repositories/items.js";
+import { LearningCategoriesRepository } from "./repositories/learning-categories.js";
 import { LibraryRepository } from "./repositories/library.js";
 import { PracticeRepository } from "./repositories/practice.js";
 import { ReviewsRepository } from "./repositories/reviews.js";
@@ -17,6 +18,7 @@ export class RehearsalRepository {
   readonly capture: CaptureRepository;
   readonly items: ItemsRepository;
   readonly library: LibraryRepository;
+  readonly categories: LearningCategoriesRepository;
   readonly practice: PracticeRepository;
   readonly reviews: ReviewsRepository;
   readonly system: SystemRepository;
@@ -29,6 +31,7 @@ export class RehearsalRepository {
     this.capture = new CaptureRepository(db);
     this.items = new ItemsRepository(db);
     this.library = new LibraryRepository(db);
+    this.categories = new LearningCategoriesRepository(db);
     this.practice = new PracticeRepository(db);
     this.reviews = new ReviewsRepository(db, this.items, this.library);
     this.system = new SystemRepository(db);

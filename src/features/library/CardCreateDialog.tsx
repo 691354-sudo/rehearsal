@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { LearningCategoriesField } from "./LearningCategoriesField";
+import { selectedCategoryDraft } from "./cardCategoryDraft";
+import type { CardCategoriesInput } from "../../../contracts/learning-categories";
 import { createCardDialogDismiss } from "./cardDialogDismiss";
 import { ChevronDown, X } from "lucide-react";
 import { focusTermsInTarget } from "../../../contracts/text";
@@ -17,6 +20,8 @@ export function CardCreateDialog(props: {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const dismiss = useRef(createCardDialogDismiss()).current;
   const allowNavigationRef = useRef(false);
+  const [publicId] = useState(() => crypto.randomUUID());
+  const [categories, setCategories] = useState<CardCategoriesInput>({ learningCategoryIds: [], newLearningCategories: [] });
   const [target, setTarget] = useState("");
   const [cue, setCue] = useState("");
   const [focusPhrase, setFocusPhrase] = useState("");
@@ -26,12 +31,13 @@ export function CardCreateDialog(props: {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const dirty = Boolean(target || cue || focusPhrase || note
-    || topicId !== (props.initialTopicId || "") || frequencyBand !== "common");
+    || categories.learningCategoryIds?.length || categories.newLearningCategories?.length || topicId !== (props.initialTopicId || "") || frequencyBand !== "common");
   const focusTerms = focusPhrase.trim() ? [focusPhrase.trim()] : [];
   const focusValid = focusTermsInTarget(target, focusTerms);
   const topicValid = Boolean(topicId);
 
   const requestClose = () => {
+    if (saving) return;
     if (dirty && !window.confirm("Discard this unfinished card?")) return;
     allowNavigationRef.current = true; props.onClose();
   };
@@ -64,11 +70,11 @@ export function CardCreateDialog(props: {
     try {
       const response = await apiFetch("/api/items", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language: props.language, target: target.trim(), cue: cue.trim(),
+        body: JSON.stringify({ publicId, ...selectedCategoryDraft(categories), language: props.language, target: target.trim(), cue: cue.trim(),
           focusTerms, topicId, note: note.trim(), frequencyBand }),
       });
       if (!response.ok) throw new Error(response.status === 400
-        ? "Check the focus phrase and required fields."
+        ? "Check Core and required fields."
         : "Could not create this card.");
       const data = await response.json() as { item: LearningItem };
       allowNavigationRef.current = true; props.onCreated(data.item);
@@ -90,13 +96,14 @@ export function CardCreateDialog(props: {
           name="new-card-target" onChange={(event) => setTarget(event.target.value)} rows={3} value={target} /></label>
         <label><span>Russian cue</span><textarea autoComplete="off" lang="ru" name="new-card-cue"
           onChange={(event) => setCue(event.target.value)} rows={3} value={cue} /></label>
-        <label><span>Focus phrase</span><input aria-describedby="new-card-focus-help" autoComplete="off" name="new-card-focus"
+        <label><span>Core</span><input aria-label="Core" aria-describedby="new-card-focus-help" autoComplete="off" name="new-card-focus"
           onChange={(event) => setFocusPhrase(event.target.value)} value={focusPhrase} />
           <small id="new-card-focus-help">Optional · must appear exactly in the target phrase.</small>
-          {!focusValid ? <em className="simple-card-dialog-error">Focus phrase isn’t present in the target.</em> : null}</label>
-        <label><span>Topic</span><select aria-describedby={!props.topics.length ? "new-card-topic-help" : undefined} name="new-card-topic" onChange={(event) => setTopicId(event.target.value)} required value={topicId}>
+          {!focusValid ? <em className="simple-card-dialog-error">Core isn’t present in the target.</em> : null}</label>
+        <label><span>Topic</span><select aria-label="Topic" aria-describedby={!props.topics.length ? "new-card-topic-help" : undefined} name="new-card-topic" onChange={(event) => setTopicId(event.target.value)} required value={topicId}>
           <option disabled value="">Choose a Topic…</option>{props.topics.map((topic) => <option key={topic.publicId} value={topic.publicId}>{topic.title}</option>)}</select>
           {!props.topics.length ? <small id="new-card-topic-help">Create a Topic before adding a card.</small> : null}</label>
+        <LearningCategoriesField language={props.language} value={categories} onChange={setCategories} disabled={saving} />
         <details className="simple-card-more"><summary><span>More details</span><ChevronDown size={15} /></summary><div>
           <label><span>Note</span><textarea autoComplete="off" name="new-card-note" onChange={(event) => setNote(event.target.value)} rows={2} value={note} /></label>
           <label><span>Frequency</span><select name="new-card-frequency" onChange={(event) => setFrequencyBand(event.target.value as LearningItem["frequencyBand"])} value={frequencyBand}>

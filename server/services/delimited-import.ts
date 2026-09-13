@@ -1,3 +1,4 @@
+import { generatedLearningCategoriesShape } from "./learning-categories.js";
 import { randomUUID } from "node:crypto";
 import type OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -13,6 +14,7 @@ import type { LearnerPersona } from "./learner-persona.js";
 import { materialInstructions } from "./material-generation.js";
 
 const delimitedMetadataSchema = z.object({
+  ...generatedLearningCategoriesShape,
   position: z.number().int().min(1).max(100),
   cue: z.string().trim().min(1).max(2_000),
   note: z.string().trim().max(2_000),
@@ -27,7 +29,7 @@ const delimitedMetadataSchema = z.object({
 });
 
 const delimitedResponseSchema = z.object({ items: z.array(delimitedMetadataSchema).max(100) });
-export type DelimitedMetadata = z.infer<typeof delimitedMetadataSchema>;
+export type DelimitedMetadata = z.input<typeof delimitedMetadataSchema>;
 
 export const normalizeImportFragment = (value: string) => normalizeNfc(value).replace(/\s+/g, " ").trim();
 
@@ -51,6 +53,8 @@ export const buildDelimitedCandidates = (
     return {
       ...item,
       id: randomUUID(),
+      learningCategoryIds: item.learningCategoryIds ?? [],
+      newLearningCategories: (item.newLearningCategories ?? []).map((entry) => ({ ...entry, publicId: randomUUID() })),
       target: fragments[index],
       pattern: undefined,
     };
@@ -73,7 +77,7 @@ const fragmentChunks = (fragments: string[]) => {
 
 export async function prepareDelimitedImport(input: {
   client: OpenAI | null;
-  repository: Pick<RehearsalRepository, "aiUsage" | "reviews">;
+  repository: Pick<RehearsalRepository, "aiUsage" | "reviews" | "categories">;
   learner: LearnerPersona;
   language: LanguageCode;
   title: string;
@@ -84,7 +88,7 @@ export async function prepareDelimitedImport(input: {
   const metadata: DelimitedMetadata[] = [];
   const operationId = randomUUID();
   for (const chunk of fragmentChunks(fragments)) {
-    const requestInput = JSON.stringify({ title: input.title, fragments: chunk });
+    const requestInput = JSON.stringify({ title: input.title, fragments: chunk, learningCategoryCatalog: input.repository.categories.catalog(input.language) });
     const response = await trackAiRequest({
       repository: input.repository.aiUsage, provider: "openai", workload: "delimited_import_prepare",
       language: input.language, model: config.balancedModel, operationId,

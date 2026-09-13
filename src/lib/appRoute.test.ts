@@ -116,3 +116,18 @@ describe("app routes", () => {
       .toMatchObject({ section: "library", language: "en" });
   });
 });
+
+describe("learning category routes", () => {
+  it("restores one Practice category and replaces a conflicting Topic", () => {
+    const category = "bd7687ba-ee38-4d77-a4de-b59f041b4e05";
+    const route = parseAppRoute({ pathname: "/practice/recall", search: `?lang=en&topic=old&category=${category}` }, "/");
+    expect(route).toMatchObject({ section: "practice", topic: "", category });
+    expect(serializeAppRoute(route, "/")).toBe(`/practice/recall?lang=en&category=${category}`);
+  });
+  it("restores the category detail and card editor in Library", () => {
+    const category = "bd7687ba-ee38-4d77-a4de-b59f041b4e05";
+    const route = parseAppRoute({ pathname: "/library/categories", search: `?lang=en&category=${category}&edit=card-1` }, "/");
+    expect(route).toMatchObject({ section: "library", view: "categories", category, edit: "card-1" });
+    expect(serializeAppRoute(route, "/")).toBe(`/library/categories?lang=en&category=${category}&edit=card-1`);
+  });
+});

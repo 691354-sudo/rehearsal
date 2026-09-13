@@ -1,3 +1,5 @@
+import type { CardCategoriesInput } from "./learning-categories.js";
+
 export type LanguageCode = "en" | "lv" | "vi" | "no" | "id";
 export type LanguageOption = {
   code: LanguageCode;
@@ -33,7 +35,7 @@ export type ReviewBatchStatus = "draft" | "committed";
 export type ReviewRating = "again" | "hard" | "good" | "easy";
 export type CaptureNoteStatus = "transcribing" | "ready" | "batched" | "processed" | "failed";
 
-export type ReviewCandidate = {
+export type ReviewCandidate = CardCategoriesInput & {
   id: string;
   target: string;
   cue: string;
@@ -48,6 +50,9 @@ export type ReviewCandidate = {
   naturalness: number;
   commonness: number;
 };
+
+export type ReviewCandidateSelection = Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">
+  & Partial<Pick<ReviewCandidate, "focusTerms" | "learningCategoryIds" | "newLearningCategories">>;
 
 export type ReviewBatch = {
   publicId: string;
@@ -64,7 +69,7 @@ export type ReviewBatch = {
   committedAt: string | null;
 };
 
-export type LearningItemInput = {
+export type LearningItemInput = CardCategoriesInput & {
   publicId?: string;
   language: LanguageCode;
   kind?: ItemKind;
@@ -110,6 +115,8 @@ export type LearningItem = Required<Pick<LearningItemInput, "language" | "cue" |
   id?: number;
   publicId: string;
   kind: ItemKind;
+  topicId?: string | null;
+  learningCategoryIds?: string[];
   acceptedAnswers: string[];
   note: string;
   source: string;

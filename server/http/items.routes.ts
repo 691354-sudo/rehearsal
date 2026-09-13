@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { aiLimits } from "../services/ai-limits.js";
 import type { HttpDependencies } from "./dependencies.js";
-import { itemBodySchema, languageSchema, nfcText } from "./schemas.js";
+import { cardCategoriesShape, itemBodySchema, languageSchema, nfcText } from "./schemas.js";
 import { focusTermsInTarget } from "../../contracts/text.js";
 import { normalizeSchedulerSettings } from "../services/scheduler.js";
 
@@ -23,7 +23,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
 
   app.post("/api/items", async (request, reply) => {
     const { repository } = dependencies.forRequest(request);
-    const body = itemBodySchema.extend({ topicId: z.string().uuid() }).parse(request.body);
+    const body = itemBodySchema.extend({ publicId: z.string().uuid().optional(), topicId: z.string().uuid() }).parse(request.body);
     if (!focusTermsInTarget(body.target, body.focusTerms || [])) {
       return reply.code(400).send({ error: "FOCUS_TERM_NOT_FOUND" });
     }
@@ -51,6 +51,8 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     const { repository } = dependencies.forRequest(request);
     const params = z.object({ itemId: z.string().min(1) }).parse(request.params);
     const body = z.object({
+      ...cardCategoriesShape,
+      topicId: z.string().uuid().optional(),
       target: nfcText(2_000).optional(),
       cue: z.string().trim().min(1).max(2_000).optional(),
       note: z.string().trim().max(2_000).optional(),
@@ -62,7 +64,9 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     }).parse(request.body);
     const existing = repository.items.get(params.itemId);
     if (!existing) return reply.code(404).send({ error: "ITEM_NOT_FOUND" });
-    if (!focusTermsInTarget(body.target ?? existing.target, body.focusTerms ?? existing.focusTerms)) {
+    const coreChanged = body.focusTerms !== undefined && JSON.stringify(body.focusTerms) !== JSON.stringify(existing.focusTerms);
+    if ((coreChanged || (body.target !== undefined && body.target !== existing.target))
+      && !focusTermsInTarget(body.target ?? existing.target, body.focusTerms ?? existing.focusTerms)) {
       return reply.code(400).send({ error: "FOCUS_TERM_NOT_FOUND" });
     }
     const item = repository.items.update(params.itemId, body);
@@ -106,12 +110,13 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
     const { repository, openai } = dependencies.forRequest(request);
     const query = z.object({
       q: nfcText(500),
+      categoryId: z.string().uuid().optional(),
       language: languageSchema.default("en"),
       limit: z.coerce.number().int().min(1).max(50).default(20),
     }).parse(request.query);
     const embedding = await openai.embed(query.q, query.language);
     return {
-      items: repository.items.search(query.q, query.language, embedding || undefined, query.limit),
+      items: repository.items.search(query.q, query.language, embedding || undefined, query.limit, query.categoryId),
       mode: embedding ? "hybrid" : "keyword",
     };
   });

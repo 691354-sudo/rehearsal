@@ -1,3 +1,4 @@
+import { learningCategoryInstructions } from "./learning-categories.js";
 import OpenAI from "openai";
 import { z } from "zod";
 import { config } from "../config.js";
@@ -26,8 +27,8 @@ const tutorLanguageGuidance: Record<LanguageCode, string> = {
   id: "Use natural contemporary standard Indonesian. Prefer broadly understood informal-neutral wording and avoid region-specific slang or Malay forms unless requested.",
 };
 
-const searchArguments = z.object({ query: z.string().min(1), limit: z.number().int().min(1).max(20) });
-const dueArguments = z.object({ limit: z.number().int().min(1).max(30) });
+const searchArguments = z.object({ categoryId: z.string().uuid().nullable().optional(), query: z.string().min(1), limit: z.number().int().min(1).max(20) });
+const dueArguments = z.object({ categoryId: z.string().uuid().nullable().optional(), limit: z.number().int().min(1).max(30) });
 
 const tools: OpenAI.Responses.Tool[] = [
   {
@@ -37,10 +38,11 @@ const tools: OpenAI.Responses.Tool[] = [
     parameters: {
       type: "object",
       properties: {
+        categoryId: { type: ["string", "null"], description: "Use the catalog ID when practising a chosen learning category; otherwise null." },
         query: { type: "string", description: "What to find in the student's library." },
         limit: { type: "number", description: "Number of results, from 1 to 20." },
       },
-      required: ["query", "limit"],
+      required: ["query", "limit", "categoryId"],
       additionalProperties: false,
     },
     strict: true,
@@ -51,8 +53,9 @@ const tools: OpenAI.Responses.Tool[] = [
     description: "List phrases currently due for practice in the active language.",
     parameters: {
       type: "object",
-      properties: { limit: { type: "number", description: "Number of due phrases, from 1 to 30." } },
-      required: ["limit"],
+      properties: { limit: { type: "number", description: "Number of due phrases, from 1 to 30." },
+        categoryId: { type: ["string", "null"], description: "Limit to the explicitly chosen learning category; otherwise null." } },
+      required: ["limit", "categoryId"],
       additionalProperties: false,
     },
     strict: true,
@@ -116,7 +119,7 @@ ${tutorLearningFocusInstructions}
 - Keep the initial answer concise, then deepen when the learner wants it.
 `;
 
-type TutorRepositories = Pick<RehearsalRepository, "aiUsage" | "items" | "practice" | "reviews" | "tutor" | "pilot">;
+type TutorRepositories = Pick<RehearsalRepository, "aiUsage" | "items" | "practice" | "reviews" | "tutor" | "pilot" | "categories">;
 
 export class TutorService {
   private readonly client: OpenAI | null;
@@ -204,6 +207,9 @@ export class TutorService {
       const mode = homework ? "homework" : this.repository.tutor.getMode(thread.id)?.mode
         || (guidedPracticeReviewMessages(history) ? "guided" : "chat");
       const instructions = tutorInstructions(this.openaiService.learner, input.language, this.includeEchoProductGuide, mode)
+        + learningCategoryInstructions
+        + `\nLearning category catalog: ${JSON.stringify(this.repository.categories.catalog(input.language))}`
+        + "\nWhen the learner explicitly requests practice of a learning category, use its ID in search_library/list_due_items. Keep search inside that category even when results are empty. Ordinary chat stays ordinary chat; category membership never overrides a Homework program."
         + (homework ? homeworkTutorInstructions(homework, this.repository.pilot.tutor.previousActivities(homework.homeworkId)) : "")
         + `\nSaved learning focus (occurrences=1 means candidate only): ${JSON.stringify(this.repository.tutor.learningFocus.list(input.language, true).slice(0, 30))}`;
       const next = await trackAiRequest({
@@ -312,12 +318,12 @@ export class TutorService {
     if (name === "search_library") {
       const parsed = searchArguments.parse(args);
       const embedding = await this.openaiService.embed(parsed.query, language);
-      return this.repository.items.search(parsed.query, language, embedding || undefined, parsed.limit);
+      return this.repository.items.search(parsed.query, language, embedding || undefined, parsed.limit, parsed.categoryId ?? undefined);
     }
     if (name === "list_due_items") {
       const parsed = dueArguments.parse(args);
-      return language === "en" ? this.repository.pilot.queue.list({ limit: parsed.limit })
-        : this.repository.practice.listDue(language, parsed.limit);
+      return language === "en" ? this.repository.pilot.queue.list({ limit: parsed.limit, categoryId: parsed.categoryId ?? undefined })
+        : this.repository.practice.listDue(language, parsed.limit, new Date(), this.repository.practice.getSettings().newItemsPerDay, { categoryId: parsed.categoryId ?? undefined });
     }
     return { error: `Unknown tool: ${name}` };
   }

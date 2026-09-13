@@ -61,7 +61,7 @@ export class PilotStore {
   }
 
   item(cardId: string) {
-    const row = this.db.prepare("SELECT * FROM items WHERE public_id = ? AND language_code = 'en'")
+    const row = this.db.prepare("SELECT * FROM learning_items WHERE public_id = ? AND language_code = 'en'")
       .get(cardId) as ItemRow | undefined;
     if (!row) throw new PilotError("PILOT_CARD_NOT_FOUND", 404);
     return mapItem(row);

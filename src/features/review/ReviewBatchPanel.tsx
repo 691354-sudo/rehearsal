@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, LoaderCircle, RotateCcw, Pencil } from "lucide-react";
+import type { CardCategoriesInput } from "../../../contracts/learning-categories";
+import { focusTermsInTarget } from "../../../contracts/text";
+import { initialCategoryDraft, selectedCategoryDraft } from "../library/cardCategoryDraft";
 import { ReviewAdjustment } from "./ReviewAdjustment";
 import { apiFetch } from "../../shared/api";
 import { FocusedText } from "../progress/FocusedText";
 import type { Language } from "../../shared/contracts";
 
-export type ReviewCandidate = {
+export type ReviewCandidate = CardCategoriesInput & {
   id: string;
   target: string;
   cue: string;
@@ -53,6 +56,7 @@ export function ReviewBatchPanel(props: {
   } | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [adjustingCandidateId, setAdjustingCandidateId] = useState<string | null>(null);
+  const [invalidCoreIds, setInvalidCoreIds] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState("");
   const candidateSignature = props.batch.candidates
     .map((candidate) => `${candidate.id}:${candidate.disposition || "active"}`)
@@ -73,10 +77,23 @@ export function ReviewBatchPanel(props: {
 
   useEffect(() => { setComments({}); setAdjustingCandidateId(null); }, [props.batch.publicId]);
 
-  const update = (id: string, patch: Partial<ReviewCandidate>) => props.onBatch({
-    ...props.batch,
-    candidates: props.batch.candidates.map((candidate) => candidate.id === id ? { ...candidate, ...patch } : candidate),
-  });
+  const update = (id: string, patch: Partial<ReviewCandidate>) => {
+    const current = props.batch.candidates.find((candidate) => candidate.id === id);
+    if (current && (patch.focusTerms !== undefined || patch.target !== undefined)) {
+      setInvalidCoreIds((before) => {
+        const next = new Set(before);
+        if (focusTermsInTarget(patch.target ?? current.target, patch.focusTerms ?? current.focusTerms)) next.delete(id); else next.add(id);
+        return next;
+      });
+    }
+    props.onBatch({ ...props.batch, candidates: props.batch.candidates.map((candidate) => candidate.id === id ? { ...candidate, ...patch } : candidate) });
+  };
+  const receiveRevision = (batch: ReviewBatch, id: string) => {
+    props.onBatch({ ...batch, candidates: batch.candidates.map((candidate) => {
+      const current = props.batch.candidates.find((entry) => entry.id === candidate.id);
+      return current ? candidate.id === id ? { ...candidate, ...selectedCategoryDraft(initialCategoryDraft(current)) } : current : candidate;
+    }) });
+  };
   const toggle = (id: string) => setSelected((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -92,7 +109,7 @@ export function ReviewBatchPanel(props: {
     target: candidate.target,
     cue: candidate.cue,
     note: candidate.note,
-    category: candidate.category,
+    category: candidate.category, focusTerms: candidate.focusTerms, ...selectedCategoryDraft(initialCategoryDraft(candidate)),
   });
   const regenerate = async (candidateId: string, instruction: "another" | "different_context") => {
     setRegenerating({ candidateId, instruction }); setNotice("");
@@ -102,7 +119,7 @@ export function ReviewBatchPanel(props: {
       });
       if (!response.ok) throw new Error("Regeneration failed");
       const data = await response.json() as { batch: ReviewBatch };
-      props.onBatch(data.batch);
+      receiveRevision(data.batch, candidateId);
     } catch { setNotice("Couldn’t generate another version."); }
     finally { setRegenerating(null); }
   };
@@ -117,7 +134,7 @@ export function ReviewBatchPanel(props: {
       });
       if (!response.ok) throw new Error("Revision failed");
       const data = await response.json() as { batch: ReviewBatch };
-      props.onBatch(data.batch);
+      receiveRevision(data.batch, candidate.id);
       setComments((current) => { const next = { ...current }; delete next[candidate.id]; return next; });
       setNotice("Card revised. Review it, then keep it selected if you want to save it.");
     } catch { setNotice("Couldn’t revise this card. Your comment is still here."); }
@@ -126,6 +143,7 @@ export function ReviewBatchPanel(props: {
   const resolveReview = async () => {
     if (!selected.size || saving) return;
     const candidates = props.batch.candidates.filter((candidate) => selected.has(candidate.id));
+    if (candidates.some((candidate) => invalidCoreIds.has(candidate.id))) { setNotice("Check Core in the edited cards: it must appear exactly in the target sentence."); return; }
     const accepted = candidates.map(candidateSelection);
     setSaving(true); setNotice("");
     try {

@@ -19,6 +19,7 @@ export type PracticeRoute = RouteBase & {
   mode: "recall" | "listen";
   scope: PracticeScopeRoute;
   topic: string;
+  category?: string;
   cards: PracticeCardCount;
   order: PracticeOrder;
   review: string | null;
@@ -34,10 +35,11 @@ export type TutorRoute = RouteBase & {
 
 export type LibraryRoute = RouteBase & {
   section: "library";
-  view: "cards" | "topics";
+  view: "cards" | "topics" | "categories";
   query: string;
   status: LibraryStatus;
   topic: string;
+  category?: string;
   sort: LibrarySort;
   page: number;
   panel: "import" | "create" | null;
@@ -114,16 +116,17 @@ export function parseAppRoute(
     };
   }
 
-  if (path === "library" || path === "library/topics") {
+  if (path === "library" || path === "library/topics" || path === "library/categories") {
     const rawPage = Number(params.get("page"));
     const status = params.get("status") as LibraryStatus;
     const sort = params.get("sort") as LibrarySort;
     return {
       section: "library",
-      view: path.endsWith("topics") ? "topics" : "cards",
+      view: path.endsWith("topics") ? "topics" : path.endsWith("categories") ? "categories" : "cards",
       query: params.get("q") || "",
       status: libraryStatuses.has(status) ? status : "all",
       topic: valueOrNull(params, "topic") || "all",
+      ...(uuidOrNull(params, "category") ? { category: uuidOrNull(params, "category")! } : {}),
       sort: librarySorts.has(sort) ? sort : "recent",
       page: Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1,
       panel: params.get("panel") === "create" ? "create"
@@ -149,7 +152,8 @@ export function parseAppRoute(
     scope: review || requestedScope === "library" ? "library"
       : requestedScope === "due" ? "due"
         : mode === "listen" ? "library" : "due",
-    topic: valueOrNull(params, "topic") || "",
+    topic: uuidOrNull(params, "category") ? "" : valueOrNull(params, "topic") || "",
+    ...(uuidOrNull(params, "category") ? { category: uuidOrNull(params, "category")! } : {}),
     cards: cardCounts.has(count) ? count : "all",
     order: practiceOrders.has(order) ? order : "newest",
     review,
@@ -172,7 +176,8 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
     path = `practice/${route.mode}`;
     const defaultScope = route.mode === "listen" ? "library" : "due";
     if (route.scope !== defaultScope) params.set("scope", route.scope);
-    if (route.topic) params.set("topic", route.topic);
+    if (route.category) params.set("category", route.category);
+    else if (route.topic) params.set("topic", route.topic);
     if (route.cards !== "all") params.set("cards", route.cards);
     if (route.order !== "newest") params.set("order", route.order);
     if (route.review) params.set("review", route.review);
@@ -181,7 +186,8 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
     if (route.mode === "chat" && route.thread) params.set("thread", route.thread);
     if (route.mode === "chat" && route.review) params.set("review", route.review);
   } else {
-    path = route.view === "topics" ? "library/topics" : "library";
+    path = route.view === "cards" ? "library" : `library/${route.view}`;
+    if (route.category) params.set("category", route.category);
     if (route.query) params.set("q", route.query);
     if (route.status !== "all") params.set("status", route.status);
     if (route.topic !== "all") params.set("topic", route.topic);

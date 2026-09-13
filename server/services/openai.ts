@@ -1,3 +1,5 @@
+import { reviseReviewBatch as reviseReviewBatchService } from "./review-batch.js";
+import type { ReviewCandidateSelection } from "../../contracts/api.js";
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -47,7 +49,7 @@ const currencyCheckSchema = z.object({
 });
 
 
-type OpenAIRepositories = Pick<RehearsalRepository, "aiUsage" | "audio" | "reviews">;
+type OpenAIRepositories = Pick<RehearsalRepository, "aiUsage" | "audio" | "reviews" | "categories">;
 
 const batchWorkloads: Record<ReviewBatchKind, AiWorkload> = {
   chat_review: "tutor_review",
@@ -223,6 +225,7 @@ export class OpenAIService {
     const requestInput = JSON.stringify({
       targetLanguage: targetLanguageName(input.language), title: input.title,
       material: assertAiSourceWithinBudget(input.sourceText),
+      learningCategoryCatalog: this.repository.categories.catalog(input.language),
     });
     const response = await trackAiRequest({
       repository: this.repository.aiUsage, provider: "openai", workload: batchWorkloads[input.kind],
@@ -301,47 +304,15 @@ export class OpenAIService {
     });
   }
 
-  async reviseReviewBatch(input: { batchPublicId: string; feedback: string }) {
-    const batch = this.repository.reviews.get(input.batchPublicId);
-    if (!batch || batch.status !== "draft") return null;
-    if (!this.client) throw new Error("OPENAI_NOT_CONFIGURED");
-    const requestInput = JSON.stringify({
-      title: batch.title,
-      source: assertAiSourceWithinBudget(batch.sourceText),
-      currentCandidates: batch.candidates.map((candidate, index) => ({ number: index + 1, ...candidate })),
-      feedback: input.feedback.trim(),
-    });
-    const response = await trackAiRequest({
-      repository: this.repository.aiUsage, provider: "openai", workload: "batch_revision",
-      language: batch.language, model: config.balancedModel,
-      inputCharacters: requestInput.length, measure: responseTokenUsage,
-    }, () => this.client!.responses.parse({
-      model: config.balancedModel,
-      reasoning: { effort: "low" },
-      instructions: materialInstructions(
-        this.learner,
-        batch.language,
-        "Revise the complete proposal batch using the user's Russian feedback. " +
-          "Numbers in the feedback refer to the current one-based candidate order. " +
-          "Keep good candidates, rewrite the requested ones, remove rejected ones, and do not add unrelated material. " +
-          "Return the complete revised batch, not only changed items.",
-      ),
-      input: requestInput,
-      text: { format: zodTextFormat(generatedMaterialSchema, "revised_learning_candidates") },
-      max_output_tokens: aiLimits.batchOutputTokens,
-    }));
-    if (!response.output_parsed) throw new Error("The tutor did not return revised material");
-    const candidates = await this.verifyUncertainCandidates(
-      response.output_parsed.items.slice(0, 100).map(toCandidate),
-      batch.language,
-    );
-    return this.repository.reviews.replaceCandidates(batch.publicId, candidates, input.feedback);
+  reviseReviewBatch(input: { batchPublicId: string; feedback: string }) {
+    return reviseReviewBatchService({ input, client: this.client, repository: this.repository, learner: this.learner,
+      verifyCandidates: (candidates, language) => this.verifyUncertainCandidates(candidates, language) });
   }
 
   async resolveCaptureReview(input: {
     batchPublicId: string;
-    accepted: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>;
-    revisions: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category"> & { feedback: string }>;
+    accepted: Array<ReviewCandidateSelection>;
+    revisions: Array<ReviewCandidateSelection & { feedback: string }>;
   }) {
     return resolveCaptureReviewService({
       client: this.client,
@@ -354,8 +325,8 @@ export class OpenAIService {
 
   async resolveReview(input: {
     batchPublicId: string;
-    accepted: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>;
-    revisions: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category"> & { feedback: string }>;
+    accepted: Array<ReviewCandidateSelection>;
+    revisions: Array<ReviewCandidateSelection & { feedback: string }>;
   }) {
     return resolveReviewBatch({
       client: this.client,
@@ -435,7 +406,7 @@ export class OpenAIService {
   }
 
   reviseCandidate(input: { batchPublicId: string; candidateId: string; feedback: string;
-    draft: Pick<ReviewCandidate, "target" | "cue" | "note" | "category"> }) {
+    draft: Omit<ReviewCandidateSelection, "id"> }) {
     return reviseReviewCandidate({
       client: this.client, repository: this.repository, learner: this.learner,
       instruction: "feedback", ...input,

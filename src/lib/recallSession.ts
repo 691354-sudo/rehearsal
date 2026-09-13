@@ -16,6 +16,7 @@ export type RecallSessionAction =
   | { type: "saving" }
   | { type: "save-failed" }
   | { type: "save-succeeded"; rating: ReviewRating }
+  | { type: "remove"; itemIds: string[] }
   | { type: "reset" };
 
 export const initialRecallSession: RecallSessionState = {
@@ -46,6 +47,12 @@ export const recallSessionReducer = (
     queue: [...action.itemIds],
     initialTotal: action.itemIds.length,
   };
+  if (action.type === "remove") {
+    const queue = state.queue.filter((id) => !action.itemIds.includes(id));
+    if (queue.length === state.queue.length) return state;
+    return { ...state, queue, initialTotal: state.initialTotal - (state.queue.length - queue.length),
+      phase: state.phase === "active" && !queue.length ? "complete" : state.phase, saving: false, error: "" };
+  }
   if (action.type === "reset") return initialRecallSession;
   if (action.type === "select-rating") return { ...state, selectedRating: action.rating, error: "" };
   if (action.type === "saving") return { ...state, saving: true, error: "" };

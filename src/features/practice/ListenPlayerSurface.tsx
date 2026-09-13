@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { ArrowLeft, Pause, Pencil, Play, Settings2, SkipBack, SkipForward } from "lucide-react";
+import { ArrowLeft, Pause, Play, Settings2, SkipBack, SkipForward } from "lucide-react";
+import { CardActions } from "../library/CardActions";
 import { ShuffleButton } from "./ShuffleButton";
 import type { Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
 import { FocusedText } from "../progress/FocusedText";
@@ -15,6 +16,7 @@ export function ListenPlayerSurface(props: {
   language: Language;
   note: string;
   onEdit: () => void;
+  onDelete?: () => void;
   onExit: () => void;
   onNext: () => void;
   onPause: () => void;
@@ -59,7 +61,7 @@ export function ListenPlayerSurface(props: {
       <strong>{props.selectedTopicName}</strong></header>
     <span className="simple-visually-hidden" role="status">Ready for pocket {props.readyCount} / {props.preparationTotal || props.queueLength}{props.note ? `. ${props.note}` : ""}</span>
     <article><div className="listen-prompt-row"><span className="listen-prompt">Repeat after the speaker</span>
-      <button aria-label={`Edit ${props.current.target}`} className="practice-active-edit" onClick={props.onEdit} title="Edit card" type="button"><Pencil aria-hidden="true" size={14} /></button></div>
+      <CardActions className="practice-active-edit" target={props.current.target} onEdit={props.onEdit} onDelete={props.onDelete} /></div>
       <p lang={props.language}><FocusedText focusTerms={props.current.focusTerms} text={props.current.target} /></p>
       {props.showRussian ? <span className="listen-russian-cue" lang="ru">{props.current.cue}</span> : null}
       <button className="listen-russian" onClick={props.onToggleRussian} type="button">{props.showRussian ? "Hide Russian" : "Show Russian"}</button>

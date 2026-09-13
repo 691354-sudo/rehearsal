@@ -1,3 +1,4 @@
+import { generatedLearningCategoriesShape, learningCategoryInstructions } from "./learning-categories.js";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { LanguageCode, ReviewCandidate } from "../types.js";
@@ -22,6 +23,7 @@ const targetLanguages: Record<LanguageCode, { name: string; guidance: string }> 
 };
 
 export const generatedCandidateSchema = z.object({
+  ...generatedLearningCategoriesShape,
   target: z.string().min(1).max(2_000),
   cue: z.string().min(1).max(2_000),
   note: z.string().max(2_000),
@@ -158,6 +160,7 @@ export const materialInstructions = (learner: LearnerPersona, language: Language
 You prepare optional learning cards for ${learner.name}, who is learning ${targetLanguageName(language)}.
 ${learner.context}
 ${task}
+${learningCategoryInstructions}
 ${targetLanguages[language].guidance}
 
 Content policy:
@@ -189,5 +192,7 @@ export const toCandidate = (item: z.infer<typeof generatedCandidateSchema>): Rev
   target: normalizeNfc(item.target.trim()),
   id: randomUUID(),
   focusTerms: item.focusTerms.slice(0, 8),
+  learningCategoryIds: item.learningCategoryIds ?? [],
+  newLearningCategories: (item.newLearningCategories ?? []).map((category) => ({ ...category, publicId: randomUUID() })),
   pattern: item.pattern || undefined,
 });

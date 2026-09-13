@@ -4,6 +4,15 @@ import { AudioPreparationError } from "../services/audio-preparation.js";
 import { PilotError } from "../db/pilot/store.js";
 
 export const toErrorResponse = (error: unknown) => {
+  if (error instanceof Error && ["CATEGORY_TITLE_EXISTS", "CATEGORY_ID_CONFLICT", "ITEM_ID_CONFLICT", "CATEGORY_LANGUAGE_MISMATCH"].includes(error.message)) {
+    return { statusCode: 409, body: { error: error.message } };
+  }
+  if (error instanceof Error && ["CATEGORY_NOT_FOUND", "ITEM_NOT_FOUND"].includes(error.message)) {
+    return { statusCode: 404, body: { error: error.message } };
+  }
+  if (error instanceof Error && ["FOCUS_TERM_NOT_FOUND", "DUPLICATE_REVIEW_RESOLUTION"].includes(error.message)) {
+    return { statusCode: 400, body: { error: error.message } };
+  }
   if (error instanceof PilotError) return { statusCode: error.statusCode, body: { error: error.message } };
   if (error instanceof z.ZodError) {
     return { statusCode: 400, body: { error: "INVALID_REQUEST", details: error.issues } };

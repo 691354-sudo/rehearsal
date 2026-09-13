@@ -7,7 +7,7 @@ import { reviewCandidate } from "../testing/candidates.js";
 describe("Item API", () => {
   let context: ApiTestContext;
 
-  beforeEach(() => { context = createApiTestContext(); });
+  beforeEach(() => { context = createApiTestContext(); context.repository.library.runTopicBackfillMigration(); });
   afterEach(() => { context.close(); });
 
   it("allows the client to request a Library larger than 500 cards", async () => {

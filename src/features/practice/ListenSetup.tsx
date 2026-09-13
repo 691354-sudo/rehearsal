@@ -51,7 +51,7 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
     <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
       <Play fill="currentColor" size={15} />Play {visibleCandidates.length || "recommended"} cards
     </button>
-    <PracticeQueuePreview emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit}
+    <PracticeQueuePreview emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit} onDelete={props.onDelete}
       onListened={props.onListened} onPlay={(item) => props.onPlay(item.target, props.playback)} scope={props.scope} />
   </div>;
 }

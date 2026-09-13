@@ -25,6 +25,8 @@ export type ItemRow = {
   register: LearningItem["register"];
   tags: string;
   focus_terms: string;
+  topic_public_id?: string | null;
+  learning_category_ids?: string;
   frequency_band: LearningItem["frequencyBand"];
   currency: LearningItem["currency"];
   persona_fit: number;
@@ -104,6 +106,8 @@ export const mapItem = (row: ItemRow): LearningItem => ({
   register: row.register,
   tags: parseArray(row.tags),
   focusTerms: parseArray(row.focus_terms),
+  topicId: row.topic_public_id ?? null,
+  learningCategoryIds: parseArray(row.learning_category_ids || "[]"),
   frequencyBand: row.frequency_band,
   currency: row.currency,
   personaFit: row.persona_fit,

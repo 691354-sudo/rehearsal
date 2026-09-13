@@ -1,8 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FilePlus2,
   LoaderCircle,
-  Pencil,
   MoreHorizontal,
   Plus,
   RefreshCw,
@@ -14,7 +13,12 @@ import {
 import { ReviewBatchPanel, type ReviewBatch } from "../review/ReviewBatchPanel";
 import { CardEditorDialog } from "./CardEditorDialog";
 import { CardCreateDialog } from "./CardCreateDialog";
+import { getCategories } from "./categoryRequests";
 import { getTopic, getTopics } from "./topicRequests";
+import { CardActions } from "./CardActions";
+import { CategoriesManager } from "./CategoriesManager";
+import { AddToCategoriesDialog } from "./AddToCategoriesDialog";
+import { deleteCard } from "./deleteCard";
 import { TopicsManager } from "./TopicsManager";
 import { apiFetch } from "../../shared/api";
 import type { IslandSummary, Language, LearningItem } from "../../shared/contracts";
@@ -23,7 +27,6 @@ import { filterLibraryItems, type LibrarySort, type LibraryStatus } from "../../
 import type { AppRoute, HistoryMode, LibraryRoute } from "../../lib/appRoute";
 import { FocusedText } from "../progress/FocusedText";
 import { LearningStageBadge } from "../progress/LearningProgress";
-import { placeLibraryActions, type LibraryActionsPlacement } from "./libraryActions";
 
 export function LibraryPage({ items, language, route, onRoute, onItemDeleted, onItemUpdated, onItemsReload, onListen, onListened, onPlay, onPracticeEnabled, onReview }: {
   items: LearningItem[];
@@ -53,16 +56,14 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [deletingSelected, setDeletingSelected] = useState(false);
-  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
-  const [actionsPlacement, setActionsPlacement] = useState<(LibraryActionsPlacement & { itemId: string }) | null>(null);
   const [topicsRevision, setTopicsRevision] = useState(0);
   const allowDirtyNavigationRef = useRef(false);
-  const actionsButtonRef = useRef<HTMLButtonElement>(null);
-  const actionsPanelRef = useRef<HTMLDivElement>(null);
-  const showTopics = route.view === "topics";
+  const [bulkCategories, setBulkCategories] = useState(false);
+  const [categoryEditingItem, setCategoryEditingItem] = useState<LearningItem | null>(null);
+  const showTopics = route.view !== "cards";
   const showImport = route.panel === "import";
   const showCreate = route.panel === "create";
-  const editingItem = route.edit ? [...items, ...collectionItems].find((item) => item.publicId === route.edit) || null : null;
+  const editingItem = route.edit ? [...collectionItems, ...(categoryEditingItem ? [categoryEditingItem] : []), ...items].find((item) => item.publicId === route.edit) || null : null;
   const visibleCount = route.page * 20;
   const { query, status, sort, topic } = route;
   const patchRoute = (patch: Partial<LibraryRoute>, historyMode: HistoryMode = "replace") => onRoute({ ...route, ...patch }, historyMode);
@@ -96,53 +97,6 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
       window.removeEventListener("beforeunload", beforeUnload);
     };
   }, [text, title]);
-  useEffect(() => {
-    if (!openActionsId) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        const trigger = actionsButtonRef.current;
-        setOpenActionsId(null);
-        window.requestAnimationFrame(() => trigger?.focus());
-      }
-    };
-    const closeOutside = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Element && target.closest(`[data-library-actions="${openActionsId}"]`)) return;
-      setOpenActionsId(null);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    window.addEventListener("pointerdown", closeOutside);
-    return () => {
-      window.removeEventListener("keydown", closeOnEscape);
-      window.removeEventListener("pointerdown", closeOutside);
-    };
-  }, [openActionsId]);
-  useLayoutEffect(() => {
-    if (!openActionsId || !actionsButtonRef.current || !actionsPanelRef.current) {
-      setActionsPlacement(null);
-      return;
-    }
-    const nav = document.querySelector<HTMLElement>(".simple-nav");
-    const navTop = nav && window.getComputedStyle(nav).position === "fixed"
-      ? nav.getBoundingClientRect().top : window.innerHeight;
-    setActionsPlacement({
-      itemId: openActionsId,
-      ...placeLibraryActions(
-        actionsButtonRef.current.getBoundingClientRect(),
-        actionsPanelRef.current.getBoundingClientRect(),
-        { width: window.innerWidth, bottom: navTop },
-      ),
-    });
-    window.requestAnimationFrame(() => actionsPanelRef.current?.querySelector<HTMLButtonElement>("[role=menuitem]")?.focus());
-    const close = () => setOpenActionsId(null);
-    window.addEventListener("resize", close);
-    window.addEventListener("scroll", close, true);
-    return () => {
-      window.removeEventListener("resize", close);
-      window.removeEventListener("scroll", close, true);
-    };
-  }, [openActionsId]);
-
   const loadTopics = (nextLanguage = language) => getTopics(nextLanguage);
   const loadTopicItemIds = async (topicId: string) => {
     const data = await getTopic(topicId);
@@ -174,6 +128,13 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     });
     return () => { active = false; };
   }, [language]);
+  useEffect(() => {
+    let active = true;
+    if (topic !== "all" && topic !== "liked") void getCategories(language).then((catalog) => {
+      if (active && catalog.redirects[topic]) patchRoute({ view: "categories", topic: "all", category: catalog.redirects[topic] }, "replace");
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [language, topic, topicsRevision]);
   useEffect(() => {
     if (topic === "all") { setTopicItemIds([]); return; }
     let active = true;
@@ -208,15 +169,15 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     } catch { setNotice("Import failed. Nothing was added to Library."); }
     finally { setImporting(false); }
   };
+  const itemDeleted = (itemId: string) => {
+    onItemDeleted(itemId); setCollectionItems((before) => before.filter((item) => item.publicId !== itemId));
+    setSelectedItemIds((before) => { const next = new Set(before); next.delete(itemId); return next; });
+    void refreshTopics();
+  };
   const deleteItem = async (itemId: string) => {
-    if (!window.confirm("Delete this card from Library?")) return;
     setNotice("");
-    try {
-      const response = await apiFetch(`/api/items/${encodeURIComponent(itemId)}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Delete failed");
-      onItemDeleted(itemId);
-      setSelectedItemIds((current) => { const next = new Set(current); next.delete(itemId); return next; });
-    } catch { setNotice("Couldn’t delete this card."); }
+    try { if (await deleteCard(itemId)) itemDeleted(itemId); }
+    catch (caught) { setNotice((caught as Error).message); }
   };
   const setPracticeEnabled = async (itemId: string, practiceEnabled: boolean) => {
     if (!await onPracticeEnabled(itemId, practiceEnabled)) { setNotice("Couldn’t update this card."); return; }
@@ -234,7 +195,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   const topicItemSet = useMemo(() => new Set(topicItemIds), [topicItemIds]);
   const delimitedImport = text.includes("$");
   const importFragmentCount = delimitedImport ? text.split("$").filter((fragment) => fragment.trim()).length : 0;
-  const visibleItems = useMemo(() => filterLibraryItems(topic === "liked" ? collectionItems : items, {
+  const visibleItems = useMemo(() => filterLibraryItems(topic !== "all" ? collectionItems : items, {
     query, status, sort, topicItemIds: topic === "all" ? null : topicItemSet, language,
   }), [items, collectionItems, language, query, sort, status, topic, topicItemSet]);
   const displayedItems = visibleItems.slice(0, visibleCount);
@@ -250,16 +211,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     displayedItems.forEach((item) => { if (allVisibleSelected) next.delete(item.publicId); else next.add(item.publicId); });
     return next;
   });
-  const navigateActions = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-    const actions = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=menuitem]")];
-    if (!actions.length) return;
-    event.preventDefault();
-    const current = Math.max(0, actions.indexOf(document.activeElement as HTMLButtonElement));
-    const next = event.key === "Home" ? 0 : event.key === "End" ? actions.length - 1
-      : event.key === "ArrowDown" ? (current + 1) % actions.length : (current - 1 + actions.length) % actions.length;
-    actions[next].focus();
-  };
+
   const deleteSelected = async () => {
     const itemIds = [...selectedItemIds];
     if (!itemIds.length || deletingSelected) return;
@@ -275,6 +227,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
       if (!response.ok) throw new Error("Bulk delete failed");
       const data = await response.json() as { deleted: string[] };
       data.deleted.forEach(onItemDeleted);
+      setCollectionItems((before) => before.filter((item) => !data.deleted.includes(item.publicId))); void refreshTopics();
       setSelectedItemIds(new Set());
       setSelectionMode(false);
       setNotice(`${data.deleted.length} ${data.deleted.length === 1 ? "card" : "cards"} deleted.`);
@@ -288,7 +241,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   };
 
   const managementActions = <>
-        <button onClick={() => patchRoute({ view: showTopics ? "cards" : "topics", panel: null, edit: null }, "push")} type="button">{showTopics ? "Back to cards" : "Manage topics"}</button>
+        <button onClick={() => patchRoute({ view: showTopics ? "cards" : "topics", panel: null, edit: null }, "push")} type="button">{showTopics ? "Back to cards" : "Topics & categories"}</button>
         {!showTopics ? <button onClick={() => showImport ? closeSurface("import", { panel: null }) : patchRoute({ panel: "import", edit: null }, "push")} type="button">{showImport ? "Close import" : "Import text"}</button> : null}
   </>;
 
@@ -299,12 +252,17 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
         {managementActions}
       </div></details></div></header>
     {topicsError ? <div className="simple-unavailable" role="alert"><span>Topics unavailable. Your cards are still here.</span><button onClick={() => void refreshTopics()} type="button"><RefreshCw size={14} />Retry</button></div> : null}
-    {showTopics ? <div className="simple-library-secondary"><TopicsManager initialTopicId={route.topic === "all" ? "" : route.topic} key={`${language}:${topicsRevision}`} language={language}
+    {showTopics ? <div className="simple-library-secondary"><nav className="collection-tabs" aria-label="Topics and categories">
+      <button type="button" aria-current={route.view === "topics" ? "page" : undefined} onClick={() => patchRoute({ view: "topics", category: undefined, topic: "all", edit: null })}>Topics</button>
+      <button type="button" aria-current={route.view === "categories" ? "page" : undefined} onClick={() => patchRoute({ view: "categories", topic: "all", category: undefined, edit: null })}>Categories</button></nav>
+      {route.view === "categories" ? <CategoriesManager language={language} categoryId={route.category} key={`${language}:${topicsRevision}`}
+        onCategory={(category) => patchRoute({ category })} onEdit={(item) => { setCategoryEditingItem(item); patchRoute({ edit: item.publicId }, "push"); }}
+        onItemDeleted={itemDeleted} onChanged={() => { void onItemsReload(); void refreshTopics(); }} /> : <TopicsManager initialTopicId={route.topic === "all" ? "" : route.topic} key={`${language}:${topicsRevision}`} language={language}
       onClose={() => { patchRoute({ view: "cards" }, "replace"); void refreshTopics(); }}
       onCreateNew={() => patchRoute({ panel: "create", edit: null }, "push")}
       onEdit={(itemId) => patchRoute({ edit: itemId }, "push")}
-      onItemDeleted={onItemDeleted}
-      onTopic={(topicId) => patchRoute({ topic: topicId || "all" }, "replace")} /></div> : <>
+      onItemDeleted={itemDeleted}
+      onTopic={(topicId) => patchRoute({ topic: topicId || "all" }, "replace")} />}</div> : <>
       {showImport ? <section className="simple-import-card simple-library-secondary">
       <div className="simple-section-heading"><FilePlus2 size={19} /><div><strong>Import text or transcript</strong></div></div>
       <label className="simple-field-label"><span>Title or source</span><input autoComplete="off" name="import-title" onChange={(event) => setTitle(event.target.value)} placeholder="For example: August conversation…" value={title} /></label>
@@ -342,6 +300,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
         {selectionMode ? <div>
           {selectedItemIds.size ? <><span>{selectedItemIds.size} selected</span>
             <button disabled={deletingSelected} onClick={() => setSelectedItemIds(new Set())} type="button">Clear</button>
+            <button disabled={deletingSelected || selectedItemIds.size > 500} onClick={() => setBulkCategories(true)} type="button">Add to categories…</button>
             <button className="simple-delete-selected" disabled={deletingSelected} onClick={() => void deleteSelected()} type="button">
               {deletingSelected ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}Delete</button></> : null}
           <button onClick={() => { setSelectedItemIds(new Set()); setSelectionMode(false); }} type="button">Done</button>
@@ -357,26 +316,12 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
               {languageHasAudio(language) ? <button aria-label="Play" onClick={() => {
                 void onPlay(item.target).then(() => onListened(item.publicId));
               }} title="Play" type="button"><Volume2 size={15} /></button> : null}
-              <div className="simple-row-more" data-library-actions={item.publicId} onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null);
-              }}>
-                <button aria-controls={`card-actions-${item.publicId}`} aria-expanded={openActionsId === item.publicId} aria-haspopup="menu" aria-label={`More actions for ${item.target}`}
-                  onClick={() => setOpenActionsId((current) => current === item.publicId ? null : item.publicId)}
-                  ref={openActionsId === item.publicId ? actionsButtonRef : undefined} title="More actions" type="button"><MoreHorizontal aria-hidden="true" size={17} /></button>
-                {openActionsId === item.publicId ? <div className="simple-row-more-panel" data-placement={actionsPlacement?.placement}
-                  id={`card-actions-${item.publicId}`} ref={actionsPanelRef} role="menu" style={actionsPlacement?.itemId === item.publicId ? {
-                    left: actionsPlacement.left, right: "auto", top: actionsPlacement.top,
-                    transformOrigin: `${actionsPlacement.placement === "above" ? "bottom" : "top"} right`,
-                  } : { visibility: "hidden" }} onKeyDown={navigateActions}>
-                  {item.practiceEnabled
-                    ? <button onClick={() => { setOpenActionsId(null); void setPracticeEnabled(item.publicId, false); }} role="menuitem" type="button">Mark as learned</button>
-                    : <button onClick={() => { setOpenActionsId(null); void setPracticeEnabled(item.publicId, true); }} role="menuitem" type="button">Return to learning</button>}
-                  <button onClick={() => { setOpenActionsId(null); patchRoute({ edit: item.publicId }, "push"); }} role="menuitem" type="button"><Pencil aria-hidden="true" size={15} />Edit</button>
-                  {!item.practiceEnabled ? <button onClick={() => { setOpenActionsId(null); onReview(item.publicId); }} role="menuitem" type="button">Review now</button> : null}
-                  <button onClick={() => { setOpenActionsId(null); void patternDrill(item.publicId); }} role="menuitem" type="button">Pattern drill</button>
-                  <button className="simple-row-delete" onClick={() => { setOpenActionsId(null); void deleteItem(item.publicId); }} role="menuitem" type="button"><Trash2 aria-hidden="true" size={15} />Delete</button>
-                </div> : null}
-              </div>
+              <CardActions target={item.target} onEdit={() => patchRoute({ edit: item.publicId }, "push")}
+                onDelete={() => void deleteItem(item.publicId)} extraActions={[
+                  { label: item.practiceEnabled ? "Mark as learned" : "Return to learning", onClick: () => void setPracticeEnabled(item.publicId, !item.practiceEnabled) },
+                  ...(!item.practiceEnabled ? [{ label: "Review now", onClick: () => onReview(item.publicId) }] : []),
+                  { label: "Pattern drill", onClick: () => void patternDrill(item.publicId) },
+                ]} />
             </div>
         </article>)}
         {displayedItems.length < visibleItems.length ? <div className="simple-library-load-more"><span>{visibleItems.length - displayedItems.length} more cards</span>
@@ -385,11 +330,14 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
     </section>
     </>}
     {editingItem ? <CardEditorDialog item={editingItem} language={language} onClose={() => closeSurface("editor", { edit: null })}
+      onDeleted={(id) => { itemDeleted(id); if (showTopics) setTopicsRevision((value) => value + 1); }}
       onSaved={(item) => {
-        onItemUpdated(item);
+        onItemUpdated(item); void refreshTopics();
         patchRoute({ edit: null }, "replace");
         if (showTopics) setTopicsRevision((revision) => revision + 1);
       }} /> : null}
+    {bulkCategories ? <AddToCategoriesDialog language={language} itemIds={[...selectedItemIds]} onClose={() => setBulkCategories(false)}
+      onSaved={() => { setBulkCategories(false); setSelectedItemIds(new Set()); setSelectionMode(false); void onItemsReload(); void refreshTopics(); setNotice("Cards added to categories."); }} /> : null}
     {showCreate ? <CardCreateDialog initialTopicId={["all", "liked"].includes(route.topic) ? "" : route.topic} language={language} topics={topics.filter((candidate) => candidate.publicId !== "liked")}
       onClose={() => closeSurface("create", { panel: null })} onCreated={() => {
         closeSurface("create", { panel: null }); void onItemsReload(); void refreshTopics();

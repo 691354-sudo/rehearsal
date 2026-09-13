@@ -47,3 +47,12 @@ describe("finite recall session", () => {
     expect(recallItemIdsAfter(["a", "b", "c"], "c")).toEqual([]);
   });
 });
+
+it("removes the active and future deleted cards without counting a recall", () => {
+  const started = recallSessionReducer(initialRecallSession, { type: "start", itemIds: ["a", "b", "c"] });
+  const next = recallSessionReducer(started, { type: "remove", itemIds: ["a", "c"] });
+  expect(next.queue).toEqual(["b"]);
+  expect(next.completed).toBe(0);
+  expect(next.initialTotal).toBe(1);
+  expect(recallSessionReducer(next, { type: "remove", itemIds: ["b"] })).toMatchObject({ phase: "complete", completed: 0, queue: [] });
+});

@@ -1,6 +1,10 @@
+import { cardScopeSql } from "../card-scope.js";
 import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "../database.js";
 import type { LanguageCode, LearningItem, LearningItemInput, SearchResult } from "../../types.js";
+import type { CardCategoriesInput } from "../../../contracts/learning-categories.js";
+import { LearningCategoriesRepository } from "./learning-categories.js";
+import { LibraryRepository } from "./library.js";
 import { normalizeNfc } from "../../../contracts/text.js";
 import {
   cosineSimilarity,
@@ -14,9 +18,11 @@ import {
 export class ItemsRepository {
   constructor(private readonly db: RehearsalDatabase) {}
 
+  private categories() { return new LearningCategoriesRepository(this.db); }
+
   list(language: LanguageCode, limit = 100) {
     const rows = this.db.prepare(
-      `SELECT * FROM items
+      `SELECT * FROM learning_items
        WHERE language_code = ?
        ORDER BY CASE status WHEN 'learning' THEN 0 WHEN 'new' THEN 1 ELSE 2 END,
                 updated_at DESC
@@ -26,8 +32,15 @@ export class ItemsRepository {
   }
 
   get(publicId: string) {
-    const row = this.db.prepare("SELECT * FROM items WHERE public_id = ?").get(publicId) as ItemRow | undefined;
+    const row = this.db.prepare("SELECT * FROM learning_items WHERE public_id = ?").get(publicId) as ItemRow | undefined;
     return row ? mapItem(row) : null;
+  }
+
+  findByTarget(language: LanguageCode, target: string) {
+    const key = (value: string) => value.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+    const row = (this.db.prepare("SELECT public_id, target FROM items WHERE language_code = ? ORDER BY id")
+      .all(language) as Array<{ public_id: string; target: string }>).find((entry) => key(entry.target) === key(target));
+    return row ? this.get(row.public_id) : null;
   }
 
   create(input: LearningItemInput, topicPublicId: string) {
@@ -37,6 +50,16 @@ export class ItemsRepository {
     if (!topic) throw new Error("TOPIC_NOT_FOUND");
     if (topic.language_code !== input.language) throw new Error("TOPIC_LANGUAGE_MISMATCH");
     return this.db.transaction(() => {
+      const previous = input.publicId ? this.get(input.publicId) : null;
+      if (previous) {
+        const categoryIds = this.categories().resolveDraft(input.language, input);
+        if (previous.language !== input.language || previous.target !== normalizeNfc(input.target.trim())
+          || previous.cue !== input.cue.trim() || previous.note !== (input.note?.trim() || "")
+          || previous.topicId !== topicPublicId || previous.frequencyBand !== (input.frequencyBand ?? "common")
+          || JSON.stringify([...(previous.learningCategoryIds ?? [])].sort()) !== JSON.stringify(categoryIds.sort())
+          || JSON.stringify(previous.focusTerms) !== JSON.stringify(input.focusTerms ?? [])) throw new Error("ITEM_ID_CONFLICT");
+        return previous;
+      }
       const item = this.save(input);
       const itemRow = this.db.prepare("SELECT id FROM items WHERE public_id = ?")
         .get(item.publicId) as { id: number };
@@ -46,7 +69,9 @@ export class ItemsRepository {
       this.db.prepare(
         "INSERT INTO island_items(island_id, item_id, position) VALUES (?, ?, ?)",
       ).run(topic.id, itemRow.id, position);
-      return item;
+      const ids = this.categories().resolveDraft(input.language, input);
+      this.categories().setForCard(item.publicId, ids);
+      return this.get(item.publicId)!;
     })();
   }
 
@@ -120,28 +145,43 @@ export class ItemsRepository {
 
   update(publicId: string, input: Partial<Pick<LearningItemInput,
     "target" | "cue" | "note" | "tags" | "focusTerms" | "preference" | "frequencyBand" | "practiceEnabled"
-  >>) {
+  >> & CardCategoriesInput & { topicId?: string }) {
     const existing = this.get(publicId);
     if (!existing) return null;
-    return this.save({
-      ...existing,
-      publicId,
-      target: input.target ?? existing.target,
-      cue: input.cue ?? existing.cue,
-      note: input.note ?? existing.note,
-      tags: input.tags ?? existing.tags,
-      focusTerms: input.focusTerms ?? existing.focusTerms,
-      preference: input.preference ?? existing.preference,
-      frequencyBand: input.frequencyBand ?? existing.frequencyBand,
-      practiceEnabled: input.practiceEnabled ?? existing.practiceEnabled,
-    });
+    return this.db.transaction(() => {
+      this.db.prepare(`UPDATE items SET target = ?, cue = ?, note = ?, tags = ?, focus_terms = ?,
+        preference = ?, frequency_band = ?, practice_enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE public_id = ?`)
+        .run(input.target === undefined ? existing.target : normalizeNfc(input.target.trim()),
+          input.cue?.trim() ?? existing.cue, input.note?.trim() ?? existing.note,
+          JSON.stringify(input.tags ?? existing.tags), JSON.stringify(input.focusTerms ?? existing.focusTerms),
+          input.preference ?? existing.preference, input.frequencyBand ?? existing.frequencyBand,
+          (input.practiceEnabled ?? existing.practiceEnabled) ? 1 : 0, publicId);
+      if (input.topicId && input.topicId !== existing.topicId) {
+        const library = new LibraryRepository(this.db);
+        const topic = library.getIsland(input.topicId);
+        if (!topic) throw new Error("TOPIC_NOT_FOUND");
+        if (topic.language !== existing.language) throw new Error("TOPIC_LANGUAGE_MISMATCH");
+        library.addIslandItem(input.topicId, publicId);
+      }
+      if (input.learningCategoryIds !== undefined || input.newLearningCategories?.length) {
+        const ids = this.categories().resolveDraft(existing.language, {
+          ...input, learningCategoryIds: input.learningCategoryIds ?? existing.learningCategoryIds,
+        });
+        this.categories().setForCard(publicId, ids);
+      }
+      const updated = this.get(publicId)!;
+      logChange(this.db, "user", "update", "item", publicId, existing, updated);
+      return updated;
+    })();
   }
 
   delete(publicId: string) {
     const existing = this.get(publicId);
     if (!existing) return false;
-    logChange(this.db, "user", "delete", "item", publicId, existing, null);
-    this.db.prepare("DELETE FROM items WHERE public_id = ?").run(publicId);
+    this.db.transaction(() => {
+      logChange(this.db, "user", "delete", "item", publicId, existing, null);
+      this.db.prepare("DELETE FROM items WHERE public_id = ?").run(publicId);
+    })();
     return true;
   }
 
@@ -160,8 +200,9 @@ export class ItemsRepository {
     return uniqueIds;
   }
 
-  search(query: string, language: LanguageCode, embedding?: number[], limit = 20): SearchResult[] {
+  search(query: string, language: LanguageCode, embedding?: number[], limit = 20, categoryId?: string): SearchResult[] {
     query = normalizeNfc(query.trim());
+    const filter = cardScopeSql(this.db, language, { categoryId });
     const keywordScores = new Map<string, number>();
     const itemById = new Map<string, LearningItem>();
     const ftsQuery = makeFtsQuery(query);
@@ -170,11 +211,11 @@ export class ItemsRepository {
       const rows = this.db.prepare(
         `SELECT i.*, bm25(items_fts, 4.0, 1.5, 0.8, 0.3) AS keyword_rank
          FROM items_fts
-         JOIN items i ON i.id = items_fts.rowid
-         WHERE items_fts MATCH ? AND i.language_code = ?
+         JOIN learning_items i ON i.id = items_fts.rowid
+         WHERE items_fts MATCH ? AND i.language_code = ? ${filter.sql}
          ORDER BY keyword_rank
          LIMIT 50`,
-      ).all(ftsQuery, language) as Array<ItemRow & { keyword_rank: number }>;
+      ).all(ftsQuery, language, ...filter.parameters) as Array<ItemRow & { keyword_rank: number }>;
       rows.forEach((row, index) => {
         const item = mapItem(row);
         itemById.set(item.publicId, item);
@@ -185,8 +226,8 @@ export class ItemsRepository {
     const semanticScores = new Map<string, number>();
     if (embedding?.length) {
       const rows = this.db.prepare(
-        "SELECT * FROM items WHERE language_code = ? AND embedding IS NOT NULL",
-      ).all(language) as ItemRow[];
+        `SELECT i.* FROM learning_items i WHERE language_code = ? AND embedding IS NOT NULL ${filter.sql}`,
+      ).all(language, ...filter.parameters) as ItemRow[];
       rows.map((row) => ({ row, score: cosineSimilarity(embedding, row.embedding!) }))
         .filter(({ score }) => score > 0.1)
         .sort((left, right) => right.score - left.score)
@@ -201,12 +242,12 @@ export class ItemsRepository {
     if (!itemById.size) {
       const like = `%${query.trim().toLocaleLowerCase()}%`;
       const rows = this.db.prepare(
-        `SELECT * FROM items
+        `SELECT i.* FROM learning_items i
          WHERE language_code = ?
-           AND (lower(target) LIKE ? OR lower(cue) LIKE ? OR lower(note) LIKE ?)
+           AND (lower(target) LIKE ? OR lower(cue) LIKE ? OR lower(note) LIKE ?) ${filter.sql}
          ORDER BY naturalness DESC, commonness DESC
          LIMIT ?`,
-      ).all(language, like, like, like, limit) as ItemRow[];
+      ).all(language, like, like, like, ...filter.parameters, limit) as ItemRow[];
       rows.forEach((row, index) => {
         const item = mapItem(row);
         itemById.set(item.publicId, item);
@@ -228,7 +269,7 @@ export class ItemsRepository {
 
   missingEmbeddings(limit = 100) {
     return (this.db.prepare(
-      "SELECT * FROM items WHERE embedding IS NULL ORDER BY id LIMIT ?",
+      "SELECT * FROM learning_items WHERE embedding IS NULL ORDER BY id LIMIT ?",
     ).all(limit) as ItemRow[]).map(mapItem);
   }
 

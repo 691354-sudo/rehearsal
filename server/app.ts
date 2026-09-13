@@ -12,6 +12,7 @@ import { registerCaptureRoutes } from "./http/capture.routes.js";
 import { createHttpDependencies, type ServiceOverrides } from "./http/dependencies.js";
 import { toErrorResponse } from "./http/errors.js";
 import { registerItemRoutes } from "./http/items.routes.js";
+import { registerLearningCategoryRoutes } from "./http/learning-categories.routes.js";
 import { registerLanguageAccess } from "./http/language-access.js";
 import { registerOnboardingRoutes } from "./http/onboarding.routes.js";
 import { registerPracticeRoutes } from "./http/practice.routes.js";
@@ -105,6 +106,7 @@ export const buildApp = async (
   registerSystemRoutes(app, dependencies);
   registerOnboardingRoutes(app, dependencies);
   registerItemRoutes(app, dependencies);
+  registerLearningCategoryRoutes(app, dependencies);
   registerPracticeRoutes(app, dependencies);
   registerPilotRoutes(app, dependencies);
   registerTutorRoutes(app, dependencies);

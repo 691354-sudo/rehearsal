@@ -1,4 +1,5 @@
-import { Heart, Pencil } from "lucide-react";
+import { CardActions } from "../library/CardActions";
+import { Heart } from "lucide-react";
 import type { Island } from "../../shared/contracts";
 import { AppLink } from "../../app/AppLink";
 import { defaultPracticeRoute } from "../../lib/appRoute";
@@ -6,8 +7,8 @@ import { FocusedText } from "../progress/FocusedText";
 import { LearningProgressBadge } from "../progress/LearningProgress";
 import { usePilot } from "./PilotProvider";
 
-export function LikedTopicDetail({ topic, visibleCount, onMore, onEdit }: {
-  topic: Island; visibleCount: number; onMore: () => void; onEdit: (id: string) => void;
+export function LikedTopicDetail({ topic, visibleCount, onMore, onEdit, onDelete }: {
+  topic: Island; visibleCount: number; onMore: () => void; onEdit: (id: string) => void; onDelete: (id: string) => void;
 }) {
   const pilot = usePilot();
   const items = topic.items.filter((item) => pilot.progress[item.publicId]?.liked !== false);
@@ -19,7 +20,7 @@ export function LikedTopicDetail({ topic, visibleCount, onMore, onEdit }: {
     <div className="topic-card-list">{items.slice(0, visibleCount).map((item) => <article key={item.publicId}>
       <div className="topic-card-copy"><strong lang="en"><FocusedText text={item.target} focusTerms={item.focusTerms} /></strong><span lang="ru">{item.cue}</span></div>
       <footer><LearningProgressBadge progress={item.progress} /><div className="pilot-liked-actions">
-        <button aria-label={`Edit ${item.target}`} onClick={() => onEdit(item.publicId)} type="button"><Pencil size={16} aria-hidden="true" /></button>
+        <CardActions target={item.target} onEdit={() => onEdit(item.publicId)} onDelete={() => onDelete(item.publicId)} />
         <button aria-label={`Unlike ${item.target}`} aria-pressed="true" onClick={() => pilot.like(item.publicId, false)} type="button"><Heart size={17} fill="currentColor" aria-hidden="true" /></button>
       </div></footer>
     </article>)}</div>

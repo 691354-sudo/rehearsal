@@ -58,3 +58,11 @@ The focused API suites cover authorization, profile isolation, Practice, Tutor, 
 5. Keep the archived legacy database and pre-enable profile backups until Roman and Oliver complete production acceptance.
 6. On a physical iPhone in Brave, run a 20-card Listen & Repeat stack for at least three locked-screen loops and flag any transition longer than its adaptive pause plus two seconds.
 7. Verify the approved Topics flow on a physical iPhone, including search/name entry with the keyboard. Listen list and revealed Recall answers now underline stored focus phrases; the Listen player and Tutor/Notebook layout remain unchanged by this follow-up.
+
+## Learning categories verification, September 13, 2026
+
+- The approved editor and category picker share Core, staged Topic moves and multiple category membership. Categories uses compact clickable rows; Practice keeps its existing dropdown with category and Topic groups.
+- Local browser checks used isolated Roman fixtures with paid APIs disabled: metadata-only edits preserved the complete legacy Core array; Save/Create Retry retained drafts; Cancel created no category; Review reused an existing card and excluded unselected proposals. Category CRUD, additive bulk assignment and removal of only a membership passed.
+- Card deletion passed in Library, Topics, Categories, Liked, queue preview and the editor. Active Listen stopped the instrumented local audio; active Recall advanced without a grade, with zero attempts remaining for the removed card. Audio was a local test WAV, not a paid provider call.
+- Actual browser layouts passed at 320, 393 and 1440 px in both themes for the editor, picker, category manager and Practice dropdown, with no horizontal overflow or page errors. Keyboard Home/End/Escape and restored focus passed for Practice and card action menus. Physical iPhone keyboard, Telegram WebView and background audio remain device acceptance checks.
+- Migration 013 and the reviewed assignment command are covered by atomicity, profile/language isolation, queue admission, history-preservation and old-link tests. Personal candidate lists and database snapshots remain outside Git. Apply only reviewed assignments using [OPERATIONS.md](OPERATIONS.md#reviewed-learning-category-assignments).

@@ -1,0 +1,60 @@
+.learning-categories-field, .category-picker, .category-new, .card-topic-field,
+.category-name-form, .category-name-form label { display: grid; gap: 10px; min-width: 0; }
+.learning-categories-field > span, .card-topic-field > span { color: var(--script-tertiary); font-size: 13px; }
+.category-chips, .category-picker-actions, .card-topic-field > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.category-chips button, .category-picker-actions button, .card-topic-field button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px; padding: 8px 10px; color: var(--script-ink); font: inherit;
+  background: transparent; border: 1px solid var(--script-rule); border-radius: 7px;
+}
+.category-chips .category-chip { max-width: 100%; background: var(--control-fill); overflow-wrap: anywhere; text-align: left; }
+.category-chip svg { flex: 0 0 auto; }
+.category-chips .category-add { color: var(--script-support); border-style: dashed; }
+.category-picker { padding: 12px; background: var(--control-fill); border: 1px solid var(--script-rule); border-radius: 8px; }
+.category-picker > label, .category-new > label { display: grid; gap: 6px; }
+.category-picker input:not([type=checkbox]), .category-picker textarea, .category-name-form input, .category-name-form textarea {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px;
+  color: var(--script-ink); font: inherit; font-size: 16px;
+  background: var(--script-surface); border: 1px solid var(--control-rule); border-radius: 7px;
+}
+.category-options { display: grid; max-height: 240px; overflow-y: auto; overscroll-behavior: contain; }
+.category-options > label, .simple-card-dialog-fields .category-options > label {
+  display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px 0; cursor: pointer;
+}
+.category-options input[type=checkbox], .simple-card-dialog-fields .category-options input[type=checkbox] {
+  flex: 0 0 20px; width: 20px; height: 20px; min-height: 20px; margin: 2px 0 0; accent-color: var(--cue-light);
+}
+.category-options label > span { display: grid; min-width: 0; gap: 3px; color: var(--script-ink); overflow-wrap: anywhere; }
+.category-options strong { font-size: 15px; font-weight: 600; }
+.category-options small, .category-picker > small { color: var(--script-support); font-size: 12px; line-height: 1.45; }
+.category-picker-actions, .card-topic-field > div { justify-content: space-between; }
+.card-topic-field strong { min-width: 0; flex: 1; font-weight: 500; overflow-wrap: anywhere; }
+.category-error { color: var(--script-ink); font-size: 14px; line-height: 1.5; }
+.category-error button { min-height: 44px; margin-left: 6px; }
+.collection-tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--script-rule); }
+.collection-tabs button { min-height: 44px; padding: 10px 14px; color: var(--script-support); background: transparent; border: 0; border-bottom: 2px solid transparent; font: inherit; }
+.collection-tabs button[aria-current] { color: var(--script-ink); border-bottom-color: var(--cue-light); }
+.category-browser { list-style: none; padding: 0; margin: 0; }
+.category-browser li + li { border-top: 1px solid var(--script-rule); }
+.category-browser button { display: flex; width: 100%; align-items: center; gap: 12px; min-height: 60px; padding: 14px 0;
+  color: var(--script-ink); background: transparent; border: 0; text-align: left; font: inherit; }
+.category-browser strong { flex: 1; min-width: 0; font-weight: 580; overflow-wrap: anywhere; }
+.category-browser span { color: var(--script-support); font-size: 14px; }
+.categories-manager .topics-flow-header h2 { overflow-wrap: anywhere; }
+.category-name-form .simple-primary { justify-self: start; }
+.practice-set-group { padding: 18px 12px 5px; color: var(--script-support); font-size: 12px; font-weight: 500; }
+.topic-progress-options strong { overflow-wrap: anywhere; }
+.card-actions-menu { position: fixed; z-index: 1500; display: grid; min-width: 170px; max-width: calc(100vw - 16px); padding: 5px;
+  background: var(--script-surface); border: 1px solid var(--script-rule-strong); border-radius: 8px; box-shadow: 0 8px 30px color-mix(in srgb, var(--rh-ink) 18%, transparent); }
+.card-actions-menu button { display: flex; gap: 8px; align-items: center; min-height: 44px; padding: 10px; text-align: left;
+  color: var(--script-ink); background: transparent; border: 0; font: inherit; font-size: 14px; border-radius: 7px; }
+.card-actions-menu button:focus-visible { outline: 2px solid var(--cue-light); outline-offset: -2px; }
+.card-actions-menu button:hover { background: var(--control-fill); }
+.card-actions-menu .topic-danger { color: var(--retry); }
+@media (max-width: 480px) {
+  .simple-card-dialog-fields input, .simple-card-dialog-fields select { font-size: 16px; }
+  .simple-card-dialog footer { flex-wrap: wrap; gap: 6px; }
+  .simple-card-dialog footer > div { margin-left: auto; }
+  .simple-card-dialog footer button { min-height: 44px; }
+  .category-picker { padding: 10px; }
+}

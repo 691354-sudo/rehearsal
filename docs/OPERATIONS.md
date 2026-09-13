@@ -134,6 +134,19 @@ CONFIRM_DELETE_ORPHANS=roman:<preview-count> npm run db:delete-orphans -- --prof
 
 The command deletes only cards with no `island_items` membership and finishes with SQLite foreign-key and quick checks.
 
+## Reviewed learning-category assignments
+
+Migration 013 is additive and creates no profile-specific categories. Its previous application release can still read cards, Topics and FSRS. Apply personal classification separately, from a reviewed JSON assignment file kept outside Git; a dry run never opens the database for writes or installs schema migrations.
+
+```sh
+npm run db:assign-categories -- --profile roman --input /absolute/path/assignments.json --dry-run
+CONFIRM_CATEGORY_ASSIGNMENT=roman:<printed-hash-prefix> npm run db:assign-categories -- --profile roman --input /absolute/path/assignments.json
+```
+
+The command resolves a registered profile, checks every card ID, expected target and supplied Core, validates Topic ownership and destinations, and prints counts plus a confirmation tied to that exact plan. Before mutation it creates a fresh mode-0600 SQLite backup and verifies quick and foreign-key checks. Application uses one immediate transaction, compares every card row and its attempt/FSRS history before and after, verifies database integrity, and records an idempotency marker. A stale assignment or a source Topic with an unlisted card fails before any partial conversion. Do not include Tutor conversations, Notebook source text, credentials or runtime databases in an assignment report.
+
+A Topic-to-category conversion reuses the old set public ID, adds a persistent redirect, moves each original card to a reviewed context Topic and deletes only the empty source shell. Keep the exact assignment file and verified backup until the learner has checked the result. Code rollback preserves cards and categories; rolling back the personal classification is a separate data operation requiring the normal selective restore decision.
+
 ## Curated Library replacement
 
 A validated JSON import may replace one profile-and-language Library without touching the other language, Tutor chats, Capture notes, or the other profile. Always create and verify the profile backups first, preview the exact counts, and then use the matching confirmation value:

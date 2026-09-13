@@ -1,4 +1,4 @@
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { CardActions } from "./CardActions";
 import type { Language, LearningItem } from "../../shared/contracts";
 import { FocusedText } from "../progress/FocusedText";
 import { LearningProgressBadge } from "../progress/LearningProgress";
@@ -18,13 +18,8 @@ export function TopicCards({ items, language, selected, onToggle, onEdit, onDele
       onChange={() => onToggle?.(item.publicId)} /></label> : null}
     <div className="topic-card-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><span lang="ru">{item.cue}</span></div>
     <footer><div>{sources?.[item.publicId] ? <small>From {sources[item.publicId]}</small> : null}<LearningProgressBadge progress={item.progress} /></div>
-      {!selected ? <details className="topic-actions" onKeyDown={(event) => {
-        if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); }
-      }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}>
-        <summary aria-label={`More actions for ${item.target}`}><MoreHorizontal aria-hidden="true" size={18} /></summary>
-        <div><button disabled={disabled} onClick={(event) => { event.currentTarget.closest("details")!.open = false; onEdit?.(item.publicId); }} type="button"><Pencil size={16} />Edit</button>
-          <button className="topic-danger" disabled={disabled} onClick={() => onDelete?.(item.publicId)} type="button"><Trash2 size={16} />Delete</button></div>
-      </details> : null}
+      {!selected && onEdit ? <CardActions target={item.target} disabled={disabled} onEdit={() => onEdit(item.publicId)}
+        onDelete={onDelete ? () => onDelete(item.publicId) : undefined} /> : null}
     </footer>
   </article>)}</div>;
 }
