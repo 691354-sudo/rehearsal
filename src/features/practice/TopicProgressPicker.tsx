@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { IslandSummary } from "../../shared/contracts";
@@ -56,27 +57,30 @@ export function TopicProgressPicker({ onChange, progressPill = false, topics, va
   };
   return <div className="topic-progress-picker" ref={rootRef}>
     <button aria-controls={listboxId} aria-expanded={open} aria-haspopup="listbox"
-      aria-label={selected ? `Topic: ${selected.title}, ${selected.progress.dueNow} due, ${selected.progress.new} not recalled yet` : "Topic: All Topics"}
+      aria-label={selected ? `Practice set: ${selected.title}, ${selected.progress.dueNow} due, ${selected.progress.new} not recalled yet` : value ? "Selected set unavailable" : "Practice set: All cards"}
       className="topic-progress-trigger" onClick={() => setOpen((shown) => !shown)} ref={triggerRef} type="button">
-      <span className="topic-progress-trigger-copy"><strong>{selected?.title || "All Topics"}</strong>{selected && !progressPill ? <small>{selected.progress.dueNow} due · {selected.progress.new} not recalled yet</small> : null}</span>
+      <span className="topic-progress-trigger-copy"><strong>{selected?.title || (value ? "Selected set" : "All cards")}</strong>{selected && !progressPill ? <small>{selected.progress.dueNow} due · {selected.progress.new} not recalled yet</small> : null}</span>
       <span className="topic-progress-trigger-end">
         {selected && progressPill ? <small aria-hidden="true" className="topic-progress-trigger-count">{selected.progress.dueNow} · {selected.progress.new}</small> : null}
         <ChevronDown aria-hidden="true" size={15} />
       </span>
     </button>
-    {open ? <div aria-label="Topic" className="topic-progress-options" id={listboxId} onBlur={() => {
+    {open ? <div aria-label="Practice set" className="topic-progress-options" id={listboxId} onBlur={() => {
       window.requestAnimationFrame(() => {
         if (!rootRef.current?.contains(document.activeElement)) setOpen(false);
       });
     }} onKeyDown={navigate} role="listbox">
       <button aria-selected={!value} onClick={() => choose("")} role="option" type="button">
-        <span><strong>All Topics</strong><small>{topics.length} topics</small></span>{!value ? <Check aria-hidden="true" size={15} /> : null}
+        <span><strong>All cards</strong><small>All topics and categories</small></span>{!value ? <Check aria-hidden="true" size={15} /> : null}
       </button>
-      {topics.map((topic) => <button aria-selected={topic.publicId === value} key={topic.publicId}
+      {topics.map((topic, index) => <Fragment key={topic.publicId}>
+        {topic.publicId.startsWith("category:") && !topics[index - 1]?.publicId.startsWith("category:") ? <div className="practice-set-group" role="presentation">Learning categories</div> : null}
+        {topic.publicId !== "liked" && !topic.publicId.startsWith("category:") && (!index || topics[index - 1]?.publicId === "liked" || topics[index - 1]?.publicId.startsWith("category:")) ? <div className="practice-set-group" role="presentation">Topics</div> : null}
+        <button aria-selected={topic.publicId === value} key={topic.publicId}
         onClick={() => choose(topic.publicId)} role="option" type="button">
         <span><strong>{topic.title}</strong><TopicProgress progress={topic.progress} /></span>
         {topic.publicId === value ? <Check aria-hidden="true" size={15} /> : null}
-      </button>)}
+      </button></Fragment>)}
     </div> : null}
   </div>;
 }

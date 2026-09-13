@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
-import { ChevronRight, Pencil, Settings2, Volume2, X } from "lucide-react";
+import { ChevronRight, Settings2, Volume2, X } from "lucide-react";
 import type { Homework, PilotAttemptGrade, PilotCard } from "../../../contracts/learning-pilot";
 import type { ReviewRating } from "../../../contracts/api";
 import type { PracticePage } from "../practice/PracticePage";
 import { defaultTutorRoute, navigate } from "../../lib/appRoute";
+import { CardActions } from "../library/CardActions";
+import { practiceSetValue } from "../practice/practiceSet";
 import { TopicProgressPicker } from "../practice/TopicProgressPicker";
 import { PracticeQueuePreview } from "../practice/PracticeQueuePreview";
 import { PlaybackSettings } from "../practice/PlaybackSettings";
@@ -16,18 +18,22 @@ import { HomeworkFeedback } from "./HomeworkFeedback";
 import type { RecallCheck } from "../../../contracts/recall-check";
 import { PilotRecallAnswer } from "./PilotRecallAnswer";
 
-type RecallRun = { selectedIds: string[]; completed: number; current: PilotCard | null;
+type RecallRun = { scopeKey?: string; selectedIds: string[]; completed: number; current: PilotCard | null;
   attemptId: string; shownAt: string; revealedAt: string | null; answer: string; begun: boolean;
   submission?: PilotAttemptGrade; check?: RecallCheck };
 const ratings: ReviewRating[] = ["again", "hard", "good", "easy"];
-export function PilotRecall({ props, topics, onTopic, onEdit }: {
+export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedIds, revision }: {
   props: ComponentProps<typeof PracticePage>; topics: IslandSummary[];
-  onTopic: (id: string) => void; onEdit: (item: LearningItem) => void;
+  onTopic: (id: string) => void; onEdit: (item: LearningItem) => void; onDelete: (item: LearningItem) => void; deletedIds: string[]; revision: number;
 }) {
   const pilot = usePilot();
   const homeworkId = props.route.homework;
   const key = `rehearsal:${pilot.profileId}:en:recall:${homeworkId || "standalone"}`;
-  const [run, setRunState] = useState<RecallRun | null>(() => JSON.parse(localStorage.getItem(key) || "null"));
+  const scopeKey = homeworkId || practiceSetValue(props.route);
+  const [run, setRunState] = useState<RecallRun | null>(() => {
+    const saved = JSON.parse(localStorage.getItem(key) || "null") as RecallRun | null;
+    return saved && (saved.scopeKey ?? "") === scopeKey ? saved : null;
+  });
   const [queue, setQueue] = useState<PilotCard[]>([]);
   const [homework, setHomework] = useState<Homework | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(true);
@@ -41,13 +47,13 @@ export function PilotRecall({ props, topics, onTopic, onEdit }: {
     homework?.settingsSnapshot.idleTimeoutSeconds ?? pilot.settings?.idleTimeoutSeconds ?? 120);
   const time = useHomeworkTime(homework, "recall", active);
   const persist = (next: RecallRun | null) => {
-    if (next) localStorage.setItem(key, JSON.stringify(next)); else localStorage.removeItem(key);
+    if (next) localStorage.setItem(key, JSON.stringify({ ...next, scopeKey })); else localStorage.removeItem(key);
     setRunState(next);
   };
   const loadQueue = async () => {
     const params = new URLSearchParams({ language: "en", timezone: browserTimezone() });
     if (homeworkId) params.set("homeworkId", homeworkId);
-    else { if (props.route.topic) params.set("topicId", props.route.topic); if (props.route.cards !== "all") params.set("limit", props.route.cards); }
+    else { if (props.route.category) params.set("categoryId", props.route.category); else if (props.route.topic) params.set("topicId", props.route.topic); if (props.route.cards !== "all") params.set("limit", props.route.cards); }
     const result = await pilotRequest<{ items: PilotCard[] }>(pilot.profileId, `/queue?${params}`);
     const items = props.route.review ? result.items.filter((item) => item.publicId === props.route.review) : result.items;
     setQueue(items); return items;
@@ -60,7 +66,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit }: {
     } catch (caught) { setError(pilotErrorMessage(caught)); }
     finally { setLoading(false); }
   };
-  useEffect(() => { void load(); }, [homeworkId, props.route.topic, props.route.cards, props.route.review]);
+  useEffect(() => { void load(); }, [homeworkId, props.route.topic, props.route.category, props.route.cards, props.route.review, revision]);
   useEffect(() => {
     const latest = props.items.find((item) => item.publicId === run?.current?.publicId);
     if (latest && run?.current && (latest.target !== run.current.target || latest.cue !== run.current.cue)) {
@@ -84,6 +90,16 @@ export function PilotRecall({ props, topics, onTopic, onEdit }: {
   const nextCard = (current: PilotCard | null, selectedIds: string[], completed: number): RecallRun => ({
     current, selectedIds, completed, attemptId: crypto.randomUUID(), shownAt: new Date().toISOString(), revealedAt: null, answer: "", begun: false,
   });
+  useEffect(() => {
+    setQueue((before) => before.filter((card) => !deletedIds.includes(card.publicId)));
+    if (!run || !run.selectedIds.some((id) => deletedIds.includes(id))) return;
+    const selectedIds = run.selectedIds.filter((id) => !deletedIds.includes(id));
+    if (!run.current || !deletedIds.includes(run.current.publicId)) { persist({ ...run, selectedIds }); return; }
+    // Removing a card advances the run without submitting or counting a grade.
+    const next = queue.find((card) => selectedIds.includes(card.publicId));
+    if (next) void begin(nextCard(next, selectedIds, run.completed));
+    else persist({ ...nextCard(null, selectedIds, run.completed) });
+  }, [deletedIds]);
   const start = () => { if (queue.length && !busy) void begin(nextCard(queue[0], queue.map((card) => card.publicId), 0)); };
   useEffect(() => {
     if (homework?.status === "recall_in_progress" && !loading && !busy && !run && !error && queue.length) start();
@@ -146,12 +162,12 @@ export function PilotRecall({ props, topics, onTopic, onEdit }: {
   if (!run) return <div className="practice-ready-layout">
     {homework ? <div className="pilot-homework-heading"><strong>Homework</strong><button onClick={exit} type="button">End session</button></div> : null}
     <section className="recall-setup" aria-label="Recall setup"><div className="recall-setup-fields">
-      {!homework ? <><div className="practice-topic-field"><TopicProgressPicker onChange={onTopic} progressPill topics={topics} value={props.route.topic} /></div>
+      {!homework ? <><div className="practice-topic-field"><TopicProgressPicker onChange={onTopic} progressPill topics={topics} value={practiceSetValue(props.route)} /></div>
         <select aria-label="Practice cards" className="practice-card-select" value={props.route.cards} onChange={(event) => props.onRoute({ ...props.route, cards: event.target.value as "all" | "10" | "20" | "50" }, "replace")}>
           <option value="all">All recommended</option><option value="10">10 recommended</option><option value="20">20 recommended</option><option value="50">50 recommended</option></select></> : null}
       <button className="simple-primary recall-start" disabled={loading || busy || !queue.length} onClick={start} type="button">{loading ? "Loading cards…" : `Start ${queue.length} ${queue.length === 1 ? "card" : "cards"}`}<ChevronRight size={16} aria-hidden="true" /></button>
     </div></section>{failure}
-    {!loading ? <PracticeQueuePreview items={queue} language="en" mode="recall" scope="due" onEdit={onEdit}
+    {!loading ? <PracticeQueuePreview items={queue} language="en" mode="recall" scope="due" onEdit={onEdit} onDelete={onDelete}
       onPlay={(item) => props.onPlay(item.target, props.playback)} emptyAction={<span>New cards are ready after five listens. Like a phrase to discuss it with Tutor.</span>} /> : null}
     {homework && !loading && !queue.length ? <button className="simple-primary" onClick={() => void homeworkAction("return")} type="button">Return to Tutor</button> : null}
   </div>;
@@ -161,7 +177,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit }: {
   </section>;
   return <section className="recall-session pilot-recall" aria-label="Active Recall" onKeyDown={keyDown}>
     <header><span>{homework ? "Homework · " : ""}{run.completed + 1} / {homework?.plannedRecallCards ?? run.completed + run.selectedIds.length}</span>
-      <div className="recall-session-utilities pilot-recall-utilities"><button aria-label="Edit card" onClick={() => onEdit(run.current!)} type="button"><Pencil size={18} aria-hidden="true" /></button>
+      <div className="recall-session-utilities pilot-recall-utilities"><CardActions target={run.current.target} disabled={busy || Boolean(run.submission)} onEdit={() => onEdit(run.current!)} onDelete={() => onDelete(run.current!)} />
         <button aria-label="Voice settings" aria-expanded={showSettings} onClick={() => setShowSettings(!showSettings)} type="button"><Settings2 size={18} aria-hidden="true" /></button>
         <button aria-label="End session" disabled={busy || Boolean(run.submission)} onClick={exit} type="button"><X size={18} aria-hidden="true" /></button></div></header>
     {showSettings ? <PlaybackSettings elevenLabs={props.elevenLabs} language="en" onPlayback={props.onPlayback} playback={props.playback} voices={props.voices} /> : null}

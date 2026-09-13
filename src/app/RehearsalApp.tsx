@@ -300,7 +300,7 @@ export function RehearsalApp({
       onAnswer={learning.setAnswer} onCheck={learning.checkAnswer} onListened={learning.commitListening}
       onModeSelected={learning.resetAttempts}
       onPilotUpdated={() => { void learning.loadItems(language); }}
-      onItemUpdated={learning.updateItem}
+      onItemDeleted={learning.removeItem} onItemUpdated={learning.updateItem}
       onRoute={(next, historyMode) => { goTo(next, historyMode); learning.resetAttempts(); }} onRecallReview={learning.commitRecall}
       onPracticeEnabled={learning.updatePracticeEnabled}
       onPausePlayback={audio.pausePlayback} onPlay={audio.playTarget} onPlayback={audio.updatePlayback}

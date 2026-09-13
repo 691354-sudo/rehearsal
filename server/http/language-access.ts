@@ -16,7 +16,8 @@ const resourceLanguage = (
   const body = recordOf(request.body);
   const lookups = [
     ["item", params.itemId ?? body.itemId],
-    ["island", params.islandId],
+    ["island", params.islandId ?? body.topicId],
+    ["learningCategory", params.categoryId],
     ["thread", params.threadId ?? body.threadId],
     ["reviewBatch", params.batchId],
     ["capture", params.captureId],

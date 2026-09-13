@@ -42,7 +42,7 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
   app.get("/api/pilot/queue", async (request) => {
     const { repository } = dependencies.forRequest(request);
     const query = z.object({ language, limit: z.coerce.number().int().min(1).max(100_000).optional(),
-      timezone: timezone.optional(), topicId: z.string().min(1).max(100).optional(), homeworkId: id.optional() }).parse(request.query);
+      categoryId: z.string().uuid().optional(), timezone: timezone.optional(), topicId: z.string().min(1).max(100).optional(), homeworkId: id.optional() }).parse(request.query);
     return { items: repository.pilot.queue.list(query) };
   });
   app.get("/api/pilot/cards/:cardId", async (request) => {

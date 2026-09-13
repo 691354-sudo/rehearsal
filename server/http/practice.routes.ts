@@ -12,12 +12,14 @@ export const registerPracticeRoutes = (app: FastifyInstance, dependencies: HttpD
     const query = z.object({
       language: languageSchema.default("en"),
       limit: z.coerce.number().int().min(1).max(2_000).default(2_000),
+      topicId: z.string().min(1).max(100).optional(),
+      categoryId: z.string().uuid().optional(),
       newLimit: z.coerce.number().int().min(0).max(30).optional(),
       timezone: z.string().max(100).optional(),
     }).parse(request.query);
     const newLimit = query.newLimit ?? repository.practice.getSettings().newItemsPerDay;
-    const items = query.language === "en" ? repository.pilot.queue.list({ limit: query.limit })
-      : repository.practice.listDue(query.language, query.limit, new Date(), newLimit);
+    const items = query.language === "en" ? repository.pilot.queue.list(query)
+      : repository.practice.listDue(query.language, query.limit, new Date(), newLimit, query);
     const fresh = items.filter((item) => item.progress.stage === "new").length;
     return { items, composition: { due: items.length - fresh, new: fresh } };
   });

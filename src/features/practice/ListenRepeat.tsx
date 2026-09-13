@@ -34,6 +34,8 @@ export function ListenRepeat(props: {
   onListened: (itemId: string) => Promise<void>;
   recommended: { due: number; new: number };
   onEdit: (item: LearningItem) => void;
+  onDelete?: (item: LearningItem) => void;
+  deletedIds?: string[];
   onPause: () => void;
   onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
   onPlayPrepared: (url: string, repetitions: number, onFirstCompleted?: () => void) => Promise<number>;
@@ -87,7 +89,7 @@ export function ListenRepeat(props: {
     setShuffleEnabled(shuffled); originalQueueIds.current = originalIds;
     queueRef.current = restored; setQueue(restored); setIndex(position); setPhase("player");
     pausedRef.current = true; replayEditedRef.current = true; setStatus("paused");
-  });
+  }, props.topicId);
   playbackRef.current = props.playback;
   queueRef.current = queue;
   repeatModeRef.current = repeatMode;
@@ -108,7 +110,7 @@ export function ListenRepeat(props: {
     props.order,
     props.recommended.new,
   ), [countValue, props.dueItemIds, props.items, props.order, props.recommended.new, props.scope, props.selectedTopicItems]);
-  const visibleCandidates = shuffledCandidates || candidates;
+  const visibleCandidates = (shuffledCandidates || candidates).filter((item) => !props.deletedIds?.includes(item.publicId));
   const visibleComposition = visibleCandidates.reduce((composition, item) => item.progress.stage === "new"
     ? { ...composition, new: composition.new + 1 }
     : { ...composition, due: composition.due + 1 }, { due: 0, new: 0 });
@@ -119,7 +121,7 @@ export function ListenRepeat(props: {
   ) || compatibleElevenLabsVoices[0] || { id: "", name: "No compatible voice" };
   const selectedVoiceName = voiceDisplayName(props.playback.provider === "elevenlabs"
     ? selectedElevenLabsVoice.name : props.playback.voice);
-  const selectedTopicName = props.topics.find((topic) => topic.publicId === props.topicId)?.title || "All Topics";
+  const selectedTopicName = props.topics.find((topic) => topic.publicId === props.topicId)?.title || (props.topicId ? "Selected set" : "All cards");
   const playbackSettings = <PlaybackSettings elevenLabs={props.elevenLabs} language={props.language}
     onPlayback={props.onPlayback} playback={props.playback} voices={props.voices} />;
   const bufferKey = (item: LearningItem, playback: PlaybackPreferences) =>
@@ -369,6 +371,20 @@ export function ListenRepeat(props: {
     if (phase === "setup" && !originalQueueIds.current.length) { setShuffledCandidates(null); setShuffleEnabled(false); }
   }, [candidates]);
   useEffect(() => {
+    const removed = new Set(props.deletedIds || []);
+    const previous = queueRef.current;
+    if (!previous.some((item) => removed.has(item.publicId))) return;
+    const nextQueue = previous.filter((item) => !removed.has(item.publicId));
+    runRef.current += 1; pausedRef.current = true; replayEditedRef.current = true;
+    props.onStop(); cancelPreparation(true);
+    const nextIndex = Math.max(0, Math.min(index - previous.slice(0, index).filter((item) => removed.has(item.publicId)).length, nextQueue.length - 1));
+    queueRef.current = nextQueue; setQueue(nextQueue); setIndex(nextIndex); setStatus("paused");
+    originalQueueIds.current = originalQueueIds.current.filter((id) => !removed.has(id));
+    appearances.setOrder(nextQueue, nextIndex, shuffleEnabled);
+    if (!nextQueue.length) stop();
+    else void beginPreparation(nextQueue, playbackRef.current, nextQueue[nextIndex]).catch(() => undefined);
+  }, [props.deletedIds]);
+  useEffect(() => {
     if (!queueRef.current.length) return;
     const latestItems = new Map(props.items.map((item) => [item.publicId, item]));
     const nextQueue = queueRef.current.map((item) => latestItems.get(item.publicId) || item);
@@ -422,7 +438,7 @@ export function ListenRepeat(props: {
   </section>;
 
   return <ListenPlayerSurface current={current} editActive={props.editActive} error={error} index={index} language={props.language} note={note}
-    onEdit={editCurrent} onExit={stop} onNext={next} onPause={pause} onPrevious={previous} onReplay={replay} onResume={resume}
+    onEdit={editCurrent} onDelete={props.onDelete ? () => props.onDelete?.(current) : undefined} onExit={stop} onNext={next} onPause={pause} onPrevious={previous} onReplay={replay} onResume={resume}
     onRetryPreparation={() => { void beginPreparation(queue, playbackRef.current, current).catch(() => undefined); }}
     onShuffle={shuffle} onToggleRepeat={cycleRepeat} onToggleRussian={() => setShowRussian((shown) => !shown)}
     onToggleSettings={() => setShowPlaybackSettings((shown) => !shown)} playback={props.playback} playbackSettings={playbackSettings}

@@ -2,9 +2,10 @@ import type { RehearsalDatabase } from "../database.js";
 import { languageCatalog, type LanguageCode, type LanguageOption } from "../../../contracts/api.js";
 
 type LanguageRow = { code: LanguageCode; name: string; locale: string; enabled: number };
-type LanguageResource = "item" | "island" | "thread" | "reviewBatch" | "capture";
+type LanguageResource = "learningCategory" | "item" | "island" | "thread" | "reviewBatch" | "capture";
 
 const resourceTables: Record<LanguageResource, string> = {
+  learningCategory: "learning_categories",
   item: "items",
   island: "islands",
   thread: "chat_threads",

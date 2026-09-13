@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Pencil, Volume2 } from "lucide-react";
+import { CardActions } from "../library/CardActions";
+import { Volume2 } from "lucide-react";
 import type { ReviewRating } from "../../lib/sessionQueue";
 import { recallItemIdsAfter } from "../../lib/recallSession";
 import type { AttemptDraft, Language, LearningItem } from "../../shared/contracts";
@@ -20,6 +21,7 @@ export function PracticeQueuePreview(props: {
   onAnswer?: (itemId: string, value: string) => void;
   onCheck?: (itemId: string) => void;
   onEdit: (item: LearningItem) => void;
+  onDelete?: (item: LearningItem) => void;
   onListened?: (itemId: string) => Promise<void>;
   onPlay: (item: LearningItem) => Promise<unknown>;
   onRecallReview?: (itemId: string, rating: ReviewRating) => Promise<boolean>;
@@ -60,7 +62,7 @@ export function PracticeQueuePreview(props: {
         </div>
         <div className="practice-queue-side"><div className="practice-queue-actions">
             {languageHasAudio(props.language) ? <button aria-label={`Play ${item.target}`} onClick={() => void playManually(item)} title="Play" type="button"><Volume2 size={15} /></button> : null}
-            <button aria-label={`Edit ${item.target}`} onClick={() => props.onEdit(item)} title="Edit" type="button"><Pencil size={15} /></button>
+            <CardActions target={item.target} onEdit={() => props.onEdit(item)} onDelete={props.onDelete ? () => props.onDelete?.(item) : undefined} />
           </div><LearningProgressBadge progress={item.progress} /></div>
       </li>)}
     </ol> : <div className="practice-queue-empty"><span>{props.scope === "due" ? "Nothing recommended right now." : "No matching cards."}</span>{props.emptyAction}</div>}

@@ -36,7 +36,15 @@ export const schedulerSettingsSchema = z.object({
   newItemsPerDay: z.number().int().min(0).max(30).default(10),
 }) satisfies z.ZodType<SchedulerSettings>;
 
+export const cardCategoriesShape = {
+  learningCategoryIds: z.array(z.string().uuid()).max(100).optional(),
+  newLearningCategories: z.array(z.object({
+    publicId: z.string().uuid(), title: nfcText(200), description: z.string().trim().max(2_000),
+  })).max(20).optional(),
+};
+
 export const itemBodySchema = z.object({
+  ...cardCategoriesShape,
   language: languageSchema,
   target: nfcText(2_000),
   cue: z.string().trim().min(1).max(2_000),
@@ -48,6 +56,8 @@ export const itemBodySchema = z.object({
 });
 
 export const reviewCandidateSelectionSchema = z.object({
+  ...cardCategoriesShape,
+  focusTerms: z.array(nfcText(100)).max(8).optional(),
   id: z.string().uuid(),
   target: nfcText(2_000),
   cue: z.string().trim().min(1).max(2_000),

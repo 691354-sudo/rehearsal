@@ -5,6 +5,7 @@ import { config } from "../config.js";
 import { schema } from "./schema.js";
 import { migrateLearningPilot } from "./pilot-schema.js";
 import { migrateTutorLearningFocus } from "./tutor-learning-focus-schema.js";
+import { migrateLearningCategories } from "./learning-categories-schema.js";
 
 const migrateReviewBatches = (db: Database.Database) => {
   const row = db.prepare(
@@ -274,6 +275,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "010-ai-usage-events", run: migrateAiUsageEvents },
   { id: "011-learning-pilot", run: migrateLearningPilot },
   { id: "012-tutor-learning-focus", run: migrateTutorLearningFocus },
+  { id: "013-learning-categories", run: migrateLearningCategories },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {

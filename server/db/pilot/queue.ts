@@ -1,3 +1,4 @@
+import { cardScopeSql } from "../card-scope.js";
 import type { Island } from "../../../contracts/api.js";
 import { likedTopicId, type PilotCard, type PilotSettings } from "../../../contracts/learning-pilot.js";
 import { cardFromStoredState, normalizeSchedulerSettings, previewReview } from "../../services/scheduler.js";
@@ -5,7 +6,7 @@ import { mapItemWithProgress, mapJoinedReviewState, type DueItemRow } from "../r
 import { localDay, PilotStore } from "./store.js";
 
 type QueueRow = DueItemRow & { first_recall: string | null; success_count: number; recall_eligible_at: string | null };
-export type PilotQueueInput = { limit?: number; timezone?: string; topicId?: string; homeworkId?: string; excludeIds?: string[]; cardId?: string };
+export type PilotQueueInput = { limit?: number; timezone?: string; topicId?: string; categoryId?: string; homeworkId?: string; excludeIds?: string[]; cardId?: string };
 const selection = `SELECT i.*,
   r.due_at AS review_due_at, r.stability AS review_stability, r.difficulty AS review_difficulty,
   r.elapsed_days AS review_elapsed_days, r.scheduled_days AS review_scheduled_days,
@@ -13,7 +14,7 @@ const selection = `SELECT i.*,
   r.lapses AS review_lapses, r.state AS review_state, r.last_review AS review_last_review,
   COALESCE(a.recall_count, 0) AS recall_count, COALESCE(p.listen_count, 0) AS listen_count,
   a.first_recall, COALESCE(a.success_count, 0) AS success_count, p.recall_eligible_at
-  FROM items i LEFT JOIN review_state r ON r.item_id = i.id
+  FROM learning_items i LEFT JOIN review_state r ON r.item_id = i.id
   LEFT JOIN pilot_card_progress p ON p.card_id = i.public_id
   LEFT JOIN (SELECT item_id, COUNT(*) AS recall_count, MIN(created_at) AS first_recall,
     SUM(verdict IN ('hard', 'good', 'easy')) AS success_count
@@ -70,11 +71,10 @@ export class PilotQueue {
       scope += " AND i.public_id NOT IN (SELECT value FROM json_each(?))";
       parameters.push(JSON.stringify(input.excludeIds));
     }
-    if (input.topicId === likedTopicId) scope += " AND i.preference = 'like'";
-    else if (input.topicId) {
-      scope += ` AND EXISTS (SELECT 1 FROM island_items ii JOIN islands t ON t.id = ii.island_id
-        WHERE ii.item_id = i.id AND t.public_id = ? AND t.language_code = 'en')`;
-      parameters.push(input.topicId);
+    if (!homework) {
+      const selected = cardScopeSql(this.store.db, "en", input);
+      scope += selected.sql;
+      parameters.push(...selected.parameters);
     }
     if (homework) {
       scope += ` AND i.public_id IN (SELECT value FROM json_each(?))

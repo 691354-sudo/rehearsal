@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronDown, LoaderCircle, RefreshCw, Shuffle, WandSparkles } from "lucide-react";
+import { focusTermsInTarget } from "../../../contracts/text";
+import { LearningCategoriesField } from "../library/LearningCategoriesField";
+import { initialCategoryDraft, selectedCategoryDraft } from "../library/cardCategoryDraft";
 import type { Language } from "../../shared/contracts";
 import type { ReviewCandidate } from "./ReviewBatchPanel";
 
@@ -33,8 +36,14 @@ export function ReviewAdjustment({ candidate, language, comment, regenerating, n
   const fields = <div className="simple-review-adjustment">
             <label><span>Target sentence</span><textarea aria-label="Target phrase" autoComplete="off" lang={language} name={`review-target-${candidate.id}`} onChange={(event) => onUpdate({ target: event.target.value })} rows={2} value={candidate.target} /></label>
             <label><span>Russian cue</span><textarea aria-label="Russian cue" autoComplete="off" lang="ru" name={`review-cue-${candidate.id}`} onChange={(event) => onUpdate({ cue: event.target.value })} rows={2} value={candidate.cue} /></label>
+            <label><span>Core</span><input aria-label="Core" name={`review-core-${candidate.id}`} autoComplete="off" value={candidate.focusTerms[0] || ""}
+              onChange={(event) => onUpdate({ focusTerms: event.target.value.trim() ? [event.target.value] : [] })} />
+              <small>Optional · exact words in the target sentence.</small>
+              {!focusTermsInTarget(candidate.target, candidate.focusTerms) ? <small role="status">Core must appear exactly in the target sentence.</small> : null}</label>
+            <LearningCategoriesField language={language} value={initialCategoryDraft(candidate)}
+              onChange={(value) => onUpdate(selectedCategoryDraft(value))} disabled={Boolean(regenerating)} />
             <details className="simple-review-alternatives" open={mobile ? undefined : true}><summary>Topic &amp; AI alternatives<ChevronDown aria-hidden="true" size={16} /></summary>
-            <label><span>Topic</span><input aria-label="Category" autoComplete="off" name={`review-category-${candidate.id}`} onChange={(event) => onUpdate({ category: event.target.value })} value={candidate.category} /></label>
+            <label><span>Topic</span><input aria-label="Topic" autoComplete="off" name={`review-category-${candidate.id}`} onChange={(event) => onUpdate({ category: event.target.value })} value={candidate.category} /></label>
             <textarea aria-label="Comment for card"
               autoComplete="off" className="simple-review-comment" name={`review-comment-${candidate.id}`} onChange={(event) => {
                 onComment(event.target.value);

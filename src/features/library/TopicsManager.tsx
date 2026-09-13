@@ -150,7 +150,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
     finally { setSaving(false); }
   };
   const deleteCards = async (ids: string[]) => {
-    if (!topic || !ids.length || saving || !window.confirm(`Delete ${cardCount(ids.length)} from Library and their review history?`)) return;
+    if (!topic || !ids.length || saving || !window.confirm(`Delete ${cardCount(ids.length)} from Library, all categories and their review history?`)) return;
     setSaving(true); setError("");
     try {
       const response = await apiFetch("/api/items", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemIds: ids }) });
@@ -207,7 +207,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
           <p className="topic-meta">{screen === "rename" ? "Cards and practice history stay with this Topic." : "You can add or move cards after creating the Topic."}</p>
           {duplicate ? <p id="topic-duplicate" role="status">A Topic with this name already exists. <button type="button" onClick={() => void openTopic(duplicate.publicId)}>Open topic</button></p> : null}
         </form> : null}
-        {screen === "detail" && topic?.publicId === "liked" ? <LikedTopicDetail topic={topic} visibleCount={visibleCount} onMore={() => setVisibleCount((count) => count + 20)} onEdit={onEdit} /> : null}
+        {screen === "detail" && topic?.publicId === "liked" ? <LikedTopicDetail topic={topic} visibleCount={visibleCount} onMore={() => setVisibleCount((count) => count + 20)} onEdit={onEdit} onDelete={(id) => void deleteCards([id])} /> : null}
         {screen === "detail" && topic && topic.publicId !== "liked" ? <>
           <h3>{topic.title}</h3><p className="topic-meta">{cardCount(topic.items.length)}</p>
           <div className="topic-toolbar">{selecting ? <><label><input type="checkbox" checked={Boolean(topic.items.length) && selected.size === topic.items.length} disabled={saving}

@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { HttpDependencies } from "./dependencies.js";
 import { aiLimits } from "../services/ai-limits.js";
 import { audioUploadExtension } from "./audio-upload.js";
-import { languageSchema, reviewCandidateSelectionSchema } from "./schemas.js";
+import { cardCategoriesShape, languageSchema, reviewCandidateSelectionSchema } from "./schemas.js";
 
 const reviewResolutionSchema = z.object({
   accepted: z.array(reviewCandidateSelectionSchema).max(100),
@@ -228,6 +228,8 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const body = z.object({
       feedback: z.string().trim().min(1).max(1_000),
       candidate: z.object({
+        ...cardCategoriesShape,
+        focusTerms: z.array(z.string().trim().min(1).max(100)).max(8).optional(),
         target: z.string().max(2_000),
         cue: z.string().max(2_000),
         note: z.string().max(2_000),

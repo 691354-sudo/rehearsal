@@ -1,3 +1,4 @@
+import { preserveCandidateCategories } from "./learning-categories.js";
 import type OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { config } from "../config.js";
@@ -8,11 +9,11 @@ import { responseTokenUsage, trackAiRequest } from "./ai-usage.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import { generatedMaterialSchema, materialInstructions, toCandidate } from "./material-generation.js";
 
-type CandidateDraft = Partial<Pick<ReviewCandidate, "target" | "cue" | "note" | "category">>;
+type CandidateDraft = Partial<Pick<ReviewCandidate, "target" | "cue" | "note" | "category" | "focusTerms" | "learningCategoryIds" | "newLearningCategories">>;
 
 export async function reviseReviewCandidate(input: {
   client: OpenAI | null;
-  repository: Pick<RehearsalRepository, "aiUsage" | "reviews">;
+  repository: Pick<RehearsalRepository, "aiUsage" | "reviews" | "categories">;
   learner: LearnerPersona;
   batchPublicId: string;
   candidateId: string;
@@ -34,9 +35,13 @@ export async function reviseReviewCandidate(input: {
     cue: input.draft.cue?.trim() || original.cue,
     note: input.draft.note?.trim() ?? original.note,
     category: input.draft.category?.trim() ?? original.category,
+    focusTerms: input.draft.focusTerms ?? original.focusTerms,
+    learningCategoryIds: input.draft.learningCategoryIds ?? original.learningCategoryIds,
+    newLearningCategories: input.draft.newLearningCategories ?? original.newLearningCategories,
   } : {};
   const requestInput = JSON.stringify({
     batchTitle: batch.title,
+    learningCategoryCatalog: input.repository.categories.catalog(batch.language),
     original: { ...original, ...draft },
     feedback: input.feedback?.trim() || undefined,
   });
@@ -57,6 +62,6 @@ export async function reviseReviewCandidate(input: {
     throw new Error("INCOMPLETE_CANDIDATE_REVISION");
   }
   return input.repository.reviews.replaceCandidate(batch.publicId, original.id, {
-    ...toCandidate(generated), id: original.id,
+    ...preserveCandidateCategories(toCandidate(generated), { ...original, ...draft }), id: original.id,
   });
 }

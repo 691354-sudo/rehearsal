@@ -1,3 +1,4 @@
+import type { ReviewCandidateSelection } from "../../../contracts/api.js";
 import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "../database.js";
 import type {
@@ -10,7 +11,8 @@ import type {
 import type { ItemsRepository } from "./items.js";
 import type { LibraryRepository } from "./library.js";
 import { logChange, mapReviewBatch, type ReviewBatchRow } from "./shared.js";
-import { normalizeNfc } from "../../../contracts/text.js";
+import { LearningCategoriesRepository } from "./learning-categories.js";
+import { focusTermsInTarget, normalizeNfc } from "../../../contracts/text.js";
 
 const normalizeCandidate = (candidate: ReviewCandidate): ReviewCandidate => ({
   ...candidate,
@@ -109,14 +111,21 @@ export class ReviewsRepository {
 
   private selectedCandidates(
     batch: ReviewBatch,
-    selected: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
+    selected: Array<ReviewCandidateSelection>,
   ) {
     const available = new Map(batch.candidates.map((candidate) => [candidate.id, candidate]));
+    if (new Set(selected.map((entry) => entry.id)).size !== selected.length) throw new Error("DUPLICATE_REVIEW_RESOLUTION");
     const candidates = selected.map((edited) => {
       const original = available.get(edited.id);
       if (!original) throw new Error("UNKNOWN_REVIEW_CANDIDATE");
+      const focusTerms = edited.focusTerms ?? original.focusTerms;
+      if ((edited.target !== original.target || JSON.stringify(focusTerms) !== JSON.stringify(original.focusTerms))
+        && !focusTermsInTarget(edited.target, focusTerms)) throw new Error("FOCUS_TERM_NOT_FOUND");
       return {
         ...original,
+        focusTerms,
+        learningCategoryIds: edited.learningCategoryIds ?? original.learningCategoryIds,
+        newLearningCategories: edited.newLearningCategories ?? original.newLearningCategories,
         target: normalizeNfc(edited.target.trim()),
         cue: edited.cue.trim(),
         note: edited.note.trim(),
@@ -132,6 +141,13 @@ export class ReviewsRepository {
   private saveCandidate(batch: ReviewBatch, candidate: ReviewCandidate) {
     const topicTitle = (batch.destinationTopicTitle || candidate.category).trim();
     if (!topicTitle) throw new Error("TOPIC_REQUIRED");
+    const categories = new LearningCategoriesRepository(this.db);
+    const categoryIds = categories.resolveDraft(batch.language, candidate);
+    const existing = this.items.findByTarget(batch.language, candidate.target);
+    if (existing) {
+      categories.addToCards(batch.language, categoryIds, [existing.publicId]);
+      return this.items.get(existing.publicId)!;
+    }
     const topic = this.library.ensureIsland(batch.language, topicTitle,
       batch.destinationTopicTitle ? "user" : "llm");
     const item = this.items.save({
@@ -154,12 +170,13 @@ export class ReviewsRepository {
       register: "casual",
     }, "user");
     this.library.addIslandItem(topic.publicId, item.publicId);
-    return item;
+    categories.setForCard(item.publicId, categoryIds);
+    return this.items.get(item.publicId)!;
   }
 
   resolveRevision(
     batchPublicId: string,
-    accepted: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
+    accepted: Array<ReviewCandidateSelection>,
     revisedCandidates: ReviewCandidate[],
   ) {
     const batch = this.get(batchPublicId);
@@ -196,12 +213,12 @@ export class ReviewsRepository {
       accepted: committedItems.length,
       remaining: revisedCandidates.length,
     });
-    return { batch: updated, items: committedItems };
+    return { batch: updated, items: [...new Map(committedItems.map((item) => [item.publicId, item])).values()] };
   }
 
   resolveCaptureRevision(
     batchPublicId: string,
-    accepted: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
+    accepted: Array<ReviewCandidateSelection>,
     revisedCandidates: ReviewCandidate[],
   ) {
     const batch = this.get(batchPublicId);
@@ -232,7 +249,7 @@ export class ReviewsRepository {
 
   commit(
     batchPublicId: string,
-    selected: Array<Pick<ReviewCandidate, "id" | "target" | "cue" | "note" | "category">>,
+    selected: Array<ReviewCandidateSelection>,
   ) {
     const batch = this.get(batchPublicId);
     if (!batch) return null;
@@ -257,6 +274,6 @@ export class ReviewsRepository {
       }
     });
     transaction();
-    return { batch: this.get(batchPublicId)!, items: committedItems };
+    return { batch: this.get(batchPublicId)!, items: [...new Map(committedItems.map((item) => [item.publicId, item])).values()] };
   }
 }

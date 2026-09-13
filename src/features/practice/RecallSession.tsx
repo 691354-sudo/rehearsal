@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronRight, Pencil, Settings2, Volume2, X } from "lucide-react";
+import { Check, ChevronRight, Settings2, Volume2, X } from "lucide-react";
 import { recallKeyAction, recallSessionReducer, initialRecallSession } from "../../lib/recallSession";
 import { ratingFromVerdict, reviewRatings, type ReviewRating } from "../../lib/sessionQueue";
 import { capitalize, languageCopy, languageHasAudio } from "../../shared/config";
@@ -9,6 +9,7 @@ import { FocusedText } from "../progress/FocusedText";
 import { AnswerDiff } from "./AnswerDiff";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { LearningProgressBadge } from "../progress/LearningProgress";
+import { CardActions } from "../library/CardActions";
 import { TopicProgressPicker } from "./TopicProgressPicker";
 import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
 import type { PracticeCardCount, PracticeOrder } from "../../lib/appRoute";
@@ -42,6 +43,8 @@ export function RecallSession(props: {
   onSelection: (scope: PracticeScope, count: PracticeCardCount) => void;
   onOrder: (order: PracticeOrder) => void;
   onEdit: (item: LearningItem) => void;
+  onDelete?: (item: LearningItem) => void;
+  deletedIds?: string[];
   onListenMode: () => void;
   onListened: (itemId: string) => Promise<void>;
   onManualReviewStarted: () => void;
@@ -69,6 +72,7 @@ export function RecallSession(props: {
     props.order,
     props.recommended.new,
   ), [props.count, props.dueItemIds, props.order, props.recommended.new, props.scope, props.selectedTopicItems, sourceItems]);
+  useEffect(() => { dispatch({ type: "remove", itemIds: props.deletedIds || [] }); }, [props.deletedIds]);
   const current = props.items.find((item) => item.publicId === state.queue[0]);
   const attempt = current ? props.attempts[current.publicId] || { answer: "" } : { answer: "" };
 
@@ -129,7 +133,7 @@ export function RecallSession(props: {
       </>}
     </section>
     <PracticeQueuePreview attempts={props.attempts} emptyAction={props.emptyAction} items={sessionItems} language={props.language} mode="recall"
-      onAnswer={props.onAnswer} onCheck={props.onCheck} onEdit={props.onEdit}
+      onAnswer={props.onAnswer} onCheck={props.onCheck} onEdit={props.onEdit} onDelete={props.onDelete}
       onListened={props.onListened}
       onPlay={(item) => props.onPlay(item.target, props.playback)} onRecallReview={props.onRecallReview}
       playAfterRecall={props.playback.playAfterRecall} scope={props.scope} />
@@ -168,7 +172,7 @@ export function RecallSession(props: {
       </div> : <small className="recall-key-hint">Enter to check</small>}
     </article>
     <div className="recall-session-settings"><div className="recall-session-utilities">
-      <button aria-label={`Edit ${current.target}`} onClick={() => props.onEdit(current)} title="Edit card" type="button"><Pencil aria-hidden="true" size={18} /></button>
+      <CardActions target={current.target} disabled={state.saving} onEdit={() => props.onEdit(current)} onDelete={props.onDelete ? () => props.onDelete?.(current) : undefined} />
       {languageHasAudio(props.language) ? <button aria-expanded={showPlaybackSettings} aria-label="Voice settings" className={showPlaybackSettings ? "is-active" : ""}
         onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Voice settings" type="button"><Settings2 size={18} /></button> : null}
       <button aria-label="End session" onClick={() => dispatch({ type: "reset" })} title="End session" type="button"><X size={18} /></button>

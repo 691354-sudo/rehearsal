@@ -172,7 +172,7 @@ export class LibraryRepository {
        r.lapses AS review_lapses, r.state AS review_state, r.last_review AS review_last_review,
        COALESCE(a.recall_count, 0) AS recall_count, COALESCE(a.listen_count, 0) AS listen_count
        FROM island_items JOIN islands ON islands.id = island_items.island_id
-       JOIN items ON items.id = island_items.item_id
+       JOIN learning_items items ON items.id = island_items.item_id
        LEFT JOIN review_state r ON r.item_id = items.id
        LEFT JOIN (
          SELECT item_id,
@@ -238,7 +238,7 @@ export class LibraryRepository {
       const nextPublicIds = new Set(input.itemPublicIds);
       const membershipCount = this.db.prepare(
         `SELECT COUNT(*) AS count FROM island_items
-         JOIN items ON items.id = island_items.item_id
+         JOIN learning_items items ON items.id = island_items.item_id
          WHERE items.public_id = ? AND island_items.island_id != ?`,
       );
       if (before.items.filter((item) => !nextPublicIds.has(item.publicId))
