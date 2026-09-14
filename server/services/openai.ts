@@ -349,7 +349,7 @@ export class OpenAIService {
       if (existing) return { batch: existing, mode: "stored" as const };
     }
     const sourceText = conversationSourceWithinBudget(input.messages);
-    const numberCards = numberCardsFromConversation(input.messages);
+    const numberCards = numberCardsFromConversation(input.messages, this.repository.categories.catalog(input.language));
     if (numberCards.length) {
       const batch = this.repository.reviews.create({
         publicId: input.publicId,
