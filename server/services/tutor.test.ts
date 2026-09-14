@@ -89,6 +89,9 @@ describe("Tutor OpenAI requests", () => {
         historyCharacters: 31,
       },
     });
+    const diagnostics = context.repository.tutor.getCompletedClientExchange(clientMessageId)!.metadata.diagnostics as { toolMessageIds: number[] };
+    const savedTool = context.db.prepare("SELECT metadata FROM chat_messages WHERE id = ?").get(diagnostics.toolMessageIds[0]) as { metadata: string };
+    expect(JSON.parse(savedTool.metadata)).toMatchObject({ name: "list_due_items", arguments: { limit: 1 }, responseId: "resp_tool", callId: "call_due", clientMessageId });
     expect(context.repository.aiUsage.summarize(new Date(Date.now() - 60_000))).toEqual([
       expect.objectContaining({
         workload: "tutor_chat",
@@ -101,6 +104,32 @@ describe("Tutor OpenAI requests", () => {
         reasoningTokens: 70,
         totalTokens: 2_750,
       }),
+    ]);
+  });
+
+  it("keeps feedback out of every model input and exposes only stable IDs on retries", async () => {
+    const context = createApiTestContext(); contexts.push(context);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const create = vi.fn().mockResolvedValue({ id: "response", output_text: "A short answer.", output: [] });
+    const service = new TutorService(context.repository, { configured: true, learner: genericLearnerPersona } as OpenAIService,
+      false, { responses: { create } } as unknown as OpenAI);
+    const request = { language: "en" as const, message: "Hello", clientMessageId: randomUUID() };
+    const reply = await service.chat(request);
+    context.repository.tutor.feedback.save(reply.threadId, reply.messageId, "PRIVATE_FEEDBACK_SENTINEL");
+    const replay = await service.chat(request);
+    expect(replay.messageId).toBe(reply.messageId);
+    expect(replay).not.toHaveProperty("metadata");
+    const stored = context.repository.tutor.getCompletedClientExchange(request.clientMessageId)!;
+    expect(stored.metadata.diagnostics).toMatchObject({
+      historyMessageIds: [expect.any(Number)],
+      rounds: [{ responseId: "response", mode: "chat", instructions: create.mock.calls[0][0].instructions }],
+    });
+    await service.chat({ language: "en", threadPublicId: reply.threadId, message: "Tell me more.", clientMessageId: randomUUID() });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(create.mock.calls)).not.toContain("PRIVATE_FEEDBACK_SENTINEL");
+    expect(create.mock.calls[1][0].input).toEqual([
+      { role: "user", content: "Hello" }, { role: "assistant", content: "A short answer." },
+      { role: "user", content: "Tell me more." },
     ]);
   });
 

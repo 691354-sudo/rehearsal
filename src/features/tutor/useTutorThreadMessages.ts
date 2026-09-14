@@ -1,3 +1,4 @@
+import type { TutorHistoryMessage } from "../../../contracts/tutor-feedback";
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "../../shared/contracts";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
@@ -27,13 +28,13 @@ export function useTutorThreadMessages({ route, storageKey, onRoute, onMessages,
         return;
       }
       if (!response.ok) throw new Error("Could not load session");
-      const data = await response.json() as { homeworkId?: string; messages: Array<Pick<ChatMessage, "role" | "content" | "clientMessageId">> };
+      const data = await response.json() as { homeworkId?: string; messages: TutorHistoryMessage[] };
       if (cancelled) return;
       if (data.homeworkId && !route.homework) {
         callbacks.current.onRoute({ ...route, homework: data.homeworkId }, "replace"); return;
       }
       callbacks.current.onLoaded();
-      callbacks.current.onMessages(data.messages.map((message) => ({ ...message, id: message.clientMessageId || crypto.randomUUID() })));
+      callbacks.current.onMessages(data.messages.map((message) => ({ ...message, id: message.clientMessageId || `message:${message.messageId}` })));
       window.localStorage.setItem(storageKey, route.thread!); setLoaded(identity);
     }).catch(() => {
       if (!cancelled) callbacks.current.onError("This Tutor session could not be loaded. Start a new chat or choose another session.");

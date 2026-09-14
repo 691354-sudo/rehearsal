@@ -13,11 +13,11 @@ describe("optimistic Tutor messages", () => {
 
   it("replaces the placeholder without duplicating the user message", () => {
     const pending = beginTutorSend([], "Hello", clientMessageId);
-    const completed = completeTutorSend(pending, clientMessageId, "Hi there");
+    const completed = completeTutorSend(pending, clientMessageId, "Hi there", 42);
     expect(completed).toHaveLength(2);
     expect(completed).toEqual([
       expect.objectContaining({ role: "user", status: "sent" }),
-      expect.objectContaining({ role: "assistant", content: "Hi there", status: "sent" }),
+      expect.objectContaining({ role: "assistant", content: "Hi there", messageId: 42, status: "sent" }),
     ]);
   });
 

@@ -125,6 +125,7 @@ export class TutorService {
   private readonly client: OpenAI | null;
   private readonly inFlight = new Map<string, Promise<{
     threadId: string;
+    messageId: number;
     content: string;
     mode: "setup" | "openai";
     toolCalls: Array<{ name: string; result: unknown }>;
@@ -157,7 +158,7 @@ export class TutorService {
     });
     if (message.homework_id && message.homework_id !== homeworkId) throw new Error("CLIENT_MESSAGE_ID_CONFLICT");
     const completed = this.repository.tutor.getCompletedClientExchange(input.clientMessageId);
-    if (completed) return completed;
+    if (completed) { const { metadata: _, ...reply } = completed; return reply; }
     if (!homework && isGuidedPracticeStartMessage(input.message)) this.repository.tutor.setMode(message.thread_id, message.message_id, "guided", true);
     const running = this.inFlight.get(input.clientMessageId);
     if (running) return running;
@@ -177,14 +178,14 @@ export class TutorService {
     if (!this.client) {
       const content =
         "The backend and database are ready, but OpenAI is not connected yet. Add OPENAI_API_KEY to .env and restart the app to enable Tutor replies and read-only Library search.";
-      this.repository.tutor.addMessage(thread.id, "assistant", content, {
+      const messageId = this.repository.tutor.addMessage(thread.id, "assistant", content, {
         clientMessageId: input.clientMessageId, mode: "setup", homeworkId: input.homeworkId,
       });
-      return { threadId: thread.publicId, content, mode: "setup" as const, toolCalls: [] };
+      return { threadId: thread.publicId, messageId, content, mode: "setup" as const, toolCalls: [] };
     }
 
     const history = recentMessagesWithinBudget(
-      this.repository.tutor.getMessages(thread.id, aiLimits.tutorHistoryMessages, false, input.homeworkId),
+      this.repository.tutor.getMessages(thread.id, aiLimits.tutorHistoryMessages, true, input.homeworkId),
       aiLimits.tutorHistoryCharacters,
     );
     const model = config.tutorModel;
@@ -202,6 +203,11 @@ export class TutorService {
       outputTokens: 0,
       reasoningTokens: 0,
       totalTokens: 0,
+    };
+    const diagnostics = {
+      version: 1, historyMessageIds: history.map((message) => message.messageId), homeworkContext: homework,
+      rounds: [] as Array<{ responseId: string; instructions: string; mode: string }>,
+      toolMessageIds: [] as number[],
     };
     const createResponse = async () => {
       const mode = homework ? "homework" : this.repository.tutor.getMode(thread.id)?.mode
@@ -229,6 +235,7 @@ export class TutorService {
         max_output_tokens: aiLimits.tutorOutputTokens,
         prompt_cache_key: `tutor:${thread.publicId}`,
       }));
+      diagnostics.rounds.push({ responseId: next.id, instructions, mode });
       usage.requests += 1;
       if (next.usage) {
         usage.inputTokens += next.usage.input_tokens;
@@ -251,7 +258,10 @@ export class TutorService {
         const result = await this.executeTool(call.name, call.arguments, input.language,
           { threadId: thread.id, userMessageId: input.userMessageId, homework: Boolean(homework) });
         toolCalls.push({ name: call.name, result });
-        this.repository.tutor.addMessage(thread.id, "tool", JSON.stringify(result), { name: call.name });
+        diagnostics.toolMessageIds.push(this.repository.tutor.addMessage(thread.id, "tool", JSON.stringify(result), {
+          name: call.name, arguments: JSON.parse(call.arguments), callId: call.call_id,
+          responseId: response.id, clientMessageId: input.clientMessageId,
+        }));
         modelInput.push({
           type: "function_call_output",
           call_id: call.call_id,
@@ -275,12 +285,14 @@ export class TutorService {
       toolCalls: toolCalls.map((call) => call.name),
       usage,
       context,
+      diagnostics,
     };
-    if (homework && structured) this.repository.pilot.tutor.saveReply({ ...structured, content, metadata,
-      homeworkId: homework.homeworkId, userMessageId: input.userMessageId });
-    else this.repository.tutor.addMessage(thread.id, "assistant", content, { ...metadata, homeworkId: input.homeworkId });
+    const messageId = homework && structured
+      ? this.repository.pilot.tutor.saveReply({ ...structured, content, metadata,
+        homeworkId: homework.homeworkId, userMessageId: input.userMessageId })
+      : this.repository.tutor.addMessage(thread.id, "assistant", content, { ...metadata, homeworkId: input.homeworkId });
     console.info(JSON.stringify({ event: "tutor_openai_usage", model, threadId: thread.publicId, usage, context }));
-    return { threadId: thread.publicId, content, mode: "openai" as const, toolCalls };
+    return { threadId: thread.publicId, messageId, content, mode: "openai" as const, toolCalls };
   }
 
   async review(threadPublicId: string, batchPublicId?: string, homeworkId?: string) {

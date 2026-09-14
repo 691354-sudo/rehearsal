@@ -1,3 +1,5 @@
+import type { TutorHistoryMessage } from "../../../contracts/tutor-feedback.js";
+import { TutorFeedbackRepository } from "./tutor-feedback.js";
 import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "../database.js";
 import type { LanguageCode } from "../../types.js";
@@ -23,9 +25,11 @@ type ClientMessageRow = {
 };
 
 export class TutorRepository {
+  readonly feedback: TutorFeedbackRepository;
   readonly learningFocus: TutorLearningFocusRepository;
 
   constructor(private readonly db: RehearsalDatabase) {
+    this.feedback = new TutorFeedbackRepository(db);
     this.learningFocus = new TutorLearningFocusRepository(db);
   }
 
@@ -158,37 +162,44 @@ export class TutorRepository {
     const message = this.getClientMessage(clientMessageId);
     if (!message) return null;
     const assistant = this.db.prepare(
-      `SELECT content, metadata FROM chat_messages
+      `SELECT id AS messageId, content, metadata FROM chat_messages
        WHERE thread_id = ? AND id > ? AND role = 'assistant'
          AND json_extract(metadata, '$.clientMessageId') = ? ORDER BY id LIMIT 1`,
-    ).get(message.thread_id, message.message_id, clientMessageId) as { content: string; metadata: string } | undefined;
+    ).get(message.thread_id, message.message_id, clientMessageId) as { messageId: number; content: string; metadata: string } | undefined;
     if (!assistant) return null;
     let metadata: Record<string, unknown> = {};
     try { metadata = JSON.parse(assistant.metadata) as Record<string, unknown>; } catch { /* legacy metadata */ }
     return {
       threadId: message.thread_public_id,
       content: assistant.content,
+      messageId: assistant.messageId,
+      feedback: this.feedback.forThread(message.thread_public_id).get(assistant.messageId) ?? null,
       mode: metadata.mode === "setup" ? "setup" as const : "openai" as const,
       toolCalls: [],
       metadata,
     };
   }
 
+  getMessages(threadId: number, limit: number, includeMessageIds: true, homeworkId?: string): TutorHistoryMessage[];
+  getMessages(threadId: number, limit?: number, includeMessageIds?: false, homeworkId?: string): Array<Pick<TutorHistoryMessage, "role" | "content">>;
   getMessages(threadId: number, limit = 30, includeMessageIds = false, homeworkId?: string) {
     const messages = this.db.prepare(
-      `SELECT role, content, client_message_id AS clientMessageId FROM (
+      `SELECT id AS messageId, role, content, client_message_id AS clientMessageId FROM (
        SELECT id, role, content, client_message_id FROM chat_messages
          WHERE thread_id = ? AND role IN ('user', 'assistant')
            ${homeworkId ? `AND (json_extract(metadata, '$.homeworkId') = ?
              OR client_message_id = ? OR json_extract(metadata, '$.clientMessageId') = ?)` : ""} ORDER BY id DESC LIMIT ?
        ) ORDER BY id`,
-    ).all(threadId, ...(homeworkId ? [homeworkId, homeworkId, homeworkId] : []), limit) as Array<{ role: "user" | "assistant"; content: string; clientMessageId: string | null }>;
-    return messages.map(({ clientMessageId, ...message }) => includeMessageIds && clientMessageId
-      ? { ...message, clientMessageId } : message);
+    ).all(threadId, ...(homeworkId ? [homeworkId, homeworkId, homeworkId] : []), limit) as Array<{ messageId: number; role: "user" | "assistant"; content: string; clientMessageId: string | null }>;
+    return messages.map(({ clientMessageId, messageId, ...message }) => includeMessageIds
+      ? { ...message, messageId, ...(clientMessageId ? { clientMessageId } : {}) } : message);
   }
 
   deleteThread(publicId: string) {
-    return this.db.prepare("DELETE FROM chat_threads WHERE public_id = ?").run(publicId).changes > 0;
+    return this.db.transaction(() => {
+      this.feedback.archive(publicId);
+      return this.db.prepare("DELETE FROM chat_threads WHERE public_id = ?").run(publicId).changes > 0;
+    })();
   }
 
   private getClientMessage(clientMessageId: string) {

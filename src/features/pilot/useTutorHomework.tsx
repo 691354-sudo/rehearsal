@@ -8,9 +8,9 @@ import { browserTimezone, pilotErrorMessage, pilotRequest } from "./pilotApi";
 import { useHomeworkTime } from "./useActiveTime";
 import { HomeworkFeedback } from "./HomeworkFeedback";
 
-export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: chatBusy }: {
+export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: chatBusy, feedbackOpen = false }: {
   route: TutorRoute; onRoute: (route: TutorRoute, mode?: HistoryMode) => void;
-  onStartTutor: (homework: Homework) => Promise<boolean>; ready: boolean; busy: boolean;
+  onStartTutor: (homework: Homework) => Promise<boolean>; ready: boolean; busy: boolean; feedbackOpen?: boolean;
 }) {
   const pilot = usePilot();
   const enabled = route.language === "en" && route.mode === "chat";
@@ -24,7 +24,7 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
   const attemptedIntro = useRef("");
   const startRef = useRef(onStartTutor); startRef.current = onStartTutor;
   const creationKey = `rehearsal:${pilot.profileId}:en:homework-create:${route.thread ?? "new"}`;
-  const time = useHomeworkTime(homework, "tutor", enabled && homework?.status === "tutor_in_progress" && !route.review);
+  const time = useHomeworkTime(homework, "tutor", enabled && homework?.status === "tutor_in_progress" && !route.review && !feedbackOpen);
   const identity = `${pilot.profileId}:${route.language}:${route.mode}:${route.thread}:${route.homework}`;
   const identityRef = useRef(identity); identityRef.current = identity;
   const intro = async (session: Homework) => {

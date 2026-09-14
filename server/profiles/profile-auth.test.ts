@@ -89,6 +89,27 @@ describe("profile authentication and database isolation", () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
+  it("isolates message feedback and applies session, CSRF and language guards", async () => {
+    const roman = (await login(app, "roman")).session!;
+    const oliver = (await login(app, "oliver")).session!;
+    const repository = manager.get("roman").repository;
+    const chat = repository.tutor.getOrCreateThread(undefined, "en");
+    const messageId = repository.tutor.addMessage(chat.id, "assistant", "Roman response");
+    const url = `/api/chat/${chat.publicId}/messages/${messageId}/feedback`;
+    const request = { method: "PUT" as const, url, payload: { text: "Roman private feedback" } };
+    expect((await app.inject(request)).statusCode).toBe(403);
+    expect((await app.inject({ method: "GET", url: `/api/chat/${chat.publicId}/messages` })).statusCode).toBe(401);
+    expect((await app.inject({ ...request, headers: { cookie: roman.cookie, "x-rehearsal-client": "web" } })).statusCode).toBe(403);
+    expect((await mutate(app, oliver, request)).statusCode).toBe(404);
+    expect((await mutate(app, roman, request)).statusCode).toBe(200);
+    expect((await read(app, roman, `/api/chat/${chat.publicId}/messages`)).json().messages[0].feedback.text).toBe("Roman private feedback");
+    expect((await read(app, oliver, `/api/chat/${chat.publicId}/messages`)).statusCode).toBe(404);
+    expect((await mutate(app, oliver, { method: "DELETE", url })).statusCode).toBe(404);
+    expect(manager.get("oliver").repository.tutor.feedback.export().conversations).toEqual([]);
+    repository.system.setLanguageEnabled("en", false);
+    expect((await mutate(app, roman, request)).statusCode).toBe(403);
+  });
+
   it("copies and verifies the legacy database for both profiles without exposing data in health", async () => {
     expect(manager.get("roman").repository.items.list("en", 500)).toHaveLength(initialEnglishItems);
     expect(manager.get("oliver").repository.items.list("en", 500)).toHaveLength(initialEnglishItems);

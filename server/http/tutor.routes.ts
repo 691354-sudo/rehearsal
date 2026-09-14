@@ -1,3 +1,4 @@
+import { registerTutorFeedbackRoutes } from "./tutor-feedback.routes.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { HttpDependencies } from "./dependencies.js";
@@ -17,6 +18,7 @@ const reviewResolutionSchema = z.object({
 const optionalThreadIdSchema = z.string().uuid().nullish().transform((value) => value || undefined);
 
 export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
+  registerTutorFeedbackRoutes(app, dependencies);
   app.get("/api/chat/threads", async (request) => {
     const { repository } = dependencies.forRequest(request);
     const query = z.object({
@@ -33,6 +35,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
     if (!thread) return reply.code(404).send({ error: "THREAD_NOT_FOUND" });
     const query = z.object({ homeworkId: z.string().uuid().optional() }).parse(request.query);
     const homework = repository.pilot.homework.forChat(params.threadId, query.homeworkId);
+    const feedback = repository.tutor.feedback.forThread(params.threadId);
     return {
       homeworkId: homework?.homeworkId,
       thread: {
@@ -42,7 +45,8 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
         createdAt: thread.created_at,
         updatedAt: thread.updated_at,
       },
-      messages: repository.tutor.getMessages(thread.id, 200, true, homework?.homeworkId),
+      messages: repository.tutor.getMessages(thread.id, 200, true, homework?.homeworkId)
+        .map((message) => ({ ...message, ...(message.role === "assistant" ? { feedback: feedback.get(message.messageId) ?? null } : {}) })),
     };
   });
 
@@ -136,6 +140,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
         mode: completed.metadata.mode || "stored",
         threadId: completed.threadId,
         content: completed.content,
+        messageId: completed.messageId, feedback: completed.feedback,
       });
     }
     const source = repository.library.saveSource({
@@ -161,7 +166,8 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
         sourcePublicId: source.publicId,
       });
     }
-    return reply.code(201).send({ source, ...prepared, threadId: message.thread_public_id, content });
+    const saved = repository.tutor.getCompletedClientExchange(body.clientMessageId)!;
+    return reply.code(201).send({ source, ...prepared, threadId: message.thread_public_id, content, messageId: saved.messageId, feedback: saved.feedback });
   });
 
   app.post("/api/review-batches/:batchId/commit", async (request, reply) => {

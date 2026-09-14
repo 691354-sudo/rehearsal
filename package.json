@@ -26,6 +26,7 @@
     "db:set-language": "node --import tsx scripts/db-set-language.ts",
     "db:telegram-bindings": "node --import tsx scripts/db-telegram-bindings.ts",
     "models:check": "node --import tsx scripts/check-openai-models.ts",
+    "tutor:feedback": "node --import tsx scripts/tutor-feedback.ts",
     "ai-usage:report": "node --import tsx scripts/ai-usage-report.ts",
     "pilot": "node --import tsx scripts/learning-pilot.ts",
     "prompts:check": "node --import tsx scripts/check-material-prompts.ts",

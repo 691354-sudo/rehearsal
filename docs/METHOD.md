@@ -109,6 +109,10 @@ Tutor also honors an explicit request to prepare cards. The learner's requested 
 
 Automatic pasted-list preparation applies only to a new chat. In an existing conversation, multiple short lines remain a Tutor message; an exercise answer cannot silently become a vocabulary import.
 
+Each saved Tutor response has a small feedback icon, including old chats and Homework in the web app, PWA and Telegram Mini App. It opens one plain text field and Save; clicking the icon again closes the field. One editable comment belongs to that exact response. An empty new comment cannot be saved; clearing an existing comment and saving deletes it. Drafts survive closing, navigation and reload within the profile's browser session. Writing feedback pauses measured Homework study time. This response feedback is separate from the Homework completion questionnaire and is never included in Tutor conversation or review prompts.
+
+Feedback is collected for a later, explicitly requested analysis of the complete conversations, card/tool context and prompts; it does not automatically change Tutor behavior. Deleting a chat with feedback retains one private archive of its conversation and Homework context for that analysis, while removing it from Sessions. The deletion confirmation explains this retention. Direct Telegram bot messages do not gain feedback controls in this version.
+
 Tutor Chat accepts either typed messages or a voice message. A voice message records after an explicit microphone action, is transcribed on the server, and sends the transcript immediately. A failed transcription keeps the recording available in the current page for Retry or Delete rather than silently discarding it.
 
 The message field automatically grows and shrinks with the draft, up to 40% of the visible viewport, capped at 400px on desktop and 240px on narrow screens. Longer text scrolls inside the field; clearing or sending returns it to its compact size. The desktop resize handle remains available within those bounds until the next edit. Keyboard viewport changes recalculate the limit so the conversation and send controls remain reachable.
