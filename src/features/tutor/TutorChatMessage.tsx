@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
 import { LoaderCircle, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import type { ChatMessage } from "../../shared/contracts";
 import { TutorMarkdownMessage } from "./TutorMarkdownMessage";
 
-export function TutorChatMessage({ learnerMessage, message, onDelete, onEdit, onRetry }: {
+export function TutorChatMessage({ learnerMessage, message, onDelete, onEdit, onRetry, feedback }: {
   learnerMessage?: string;
+  feedback?: ReactNode;
   message: ChatMessage;
   onDelete: (message: ChatMessage) => void;
   onEdit: (message: ChatMessage) => void;
@@ -13,6 +15,7 @@ export function TutorChatMessage({ learnerMessage, message, onDelete, onEdit, on
     {message.status === "placeholder" ? <div className="simple-chat-loading" role="status">
       <LoaderCircle className="simple-spin" size={17} />Tutor is thinking…
     </div> : <TutorMarkdownMessage content={message.content} learnerMessage={learnerMessage} semantic={message.role === "assistant"} />}
+    {feedback}
     {message.role === "user" && message.status === "sending" ? <small className="simple-message-status">Sending…</small> : null}
     {message.role === "user" && message.status === "failed" ? <div className="simple-message-failed">
       <small>Not sent</small><div>

@@ -40,10 +40,11 @@ describe("Tutor and review API", () => {
       url: "/api/chat",
       payload: { language: "en", message: "Help me practice small talk", threadId: null, clientMessageId },
     });
-    expect(retried.json()).toMatchObject({ threadId, content: response.json().content, mode: "setup" });
+    expect(retried.json()).toMatchObject({ threadId, messageId: response.json().messageId, content: response.json().content, mode: "setup" });
     const history = await app.inject({ method: "GET", url: `/api/chat/${threadId}/messages` });
     expect(history.json().messages).toHaveLength(2);
-    expect(history.json().messages[0]).toEqual({ role: "user", content: "Help me practice small talk", clientMessageId });
+    expect(history.json().messages[0]).toEqual({ role: "user", content: "Help me practice small talk", clientMessageId, messageId: expect.any(Number) });
+    expect(history.json().messages[1].messageId).toBe(response.json().messageId);
     expect((await app.inject({ method: "DELETE", url: `/api/chat/${threadId}` })).statusCode).toBe(204);
     expect((await app.inject({ method: "GET", url: "/api/chat/threads?language=en" })).json().threads).toEqual([]);
     await app.close();
@@ -104,13 +105,19 @@ describe("Tutor and review API", () => {
     };
 
     const first = await app.inject({ method: "POST", url: "/api/review-batches/vocab", payload });
+    expect(first.json().messageId).toEqual(expect.any(Number));
+    context.repository.tutor.feedback.save(first.json().threadId, first.json().messageId, "Useful vocabulary options.");
     const retried = await app.inject({ method: "POST", url: "/api/review-batches/vocab", payload });
 
     expect(retried.json()).toMatchObject({
       threadId: first.json().threadId,
+      messageId: first.json().messageId,
+      feedback: { text: "Useful vocabulary options." },
       content: first.json().content,
       batch: { publicId: first.json().batch.publicId },
     });
+    const history = await app.inject({ method: "GET", url: `/api/chat/${first.json().threadId}/messages` });
+    expect(history.json().messages[1]).toMatchObject({ messageId: first.json().messageId, feedback: { text: "Useful vocabulary options." } });
     expect((context.db.prepare("SELECT COUNT(*) AS count FROM sources").get() as { count: number }).count)
       .toBe(beforeSources + 1);
     expect((context.db.prepare("SELECT COUNT(*) AS count FROM review_batches").get() as { count: number }).count)

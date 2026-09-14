@@ -1,3 +1,4 @@
+import { TutorMessageFeedback } from "./TutorMessageFeedback";
 import { useSessionDraft } from "../../hooks/useSessionDraft";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
@@ -54,6 +55,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const { mode, thread: threadId, review: reviewId } = route;
   const context = `${profileId}:${language}:${threadId}:${route.homework}`;
   const contextRef = useRef(context); contextRef.current = context;
+  const [feedbackEditor, setFeedbackEditor] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [sending, setSending] = useState(false);
@@ -78,7 +80,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const { composerHeight, isNarrow, setComposerHeight } = useTutorComposerHeight(composerRef, draft, mode === "chat" && !reviewBatch);
   const { loadingThread, threadReady } = useTutorThreadMessages({ route, storageKey, onRoute,
     onMessages: setMessages, onError: setSendError, onLoaded: () => { scrollIntentRef.current = "instant"; } });
-  const homework = useTutorHomework({ route, onRoute, ready: threadReady, busy: sending,
+  const homework = useTutorHomework({ route, onRoute, ready: threadReady, busy: sending, feedbackOpen: feedbackEditor.startsWith(`${context}:`),
     onStartTutor: (session) => sendContent("Давай начнём homework.", session.homeworkId, session) });
 
   const refreshThreads = async () => {
@@ -192,8 +194,8 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
 
   const deleteChat = async () => {
     const homeworkCount = homework.sessions.filter((session) => session.tutorChatId === threadId).length;
-    if (!threadId || deletingThread || !window.confirm(homeworkCount > 1
-      ? `Delete this shared chat and all ${homeworkCount} Homework sessions in it?` : "Delete this chat?")) return;
+    if (!threadId || deletingThread || !window.confirm((homeworkCount > 1
+      ? `Delete this shared chat and all ${homeworkCount} Homework sessions in it?` : "Delete this chat?") + "\nIf this chat has feedback, the feedback and a copy of the conversation will be kept for review.")) return;
     setDeletingThread(true); setSendError("");
     try {
       const response = await apiFetch(`/api/chat/${threadId}`, { method: "DELETE" });
@@ -211,7 +213,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
       body: JSON.stringify({ language, title: "Vocabulary from Tutor", text: content, threadId, clientMessageId }),
     });
     if (!response.ok) throw new Error("Vocab preparation failed");
-    const data = await response.json() as { batch: ReviewBatch; threadId: string; content: string };
+    const data = await response.json() as { batch: ReviewBatch; threadId: string; content: string; messageId: number; feedback?: ChatMessage["feedback"] };
     return data;
   };
 
@@ -228,17 +230,17 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         const data = await prepareVocab(content, clientMessageId);
         if (contextRef.current !== context) return false;
         setReviewBatch(data.batch); onRoute({ ...route, thread: data.threadId, review: data.batch.publicId }, "replace"); window.localStorage.setItem(storageKey, data.threadId);
-        setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
+        setMessages((current) => completeTutorSend(current, clientMessageId, data.content, data.messageId, data.feedback));
       } else {
         const response = await apiFetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ language, message: content, threadId: homeworkStart?.tutorChatId ?? threadId, clientMessageId,
             homeworkId: route.homework, ...homeworkInput }) });
         if (!response.ok) throw new Error((await response.json()).error || "Chat unavailable");
-        const data = await response.json() as { threadId: string; content: string };
+        const data = await response.json() as { threadId: string; content: string; messageId: number; feedback?: ChatMessage["feedback"] };
         if (contextRef.current !== context) return false;
         onRoute({ ...route, thread: data.threadId, review: null, ...(homeworkStart ? { homework: homeworkStart.homeworkId } : {}) }, "replace");
         window.localStorage.setItem(storageKey, data.threadId);
-        setMessages((current) => completeTutorSend(current, clientMessageId, data.content));
+        setMessages((current) => completeTutorSend(current, clientMessageId, data.content, data.messageId, data.feedback));
       }
       void refreshThreads().catch(() => undefined);
       return true;
@@ -386,7 +388,12 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
           {!homework.active && !messages.length && !loadingThread && !sending ? <TutorGuidedPracticeStart disabled={sending}
             onStart={(message) => { void sendContent(message); }} /> : null}
           {messages.map((message, messageIndex) => <TutorChatMessage key={message.id} learnerMessage={message.role === "assistant" ? messages.slice(0, messageIndex).reverse().find((candidate) => candidate.role === "user")?.content : undefined}
-            message={message}
+            message={message} feedback={message.role === "assistant" && message.messageId && threadId ? <TutorMessageFeedback
+              key={`${profileId}:${threadId}:${message.messageId}`} profileId={profileId} threadId={threadId} messageId={message.messageId}
+              feedback={message.feedback ?? null} open={feedbackEditor === `${context}:${message.messageId}`}
+              onToggle={() => setFeedbackEditor((current) => current === `${context}:${message.messageId}` ? "" : `${context}:${message.messageId}`)}
+              onSaved={(feedback) => { setMessages((current) => current.map((item) => item.messageId === message.messageId ? { ...item, feedback } : item));
+                setFeedbackEditor((current) => current === `${context}:${message.messageId}` ? "" : current); }} /> : null}
             onDelete={(failed) => setMessages((current) => current.filter((currentMessage) => currentMessage.id !== failed.id))}
             onEdit={editFailedMessage}
             onRetry={(failed) => void sendContent(failed.content, failed.clientMessageId)} />)}

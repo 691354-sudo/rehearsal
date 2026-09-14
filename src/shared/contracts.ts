@@ -1,3 +1,4 @@
+import type { TutorFeedback } from "../../contracts/tutor-feedback";
 import type {
   ChatThread,
   DailyProgress,
@@ -39,6 +40,8 @@ export type Evaluation = {
 export type AttemptDraft = { answer: string; evaluation?: Evaluation };
 export type ChatMessage = {
   id: string;
+  messageId?: number;
+  feedback?: TutorFeedback | null;
   role: "user" | "assistant";
   content: string;
   clientMessageId?: string;

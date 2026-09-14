@@ -25,6 +25,13 @@ describe("Homework Tutor provider contract", () => {
     await expect(service.chat(request)).rejects.toThrow("TUTOR_REPLY_INCOMPLETE");
     const reply = await service.chat(request);
     expect(reply.threadId).toBe(hw.tutorChatId);
+    const savedMessage = context.repository.tutor.getMessages(context.repository.tutor.getThread(hw.tutorChatId)!.id, 100, true)
+      .find((message) => message.messageId === reply.messageId);
+    expect(savedMessage?.role).toBe("assistant");
+    expect((await service.chat(request)).messageId).toBe(reply.messageId);
+    context.repository.tutor.feedback.save(reply.threadId, reply.messageId, "Homework hint feedback");
+    expect(context.repository.tutor.feedback.export().conversations[0].messages.find((message) => message.messageId === reply.messageId)?.metadata.diagnostics)
+      .toMatchObject({ homeworkContext: { homeworkId: hw.homeworkId } });
     expect(reply.content).toMatch(/### Next Task\n\nНапиши свой пример с pull through\.$/);
     const call = create.mock.calls[1][0];
     expect(call.text.format).toMatchObject({ type: "json_schema", name: "homework_tutor_reply", strict: true });

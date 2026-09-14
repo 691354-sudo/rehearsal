@@ -15,10 +15,10 @@ export const beginTutorSend = (messages: ChatMessage[], content: string, clientM
   return [...next, { id: placeholderId, role: "assistant", content: "", status: "placeholder" } satisfies ChatMessage];
 };
 
-export const completeTutorSend = (messages: ChatMessage[], clientMessageId: string, content: string) =>
+export const completeTutorSend = (messages: ChatMessage[], clientMessageId: string, content: string, messageId?: number, feedback?: ChatMessage["feedback"]) =>
   messages.map((message) => {
     if (message.clientMessageId === clientMessageId) return { ...message, status: "sent" as const };
-    if (message.id === tutorPlaceholderId(clientMessageId)) return { ...message, content, status: "sent" as const };
+    if (message.id === tutorPlaceholderId(clientMessageId)) return { ...message, messageId, feedback, content, status: "sent" as const };
     return message;
   });
 
