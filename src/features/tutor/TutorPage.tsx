@@ -390,7 +390,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
           {messages.map((message, messageIndex) => <TutorChatMessage key={message.id} learnerMessage={message.role === "assistant" ? messages.slice(0, messageIndex).reverse().find((candidate) => candidate.role === "user")?.content : undefined}
             message={message} feedback={message.role === "assistant" && message.messageId && threadId ? <TutorMessageFeedback
               key={`${profileId}:${threadId}:${message.messageId}`} profileId={profileId} threadId={threadId} messageId={message.messageId}
-              feedback={message.feedback ?? null} open={feedbackEditor === `${context}:${message.messageId}`}
+              feedback={message.feedback ?? null} open={feedbackEditor === `${context}:${message.messageId}`} revealOnOpen={messageIndex === messages.length - 1}
               onToggle={() => setFeedbackEditor((current) => current === `${context}:${message.messageId}` ? "" : `${context}:${message.messageId}`)}
               onSaved={(feedback) => { setMessages((current) => current.map((item) => item.messageId === message.messageId ? { ...item, feedback } : item));
                 setFeedbackEditor((current) => current === `${context}:${message.messageId}` ? "" : current); }} /> : null}

@@ -32,12 +32,16 @@
   .simple-app .simple-composer textarea { min-height: 64px; font-size: 16px; }
 }
 
-.tutor-message-feedback { margin-left: 4px; }
+.tutor-message-feedback { display: grid; justify-items: start; gap: 8px; margin-left: 4px; }
 .simple-app .tutor-feedback-toggle { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--rh-support); cursor: pointer; }
 .simple-app .tutor-feedback-toggle:hover { background: var(--rh-inset); }
 .tutor-feedback-toggle[data-saved="true"]::after { position: absolute; content: ""; width: 4px; height: 4px; right: 8px; top: 10px; border-radius: 50%; background: var(--rh-learned); }
-.tutor-feedback-editor { padding: 0 4px 8px; }
-.simple-app .tutor-feedback-editor textarea { width: 100%; box-sizing: border-box; min-height: 116px; padding: 12px; resize: vertical; font: inherit; font-size: 16px; line-height: 1.5; color: var(--rh-ink); background: var(--rh-surface); border: 1px solid var(--rh-rule); border-radius: 8px; }
+.tutor-feedback-editor { width: 100%; box-sizing: border-box; padding: 0 4px 8px; }
+.simple-app .tutor-feedback-editor textarea { display: block; width: 100%; box-sizing: border-box; min-height: 116px; padding: 11px 13px; resize: vertical; font: inherit; font-size: 14px; line-height: 1.5; color: var(--script-ink); background: var(--control-fill); border: 1px solid var(--control-rule); border-radius: 8px; }
+.simple-app .tutor-feedback-editor textarea::placeholder { font: inherit; }
+@media (max-width: 720px) {
+  .simple-app .tutor-feedback-editor textarea { font-size: 16px; background: var(--rh-surface); border-color: var(--rh-rule-strong); border-radius: 16px; }
+}
 .tutor-feedback-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
 .simple-app .tutor-feedback-actions button { min-height: 44px; padding: 0 16px; font: inherit; font-size: 13px; color: var(--rh-ink); background: var(--rh-inset); border: 1px solid var(--rh-rule); border-radius: 8px; cursor: pointer; }
 .tutor-feedback-actions button:disabled { opacity: .55; cursor: default; }
