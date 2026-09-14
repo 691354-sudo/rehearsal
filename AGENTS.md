@@ -22,6 +22,8 @@ Before changing files:
 
 Do not duplicate a rule across documents. Link to its canonical source instead.
 
+For requests to collect or analyse Tutor feedback, follow [Tutor feedback analysis](docs/OPERATIONS.md#tutor-feedback-analysis): it defines the production export command, evidence fields, coverage checks, and analysis format.
+
 ## Fast path
 
 This is a two-person hobby project. Prefer momentum over ceremony while keeping GitHub as the source of truth.
