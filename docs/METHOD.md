@@ -14,6 +14,8 @@ Learning categories describe what the learner intends to practise: for example C
 
 Conversational phrases includes ready requests, clarification, reactions, agreement, refusal and invitations, including talking to staff. Use more often requires the learner’s explicit intention. Personal mistake categories require a direct learner request or a confirmed recurring difficulty; an empty difficulty journal supplies no evidence. Tutor and Notebook receive the category catalog with IDs and descriptions, reuse existing categories and propose new ones for Review. Manual choices take priority, including an empty category selection. Rewriting text or Core does not silently replace those choices. Review reuses an existing identical card and adds memberships; distinct example sentences remain distinct cards.
 
+Preparing a new card includes assessing its learning categories alongside its Topic without a separate sorting request. An empty catalog can receive a new category proposal when the learning focus is clear; category meanings must suit the target language. Tutor's deterministic number-list extraction proposes Numbers and quantities locally, reusing an existing Numbers or Numerals category when available. It preserves every extracted pair and adds no model call. These defaults remain editable proposals in Review.
+
 Good material is:
 
 - something the active learner would realistically say;

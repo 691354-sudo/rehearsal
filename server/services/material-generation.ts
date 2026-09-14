@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { LanguageCode, ReviewCandidate } from "../types.js";
 import type { LearnerPersona } from "./learner-persona.js";
 import { normalizeNfc } from "../../contracts/text.js";
+import { categoryTitleKey } from "../../contracts/learning-categories.js";
 
 const targetLanguages: Record<LanguageCode, { name: string; guidance: string }> = {
   en: { name: "English", guidance: "Use natural contemporary English." },
@@ -119,6 +120,7 @@ const isNumberCardRevision = (content: string) => numberMaterialPattern.test(con
 
 export const numberCardsFromConversation = (
   messages: Array<{ role: "user" | "assistant"; content: string }>,
+  categoryCatalog: Array<{ publicId: string; title: string }> = [],
 ): ReviewCandidate[] => {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
@@ -151,7 +153,15 @@ export const numberCardsFromConversation = (
         commonness: 5,
       }];
     });
-    if (pairs.length >= 2) return pairs.slice(0, 100);
+    if (pairs.length >= 2) {
+      const existing = categoryCatalog.find((category) =>
+        ["numbers and quantities", "numbers", "numerals"].includes(categoryTitleKey(category.title)));
+      const categories = existing
+        ? { learningCategoryIds: [existing.publicId], newLearningCategories: [] }
+        : { learningCategoryIds: [], newLearningCategories: [{ publicId: randomUUID(), title: "Numbers and quantities",
+          description: "Practise number names, counting, amounts and quantities." }] };
+      return pairs.slice(0, 100).map((candidate) => ({ ...candidate, ...categories }));
+    }
   }
   return [];
 };
