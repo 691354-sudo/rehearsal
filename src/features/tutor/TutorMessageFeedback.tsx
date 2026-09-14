@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { tutorFeedbackMaxLength, type TutorFeedback } from "../../../contracts/tutor-feedback";
 import { apiFetch } from "../../shared/api";
 
-export function TutorMessageFeedback({ profileId, threadId, messageId, feedback, open, onToggle, onSaved }: {
+export function TutorMessageFeedback({ profileId, threadId, messageId, feedback, open, revealOnOpen, onToggle, onSaved }: {
   profileId: string; threadId: string; messageId: number; feedback: TutorFeedback | null;
-  open: boolean; onToggle: () => void; onSaved: (feedback: TutorFeedback | null) => void;
+  open: boolean; revealOnOpen: boolean; onToggle: () => void; onSaved: (feedback: TutorFeedback | null) => void;
 }) {
   const key = `rehearsal:${profileId}:tutor-feedback:${threadId}:${messageId}`;
   const [draft, setDraft] = useState(() => window.sessionStorage.getItem(key) ?? feedback?.text ?? "");
@@ -19,6 +19,20 @@ export function TutorMessageFeedback({ profileId, threadId, messageId, feedback,
   useEffect(() => {
     if (open) field.current?.focus({ preventScroll: true });
   }, [open]);
+  useEffect(() => {
+    if (!open || !revealOnOpen) return;
+    const editor = field.current?.parentElement;
+    const list = editor?.closest<HTMLElement>(".simple-chat-messages");
+    if (!editor || !list) return;
+    const reveal = () => {
+      const overflow = editor.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom + 12;
+      if (overflow > 0) list.scrollTop += overflow;
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    observer.observe(list); observer.observe(editor);
+    return () => observer.disconnect();
+  }, [open, revealOnOpen]);
 
   const save = async () => {
     const text = draft.trim();
@@ -45,7 +59,7 @@ export function TutorMessageFeedback({ profileId, threadId, messageId, feedback,
     </button>
     <span className="tutor-feedback-status" role="status">{status}</span>
     {open ? <div className="tutor-feedback-editor" id={`tutor-feedback-${messageId}`}>
-      <textarea ref={field} name="feedback" autoComplete="off" aria-label="Feedback on Tutor response"
+      <textarea ref={field} name="feedback" autoComplete="off" aria-label="Feedback on Tutor response" placeholder="Leave a feedback..."
         aria-describedby={error ? `tutor-feedback-error-${messageId}` : undefined} maxLength={tutorFeedbackMaxLength} value={draft}
         disabled={saving} onChange={(event) => {
           const value = event.target.value; window.sessionStorage.setItem(key, value); setDraft(value); setError("");
