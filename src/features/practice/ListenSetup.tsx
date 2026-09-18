@@ -57,7 +57,7 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
     </button>
     {pilot.syncError ? <p role="alert">{pilot.syncError} <button onClick={pilot.retry} type="button">Retry</button></p> : null}
     {requested && requestedStage && requestedStage !== "listen" ? <p role="status">{requestedStage === "tutor" ? "This card is ready for Tutor." : "Added to Active Recall."}</p> : null}
-    <PracticeQueuePreview onToRecall={(item) => { setRequested(item.publicId); pilot.toRecall(item.publicId); }} emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit} onDelete={props.onDelete}
+    <PracticeQueuePreview sets={props.topics} onToRecall={(item) => { setRequested(item.publicId); pilot.toRecall(item.publicId); }} emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit} onDelete={props.onDelete}
       onPlay={async (item) => {
         const prepared = await props.onPrepareAudio(item.target, props.playback, true);
         const url = URL.createObjectURL(prepared.blob);

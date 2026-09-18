@@ -194,7 +194,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
           <option value="10">10 recommended</option><option value="20">20 recommended</option></select></> : null}
       <button className="simple-primary recall-start" disabled={loading || busy || !queue.length} onClick={start} type="button">{loading ? "Loading cards…" : `Start ${queue.length} ${queue.length === 1 ? "card" : "cards"}`}<ChevronRight size={16} aria-hidden="true" /></button>
     </div></section>{failure}
-    {!loading ? <PracticeQueuePreview items={queue} language={props.language} mode="recall" scope="due" onEdit={onEdit} onDelete={onDelete}
+    {!loading ? <PracticeQueuePreview sets={topics} items={queue} language={props.language} mode="recall" scope="due" onEdit={onEdit} onDelete={onDelete}
       onPlay={(item) => props.onPlay(item.target, props.playback)} emptyAction={languageHasAudio(props.language) ? <span>New cards are ready after five listens. Use To Recall when you are ready sooner.</span> : undefined} /> : null}
     {homework && !loading && !queue.length ? <button className="simple-primary" onClick={() => void homeworkAction("return")} type="button">Return to Tutor</button> : null}
   </div>;

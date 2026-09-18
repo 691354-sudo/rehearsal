@@ -29,7 +29,7 @@ const item = {
 
 describe("Practice queue preview", () => {
   it("uses the same compact progress and action row for Listen cards", () => {
-    const markup = renderToStaticMarkup(<PracticeQueuePreview items={[item]} language="en" mode="listen"
+    const markup = renderToStaticMarkup(<PracticeQueuePreview sets={[]} items={[item]} language="en" mode="listen"
       onEdit={() => undefined} onPlay={async () => undefined} scope="custom" />);
     const side = markup.slice(markup.indexOf("practice-queue-side"), markup.indexOf("</li>"));
 
@@ -40,12 +40,12 @@ describe("Practice queue preview", () => {
 
 const focusedItem = { ...item, target: "I set out to understand what happened.", focusTerms: ["set out"] };
 const renderRecall = () => renderToStaticMarkup(<PracticeQueuePreview
-  items={[focusedItem]} language="en" mode="recall" scope="due"
+  sets={[]} items={[focusedItem]} language="en" mode="recall" scope="due"
   onEdit={() => undefined} onPlay={async () => undefined} />);
 
 describe("Focus in Practice lists", () => {
   it("marks only the stored phrase in the Listen list", () => {
-    const html = renderToStaticMarkup(<PracticeQueuePreview items={[focusedItem]} language="en" mode="listen" scope="custom" onEdit={() => undefined} onPlay={async () => undefined} />);
+    const html = renderToStaticMarkup(<PracticeQueuePreview sets={[]} items={[focusedItem]} language="en" mode="listen" scope="custom" onEdit={() => undefined} onPlay={async () => undefined} />);
     expect(html).toContain('<mark class="focused-text">set out</mark>');
   });
   it("keeps the Recall prompt free of answer hints", () => {
