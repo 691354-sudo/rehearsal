@@ -1,3 +1,4 @@
+import { readyTutorCard } from "../testing/pilot-requests.js";
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../app.js";
@@ -6,7 +7,7 @@ import { createApiTestContext, type ApiTestContext } from "../testing/api-test-c
 
 describe("Homework conversation boundaries", () => {
   let context: ApiTestContext;
-  beforeEach(() => { context = createApiTestContext(); });
+  beforeEach(() => { context = createApiTestContext(); readyTutorCard(context); });
   afterEach(() => { vi.restoreAllMocks(); context.close(); });
 
   const legacySessions = () => {

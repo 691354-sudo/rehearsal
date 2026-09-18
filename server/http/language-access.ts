@@ -15,7 +15,7 @@ const resourceLanguage = (
   const params = recordOf(request.params);
   const body = recordOf(request.body);
   const lookups = [
-    ["item", params.itemId ?? body.itemId],
+    ["item", params.itemId ?? body.itemId ?? params.cardId ?? body.cardId],
     ["island", params.islandId ?? body.topicId],
     ["learningCategory", params.categoryId],
     ["thread", params.threadId ?? body.threadId],
@@ -44,8 +44,17 @@ export const registerLanguageAccess = (app: FastifyInstance, dependencies: HttpD
     const body = recordOf(request.body);
     const languages = [query.language, body.language]
       .filter(isLanguageCode);
-    if (request.url.startsWith("/api/pilot")) languages.push("en");
+    if (request.url.startsWith("/api/pilot")) {
+      if (typeof body.attemptId === "string") {
+        const attempt = context.repository.pilot.recall.get(body.attemptId);
+        if (attempt) languages.push(context.repository.pilot.store.item(attempt.card_id).language);
+      }
+      const creatingHomework = request.method === "POST" && request.routeOptions.url === "/api/pilot/homework";
+      const homeworkId = recordOf(request.params).homeworkId ?? (!creatingHomework ? body.homeworkId : undefined);
+      if (typeof homeworkId === "string") languages.push(context.repository.pilot.store.homework(homeworkId).language);
+    }
     languages.push(...resourceLanguage(request, dependencies));
+    if (request.url.startsWith("/api/pilot") && !languages.length) languages.push("en");
     if (languages.some((language) => !context.repository.system.isLanguageEnabled(language))) {
       return reply.code(403).send({ error: "LANGUAGE_NOT_ENABLED" });
     }

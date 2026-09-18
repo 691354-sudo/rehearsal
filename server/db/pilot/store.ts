@@ -1,3 +1,5 @@
+import { progressRow } from "./progress.js";
+import type { LanguageCode } from "../../../contracts/api.js";
 import { randomUUID } from "node:crypto";
 import { pilotDefaults, type Homework, type PilotSettings } from "../../../contracts/learning-pilot.js";
 import type { RehearsalDatabase } from "../database.js";
@@ -16,7 +18,7 @@ export type PilotEventRow = {
 };
 export type HomeworkRow = {
   homework_id: string; tutor_chat_id: string; started_at: string; status: Homework["status"];
-  plan: string; state: string; app_version: string; experiment_version: string;
+  plan: string; state: string; language: LanguageCode; app_version: string; experiment_version: string;
 };
 
 export class PilotStore {
@@ -27,9 +29,9 @@ export class PilotStore {
       .get() as { value: string } | undefined;
     const settings = { ...pilotDefaults, ...(row ? JSON.parse(row.value) : {}) } as typeof pilotDefaults;
     const scheduler = structuredClone(this.practice.getSettings());
-    const uniform = { ...scheduler.presets.neutral, requestRetention: settings.desiredRetention };
+    const uniform = { ...scheduler.presets.neutral };
     scheduler.presets = { like: uniform, neutral: uniform, dislike: uniform };
-    return { ...settings, scheduler };
+    return { ...settings, experimentVersion: pilotDefaults.experimentVersion, desiredRetention: uniform.requestRetention, scheduler };
   }
 
   identity() {
@@ -42,7 +44,7 @@ export class PilotStore {
   }
 
   versions() {
-    return { appVersion: process.env.APP_VERSION || "0.1.0+echo-pilot-v1", experimentVersion: this.settings().experimentVersion };
+    return { appVersion: process.env.APP_VERSION || "0.1.0+unified-learning-v2", experimentVersion: this.settings().experimentVersion };
   }
 
   timezone(preferred?: string) {
@@ -60,31 +62,30 @@ export class PilotStore {
     return preferred ?? "UTC";
   }
 
-  item(cardId: string) {
-    const row = this.db.prepare("SELECT * FROM learning_items WHERE public_id = ? AND language_code = 'en'")
+  item(cardId: string, language?: LanguageCode) {
+    const row = this.db.prepare("SELECT * FROM learning_items WHERE public_id = ?")
       .get(cardId) as ItemRow | undefined;
-    if (!row) throw new PilotError("PILOT_CARD_NOT_FOUND", 404);
+    if (!row || (language && row.language_code !== language)) throw new PilotError("PILOT_CARD_NOT_FOUND", 404);
     return mapItem(row);
   }
 
   review(cardId: string) {
     return mapReviewState(this.db.prepare(`SELECT r.* FROM review_state r
-      JOIN items i ON i.id = r.item_id WHERE i.public_id = ? AND i.language_code = 'en'`)
+      JOIN items i ON i.id = r.item_id WHERE i.public_id = ?`)
       .get(cardId) as ReviewStateRow | undefined) ?? null;
   }
 
   progress(cardId: string) {
-    const row = this.db.prepare(`SELECT listen_count, recall_eligible_at, last_listen_at
-      FROM pilot_card_progress WHERE card_id = ?`).get(cardId) as {
-        listen_count: number; recall_eligible_at: string | null; last_listen_at: string | null;
-      } | undefined;
+    const row = progressRow(this, cardId);
     const reviews = this.db.prepare(`SELECT COUNT(*) AS recalls,
       COALESCE(SUM(a.verdict IN ('hard', 'good', 'easy')), 0) AS successes
       FROM attempts a JOIN items i ON i.id = a.item_id
-      WHERE i.public_id = ? AND i.language_code = 'en' AND a.mode = 'recall'`).get(cardId) as {
+      WHERE i.public_id = ? AND a.mode = 'recall'`).get(cardId) as {
         recalls: number; successes: number;
       };
     return {
+      learningStage: row?.stage ?? "listen", listenTarget: row?.listen_target ?? 5,
+      lastCreditedAt: row?.last_credited_at ?? null, revision: row?.revision ?? 0,
       listenCount: row?.listen_count ?? 0,
       recallEligibleAt: row?.recall_eligible_at ?? null,
       lastListenAt: row?.last_listen_at ?? null,
@@ -102,8 +103,8 @@ export class PilotStore {
     data: unknown, now: string, experimentVersion = this.settings().experimentVersion) {
     this.identity();
     this.db.prepare(`INSERT INTO pilot_events(event_id, language, kind, card_id, occurred_at,
-      created_at, app_version, experiment_version, data) VALUES (?, 'en', ?, ?, ?, ?, ?, ?, ?)`)
-      .run(eventId, kind, cardId, occurredAt, now, this.versions().appVersion, experimentVersion, JSON.stringify(data));
+      created_at, app_version, experiment_version, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(eventId, cardId ? this.item(cardId).language : ((data as { language?: string })?.language ?? "en"), kind, cardId, occurredAt, now, this.versions().appVersion, experimentVersion, JSON.stringify(data));
   }
 
   homework(id: string): Homework {
@@ -114,7 +115,7 @@ export class PilotStore {
       .get(id) as { data: string } | undefined;
     return { ...JSON.parse(row.plan), ...JSON.parse(row.state), homeworkId: id, tutorChatId: row.tutor_chat_id,
       timezone: JSON.parse(row.plan).timezone ?? this.timezone(),
-      language: "en", startedAt: row.started_at, status: row.status,
+      language: row.language, startedAt: row.started_at, status: row.status,
       feedback: feedback ? JSON.parse(feedback.data) : null };
   }
 

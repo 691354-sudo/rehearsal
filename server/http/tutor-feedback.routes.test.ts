@@ -1,3 +1,4 @@
+import { readyTutorCard } from "../testing/pilot-requests.js";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -7,7 +8,7 @@ import { createApiTestContext, type ApiTestContext } from "../testing/api-test-c
 describe("Tutor message feedback", () => {
   let context: ApiTestContext;
   let app: FastifyInstance;
-  beforeEach(async () => { context = createApiTestContext(); app = await buildApp(context.repository); });
+  beforeEach(async () => { context = createApiTestContext(); readyTutorCard(context); app = await buildApp(context.repository); });
   afterEach(async () => { await app.close(); context.close(); });
   const thread = () => context.repository.tutor.getOrCreateThread(undefined, "en");
   const path = (threadId: string, messageId: number) => `/api/chat/${threadId}/messages/${messageId}/feedback`;

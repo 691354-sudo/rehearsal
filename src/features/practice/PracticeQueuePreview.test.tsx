@@ -39,9 +39,9 @@ describe("Practice queue preview", () => {
 });
 
 const focusedItem = { ...item, target: "I set out to understand what happened.", focusTerms: ["set out"] };
-const renderRecall = (evaluation?: import("../../shared/contracts").Evaluation) => renderToStaticMarkup(<PracticeQueuePreview
-  items={[focusedItem]} language="en" mode="recall" scope="custom" attempts={{ "card-1": { answer: "test", evaluation } }}
-  onAnswer={() => undefined} onCheck={() => undefined} onEdit={() => undefined} onPlay={async () => undefined} onRecallReview={async () => true} />);
+const renderRecall = () => renderToStaticMarkup(<PracticeQueuePreview
+  items={[focusedItem]} language="en" mode="recall" scope="due"
+  onEdit={() => undefined} onPlay={async () => undefined} />);
 
 describe("Focus in Practice lists", () => {
   it("marks only the stored phrase in the Listen list", () => {
@@ -50,8 +50,5 @@ describe("Focus in Practice lists", () => {
   });
   it("keeps the Recall prompt free of answer hints", () => {
     expect(renderRecall()).not.toContain('<mark');
-  });
-  it.each(["exact", "close", "retry"] as const)("marks a phrase spanning words in the revealed %s answer", (verdict) => {
-    expect(renderRecall({ verdict, score: 0, naturalAnswer: focusedItem.target, correctedAnswer: "", summaryRu: "", mistakes: [] })).toContain('<mark class="focused-text">set out</mark>');
   });
 });

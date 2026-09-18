@@ -99,7 +99,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   }, [text, title]);
   const loadTopics = (nextLanguage = language) => getTopics(nextLanguage);
   const loadTopicItemIds = async (topicId: string) => {
-    const data = await getTopic(topicId);
+    const data = await getTopic(topicId, undefined, language);
     setCollectionItems(data.items);
     return data.items.map((item) => item.publicId);
   };

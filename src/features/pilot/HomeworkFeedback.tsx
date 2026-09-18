@@ -7,7 +7,7 @@ export function HomeworkFeedback({ homework, onSaved, onClose }: {
   homework: Homework; onSaved: (homework: Homework) => void; onClose: () => void;
 }) {
   const { profileId } = usePilot();
-  const key = `rehearsal:${profileId}:en:feedback:${homework.homeworkId}`;
+  const key = `rehearsal:${profileId}:${homework.language}:feedback:${homework.homeworkId}`;
   const pendingKey = `${key}:submission`;
   const [pending, setPending] = useState<Partial<Feedback> | null>(() => JSON.parse(localStorage.getItem(pendingKey) || "null"));
   const [draft, setDraft] = useState<Partial<Feedback>>(() => pending ?? JSON.parse(localStorage.getItem(key) || "{}"));
@@ -20,7 +20,7 @@ export function HomeworkFeedback({ homework, onSaved, onClose }: {
       const submission = pending ?? draft;
       localStorage.setItem(pendingKey, JSON.stringify(submission));
       setPending(submission);
-      const result = await pilotRequest<{ homework: Homework }>(profileId, `/homework/${homework.homeworkId}/feedback`, submission);
+      const result = await pilotRequest<{ homework: Homework }>(profileId, `/homework/${homework.homeworkId}/feedback`, { ...submission, language: homework.language });
       localStorage.removeItem(pendingKey); localStorage.removeItem(key); onSaved(result.homework);
     } catch (caught) { setError(pilotErrorMessage(caught)); }
     finally { setSaving(false); }

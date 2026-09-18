@@ -80,7 +80,7 @@ describe("Learning categories", () => {
     const topic = repo.library.createIsland({ language: "lv", title: "Queue contexts" });
     const category = repo.categories.create({ language: "lv", title: "Queue focus" });
     const item = repo.items.create({ language: "lv", target: "Labdien!", cue: "Добрый день", learningCategoryIds: [category.publicId] }, topic.publicId);
-    expect(repo.practice.listDue("lv", 1, new Date(), 1, { categoryId: category.publicId }).map((entry) => entry.publicId)).toEqual([item.publicId]);
+    expect(repo.pilot.queue.list({ language: "lv", limit: 1, categoryId: category.publicId }).map((entry) => entry.publicId)).toEqual([item.publicId]);
     const other = createApiTestContext();
     try {
       expect(other.repository.categories.get(category.publicId)).toBeNull();
@@ -115,6 +115,7 @@ describe("Learning categories", () => {
     const outside = repo.items.create({ language: "en", target: "Outside category", cue: "Снаружи" }, topic.publicId);
     for (const item of [eligible, outside]) repo.practice.recordAttempt({ itemPublicId: item.publicId, mode: "recall", answer: "", verdict: "good",
       score: 1, feedback: {}, rating: "good", reviewedAt: new Date("2020-01-01T00:00:00Z") });
+    for (const item of [eligible, outside]) repo.pilot.listening.toRecall({eventId:randomUUID(),cardId:item.publicId,language:"en"});
     expect(repo.pilot.queue.list({ categoryId: category.publicId, limit: 1 }).map((item) => item.publicId)).toEqual([eligible.publicId]);
     expect(repo.pilot.queue.list({ categoryId: category.publicId }).some((item) => item.publicId === fresh.publicId)).toBe(false);
     const attemptId = randomUUID();

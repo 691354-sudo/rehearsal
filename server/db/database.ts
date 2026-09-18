@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { config } from "../config.js";
+import { migrateUnifiedLearning } from "./learning-schema.js";
 import { schema } from "./schema.js";
 import { migrateLearningPilot } from "./pilot-schema.js";
 import { migrateTutorLearningFocus } from "./tutor-learning-focus-schema.js";
@@ -278,6 +279,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "012-tutor-learning-focus", run: migrateTutorLearningFocus },
   { id: "013-learning-categories", run: migrateLearningCategories },
   { id: "014-tutor-message-feedback", run: migrateTutorFeedback },
+  { id: "015-unified-learning", run: migrateUnifiedLearning, requiresForeignKeysOff: true },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {

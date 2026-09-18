@@ -5,7 +5,7 @@ import { PilotError } from "../db/pilot/store.js";
 
 const id = z.string().uuid();
 const timestamp = z.string().datetime();
-const language = z.literal("en").default("en");
+const language = z.enum(["en","lv","vi","no","id"]).default("en");
 const timezone = z.string().min(1).max(100).refine((value) => {
   try { new Intl.DateTimeFormat("en", { timeZone: value }).format(); return true; } catch { return false; }
 }, "Invalid timezone");
@@ -29,27 +29,43 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
   app.get("/api/pilot", async (request) => {
     const { repository } = dependencies.forRequest(request);
     const query = z.object({ language, tutorChatId: id.optional(), timezone: timezone.optional() }).parse(request.query);
-    const homework = repository.pilot.homework.active(query.tutorChatId);
+    const homework = repository.pilot.homework.active(query.tutorChatId,query.language);
     return { settings: repository.pilot.store.settings(), timezone: repository.pilot.store.timezone(query.timezone),
-      pending: repository.pilot.listening.pending(), homework,
+      pending: [], readyCount: repository.pilot.cores.list(query.language).length, homework,
       tutorStarted: Boolean(homework && repository.tutor.getCompletedClientExchange(homework.homeworkId)) };
   });
   app.get("/api/pilot/liked", async (request) => {
     const { repository } = dependencies.forRequest(request);
-    z.object({ language }).parse(request.query);
-    return { island: repository.pilot.queue.liked() };
+    const query = z.object({ language }).parse(request.query);
+    return { island: repository.pilot.queue.liked(undefined,query.language) };
   });
   app.get("/api/pilot/queue", async (request) => {
     const { repository } = dependencies.forRequest(request);
     const query = z.object({ language, limit: z.coerce.number().int().min(1).max(100_000).optional(),
-      categoryId: z.string().uuid().optional(), timezone: timezone.optional(), topicId: z.string().min(1).max(100).optional(), homeworkId: id.optional() }).parse(request.query);
+      cardId:z.string().min(1).max(100).optional(),sessionId:id.optional(),categoryId: z.string().uuid().optional(), timezone: timezone.optional(), topicId: z.string().min(1).max(100).optional(), homeworkId: id.optional() }).parse(request.query);
     return { items: repository.pilot.queue.list(query) };
+  });
+  app.get("/api/pilot/listen-queue", async (request) => {
+    const {repository}=dependencies.forRequest(request);
+    const query=z.object({language,limit:z.coerce.number().pipe(z.union([z.literal(10),z.literal(20),z.literal(50)])).default(20),
+      topicId:z.string().optional(),categoryId:id.optional()}).parse(request.query);
+    return {items:repository.pilot.queue.listen(query)};
+  });
+  app.post("/api/pilot/sessions", async (request) => {
+    const {repository}=dependencies.forRequest(request);
+    const {sessionId,...input}=z.object({sessionId:id,language,limit:z.union([z.literal(10),z.literal(20)]),
+      cardId:z.string().min(1).max(100).optional(),topicId:z.string().optional(),categoryId:id.optional()}).parse(request.body);
+    return {items:repository.pilot.queue.start(sessionId,input)};
+  });
+  app.post("/api/pilot/to-recall", async (request) => {
+    const {repository}=dependencies.forRequest(request);
+    return repository.pilot.listening.toRecall(z.object({eventId:id,cardId:z.string().min(1),language}).parse(request.body));
   });
   app.get("/api/pilot/cards/:cardId", async (request) => {
     const { repository } = dependencies.forRequest(request);
-    z.object({ language }).parse(request.query);
+    const query = z.object({ language }).parse(request.query);
     const { cardId } = z.object({ cardId: z.string().min(1).max(100) }).parse(request.params);
-    const item = repository.pilot.store.item(cardId);
+    const item = repository.pilot.store.item(cardId, query.language);
     return { ...repository.pilot.store.progress(cardId), liked: item.preference === "like" };
   });
   app.post("/api/pilot/listens", async (request) => {
@@ -68,7 +84,7 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
   app.post("/api/pilot/attempts/start", async (request) => {
     const { repository } = dependencies.forRequest(request);
     const body = z.object({ language, attemptId: id, cardId: z.string().min(1).max(100),
-      homeworkId: id.optional(), shownAt: timestamp, timezone }).parse(request.body);
+      homeworkId: id.optional(), sessionId:id.optional(), shownAt: timestamp, timezone }).parse(request.body);
     const result = repository.pilot.recall.begin(body);
     return { attemptId: result.attempt_id, shownAt: result.shown_at, submitted: result.rated_at !== null };
   });
@@ -87,7 +103,7 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
       answer: z.string().trim().min(1).max(4000).transform((value) => value.normalize("NFC")) }).parse(request.body);
     const attempt = repository.pilot.recall.get(body.attemptId);
     if (!attempt) throw new PilotError("ATTEMPT_NOT_FOUND", 404);
-    const item = repository.pilot.store.item(attempt.card_id);
+    const item = repository.pilot.store.item(attempt.card_id,body.language);
     try { return { check: await openai.checkRecall(item, body.answer, body.attemptId) }; }
     catch { throw new PilotError("RECALL_CHECK_UNAVAILABLE", 503); }
   });
@@ -99,8 +115,8 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
   });
   app.get("/api/pilot/homework", async (request) => {
     const { repository } = dependencies.forRequest(request);
-    z.object({ language }).parse(request.query);
-    return { sessions: repository.pilot.homework.list() };
+    const query=z.object({ language }).parse(request.query);
+    return { sessions: repository.pilot.homework.list(query.language) };
   });
   app.get("/api/pilot/homework/:homeworkId", async (request) => {
     const { repository } = dependencies.forRequest(request);

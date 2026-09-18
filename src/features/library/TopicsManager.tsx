@@ -45,7 +45,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
   const changeScreen = (next: Screen) => { setScreen(next); setQuery(""); setError(""); setNotice(""); setMovedTo(""); setVisibleCount(20); };
   const report = (failure: unknown) => setError(failure instanceof Error ? failure.message : "Couldn’t save this change. Try again.");
   const refresh = async (id?: string) => {
-    const [nextTopics, nextTopic] = await Promise.all([getTopics(language), id ? getTopic(id) : null]);
+    const [nextTopics, nextTopic] = await Promise.all([getTopics(language), id ? getTopic(id, undefined, language) : null]);
     setTopics(nextTopics); setTopic(nextTopic); setRefreshPendingId(null);
     return nextTopic;
   };
@@ -53,7 +53,7 @@ export function TopicsManager({ initialTopicId, language, onClose, onCreateNew, 
     const request = ++requestId.current;
     setLoading(true); setError("");
     try {
-      const next = await getTopic(id);
+      const next = await getTopic(id, undefined, language);
       if (request !== requestId.current) return;
       setTopic(next); setRefreshPendingId(null); setSelecting(false); setSelected(new Set()); setNotice(""); setMovedTo("");
       changeScreen("detail"); onTopic(id);

@@ -84,11 +84,10 @@ export function GlobalSettings(props: {
   const nextRelearningSteps = parseSteps(relearningSteps);
   const validSteps = [nextLearningSteps, nextRelearningSteps]
     .every((steps) => steps.length > 0 && steps.length <= 4 && steps.every((step) => stepPattern.test(step)));
-  const validNewItems = Number.isInteger(draft.newItemsPerDay) && draft.newItemsPerDay >= 0 && draft.newItemsPerDay <= 30;
   const validPresets = Object.values(draft.presets).every((preset) => Number.isInteger(preset.requestRetention * 100)
     && preset.requestRetention >= 0.8 && preset.requestRetention <= 0.97
     && Number.isInteger(preset.maximumInterval) && preset.maximumInterval >= 7 && preset.maximumInterval <= 3650);
-  const validScheduler = validSteps && validNewItems && validPresets;
+  const validScheduler = validSteps && validPresets;
   const nextScheduler = {
     ...draft,
     learningSteps: nextLearningSteps,
@@ -351,18 +350,15 @@ export function GlobalSettings(props: {
 
         <section className="simple-settings-section">
           <div className="simple-settings-section-title"><h3>Recall scheduling</h3></div>
-          <label className="simple-new-items-setting"><span>New cards per day</span><input aria-invalid={!validNewItems} max="30" min="0" name="new-cards-per-day" onChange={(event) => {
-            setSchedulerTouched(true); setDraft((current) => ({ ...current, newItemsPerDay: Number(event.target.value) })); setSaveState("idle");
-          }} type="number" value={draft.newItemsPerDay} /></label>
           <details className="simple-advanced-settings">
             <summary>Advanced scheduling</summary>
             <div className="simple-fsrs-table">
-              <div className="simple-fsrs-head"><span>Priority</span><span>Retention</span><span>Max interval</span></div>
-              {(["like", "neutral", "dislike"] as ItemPreference[]).map((preference) => <div className="simple-fsrs-row" key={preference}>
-                <strong>{capitalize(preference)}</strong>
-                <label><input aria-label={`${capitalize(preference)} retention`} aria-invalid={!Number.isInteger(draft.presets[preference].requestRetention * 100) || draft.presets[preference].requestRetention < 0.8 || draft.presets[preference].requestRetention > 0.97} max="97" min="80" name={`${preference}-retention`} onChange={(event) => updatePreset(preference, "requestRetention", Number(event.target.value) / 100)}
+              <div className="simple-fsrs-head"><span>Cards</span><span>Retention</span><span>Max interval</span></div>
+              {(["neutral"] as ItemPreference[]).map((preference) => <div className="simple-fsrs-row" key={preference}>
+                <strong>All cards</strong>
+                <label><input aria-label="Target retention" aria-invalid={!Number.isInteger(draft.presets[preference].requestRetention * 100) || draft.presets[preference].requestRetention < 0.8 || draft.presets[preference].requestRetention > 0.97} max="97" min="80" name={`${preference}-retention`} onChange={(event) => updatePreset(preference, "requestRetention", Number(event.target.value) / 100)}
                   step="1" type="number" value={Math.round(draft.presets[preference].requestRetention * 100)} /><span>%</span></label>
-                <label><input aria-label={`${capitalize(preference)} maximum interval`} aria-invalid={!Number.isInteger(draft.presets[preference].maximumInterval) || draft.presets[preference].maximumInterval < 7 || draft.presets[preference].maximumInterval > 3650} max="3650" min="7" name={`${preference}-maximum-interval`} onChange={(event) => updatePreset(preference, "maximumInterval", Number(event.target.value))}
+                <label><input aria-label="Maximum interval" aria-invalid={!Number.isInteger(draft.presets[preference].maximumInterval) || draft.presets[preference].maximumInterval < 7 || draft.presets[preference].maximumInterval > 3650} max="3650" min="7" name={`${preference}-maximum-interval`} onChange={(event) => updatePreset(preference, "maximumInterval", Number(event.target.value))}
                   step="1" type="number" value={draft.presets[preference].maximumInterval} /><span>days</span></label>
               </div>)}
             </div>
@@ -410,7 +406,7 @@ export function GlobalSettings(props: {
         </section> : null}
       </div>
       <footer className="simple-settings-footer">
-        <span aria-live="polite" className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use 1–4 steps like 1m, 10m" : !validNewItems || !validPresets ? "Use 0–30 cards, 80–97%, and 7–3650 days" : ""}</span>
+        <span aria-live="polite" className={`is-${saveState}`}>{saveState === "saved" ? "Saved" : saveState === "error" ? "Couldn’t save" : !validSteps ? "Use 1–4 steps like 1m, 10m" : !validPresets ? "Use 80–97% and 7–3650 days" : ""}</span>
         <button className="simple-settings-save" disabled={!schedulerDirty || !validScheduler || saveState === "saving"} onClick={() => void save()} type="button">
           {saveState === "saving" ? "Saving…" : "Save recall settings"}
         </button>

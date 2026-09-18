@@ -291,7 +291,7 @@ describe("Capture review API", () => {
     expect((await app.inject({
       method: "PATCH", url: `/api/items/${itemId}`, payload: { practiceEnabled: false },
     })).json().item.practiceEnabled).toBe(false);
-    expect(context.repository.practice.listDue("en", 100).some((item) => item.publicId === itemId)).toBe(false);
+    expect(context.repository.pilot.queue.list({ language: "en" }).some((item) => item.publicId === itemId)).toBe(false);
     await app.inject({
       method: "POST",
       url: "/api/attempts/evaluate",
@@ -304,7 +304,7 @@ describe("Capture review API", () => {
     expect((await app.inject({
       method: "PATCH", url: `/api/items/${itemId}`, payload: { practiceEnabled: true },
     })).json().item.practiceEnabled).toBe(true);
-    expect(context.repository.practice.listDue("en", 100).some((item) => item.publicId === itemId)).toBe(true);
+    expect(context.repository.pilot.queue.list({ language: "en" }).some((item) => item.publicId === itemId)).toBe(true);
     await app.close();
   });
 });

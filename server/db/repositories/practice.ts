@@ -1,4 +1,3 @@
-import { cardScopeSql, type CardScope } from "../card-scope.js";
 import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "../database.js";
 import type { LanguageCode, LearningItem } from "../../types.js";
@@ -195,56 +194,4 @@ export class PracticeRepository {
     });
   }
 
-  listDue(language: LanguageCode, limit = 12, now = new Date(), newLimit = 10, scope: CardScope = {}) {
-    const schedulerSettings = this.getSettings();
-    const filter = cardScopeSql(this.db, language, scope);
-    const select = `SELECT i.*,
-              r.due_at AS review_due_at,
-              r.stability AS review_stability,
-              r.difficulty AS review_difficulty,
-              r.elapsed_days AS review_elapsed_days,
-              r.scheduled_days AS review_scheduled_days,
-              r.learning_steps AS review_learning_steps,
-              r.repetitions AS review_repetitions,
-              r.lapses AS review_lapses,
-              r.state AS review_state,
-              r.last_review AS review_last_review,
-              COALESCE(a.recall_count, 0) AS recall_count,
-              COALESCE(a.listen_count, 0) AS listen_count
-       FROM learning_items i LEFT JOIN review_state r ON r.item_id = i.id
-       LEFT JOIN (
-         SELECT item_id,
-           SUM(CASE WHEN mode = 'recall' THEN 1 ELSE 0 END) AS recall_count,
-           SUM(CASE WHEN mode IN ('listen', 'shadow') THEN 1 ELSE 0 END) AS listen_count
-         FROM attempts GROUP BY item_id
-       ) a ON a.item_id = i.id`;
-    const scheduled = this.db.prepare(
-      `${select}
-       WHERE i.language_code = ? AND i.practice_enabled = 1
-         AND r.due_at IS NOT NULL AND datetime(r.due_at) <= datetime(?) ${filter.sql}
-       ORDER BY CASE COALESCE(r.state, 0) WHEN 1 THEN 0 WHEN 3 THEN 0 WHEN 2 THEN 1 ELSE 2 END,
-                CASE i.preference WHEN 'like' THEN 0 WHEN 'neutral' THEN 1 ELSE 2 END,
-                COALESCE(r.due_at, '1970-01-01')
-       LIMIT ?`,
-    ).all(language, now.toISOString(), ...filter.parameters, limit) as DueItemRow[];
-    const remaining = Math.max(0, limit - scheduled.length);
-    const freshLimit = Math.min(remaining, Math.max(0, newLimit));
-    const fresh = freshLimit ? this.db.prepare(
-      `${select}
-       WHERE i.language_code = ? AND i.practice_enabled = 1 AND r.due_at IS NULL ${filter.sql}
-       ORDER BY COALESCE(a.listen_count, 0) DESC,
-                CASE i.preference WHEN 'like' THEN 0 WHEN 'neutral' THEN 1 ELSE 2 END,
-                i.commonness DESC, i.persona_fit DESC, i.created_at
-       LIMIT ?`,
-    ).all(language, ...filter.parameters, freshLimit) as DueItemRow[] : [];
-    return [...scheduled, ...fresh].map((row) => ({
-      ...mapItemWithProgress(row, now),
-      schedule: previewReview(
-        cardFromStoredState(mapJoinedReviewState(row), now),
-        now,
-        row.preference,
-        schedulerSettings,
-      ),
-    }));
-  }
 }

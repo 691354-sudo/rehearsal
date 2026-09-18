@@ -64,12 +64,12 @@ export const defaultElevenLabsConfig: ElevenLabsConfig = {
 
 export const defaultSchedulerSettings: SchedulerSettings = {
   presets: {
-    like: { requestRetention: 0.93, maximumInterval: 60 },
+    like: { requestRetention: 0.9, maximumInterval: 180 },
     neutral: { requestRetention: 0.9, maximumInterval: 180 },
-    dislike: { requestRetention: 0.87, maximumInterval: 365 },
+    dislike: { requestRetention: 0.9, maximumInterval: 180 },
   },
   learningSteps: ["1m", "10m"],
-  relearningSteps: ["1m", "10m"],
+  relearningSteps: ["10m"],
   fuzz: true,
   newItemsPerDay: 10,
 };

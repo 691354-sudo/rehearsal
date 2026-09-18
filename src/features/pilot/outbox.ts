@@ -1,6 +1,6 @@
 import type { ListenAppearance, ListenLike } from "../../../contracts/learning-pilot";
 
-export type PendingPilotEvent = { path: "/listens"; body: ListenAppearance } | { path: "/likes"; body: ListenLike };
+export type PendingPilotEvent = {path:"/to-recall";body:{eventId:string;cardId:string;language:import("../../../contracts/api").LanguageCode}} | { path: "/listens"; body: ListenAppearance } | { path: "/likes"; body: ListenLike };
 type StoragePort = Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length">;
 type Entry = { order: number; event: PendingPilotEvent };
 export class PilotOutbox {
@@ -23,7 +23,7 @@ export class PilotOutbox {
         const value = this.storage.getItem(key);
         if (value) {
           const entry = JSON.parse(value) as Entry;
-          if (!entry.event?.body?.eventId || !["/listens", "/likes"].includes(entry.event.path)) throw new Error("Saved progress could not be read.");
+          if (!entry.event?.body?.eventId || !["/listens", "/likes", "/to-recall"].includes(entry.event.path)) throw new Error("Saved progress could not be read.");
           entries.set(entry.event.body.eventId, entry);
         }
       }

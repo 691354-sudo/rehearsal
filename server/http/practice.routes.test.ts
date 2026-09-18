@@ -35,14 +35,14 @@ describe("practice and library API", () => {
       method: "GET",
       url: "/api/practice/progress?language=en&since=2000-01-01T00:00:00.000Z",
     });
-    expect(progress.json()).toMatchObject({ completed: 1, recall: 1, shadow: 6, pattern: 0 });
+    expect(progress.json()).toMatchObject({ completed: 1, recall: 1, shadow: 1, pattern: 0 });
     const inventory = await app.inject({
       method: "GET", url: "/api/items?language=en&limit=500&includeSchedule=true",
     });
     expect(inventory.json().items.find((item: { publicId: string }) => item.publicId === "en-drawn-to").progress)
-      .toMatchObject({ recalls: 1, listens: 6, stage: "strong" });
+      .toMatchObject({ recalls: 1, listens: 1, stage: "strong" });
     expect(context.repository.library.getIsland(topic.publicId)?.progress)
-      .toMatchObject({ strong: 1, recalls: 1, listens: 6 });
+      .toMatchObject({ strong: 1, recalls: 1, listens: 1 });
     await app.close();
   });
 
@@ -70,7 +70,7 @@ describe("practice and library API", () => {
     expect(stage(learnedItem.publicId)).toBe("learned");
   });
 
-  it("returns the full ordered recommendation queue beyond one hundred cards", async () => {
+  it("selects twenty recommendations from the whole library beyond one hundred cards", async () => {
     const topic = context.repository.library.createIsland({ language: "en", title: "Large queue" });
     for (let index = 0; index < 105; index += 1) {
       const item = context.repository.items.create({ language: "en", cue: `Очередь ${index}`, target: `Queue card ${index}.` }, topic.publicId);
@@ -78,9 +78,10 @@ describe("practice and library API", () => {
         score: 1, verdict: "easy", feedback: {}, rating: "easy", reviewedAt: new Date("2020-01-01T00:00:00.000Z") });
     }
     const app = await buildApp(context.repository);
+    context.db.prepare("UPDATE pilot_card_progress SET stage='recall'").run();
     const response = await app.inject({ method: "GET", url: "/api/practice/due?language=en&limit=2000&newLimit=0" });
     expect(response.statusCode).toBe(200);
-    expect(response.json().items.length).toBeGreaterThanOrEqual(105);
+    expect(response.json().items).toHaveLength(20);
     expect(response.json().composition).toMatchObject({ new: 0 });
     expect(response.json().composition.due).toBe(response.json().items.length);
     await app.close();
@@ -105,6 +106,8 @@ describe("practice and library API", () => {
   });
 
   it("keeps Learned cards out of the due queue without deleting their schedule", async () => {
+    context.repository.library.createIsland({language:"en",title:"Learned fixture",itemPublicIds:["en-drawn-to"]});
+    context.db.prepare("UPDATE pilot_card_progress SET stage='recall' WHERE card_id='en-drawn-to'").run();
     context.repository.practice.recordAttempt({
       itemPublicId: "en-drawn-to",
       mode: "recall",
@@ -115,9 +118,9 @@ describe("practice and library API", () => {
       rating: "easy",
       reviewedAt: new Date("2026-08-18T12:00:00.000Z"),
     });
-    expect(context.repository.practice.listDue("en", 100, new Date("2026-08-19T12:00:00.000Z"))
+    expect(context.repository.pilot.queue.list({ language: "en" }, "2026-08-19T12:00:00.000Z")
       .some((item) => item.publicId === "en-drawn-to")).toBe(false);
-    expect(context.repository.practice.listDue("en", 100, new Date("2026-08-27T12:00:00.000Z"))
+    expect(context.repository.pilot.queue.list({ language: "en" }, "2026-08-27T12:00:00.000Z")
       .some((item) => item.publicId === "en-drawn-to")).toBe(true);
 
     const app = await buildApp(context.repository);
@@ -127,7 +130,7 @@ describe("practice and library API", () => {
       payload: { practiceEnabled: false },
     });
     expect(learned.json().item.practiceEnabled).toBe(false);
-    expect(context.repository.practice.listDue("en", 100, new Date("2030-01-01T00:00:00.000Z"))
+    expect(context.repository.pilot.queue.list({ language: "en" }, "2030-01-01T00:00:00.000Z")
       .some((item) => item.publicId === "en-drawn-to")).toBe(false);
     const inventory = await app.inject({
       method: "GET",
@@ -153,7 +156,7 @@ describe("practice and library API", () => {
       payload: { practiceEnabled: true },
     });
     expect(reactivated.json().item.practiceEnabled).toBe(true);
-    expect(context.repository.practice.listDue("en", 100, new Date("2030-01-01T00:00:00.000Z"))
+    expect(context.repository.pilot.queue.list({ language: "en" }, "2030-01-01T00:00:00.000Z")
       .some((item) => item.publicId === "en-drawn-to")).toBe(true);
     await app.close();
   });
@@ -228,11 +231,12 @@ describe("practice and library API", () => {
       fuzz: false,
       newItemsPerDay: 12,
     };
+    const unified = { ...settings, presets: { like: settings.presets.neutral, neutral: settings.presets.neutral, dislike: settings.presets.neutral } };
     expect((await app.inject({
       method: "PATCH", url: "/api/settings/scheduler", payload: settings,
-    })).json().scheduler).toEqual(settings);
+    })).json().scheduler).toEqual(unified);
     expect((await app.inject({ method: "GET", url: "/api/config" })).json().scheduler)
-      .toMatchObject({ algorithm: "FSRS-6", ...settings });
+      .toMatchObject({ algorithm: "FSRS-6", ...unified });
 
     const unsafe = await app.inject({
       method: "PATCH",
@@ -294,15 +298,12 @@ describe("practice and library API", () => {
     await app.close();
   });
 
-  it("prioritizes liked cards in the due queue", async () => {
+  it("keeps Like independent of learning recommendations", async () => {
     const app = await buildApp(context.repository);
-    const response = await app.inject({
-      method: "PATCH",
-      url: "/api/items/en-drawn-to/preference",
-      payload: { preference: "like" },
-    });
+    const before = context.repository.pilot.queue.listen({ language: "en" }).map((item) => item.publicId);
+    const response = await app.inject({ method: "PATCH", url: "/api/items/en-drawn-to/preference", payload: { preference: "like" } });
     expect(response.json().item.preference).toBe("like");
-    expect(context.repository.practice.listDue("en", 100)[0]?.publicId).toBe("en-drawn-to");
+    expect(context.repository.pilot.queue.listen({ language: "en" }).map((item) => item.publicId)).toEqual(before);
     await app.close();
   });
 
@@ -325,31 +326,4 @@ describe("practice and library API", () => {
     await restarted.close();
   });
 
-  it("caps fresh cards without hiding scheduled reviews", () => {
-    expect(context.repository.practice.listDue("en", 100, new Date(), 3)
-      .filter((item) => item.schedule.state === "new")).toHaveLength(3);
-  });
-
-  it("prioritizes listened cards in the fresh recommendation queue", () => {
-    const exposed = context.repository.items.save({ language: "en", cue: "Прослушана", target: "Listened first." });
-    context.repository.items.save({ language: "en", cue: "Не прослушана", target: "Unheard second." });
-    const topic = context.repository.library.createIsland({
-      language: "en", title: "Listened only", itemPublicIds: [exposed.publicId],
-    });
-    context.repository.practice.recordAttempt({
-      itemPublicId: exposed.publicId,
-      mode: "listen",
-      answer: "",
-      score: 0.85,
-      verdict: "good",
-      feedback: {},
-      rating: "good",
-    });
-
-    const fresh = context.repository.practice.listDue("en", 100, new Date(), 1)
-      .filter((item) => item.progress.stage === "new");
-    expect(fresh.map((item) => item.publicId)).toEqual([exposed.publicId]);
-    expect(context.repository.library.getIsland(topic.publicId)?.progress)
-      .toMatchObject({ new: 1, dueNow: 0, recalls: 0, listens: 1 });
-  });
 });

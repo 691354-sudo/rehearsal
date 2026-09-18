@@ -5,13 +5,12 @@ export async function getTopics(language: Language, signal?: AbortSignal): Promi
   const response = await apiFetch(`/api/islands?language=${language}`, { signal });
   if (!response.ok) throw new Error("Topics could not be loaded. Try again.");
   const topics = (await response.json()).islands as IslandSummary[];
-  if (language !== "en") return topics;
-  const { items: _items, ...liked } = await getTopic("liked", signal);
+  const { items: _items, ...liked } = await getTopic("liked", signal,language);
   return [liked, ...topics];
 }
 
-export async function getTopic(id: string, signal?: AbortSignal): Promise<Island> {
-  const response = await apiFetch(id === "liked" ? "/api/pilot/liked?language=en" : `/api/islands/${encodeURIComponent(id)}`, { signal });
+export async function getTopic(id: string, signal?: AbortSignal, language:Language="en"): Promise<Island> {
+  const response = await apiFetch(id === "liked" ? `/api/pilot/liked?language=${language}` : `/api/islands/${encodeURIComponent(id)}`, { signal });
   if (!response.ok) throw new Error("Topic could not be loaded. Try again.");
   return (await response.json()).island;
 }

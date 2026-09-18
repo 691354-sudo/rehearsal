@@ -17,9 +17,7 @@ export const registerPracticeRoutes = (app: FastifyInstance, dependencies: HttpD
       newLimit: z.coerce.number().int().min(0).max(30).optional(),
       timezone: z.string().max(100).optional(),
     }).parse(request.query);
-    const newLimit = query.newLimit ?? repository.practice.getSettings().newItemsPerDay;
-    const items = query.language === "en" ? repository.pilot.queue.list(query)
-      : repository.practice.listDue(query.language, query.limit, new Date(), newLimit, query);
+    const items = repository.pilot.queue.list(query);
     const fresh = items.filter((item) => item.progress.stage === "new").length;
     return { items, composition: { due: items.length - fresh, new: fresh } };
   });
@@ -44,7 +42,7 @@ export const registerPracticeRoutes = (app: FastifyInstance, dependencies: HttpD
     }).parse(request.body);
     const item = repository.items.get(body.itemId);
     if (!item) return reply.code(404).send({ error: "ITEM_NOT_FOUND" });
-    if (item.language === "en" && body.mode === "recall") {
+    if (body.mode === "recall") {
       return reply.code(409).send({ error: "PILOT_RECALL_REQUIRED", message: "Refresh Echo to use the updated Recall." });
     }
     const result = openai.evaluate(item, body.answer);

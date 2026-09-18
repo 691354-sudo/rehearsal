@@ -14,6 +14,7 @@ describe("pilot export and seven-day metrics", () => {
     const topic = context.repository.library.createIsland({ language: "en", title: id });
     const item = context.repository.items.create({ publicId: id, language: "en", cue: `Фраза ${id}`, target: `Phrase ${id}.` }, topic.publicId);
     if (old) context.repository.practice.recordAttempt({ itemPublicId: id, mode: "recall", answer: "", score: 1, verdict: "easy", rating: "easy", feedback: {}, reviewedAt: new Date("2020-01-01T00:00:00.000Z") });
+    if (old) context.db.prepare("UPDATE pilot_card_progress SET stage='recall' WHERE card_id=?").run(id);
     return item;
   };
   const recall = (cardId: string, rating: ReviewRating, seconds: number, homeworkId?: string) => {
@@ -48,11 +49,20 @@ describe("pilot export and seven-day metrics", () => {
   });
   it("reproduces a fixed week with oral Recall, Like discussion, distinct-card completion and both transition days", () => {
     const pilot = context.repository.pilot;
+    context.repository.practice.updateSettings({ ...context.repository.practice.getSettings(), relearningSteps: ["1m", "10m"] });
     add("due", true); add("hard", true); add("fresh"); add("liked");
     const participant = pilot.participants.start("Europe/Riga", start);
-    for (let n = 0; n < 5; n++) pilot.listening.complete({ eventId: randomUUID(), appearanceId: randomUUID(), listenSessionId: randomUUID(), cardId: "fresh", language: "en", completedAt: at(n + 1), audioRepeatsInAppearance: 3 }, at(n + 1));
+    for (let n = 0; n < 5; n++) pilot.listening.complete({ eventId: randomUUID(), appearanceId: randomUUID(), listenSessionId: randomUUID(), cardId: "fresh", language: "en", completedAt: at((n - 4) * 1800 + 5), audioRepeatsInAppearance: 3 }, at(n + 1));
     pilot.listening.like({ eventId: randomUUID(), cardId: "liked", language: "en", liked: true, occurredAt: at(6) }, at(6));
-    const hw = pilot.homework.create({ homeworkId: randomUUID(), requestedMinutes: 20, timezone: "Europe/Riga" }, at(7));
+    // Imported legacy Homework keeps its Like request and Recall block.
+    const requestId = (context.db.prepare("SELECT event_id FROM pilot_events WHERE kind='listen_like'").get() as {event_id:string}).event_id;
+    context.db.prepare("INSERT INTO pilot_priority_requests(request_id,card_id,requested_at,status) VALUES(?,'liked',?,'pending')").run(requestId, at(6));
+    context.db.prepare("UPDATE pilot_card_progress SET stage='tutor' WHERE card_id='liked'").run();
+    const created = pilot.homework.create({ homeworkId: randomUUID(), requestedMinutes: 20, timezone: "Europe/Riga" }, at(7));
+    const plan = { ...created, plannedTutorCardIds: undefined, plannedCardIds: ["due", "hard", "fresh"], plannedTutorRequestIds: [requestId], plannedRecallCards: 3 };
+    context.db.prepare("UPDATE pilot_homework SET status='recall_in_progress',plan=? WHERE homework_id=?").run(JSON.stringify(plan),created.homeworkId);
+    context.db.prepare("UPDATE pilot_priority_requests SET homework_id=?,assigned=1 WHERE request_id=?").run(created.homeworkId,requestId);
+    const hw = pilot.store.homework(created.homeworkId);
     expect(hw.plannedRecallCards).toBe(3);
     recall("due", "again", 8, hw.homeworkId); recall("hard", "hard", 11, hw.homeworkId); recall("fresh", "again", 14, hw.homeworkId);
     recall("due", "good", 75, hw.homeworkId);
@@ -76,7 +86,7 @@ describe("pilot export and seven-day metrics", () => {
     pilot.participants.end(participant.participantId, at(604800));
     const report = pilot.export.report(start, at(604800)); const metrics = pilotMetrics(report);
     expect(report.comparison.complete).toBe(true);
-    expect(report.datasets.listen_events[4]).toMatchObject({ listenCountAfter: 5, becameRecallEligible: true, audioRepeatsInAppearance: 3, userId: report.userId, language: "en", appVersion: expect.any(String), experimentVersion: "echo-learning-pilot-v1" });
+    expect(report.datasets.listen_events[4]).toMatchObject({ listenCountAfter: 5, becameRecallEligible: true, audioRepeatsInAppearance: 3, userId: report.userId, language: "en", appVersion: expect.any(String), experimentVersion: "unified-learning-v2" });
     expect(report.datasets.recall_attempts[2]).toMatchObject({ inputMode: "oral_self_check", responseTimeMs: 2000, lastListenAt: at(5), lastListenDeltaMs: 9000, dueBefore: null, dueAfter: expect.any(String), wasAnswerRevealedBeforeRating: true, queueReason: "new_after_listen_threshold", selectionSource: "homework_selected" });
     expect(report.datasets.homework_sessions[0]).toMatchObject({ status: "completed", finishedRecallCards: 3, skippedCards: [], returnedToTutor: true, againCards: ["due", "fresh"], hardCards: ["hard"], actualRecallSeconds: 40, actualTutorSeconds: 30, dueCardsSkipped: 0 });
     expect(report.datasets.tutor_homework_sessions[0]).toMatchObject({ cardsReceived: 4, explainedCards: ["due", "fresh"], practicedCards: ["hard", "liked"], userMessagesCount: 1 });
@@ -100,6 +110,7 @@ describe("pilot export and seven-day metrics", () => {
   it("reports missing boundaries, imported/deleted/changed cards and lost time without reconstruction", () => {
     const pilot = context.repository.pilot; add("removed"); add("changed");
     const p = pilot.participants.start("Europe/Riga", start);
+    context.db.prepare("UPDATE pilot_card_progress SET stage='tutor' WHERE card_id='changed'").run();
     const hw = pilot.homework.create({ homeworkId: randomUUID(), requestedMinutes: 1, timezone: "Europe/Riga" }, at(1));
     pilot.timing.record(hw.homeworkId, { eventId: randomUUID(), stage: "tutor", measurementLost: true, intervals: [] }, at(2));
     pilot.homework.cancel(hw.homeworkId, at(3));

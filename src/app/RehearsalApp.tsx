@@ -293,16 +293,13 @@ export function RehearsalApp({
       voices={audio.voices}
     /> : null}
     <div className={`simple-workspace simple-workspace--${workspaceMode}`}>
-    {route.section === "practice" && <PracticePage attempts={learning.attempts} key={language}
-      dueItemIds={learning.dueItemIds} items={learning.items} language={language} route={route} dailyProgress={learning.dailyProgress}
+    {route.section === "practice" && <PracticePage key={language}
+      items={learning.items} language={language} route={route} dailyProgress={learning.dailyProgress}
       recommended={learning.recommended}
       elevenLabs={audio.elevenLabsConfig}
-      onAnswer={learning.setAnswer} onCheck={learning.checkAnswer} onListened={learning.commitListening}
-      onModeSelected={learning.resetAttempts}
       onPilotUpdated={() => { void learning.loadItems(language); }}
       onItemDeleted={learning.removeItem} onItemUpdated={learning.updateItem}
-      onRoute={(next, historyMode) => { goTo(next, historyMode); learning.resetAttempts(); }} onRecallReview={learning.commitRecall}
-      onPracticeEnabled={learning.updatePracticeEnabled}
+      onRoute={goTo}
       onPausePlayback={audio.pausePlayback} onPlay={audio.playTarget} onPlayback={audio.updatePlayback}
       onPlayPrepared={audio.playPreparedAudio} onPrepareAudio={audio.fetchTargetAudio}
       onResumePlayback={audio.resumePlayback} onStopPlayback={audio.stopPlayback}

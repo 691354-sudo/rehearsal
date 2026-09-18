@@ -1,15 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { evaluateAttempt } from "../../lib/compare";
-import type { ReviewRating } from "../../lib/sessionQueue";
 import { apiFetch } from "../../shared/api";
 import type {
-  AttemptDraft,
   DailyProgress,
-  Evaluation,
   Language,
   LearningItem,
 } from "../../shared/contracts";
-import { normalizeNfc } from "../../../contracts/text";
 
 type LearningSnapshot = {
   items: LearningItem[];
@@ -33,12 +28,11 @@ const removeRecommendedCount = (snapshot: LearningSnapshot, itemId: string, stag
 };
 
 export const useLearningData = (language: Language) => {
-  const [attempts, setAttempts] = useState<Record<string, AttemptDraft>>({});
   const [snapshots, setSnapshots] = useState<Partial<Record<Language, LearningSnapshot>>>({});
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const activeLanguageRef = useRef(language);
   activeLanguageRef.current = language;
-  const { items, dueItemIds, recommended, dailyProgress } = snapshots[language] || emptySnapshot();
+  const { items, recommended, dailyProgress } = snapshots[language] || emptySnapshot();
 
   const updateSnapshot = useCallback((targetLanguage: Language, update: (snapshot: LearningSnapshot) => LearningSnapshot) => {
     setSnapshots((current) => ({
@@ -83,82 +77,10 @@ export const useLearningData = (language: Language) => {
   }, [setAvailabilityFor, updateSnapshot]);
 
   useEffect(() => {
-    setAttempts({});
     const controller = new AbortController();
     void loadItems(language, controller.signal);
     return () => controller.abort();
   }, [language, loadItems]);
-
-  const setAnswer = (itemId: string, answer: string) => {
-    setAttempts((current) => ({ ...current, [itemId]: { answer } }));
-  };
-
-  const checkAnswer = (itemId: string) => {
-    const practiceItem = items.find((candidate) => candidate.publicId === itemId);
-    const answer = normalizeNfc(attempts[itemId]?.answer.trim() || "");
-    if (!practiceItem || !answer) return;
-    const local = evaluateAttempt({
-      id: practiceItem.publicId,
-      language: practiceItem.language,
-      cue: practiceItem.cue,
-      target: practiceItem.target,
-      acceptedAnswers: practiceItem.acceptedAnswers,
-      note: practiceItem.note,
-      source: practiceItem.source,
-      status: practiceItem.status,
-    }, answer);
-    const evaluation: Evaluation = {
-      score: local.accuracy,
-      verdict: local.verdict,
-      naturalAnswer: local.expected,
-      correctedAnswer: local.expected,
-      summaryRu: local.verdict === "exact" ? "Точно." : "Сравни свой вариант с естественной фразой.",
-      mistakes: [],
-      expectedTokens: local.expectedTokens,
-      answerTokens: local.answerTokens,
-    };
-    setAttempts((current) => ({ ...current, [itemId]: { answer, evaluation } }));
-  };
-
-  const commitRecall = async (itemId: string, rating: ReviewRating) => {
-    const reviewedItem = items.find((candidate) => candidate.publicId === itemId);
-    const attempt = attempts[itemId];
-    if (!reviewedItem || !attempt?.evaluation) return false;
-    try {
-      const response = await apiFetch("/api/attempts/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: reviewedItem.publicId, answer: attempt.answer, mode: "recall", rating }),
-      });
-      if (!response.ok) throw new Error("Review failed");
-      const data = await response.json() as { attempt: { schedule?: LearningItem["schedule"] } };
-      setAvailabilityFor(language, true);
-      updateSnapshot(language, (current) => ({
-        ...current,
-        dueItemIds: current.dueItemIds.filter((publicId) => publicId !== itemId),
-        recommended: removeRecommendedCount(current, itemId, reviewedItem.progress.stage),
-        items: current.items.map((candidate) => candidate.publicId === itemId
-          ? {
-              ...candidate,
-              schedule: data.attempt.schedule || candidate.schedule,
-              progress: {
-                ...candidate.progress,
-                recalls: candidate.progress.recalls + 1,
-                stage: data.attempt.schedule?.state === "learning" || data.attempt.schedule?.state === "relearning"
-                  ? "learning" : "strong",
-              },
-            } : candidate),
-        dailyProgress: { ...current.dailyProgress, recall: current.dailyProgress.recall + 1 },
-      }));
-      setAttempts((current) => {
-        const next = { ...current }; delete next[itemId]; return next;
-      });
-      return true;
-    } catch {
-      setAvailabilityFor(language, false);
-      return false;
-    }
-  };
 
   const commitListening = async (itemId: string) => {
     try {
@@ -221,25 +143,16 @@ export const useLearningData = (language: Language) => {
       items: current.items.filter((item) => item.publicId !== itemId),
       dueItemIds: current.dueItemIds.filter((dueId) => dueId !== itemId),
     }));
-    setAttempts((current) => {
-      const next = { ...current }; delete next[itemId]; return next;
-    });
   };
 
   return {
     apiOnline,
-    attempts,
-    checkAnswer,
     commitListening,
-    commitRecall,
     dailyProgress,
-    dueItemIds,
     items,
     loadItems,
     recommended,
     removeItem,
-    resetAttempts: () => setAttempts({}),
-    setAnswer,
     setApiOnline,
     updateItem,
     updatePracticeEnabled,

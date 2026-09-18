@@ -15,7 +15,7 @@ export const registerItemRoutes = (app: FastifyInstance, dependencies: HttpDepen
       includeSchedule: z.coerce.boolean().default(false),
     }).parse(request.query);
     const items = repository.practice.listInventory(query.language, query.limit, new Date(),
-      query.language === "en" ? normalizeSchedulerSettings(repository.pilot.store.settings().scheduler) : undefined);
+      normalizeSchedulerSettings(repository.pilot.store.settings().scheduler));
     return {
       items: query.includeSchedule ? items : items.map(({ schedule: _schedule, ...item }) => item),
     };

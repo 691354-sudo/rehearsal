@@ -10,7 +10,6 @@ import type {
   LearningItem,
   SchedulerSettings,
 } from "../../contracts/api";
-import type { DiffToken } from "../types/practice";
 
 export type {
   ChatThread,
@@ -26,18 +25,6 @@ export type {
 export type Language = LanguageCode;
 export type Theme = "light" | "dark";
 
-export type Evaluation = {
-  score: number;
-  verdict: "exact" | "close" | "retry";
-  naturalAnswer: string;
-  correctedAnswer: string;
-  summaryRu: string;
-  mistakes: Array<{ original: string; correction: string; explanationRu: string }>;
-  expectedTokens?: DiffToken[];
-  answerTokens?: DiffToken[];
-};
-
-export type AttemptDraft = { answer: string; evaluation?: Evaluation };
 export type ChatMessage = {
   id: string;
   messageId?: number;

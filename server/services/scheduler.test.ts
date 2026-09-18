@@ -29,17 +29,17 @@ describe("FSRS scheduler", () => {
     const forgotten = scheduleReview(graduated, "again", graduated.due).card;
     expect(forgotten.state).toBe(3);
     expect(forgotten.lapses).toBe(1);
-    expect(minutesBetween(forgotten.due.toISOString(), graduated.due)).toBe(1);
+    expect(minutesBetween(forgotten.due.toISOString(), graduated.due)).toBe(10);
 
     const relearning = scheduleReview(forgotten, "good", forgotten.due).card;
-    expect(relearning.state).toBe(3);
-    expect(minutesBetween(relearning.due.toISOString(), forgotten.due)).toBe(10);
+    expect(relearning.state).toBe(2);
+    expect(minutesBetween(relearning.due.toISOString(), forgotten.due)).toBeGreaterThanOrEqual(24 * 60);
   });
 
   it.each([
-    ["like", 60],
+    ["like", 180],
     ["neutral", 180],
-    ["dislike", 365],
+    ["dislike", 180],
   ] as const)("enforces the %s maximum interval", (preference, maximum) => {
     let now = new Date("2026-08-18T12:00:00.000Z");
     let card = cardFromStoredState(undefined, now);

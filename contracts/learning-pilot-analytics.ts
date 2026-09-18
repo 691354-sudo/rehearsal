@@ -1,7 +1,7 @@
 import type { ReviewRating } from "./api.js";
 import type { Homework, HomeworkFeedback, HomeworkTutorContext, PilotInputMode, PriorityRequest, QueueReason } from "./learning-pilot.js";
 
-export type PilotCommon = { userId: string; language: "en"; appVersion: string; experimentVersion: string };
+export type PilotCommon = { userId: string; language: import("./api.js").LanguageCode; appVersion: string; experimentVersion: string };
 export type PilotEventCommon = PilotCommon & { eventId: string; createdAt: string };
 export type PilotParticipant = PilotCommon & {
   participantId: string; nativeLanguage: "ru"; startedAt: string; endedAt: string | null;
@@ -62,7 +62,7 @@ export type PilotDatasets = {
   cards_snapshot: ExportedSnapshot[];
 };
 export type PilotReport = {
-  userId: string; language: "en"; period: { startedAt: string; endedAt: string }; timezone: string;
+  userId: string; language: import("./api.js").LanguageCode; period: { startedAt: string; endedAt: string }; timezone: string;
   settings: { recentListenWindowSeconds: number; maxRecallAttemptsPerCardPerHomework: number };
   datasets: PilotDatasets;
   likeEvents: Array<PilotEventCommon & { cardId: string; liked: boolean; occurredAt: string }>;

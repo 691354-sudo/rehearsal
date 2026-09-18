@@ -1,3 +1,4 @@
+import { readyTutorCard } from "../testing/pilot-requests.js";
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../app.js";
@@ -6,14 +7,13 @@ import { createApiTestContext, type ApiTestContext } from "../testing/api-test-c
 
 describe("Pilot answer and Homework API", () => {
   let context: ApiTestContext;
-  beforeEach(() => { context = createApiTestContext(); });
+  beforeEach(() => { context = createApiTestContext(); readyTutorCard(context); });
   afterEach(() => { vi.restoreAllMocks(); context.close(); });
   it("checks an existing English attempt against its own card without grading or touching FSRS", async () => {
     const repo = context.repository, now = new Date().toISOString();
     const topic = repo.library.createIsland({ language: "en", title: "API check" });
     const card = repo.items.create({ language: "en", cue: "Мне это нравится", target: "I like it." }, topic.publicId);
-    for (let n = 0; n < 5; n++) repo.pilot.listening.complete({ eventId: randomUUID(), appearanceId: randomUUID(),
-      listenSessionId: randomUUID(), language: "en", cardId: card.publicId, completedAt: now, audioRepeatsInAppearance: 1 });
+    repo.pilot.listening.toRecall({ eventId: randomUUID(), language: "en", cardId: card.publicId });
     const attemptId = randomUUID();
     repo.pilot.recall.begin({ attemptId, cardId: card.publicId, shownAt: now, timezone: "Europe/Riga" });
     const openai = new OpenAIService(repo);
@@ -52,4 +52,41 @@ describe("Pilot answer and Homework API", () => {
       expect((await app.inject({ method: "GET", url: "/api/pilot/homework?language=en" })).json().sessions).toEqual([]);
     } finally { await app.close(); }
   });
+  it("runs written Recall and Tutor in Latvian even when English is disabled", async () => {
+    const repo = context.repository;
+    const topic = repo.library.createIsland({ language: "lv", title: "Latvian flow" });
+    const card = repo.items.create({ language: "lv", cue: "Спасибо", target: "Paldies." }, topic.publicId);
+    context.db.prepare("UPDATE languages SET enabled=0 WHERE code='en'").run();
+    const app = await buildApp(repo);
+    try {
+      const sessionId = randomUUID();
+      const selected = await app.inject({ method: "POST", url: "/api/pilot/sessions", payload: { sessionId, language: "lv", limit: 10, topicId: topic.publicId } });
+      expect(selected.json().items.map((item: {publicId:string}) => item.publicId)).toEqual([card.publicId]);
+      const attemptId = randomUUID(), now = new Date().toISOString();
+      expect((await app.inject({ method: "POST", url: "/api/pilot/attempts/start", payload: { sessionId, attemptId, language: "lv", cardId: card.publicId, shownAt: now, timezone: "UTC" } })).statusCode).toBe(200);
+      expect((await app.inject({ method: "POST", url: "/api/pilot/attempts/grade", payload: { attemptId, language: "lv", rating: "easy", revealedAt: now, ratedAt: now, responseTimeMs: 0, inputMode: "oral_self_check", answer: "" } })).statusCode).toBe(200);
+      const created = await app.inject({ method: "POST", url: "/api/pilot/homework", payload: { homeworkId: randomUUID(), language: "lv", requestedMinutes: 2, timezone: "UTC" } });
+      expect(created.statusCode).toBe(200);
+      expect(created.json().homework).toMatchObject({ language: "lv", status: "tutor_in_progress", plannedTutorCardIds: [card.publicId] });
+      expect((await app.inject({ method: "GET", url: "/api/pilot/homework?language=lv" })).json().sessions).toHaveLength(1);
+      expect((await app.inject({ method: "GET", url: "/api/pilot/liked?language=lv" })).statusCode).toBe(200);
+      expect((await app.inject({ method: "GET", url: "/api/pilot/queue?language=en" })).statusCode).toBe(403);
+    } finally { await app.close(); }
+  });
+
+  it("keeps a direct Recall request scoped to its card before applying the session limit", async () => {
+    const repo = context.repository;
+    const topic = repo.library.createIsland({ language: "lv", title: "Direct Recall" });
+    const cards = Array.from({length: 25}, () => repo.items.create({ language: "lv", cue: "Спасибо", target: "Paldies." }, topic.publicId));
+    const cardId = cards.at(-1)!.publicId;
+    const app = await buildApp(repo);
+    try {
+      const query = new URLSearchParams({language:"lv",limit:"10",cardId});
+      const preview = await app.inject({ method:"GET", url:`/api/pilot/queue?${query}` });
+      expect(preview.json().items.map((item:{publicId:string}) => item.publicId)).toEqual([cardId]);
+      const selected = await app.inject({ method:"POST",url:"/api/pilot/sessions",payload:{sessionId:randomUUID(),language:"lv",limit:10,cardId} });
+      expect(selected.json().items.map((item:{publicId:string}) => item.publicId)).toEqual([cardId]);
+    } finally { await app.close(); }
+  });
+
 });
