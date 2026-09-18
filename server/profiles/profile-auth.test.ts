@@ -234,11 +234,13 @@ describe("profile authentication and database isolation", () => {
     const attemptId = "86b43268-957b-4a03-8fc9-701b1ec1228a";
     repository.practice.recordAttempt({ itemPublicId: item.publicId, mode: "recall", answer: "", score: 1,
       verdict: "easy", rating: "easy", feedback: {}, reviewedAt: new Date("2020-01-01T00:00:00.000Z") });
+    repository.pilot.listening.toRecall({ eventId: "695c4bcc-3648-4f35-8187-ea5c689aa5de", cardId: item.publicId, language: "en" });
     repository.pilot.recall.begin({ attemptId, cardId: item.publicId, shownAt: new Date().toISOString(), timezone: "Europe/Riga" });
     const check = { method: "POST" as const, url: "/api/pilot/attempts/check", payload: { attemptId, answer: item.target } };
     expect((await mutate(app, roman, check)).json().check.verdict).toBe("correct");
     expect((await mutate(app, oliver, check)).statusCode).toBe(404);
     expect((await mutate(app, oliver, { ...check, headers: { "x-rehearsal-profile": "roman" } })).statusCode).toBe(409);
+    repository.pilot.store.db.prepare("UPDATE pilot_card_progress SET stage='tutor' WHERE card_id=?").run(item.publicId);
     const homework = repository.pilot.homework.create({ homeworkId: attemptId, requestedMinutes: 1, timezone: "Europe/Riga" });
     expect((await read(app, roman, "/api/pilot/homework?language=en")).json().sessions[0].homeworkId).toBe(homework.homeworkId);
     expect((await read(app, oliver, "/api/pilot/homework?language=en")).json().sessions).toEqual([]);

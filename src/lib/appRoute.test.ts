@@ -24,17 +24,17 @@ describe("app routes", () => {
     });
   });
 
-  it("defaults Listen & Repeat to Library while preserving an explicit recommended scope", () => {
+  it("defaults Listen & Repeat to Recommended while preserving explicit scope", () => {
     expect(parseAppRoute(location("/practice/listen", "?lang=en"), "/"))
-      .toMatchObject({ section: "practice", mode: "listen", scope: "library" });
+      .toMatchObject({ section: "practice", mode: "listen", scope: "due" });
     expect(parseAppRoute(location("/practice/listen", "?lang=en&scope=due"), "/"))
       .toMatchObject({ section: "practice", mode: "listen", scope: "due" });
   });
 
   it("opens the application root in Listen & Repeat when audio is available", () => {
     expect(parseAppRoute(location("/rehearsal/", "?lang=en"), "/rehearsal/"))
-      .toMatchObject({ section: "practice", mode: "listen", scope: "library" });
-    expect(defaultPracticeRoute("en")).toMatchObject({ mode: "listen", scope: "library" });
+      .toMatchObject({ section: "practice", mode: "listen", scope: "due" });
+    expect(defaultPracticeRoute("en")).toMatchObject({ mode: "listen", scope: "due" });
     expect(parseAppRoute(location("/rehearsal/", "?lang=lv"), "/rehearsal/"))
       .toMatchObject({ section: "practice", mode: "recall", scope: "due" });
   });
@@ -85,7 +85,7 @@ describe("app routes", () => {
 
   it("round-trips every route family", () => {
     const routes: AppRoute[] = [
-      { section: "practice", mode: "listen", scope: "library", topic: "topic", cards: "50", order: "original", review: null, language: "en", settings: true },
+      { section: "practice", mode: "listen", scope: "due", topic: "topic", cards: "50", order: "original", review: null, language: "en", settings: true },
       { section: "practice", mode: "listen", scope: "due", topic: "", cards: "all", order: "newest", review: null, language: "en", settings: false },
       { section: "tutor", mode: "notebook", thread: null, review: null, language: "lv", settings: false },
       { ...defaultLibraryRoute("en"), view: "topics", topic: "topic", page: 2, panel: "create", edit: null },

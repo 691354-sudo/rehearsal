@@ -1,3 +1,4 @@
+import { advanceLearning, progressRow } from "./progress.js";
 import type { PilotSettings, PilotAttemptGrade, PilotAttemptStart, QueueReason } from "../../../contracts/learning-pilot.js";
 import { normalizeSchedulerSettings, type StoredReviewState } from "../../services/scheduler.js";
 import { PilotQueue } from "./queue.js";
@@ -7,7 +8,7 @@ export type AttemptRow = {
   attempt_id: string; card_id: string; homework_id: string | null; shown_at: string;
   created_at: string; rated_at: string | null; local_day: string; timezone: string;
   queue_reason: QueueReason; settings_snapshot: string; last_listen_at: string | null; app_version: string;
-  experiment_version: string; submission: string | null; result: string | null;
+  experiment_version: string; progress_revision: number | null; practice_session_id: string | null; submission: string | null; result: string | null;
 };
 export type AttemptResult = {
   publicId: string;
@@ -35,7 +36,10 @@ export class PilotRecall {
         return previous;
       }
       if (Date.parse(input.shownAt) > Date.parse(now) + 60_000) throw new PilotError("INVALID_SHOWN_TIME", 400);
-      const eligible = this.queue.list({ cardId: input.cardId, homeworkId: input.homeworkId, timezone: input.timezone }, now)
+      const language = this.store.item(input.cardId,input.language).language;
+      const session = input.sessionId ? this.queue.session(input.sessionId) : null;
+      if (session && (session.language !== language || !session.ids.includes(input.cardId))) throw new PilotError("CARD_NOT_AVAILABLE_FOR_RECALL");
+      const eligible = this.queue.list({ language,cardId: input.cardId, homeworkId: input.homeworkId, timezone: input.timezone,allowEarly:Boolean(session) }, now)
         .find((card) => card.publicId === input.cardId);
       if (!eligible) throw new PilotError("CARD_NOT_AVAILABLE_FOR_RECALL");
       const settings = input.homeworkId ? this.store.homework(input.homeworkId).settingsSnapshot : this.store.settings();
@@ -49,6 +53,7 @@ export class PilotRecall {
         .run(input.attemptId, input.cardId, input.homeworkId ?? null, input.shownAt, now,
           localDay(now, timezone), timezone, eligible.queueReason, JSON.stringify(settings), last.at,
           this.store.versions().appVersion, settings.experimentVersion);
+      db.prepare("UPDATE pilot_attempts SET progress_revision=?,practice_session_id=? WHERE attempt_id=?").run(progressRow(this.store,input.cardId).revision,input.sessionId ?? null,input.attemptId);
       return this.get(input.attemptId)!;
     }).immediate();
   }
@@ -78,10 +83,7 @@ export class PilotRecall {
           .get(homework.homeworkId, attempt.card_id) as { count: number };
         if (accepted.count >= settings.maxRecallAttemptsPerCardPerHomework) throw new PilotError("HOMEWORK_ATTEMPT_LIMIT");
       }
-      const progress = this.store.progress(attempt.card_id);
-      if (!progress.hasRecallHistory && this.queue.newUsedToday(now, attempt.timezone) >= settings.scheduler.newItemsPerDay) {
-        throw new PilotError("DAILY_NEW_CARD_LIMIT");
-      }
+      if (attempt.progress_revision !== null && progressRow(this.store,attempt.card_id).revision !== attempt.progress_revision) throw new PilotError("STALE_RECALL_ATTEMPT");
       const item = this.store.item(attempt.card_id);
       if (!item.practiceEnabled) throw new PilotError("CARD_NOT_AVAILABLE_FOR_RECALL");
       // Read and advance current FSRS state under the same write lock. A second
@@ -93,6 +95,7 @@ export class PilotRecall {
         verdict: input.rating, rating: input.rating, feedback: { rating: input.rating },
         reviewedAt: new Date(now), schedulingPreference: "neutral",
         schedulerSettings: normalizeSchedulerSettings(settings.scheduler) });
+      advanceLearning(this.store,attempt.card_id,input.rating,now);
       const result: AttemptResult = { ...review, fsrsStateBefore: before,
         fsrsStateAfter: this.store.review(attempt.card_id),
         successfulRecallCount: this.store.progress(attempt.card_id).successfulRecallCount };

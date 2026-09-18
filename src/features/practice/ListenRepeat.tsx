@@ -1,3 +1,5 @@
+import {useListenRecommendations} from "./useListenRecommendations";
+import {usePilot} from "../pilot/PilotProvider";
 import { ListenSetup } from "./ListenSetup";
 import { useListenAppearances } from "../pilot/useListenAppearances";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -7,23 +9,21 @@ import type {
   Language,
   LearningItem,
   PlaybackPreferences,
-  PlaybackResult,
 } from "../../shared/contracts";
 import { apiFetch } from "../../shared/api";
 import { languageCopy } from "../../shared/config";
 import type { PracticeCardCount, PracticeOrder } from "../../lib/appRoute";
 import {
-  adaptivePauseMs, markListenedOnce, nextAutomaticIndex, nextQueueIndex, nextRepeatMode,
+  adaptivePauseMs, nextAutomaticIndex, nextQueueIndex, nextRepeatMode,
   playbackIdentity, preparationBody, reorderRemainingQueue, shuffleQueue,
   type AudioPreparationJob, type PreparedAudio, type RepeatMode,
 } from "../audio/listenAudio";
 import { PlaybackSettings, voiceDisplayName } from "./PlaybackSettings";
-import { buildPracticeSelection, type PracticeScope } from "./practiceSelection";
+import { buildLibrarySelection, type PracticeScope } from "./practiceSelection";
 import { ListenPlayerSurface } from "./ListenPlayerSurface";
 import { useTelegramPlaybackPause } from "./useTelegramPlaybackPause";
 export function ListenRepeat(props: {
   count: PracticeCardCount;
-  dueItemIds: string[];
   emptyAction: ReactNode;
   elevenLabs: ElevenLabsConfig;
   editActive: boolean;
@@ -31,13 +31,10 @@ export function ListenRepeat(props: {
   language: Language;
   onSelection: (scope: PracticeScope, count: PracticeCardCount) => void;
   onOrder: (order: PracticeOrder) => void;
-  onListened: (itemId: string) => Promise<void>;
-  recommended: { due: number; new: number };
   onEdit: (item: LearningItem) => void;
   onDelete?: (item: LearningItem) => void;
   deletedIds?: string[];
   onPause: () => void;
-  onPlay: (text: string, playback: PlaybackPreferences) => Promise<PlaybackResult>;
   onPlayPrepared: (url: string, repetitions: number, onFirstCompleted?: () => void) => Promise<number>;
   onPlayback: (playback: PlaybackPreferences) => void;
   onPrepareAudio: (
@@ -56,12 +53,14 @@ export function ListenRepeat(props: {
   onTopic: (topicId: string) => void;
   voices: string[];
 }) {
+  const pilot=usePilot();
   const [queue, setQueue] = useState<LearningItem[]>([]);
   const [shuffledCandidates, setShuffledCandidates] = useState<LearningItem[] | null>(null);
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
   const originalQueueIds = useRef<string[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<"setup" | "player" | "complete">("setup");
+  const recommendations = useListenRecommendations(props.language, props.topicId, props.count, props.scope === "due" && phase === "setup", pilot.revision);
   const [status, setStatus] = useState<"playing" | "paused" | "error">("playing");
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [showRussian, setShowRussian] = useState(false);
@@ -81,7 +80,7 @@ export function ListenRepeat(props: {
   const replayEditedRef = useRef(false);
   const playbackRef = useRef(props.playback);
   const queueRef = useRef(queue);
-  const listenedRef = useRef(new Set<string>());
+
   const buffersRef = useRef(new Map<string, string>());
   const downloadsRef = useRef(new Map<string, Promise<string>>());
   const urlsRef = useRef(new Set<string>());
@@ -101,17 +100,10 @@ export function ListenRepeat(props: {
     stop: () => undefined,
   });
   const countValue = props.count === "all" ? "all" : Number(props.count);
-  const candidates = useMemo(() => buildPracticeSelection(
-    props.items,
-    props.dueItemIds,
-    props.selectedTopicItems,
-    countValue,
-    props.scope,
-    props.order,
-    props.recommended.new,
-  ), [countValue, props.dueItemIds, props.items, props.order, props.recommended.new, props.scope, props.selectedTopicItems]);
-  const visibleCandidates = (shuffledCandidates || candidates).filter((item) => !props.deletedIds?.includes(item.publicId));
-  const visibleComposition = visibleCandidates.reduce((composition, item) => item.progress.stage === "new"
+  const candidates = useMemo(() => buildLibrarySelection(props.items, props.selectedTopicItems, countValue, props.order),
+    [countValue, props.items, props.order, props.selectedTopicItems]);
+  const visibleCandidates = (shuffledCandidates || (props.scope === "due" ? recommendations.items : candidates)).filter((item) => !props.deletedIds?.includes(item.publicId));
+  const visibleComposition = visibleCandidates.reduce((composition, item) => ((item as import("../../../contracts/learning-pilot").PilotCard).listenCount ?? item.progress.listens) === 0
     ? { ...composition, new: composition.new + 1 }
     : { ...composition, due: composition.due + 1 }, { due: 0, new: 0 });
   const current = queue[index];
@@ -280,7 +272,7 @@ export function ListenRepeat(props: {
         if (appearance && run === runRef.current) appearances.complete(appearance, activePlayback.repetitions);
       });
       if (run !== runRef.current) return;
-      if (props.language !== "en") markListenedOnce(listenedRef.current, item.publicId, props.onListened);
+
       await waitForPause(adaptivePauseMs(durationMs), run);
       if (run !== runRef.current) return;
       const followingIndex = nextAutomaticIndex(nextIndex, queueRef.current.length, repeatModeRef.current);
@@ -296,10 +288,9 @@ export function ListenRepeat(props: {
   const start = async () => {
     const nextQueue = visibleCandidates;
     if (!nextQueue.length) return;
-    originalQueueIds.current = candidates.map((item) => item.publicId);
+    originalQueueIds.current = (props.scope === "due" ? recommendations.items : candidates).map((item) => item.publicId);
     appearances.start(nextQueue, shuffleEnabled, originalQueueIds.current);
     pausedRef.current = false;
-    listenedRef.current.clear();
     queueRef.current = nextQueue;
     setQueue(nextQueue);
     setIndex(0);
@@ -328,7 +319,6 @@ export function ListenRepeat(props: {
     setShowPlaybackSettings(false);
   };
   const restart = () => {
-    listenedRef.current.clear();
     appearances.start(queueRef.current, shuffleEnabled, originalQueueIds.current);
     void playAt(0);
   };
@@ -352,7 +342,7 @@ export function ListenRepeat(props: {
   const shuffle = () => {
     const enabled = !shuffleEnabled;
     setShuffleEnabled(enabled);
-    if (phase === "setup") setShuffledCandidates(enabled ? shuffleQueue(candidates) : null);
+    if (phase === "setup") setShuffledCandidates(enabled ? shuffleQueue(props.scope === "due" ? recommendations.items : candidates) : null);
     else {
       const nextQueue = reorderRemainingQueue(queueRef.current, index, originalQueueIds.current, enabled);
       queueRef.current = nextQueue; setQueue(nextQueue); appearances.setOrder(nextQueue, index, enabled);
@@ -369,7 +359,7 @@ export function ListenRepeat(props: {
 
   useEffect(() => {
     if (phase === "setup" && !originalQueueIds.current.length) { setShuffledCandidates(null); setShuffleEnabled(false); }
-  }, [candidates]);
+  }, [candidates, recommendations.items]);
   useEffect(() => {
     const removed = new Set(props.deletedIds || []);
     const previous = queueRef.current;
@@ -428,9 +418,9 @@ export function ListenRepeat(props: {
     props.onStop();
     cancelPreparation(true);
   }, [props.onStop]);
-  if (phase === "setup") return <ListenSetup props={props} visibleCandidates={visibleCandidates} visibleComposition={visibleComposition}
+  if (phase === "setup") return <>{recommendations.error ? <p role="alert">{recommendations.error} <button onClick={recommendations.retry} type="button">Retry</button></p> : recommendations.loading && props.scope === "due" ? <p role="status">Loading cards…</p> : null}<ListenSetup props={props} visibleCandidates={visibleCandidates} visibleComposition={visibleComposition}
     playbackSettings={playbackSettings} showPlaybackSettings={showPlaybackSettings} setShowPlaybackSettings={setShowPlaybackSettings}
-    repeatMode={repeatMode} cycleRepeat={cycleRepeat} shuffleEnabled={shuffleEnabled} shuffle={shuffle} start={start} />;
+    repeatMode={repeatMode} cycleRepeat={cycleRepeat} shuffleEnabled={shuffleEnabled} shuffle={shuffle} start={start} /></>;
 
   if (phase === "complete") return <section className="recall-complete" aria-label="Listening complete">
     <span>Listening complete</span><strong>{queue.length} listened</strong>

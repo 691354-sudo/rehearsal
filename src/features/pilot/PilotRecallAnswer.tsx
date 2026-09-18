@@ -17,8 +17,8 @@ export function RecallCheckedText({ answer, mistakes }: { answer: string; mistak
   return <>{parts}</>;
 }
 
-export function PilotRecallAnswer({ profileId, attemptId, answer, reference, saved, onChecked }: {
-  profileId: string; attemptId: string; answer: string; reference: string; saved?: RecallCheck;
+export function PilotRecallAnswer({ profileId, attemptId, answer, reference, saved, onChecked, language="en" }: {
+  language?:import("../../../contracts/api").LanguageCode; profileId: string; attemptId: string; answer: string; reference: string; saved?: RecallCheck;
   onChecked: (check: RecallCheck) => void;
 }) {
   const [check, setCheck] = useState(saved);
@@ -28,7 +28,7 @@ export function PilotRecallAnswer({ profileId, attemptId, answer, reference, sav
     if (!answer.trim() || saved) return;
     let cancelled = false;
     setFailed(false);
-    void pilotRequest<{ check: RecallCheck }>(profileId, "/attempts/check", { attemptId, answer })
+    void pilotRequest<{ check: RecallCheck }>(profileId, "/attempts/check", { attemptId, answer,language })
       .then((result) => { if (!cancelled) { setCheck(result.check); onCheckedRef.current(result.check); } })
       .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
@@ -41,12 +41,12 @@ export function PilotRecallAnswer({ profileId, attemptId, answer, reference, sav
     : verdict === "alternative" ? "Valid alternative" : verdict === "incorrect" ? "Needs a correction" : failed ? "Answer not checked" : "Checking your answer…";
   return <div className={`pilot-answer-check pilot-answer-check--${verdict}`} role="status">
     <strong><Icon aria-hidden="true" size={18} />{title}</strong>
-    {!oral ? <p lang="en"><RecallCheckedText answer={answer} mistakes={check?.mistakes ?? []} /></p> : null}
+    {!oral ? <p lang={language}><RecallCheckedText answer={answer} mistakes={check?.mistakes ?? []} /></p> : null}
     {verdict === "alternative" ? <p className="pilot-check-explanation">This works too. The card uses different wording.</p>
       : check ? check.verdict === "incorrect" ? <p className="pilot-check-explanation" lang="ru">{check.explanationRu}</p> : null
       : oral ? <p className="pilot-check-explanation">Compare your spoken answer with the card, then rate your memory.</p>
         : failed ? <><p className="pilot-check-explanation">Try again or compare your answer yourself.</p>
           <button onClick={() => { setFailed(false); setRetry((value) => value + 1); }} type="button">Retry check</button></> : null}
-    {check?.verdict === "incorrect" && check.correctedAnswer !== answer ? <p className="pilot-check-correction" lang="en"><span>Correction</span>{check.correctedAnswer}</p> : null}
+    {check?.verdict === "incorrect" && check.correctedAnswer !== answer ? <p className="pilot-check-correction" lang={language}><span>Correction</span>{check.correctedAnswer}</p> : null}
   </div>;
 }

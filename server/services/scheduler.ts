@@ -46,12 +46,12 @@ export type SchedulerSettings = {
 
 export const defaultSchedulerSettings: SchedulerSettings = {
   presets: {
-  like: { requestRetention: 0.93, maximumInterval: 60 },
+  like: { requestRetention: 0.9, maximumInterval: 180 },
   neutral: { requestRetention: 0.9, maximumInterval: 180 },
-  dislike: { requestRetention: 0.87, maximumInterval: 365 },
+  dislike: { requestRetention: 0.9, maximumInterval: 180 },
   },
   learningSteps: ["1m", "10m"],
-  relearningSteps: ["1m", "10m"],
+  relearningSteps: ["10m"],
   fuzz: true,
   newItemsPerDay: 10,
 };
@@ -80,9 +80,9 @@ export const normalizeSchedulerSettings = (value: unknown): SchedulerSettings =>
       ? [...steps] : fallback;
   return {
     presets: {
-      like: preferenceSettings("like"),
+      like: preferenceSettings("neutral"),
       neutral: preferenceSettings("neutral"),
-      dislike: preferenceSettings("dislike"),
+      dislike: preferenceSettings("neutral"),
     },
     learningSteps: normalizeSteps(input.learningSteps, defaultSchedulerSettings.learningSteps),
     relearningSteps: normalizeSteps(input.relearningSteps, defaultSchedulerSettings.relearningSteps),

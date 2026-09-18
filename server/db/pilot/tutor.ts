@@ -1,10 +1,11 @@
+import type { TutorCores } from "./cores.js";
 import type { HomeworkTutorCard, HomeworkTutorContext, PilotAttemptGrade, TutorActivity } from "../../../contracts/learning-pilot.js";
 import type { TutorRepository } from "../repositories/tutor.js";
 import type { AttemptRow } from "./recall.js";
 import { PilotError, PilotStore } from "./store.js";
 
 export class PilotTutor {
-  constructor(private readonly store: PilotStore, private readonly tutor: TutorRepository) {}
+  constructor(private readonly store: PilotStore, private readonly tutor: TutorRepository,private readonly cores: TutorCores) {}
 
   receive(homeworkId: string, tutorChatId: string, now = new Date().toISOString()): HomeworkTutorContext {
     return this.store.db.transaction(() => {
@@ -22,12 +23,12 @@ export class PilotTutor {
         ORDER BY requested_at, card_id, request_id`).all(JSON.stringify(homework.plannedTutorRequestIds)) as Array<{
           request_id: string; card_id: string;
         }>;
-      const ids = [...new Set([...likes.map((like) => like.card_id), ...attempts.map((attempt) => attempt.card_id)])];
+      const ids = [...new Set([...(homework.plannedTutorCardIds ?? []),...likes.map((like) => like.card_id), ...attempts.map((attempt) => attempt.card_id)])];
       const cards: HomeworkTutorCard[] = [];
       for (const cardId of ids) {
         const exists = this.store.db.prepare(`SELECT 1 FROM items i WHERE i.public_id = ?
-          AND i.language_code = 'en' AND i.practice_enabled = 1
-          AND EXISTS (SELECT 1 FROM island_items ii WHERE ii.item_id = i.id)`).get(cardId);
+          AND i.language_code = ? AND i.practice_enabled = 1
+          AND EXISTS (SELECT 1 FROM island_items ii WHERE ii.item_id = i.id)`).get(cardId,homework.language);
         if (!exists) continue;
         const item = this.store.item(cardId);
         const progress = this.store.progress(cardId);
@@ -37,17 +38,19 @@ export class PilotTutor {
         });
         const like = likes.find((request) => request.card_id === cardId);
         cards.push({ cardId, cue: item.cue, targetPhrase: item.target, translation: item.cue,
-          latestRating: recall.at(-1)?.rating ?? null, source: like ? "listen_like" : "recall_result",
+          latestRating: recall.at(-1)?.rating ?? null, source: homework.plannedTutorCardIds ? "tutor_ready" : like ? "listen_like" : "recall_result",
+          core: this.cores.list(homework.language).find((entry)=>entry.cardIds.includes(cardId))?.core || "",
           tutorRequestId: like?.request_id ?? null, successfulRecallCount: progress.successfulRecallCount,
-          eligibleForContextPractice: Boolean(like) || progress.successfulRecallCount >= homework.settingsSnapshot.successfulRecallsForTutor,
+          eligibleForContextPractice: homework.plannedTutorCardIds ? progress.learningStage === "tutor"
+            : Boolean(like) || progress.successfulRecallCount >= homework.settingsSnapshot.successfulRecallsForTutor,
           attempts: recall });
       }
       const priority = (card: HomeworkTutorCard) => card.source === "listen_like" ? 0
         : card.attempts.some((attempt) => attempt.rating === "again") ? 1
           : card.attempts.some((attempt) => attempt.rating === "hard") ? 2 : 3;
-      cards.sort((a, b) => priority(a) - priority(b));
+      if (!homework.plannedTutorCardIds) cards.sort((a, b) => priority(a) - priority(b));
       const context: HomeworkTutorContext = {
-        homeworkId, tutorChatId, userId: this.store.identity(), language: "en", nativeLanguage: "ru",
+        homeworkId, tutorChatId, userId: this.store.identity(), language: homework.language, nativeLanguage: "ru",
         requestedMinutes: homework.requestedMinutes, actualRecallSeconds: homework.actualRecallSeconds,
         actualTutorSeconds: homework.actualTutorSeconds, remainingSeconds: null, cards,
       };
@@ -89,7 +92,7 @@ export class PilotTutor {
   }
 
   saveReply(input: { homeworkId: string; userMessageId: number; content: string; activities: TutorActivity[];
-    respondedToMessageIds: number[]; metadata: Record<string, unknown> }, now = new Date().toISOString()) {
+    respondedToMessageIds: number[]; coreAssignments?: Array<{cardId:string;core:string}>; metadata: Record<string, unknown> }, now = new Date().toISOString()) {
     return this.store.db.transaction(() => {
       const homework = this.store.homework(input.homeworkId);
       const thread = this.tutor.getThread(homework.tutorChatId);
@@ -98,6 +101,7 @@ export class PilotTutor {
       const user = this.store.db.prepare("SELECT role, thread_id, metadata FROM chat_messages WHERE id = ?")
         .get(input.userMessageId) as { role: string; thread_id: number; metadata: string } | undefined;
       if (!user || user.role !== "user" || user.thread_id !== thread.id) throw new PilotError("HOMEWORK_MESSAGE_MISMATCH");
+      for(const assignment of input.coreAssignments ?? []) if(context.cards.some((card)=>card.cardId===assignment.cardId)) this.cores.resolve(assignment.cardId,assignment.core);
       const activities = input.activities.filter((activity) => context.cards.some((card) =>
         card.cardId === activity.cardId && (activity.activityType === "explanation" || card.eligibleForContextPractice)));
       const messageId = this.tutor.addMessage(thread.id, "assistant", input.content,

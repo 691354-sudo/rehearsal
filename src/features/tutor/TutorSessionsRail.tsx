@@ -67,7 +67,7 @@ export function TutorSessionsRail({ currentThreadId, onClose, onNewChat, onDelet
         placeholder="Search sessions…" ref={searchRef} type="search" value={query} /></label> : null}
     <button className="simple-new-chat" onClick={onNewChat} type="button"><SquarePen aria-hidden="true" size={16} />New chat</button>
     <nav aria-label="Tutor sessions">
-      {route.language === "en" ? <section className="simple-session-group pilot-homework-folder">
+      <section className="simple-session-group pilot-homework-folder">
         <button aria-expanded={showHomework} aria-controls="homework-sessions" onClick={() => setHomeworkOpen((shown) => !shown)} type="button">
           <Folder aria-hidden="true" size={16} /><strong>Homework</strong><small>{homeworks.length}</small><ChevronDown aria-hidden="true" size={16} /></button>
         <div hidden={!showHomework} id="homework-sessions">
@@ -81,7 +81,7 @@ export function TutorSessionsRail({ currentThreadId, onClose, onNewChat, onDelet
           })}
           {!visibleHomeworks.length && !homeworkError ? <p>{normalizedQuery ? "No matching Homework." : "Your Homework will appear here."}</p> : null}
         </div>
-      </section> : null}
+      </section>
       {groups.map((group) => <section className="simple-session-group" key={group.label}>
       <span>{group.label}</span>
       {group.items.map((thread) => <AppLink aria-current={thread.publicId === currentThreadId ? "page" : undefined}

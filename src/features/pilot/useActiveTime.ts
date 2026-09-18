@@ -27,8 +27,8 @@ export function useActiveTime(key: string, enabled: boolean, idleSeconds: number
 }
 
 export function useHomeworkTime(homework: Homework | null, stage: "recall" | "tutor", enabled: boolean) {
-  const { profileId, settings } = usePilot();
-  const key = `rehearsal:${profileId}:en:homework-time:${homework?.homeworkId ?? "none"}:${stage}`;
+  const { profileId, language, settings } = usePilot();
+  const key = `rehearsal:${profileId}:${homework?.language ?? language}:homework-time:${homework?.homeworkId ?? "none"}:${stage}`;
   const clock = useActiveTime(key, enabled && Boolean(homework), homework?.settingsSnapshot.idleTimeoutSeconds ?? settings?.idleTimeoutSeconds ?? 120);
   const saving = useRef<Promise<Homework | null> | null>(null);
   const flush = () => {
@@ -39,7 +39,7 @@ export function useHomeworkTime(homework: Homework | null, stage: "recall" | "tu
       const stored = localStorage.getItem(pendingKey);
       const send = async (body: HomeworkTime) => {
         localStorage.setItem(pendingKey, JSON.stringify(body));
-        const response = await pilotRequest<{ homework: Homework }>(profileId, `/homework/${homework.homeworkId}/time`, body);
+        const response = await pilotRequest<{ homework: Homework }>(profileId, `/homework/${homework.homeworkId}/time`, { ...body, language: homework.language });
         clock.acknowledge(body.intervals); localStorage.removeItem(pendingKey);
         return response.homework;
       };

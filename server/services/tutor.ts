@@ -50,10 +50,10 @@ const tools: OpenAI.Responses.Tool[] = [
   {
     type: "function",
     name: "list_due_items",
-    description: "List phrases currently due for practice in the active language.",
+    description: "List Tutor-ready COREs in the active language, one representative card per CORE.",
     parameters: {
       type: "object",
-      properties: { limit: { type: "number", description: "Number of due phrases, from 1 to 30." },
+      properties: { limit: { type: "number", description: "Number of ready COREs, from 1 to 30." },
         categoryId: { type: ["string", "null"], description: "Limit to the explicitly chosen learning category; otherwise null." } },
       required: ["limit", "categoryId"],
       additionalProperties: false,
@@ -96,7 +96,7 @@ Your job is to help the learner speak naturally and automatically, not to teach 
 - When the learner directly selects Tell it better, Recall & reuse, Role-play twice, or Read → retell, start that recipe immediately with one next action. Recall & reuse must call list_due_items with a limit of 5 first. Read → retell must ask for a pasted or uploaded text when none is present; do not generate the source passage.
 - Guided practice has four recipes:
   1. Tell it better: ask for one real thought; focus on at most two high-value gaps; ask for self-repair before revealing a natural reformulation; have the learner reproduce the whole thought and then reuse the trained chunk in a different context.
-  2. Recall & reuse: use 3–5 due or relevant Library items; show only their Russian cues or situations before recall, never the target answers; then ask the learner to use one or two chunks in a new response. Never grade or reschedule them.
+  2. Recall & reuse: use 3–5 Tutor-ready COREs or relevant Library items; show only their Russian cues or situations before recall, never the target answers; then ask the learner to use one or two chunks in a new response. Never grade or reschedule them.
   3. Role-play twice: run one short real-life scene, give focused feedback, then repeat the same scene with one changed variable.
   4. Read → retell: use this only when the learner supplied a substantial text; ask for a retell without looking, give focused feedback and 2–3 useful expressions, then ask for one improved retell. Never call a short Tutor-generated passage extensive reading.
 - When the learner supplies a substantial text and asks to practise it or asks Tutor to choose, begin Read → retell instead of generating another passage.
@@ -145,7 +145,7 @@ export class TutorService {
   async chat(input: { language: LanguageCode; message: string; threadPublicId?: string; clientMessageId: string;
     homeworkId?: string; homeworkPlanning?: boolean }) {
     const homework = input.threadPublicId ? this.repository.pilot.homework.forChat(input.threadPublicId, input.homeworkId) : null;
-    if (input.homeworkId && (!homework || input.language !== "en")) throw new PilotError("HOMEWORK_CHAT_MISMATCH");
+    if (input.homeworkId && (!homework || input.language !== homework.language)) throw new PilotError("HOMEWORK_CHAT_MISMATCH");
     const homeworkId = homework?.homeworkId;
     const activeHomeworkId = homework?.status === "tutor_in_progress" ? homeworkId : undefined;
     if (homework && !activeHomeworkId && !["completed", "cancelled"].includes(homework.status)) throw new PilotError("HOMEWORK_TUTOR_NOT_STARTED");
@@ -334,8 +334,8 @@ export class TutorService {
     }
     if (name === "list_due_items") {
       const parsed = dueArguments.parse(args);
-      return language === "en" ? this.repository.pilot.queue.list({ limit: parsed.limit, categoryId: parsed.categoryId ?? undefined })
-        : this.repository.practice.listDue(language, parsed.limit, new Date(), this.repository.practice.getSettings().newItemsPerDay, { categoryId: parsed.categoryId ?? undefined });
+      return this.repository.pilot.cores.list(language,parsed.categoryId ?? undefined).slice(0,parsed.limit)
+        .map((entry)=>({...this.repository.pilot.store.item(entry.cardId),core:entry.core}));
     }
     return { error: `Unknown tool: ${name}` };
   }

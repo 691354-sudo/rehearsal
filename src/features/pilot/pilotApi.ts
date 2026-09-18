@@ -17,7 +17,8 @@ export const pilotErrorMessage = (error: unknown) => {
   const code = error instanceof Error ? error.message : "";
   const messages: Record<string, string> = {
     CARD_NOT_AVAILABLE_FOR_RECALL: "This card is no longer due. Refresh the queue to continue.",
-    DAILY_NEW_CARD_LIMIT: "Today's new-card limit is reached. Due reviews are still available.",
+    STALE_RECALL_ATTEMPT: "This card changed in another session. Refresh the queue to continue.",
+    NO_TUTOR_CARDS: "No phrases are ready for Tutor yet. Practise Active Recall first.",
     HOMEWORK_ATTEMPT_LIMIT: "This card has reached its limit for this Homework.",
     HOMEWORK_STAGE_FINISHED: "This stage has finished. Reopen Homework to continue.",
     HOMEWORK_RECALL_FINISHED: "Recall has finished. Return to Tutor.",

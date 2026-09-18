@@ -150,11 +150,10 @@ export function parseAppRoute(
     section: "practice",
     mode,
     scope: review || requestedScope === "library" ? "library"
-      : requestedScope === "due" ? "due"
-        : mode === "listen" ? "library" : "due",
+      : "due",
     topic: uuidOrNull(params, "category") ? "" : valueOrNull(params, "topic") || "",
     ...(uuidOrNull(params, "category") ? { category: uuidOrNull(params, "category")! } : {}),
-    cards: cardCounts.has(count) ? count : "all",
+    cards: cardCounts.has(count) ? count : "20",
     order: practiceOrders.has(order) ? order : "newest",
     review,
     language,
@@ -178,7 +177,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
     if (route.scope !== defaultScope) params.set("scope", route.scope);
     if (route.category) params.set("category", route.category);
     else if (route.topic) params.set("topic", route.topic);
-    if (route.cards !== "all") params.set("cards", route.cards);
+    if (route.cards !== "20") params.set("cards", route.cards);
     if (route.order !== "newest") params.set("order", route.order);
     if (route.review) params.set("review", route.review);
   } else if (route.section === "tutor") {
@@ -216,9 +215,9 @@ export const defaultPracticeRoute = (language: Language): PracticeRoute => {
   return {
     section: "practice",
     mode,
-    scope: mode === "listen" ? "library" : "due",
+    scope: "due",
     topic: "",
-    cards: "all",
+    cards: "20",
     order: "newest",
     review: null,
     language,

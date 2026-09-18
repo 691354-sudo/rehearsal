@@ -1,7 +1,7 @@
-import type { LearningItem, ReviewRating, SchedulerSettings } from "./api.js";
+import type { LanguageCode, LearningItem, ReviewRating, SchedulerSettings } from "./api.js";
 
 export const pilotDefaults = {
-  experimentVersion: "echo-learning-pilot-v1",
+  experimentVersion: "unified-learning-v2",
   schedulerVersion: "ts-fsrs-5.4.1/FSRS-6",
   listenAppearancesForRecall: 5,
   successfulRecallsForTutor: 2,
@@ -16,17 +16,19 @@ export type PilotSettings = { [K in keyof typeof pilotDefaults]:
   typeof pilotDefaults[K] extends string ? string : number } & { scheduler: SchedulerSettings };
 export const likedTopicId = "liked";
 export type PilotInputMode = "oral_self_check" | "typed" | "voice_optional";
-export type QueueReason = "due" | "new_after_listen_threshold";
+export type QueueReason = "due" | "new_after_listen_threshold" | "early_listen";
 export type PilotCard = LearningItem & {
   listenCount: number;
   recallEligibleAt: string | null;
   successfulRecallCount: number;
   hasRecallHistory: boolean;
   queueReason: QueueReason;
+  learningStage: "listen" | "recall" | "tutor";
+  listenTarget: number;
 };
 export type ListenAppearance = {
   eventId: string;
-  language: "en";
+  language: LanguageCode;
   cardId: string;
   listenSessionId: string;
   appearanceId: string;
@@ -35,7 +37,7 @@ export type ListenAppearance = {
 };
 export type ListenLike = {
   eventId: string;
-  language: "en";
+  language: LanguageCode;
   cardId: string;
   liked: boolean;
   occurredAt: string;
@@ -63,13 +65,14 @@ export type HomeworkFeedback = {
 export type Homework = {
   homeworkId: string;
   tutorChatId: string;
-  language: "en";
+  language: LanguageCode;
   requestedMinutes: number;
   plannedRecallCards: number;
   plannedRecallSeconds: number;
   plannedTutorSeconds: number;
   plannedCardIds: string[];
   plannedTutorRequestIds: string[];
+  plannedTutorCardIds?: string[];
   settingsSnapshot: PilotSettings;
   dueCardsAtStart: number;
   actualRecallSeconds: number | null;
@@ -96,6 +99,8 @@ export type PilotAttemptStart = {
   cardId: string;
   homeworkId?: string;
   shownAt: string;
+  language?: LanguageCode;
+  sessionId?: string;
   timezone: string;
 };
 export type PilotAttemptGrade = {
@@ -119,7 +124,8 @@ export type HomeworkTutorCard = {
   targetPhrase: string;
   translation: string;
   latestRating: ReviewRating | null;
-  source: "listen_like" | "recall_result";
+  source: "listen_like" | "recall_result" | "tutor_ready";
+  core?: string;
   tutorRequestId: string | null;
   successfulRecallCount: number;
   eligibleForContextPractice: boolean;
@@ -129,7 +135,7 @@ export type HomeworkTutorContext = {
   homeworkId: string;
   tutorChatId: string;
   userId: string;
-  language: "en";
+  language: LanguageCode;
   nativeLanguage: "ru";
   requestedMinutes: number;
   actualRecallSeconds: number | null;

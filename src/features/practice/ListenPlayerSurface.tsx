@@ -65,7 +65,7 @@ export function ListenPlayerSurface(props: {
       <p lang={props.language}><FocusedText focusTerms={props.current.focusTerms} text={props.current.target} /></p>
       {props.showRussian ? <span className="listen-russian-cue" lang="ru">{props.current.cue}</span> : null}
       <button className="listen-russian" onClick={props.onToggleRussian} type="button">{props.showRussian ? "Hide Russian" : "Show Russian"}</button>
-      {props.language === "en" ? <ListenLike item={props.current} /> : null}</article>
+      <ListenLike item={props.current} /></article>
     <div className="listen-player-dock"><div className="listen-controls">
       <ShuffleButton enabled={props.shuffleEnabled} onClick={props.onShuffle} size={18} />
       <button aria-label="Previous" disabled={props.previousDisabled} onClick={props.onPrevious} type="button"><SkipBack aria-hidden="true" fill="currentColor" size={17} /></button>

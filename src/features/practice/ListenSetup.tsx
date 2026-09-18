@@ -1,4 +1,5 @@
-import type { ComponentProps, ReactNode } from "react";
+import {usePilot} from "../pilot/PilotProvider";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { Play, Settings2 } from "lucide-react";
 import { ShuffleButton } from "./ShuffleButton";
 import type { ListenRepeat } from "./ListenRepeat";
@@ -24,6 +25,9 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
   shuffleEnabled: boolean;
   start: () => Promise<void>;
 }) {
+  const pilot=usePilot();
+  const [requested, setRequested] = useState<string | null>(null);
+  const requestedStage = requested ? pilot.progress[requested]?.learningStage : null;
   return <div className="practice-ready-layout">
     <section className="listen-setup" aria-label="Listen and Repeat setup">
       <div className={`listen-selection-grid${props.scope === "custom" ? " has-order" : ""}`}>
@@ -31,8 +35,8 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
         <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" className="practice-card-select" name="listen-count" onChange={(event) => {
           const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
           props.onSelection(scope, count);
-        }} value={`${props.scope}:${props.count}`}>
-          <option value="due:all">All recommended</option><option value="due:10">10 recommended</option><option value="due:20">20 recommended</option><option value="due:50">50 recommended</option>
+        }} value={`${props.scope}:${props.scope === "due" && props.count === "all" ? "20" : props.count}`}>
+          <option value="due:10">10 recommended</option><option value="due:20">20 recommended</option><option value="due:50">50 recommended</option>
           <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
         </select></label>
         {props.scope === "custom" ? <label><span className="simple-visually-hidden">Order</span><select aria-label="Card order" className="practice-order-select" name="listen-order"
@@ -45,13 +49,23 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
         <ShuffleButton enabled={shuffleEnabled} onClick={shuffle} size={17} />
         <button aria-expanded={showPlaybackSettings} aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
           onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Playback settings" type="button"><Settings2 size={17} /></button>
-        <span>{visibleComposition.due} due · {visibleComposition.new} not recalled yet</span>
+        <span>{visibleComposition.due} started · {visibleComposition.new} new</span>
       </div>
     </section>
     <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
       <Play fill="currentColor" size={15} />Play {visibleCandidates.length || "recommended"} cards
     </button>
-    <PracticeQueuePreview emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit} onDelete={props.onDelete}
-      onListened={props.onListened} onPlay={(item) => props.onPlay(item.target, props.playback)} scope={props.scope} />
+    {pilot.syncError ? <p role="alert">{pilot.syncError} <button onClick={pilot.retry} type="button">Retry</button></p> : null}
+    {requested && requestedStage && requestedStage !== "listen" ? <p role="status">{requestedStage === "tutor" ? "This card is ready for Tutor." : "Added to Active Recall."}</p> : null}
+    <PracticeQueuePreview onToRecall={(item) => { setRequested(item.publicId); pilot.toRecall(item.publicId); }} emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit} onDelete={props.onDelete}
+      onPlay={async (item) => {
+        const prepared = await props.onPrepareAudio(item.target, props.playback, true);
+        const url = URL.createObjectURL(prepared.blob);
+        try { await props.onPlayPrepared(url, props.playback.repetitions, () => {
+          const eventId = crypto.randomUUID();
+          pilot.complete({ eventId, appearanceId: eventId, listenSessionId: eventId, cardId: item.publicId,
+            language: props.language, completedAt: new Date().toISOString(), audioRepeatsInAppearance: props.playback.repetitions });
+        }); } finally { URL.revokeObjectURL(url); }
+      }} scope={props.scope} />
   </div>;
 }

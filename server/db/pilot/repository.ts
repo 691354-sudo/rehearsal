@@ -1,3 +1,4 @@
+import { TutorCores } from "./cores.js";
 import type { RehearsalDatabase } from "../database.js";
 import type { PracticeRepository } from "../repositories/practice.js";
 import type { TutorRepository } from "../repositories/tutor.js";
@@ -12,6 +13,7 @@ import { PilotParticipants } from "./participants.js";
 import { PilotExport } from "./export.js";
 
 export class PilotRepository {
+  readonly cores: TutorCores;
   readonly store: PilotStore;
   readonly listening: PilotListening;
   readonly queue: PilotQueue;
@@ -26,10 +28,11 @@ export class PilotRepository {
     this.store = new PilotStore(db, practice);
     this.listening = new PilotListening(this.store);
     this.queue = new PilotQueue(this.store);
+    this.cores = new TutorCores(this.store,this.queue);
     this.recall = new PilotRecall(this.store, this.queue);
-    this.homework = new PilotHomework(this.store, this.queue, this.listening, tutor);
+    this.homework = new PilotHomework(this.store, this.queue, tutor,this.cores);
     this.timing = new PilotTiming(this.store);
-    this.tutor = new PilotTutor(this.store, tutor);
+    this.tutor = new PilotTutor(this.store, tutor,this.cores);
     this.participants = new PilotParticipants(this.store);
     this.export = new PilotExport(this.store, this.participants);
   }

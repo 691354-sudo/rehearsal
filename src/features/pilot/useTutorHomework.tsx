@@ -13,7 +13,7 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
   onStartTutor: (homework: Homework) => Promise<boolean>; ready: boolean; busy: boolean; feedbackOpen?: boolean;
 }) {
   const pilot = usePilot();
-  const enabled = route.language === "en" && route.mode === "chat";
+  const enabled = route.mode === "chat";
   const [homework, setHomework] = useState<Homework | null>(null);
   const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false);
   const [error, setError] = useState(""); const [minutes, setMinutes] = useState("");
@@ -23,7 +23,7 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
   const [sessionsError, setSessionsError] = useState("");
   const attemptedIntro = useRef("");
   const startRef = useRef(onStartTutor); startRef.current = onStartTutor;
-  const creationKey = `rehearsal:${pilot.profileId}:en:homework-create:${route.thread ?? "new"}`;
+  const creationKey = `rehearsal:${pilot.profileId}:${route.language}:homework-create:${route.thread ?? "new"}`;
   const time = useHomeworkTime(homework, "tutor", enabled && homework?.status === "tutor_in_progress" && !route.review && !feedbackOpen);
   const identity = `${pilot.profileId}:${route.language}:${route.mode}:${route.thread}:${route.homework}`;
   const identityRef = useRef(identity); identityRef.current = identity;
@@ -42,15 +42,15 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
   const refreshSessions = async () => {
     if (!enabled) return;
     try {
-      const result = await pilotRequest<{ sessions: HomeworkSummary[] }>(pilot.profileId, "/homework?language=en");
+      const result = await pilotRequest<{ sessions: HomeworkSummary[] }>(pilot.profileId, `/homework?language=${route.language}`);
       if (identityRef.current === identity) { setSessions(result.sessions); setSessionsError(""); }
     } catch { if (identityRef.current === identity) setSessionsError("Homework could not be loaded."); }
   };
   const refresh = async () => {
     if (!enabled) return;
-    const result = route.homework ? await pilotRequest<{ homework: Homework; tutorStarted: boolean }>(pilot.profileId, `/homework/${route.homework}?language=en`)
+    const result = route.homework ? await pilotRequest<{ homework: Homework; tutorStarted: boolean }>(pilot.profileId, `/homework/${route.homework}?language=${route.language}`)
       : await pilotRequest<{ homework: Homework | null; tutorStarted?: boolean }>(pilot.profileId,
-        `?language=en${route.thread ? `&tutorChatId=${route.thread}` : ""}`);
+        `?language=${route.language}${route.thread ? `&tutorChatId=${route.thread}` : ""}`);
     if (identityRef.current !== identity) return;
     const next = result.homework;
     setHomework(next); setLoaded(identity);
@@ -87,7 +87,7 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
       requestedMinutes, timezone: browserTimezone() };
     localStorage.setItem(creationKey, JSON.stringify(request)); setBusy(true); setError("");
     try {
-      const result = await pilotRequest<{ homework: Homework }>(pilot.profileId, "/homework", request);
+      const result = await pilotRequest<{ homework: Homework }>(pilot.profileId, "/homework", { ...request, language: route.language });
       setHomework(result.homework); localStorage.removeItem(creationKey);
       onRoute({ ...route, thread: result.homework.tutorChatId, homework: result.homework.homeworkId, review: null }, "replace");
       setOpen(true);
@@ -99,7 +99,7 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
     setBusy(true); setError("");
     try {
       if (homework.status === "tutor_in_progress") await time.flush();
-      const result = await pilotRequest<{ homework: Homework }>(pilot.profileId, `/homework/${homework.homeworkId}/${kind}`, {});
+      const result = await pilotRequest<{ homework: Homework }>(pilot.profileId, `/homework/${homework.homeworkId}/${kind}`, { language: route.language });
       setHomework(result.homework); setOpen(true); void pilot.refresh(); void refreshSessions();
     } catch (caught) { setError(pilotErrorMessage(caught)); }
     finally { setBusy(false); }
@@ -116,7 +116,7 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
   };
   const startRecall = () => {
     if (!homework) return;
-    navigate({ ...defaultPracticeRoute("en"), mode: "recall", scope: "due", homework: homework.homeworkId });
+    navigate({ ...defaultPracticeRoute(route.language), mode: "recall", scope: "due", homework: homework.homeworkId });
   };
   const waiting = homework && homework.tutorChatId !== route.thread;
   const timeFinished = homework && !homework.continued && (homework.actualRecallSeconds === null || homework.actualTutorSeconds === null
@@ -124,7 +124,7 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
   const active = homework && !["completed", "cancelled"].includes(homework.status);
   const toolbar = enabled ? <div className="pilot-homework-bar">
     <span>{active ? homework.status === "awaiting_feedback" ? "Feedback waiting" : "Homework in progress"
-      : `${pilot.pendingRequests.length} ${pilot.pendingRequests.length === 1 ? "phrase" : "phrases"} waiting for Tutor`}</span>
+      : `${pilot.readyCount} ${pilot.readyCount === 1 ? "phrase" : "phrases"} waiting for Tutor`}</span>
     <button aria-expanded={open} disabled={busy} onClick={() => setOpen(!open)} type="button"><Clock3 size={16} aria-hidden="true" />Homework</button>
     {active && !waiting && homework.status === "tutor_in_progress" ? <button disabled={busy || chatBusy} onClick={() => void action("finish")} type="button">End session</button> : null}
   </div> : null;
@@ -143,11 +143,11 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
           <button disabled={busy || chatBusy} onClick={() => void action("cancel")} type="button">Cancel Homework</button>
         </> : <>
           {homework ? <h2>{homework.status === "completed" ? "Homework complete" : "Homework cancelled"}</h2> : null}
-          <p lang="ru">Привет! Сколько у тебя времени на homework?</p>
+          <p lang="ru">Сколько у тебя времени на homework?</p>
           <form className="pilot-minutes" onSubmit={(event) => { event.preventDefault(); void create(); }}>
             <label>Minutes<input autoComplete="off" inputMode="numeric" name="homework-minutes" value={minutes} onChange={(event) => setMinutes(event.target.value)} /></label>
             <button className="simple-primary" disabled={busy || chatBusy} type="submit">{busy ? "Preparing…" : "Prepare Homework"}</button></form>
-          <p className="pilot-notice">The English pilot records listening, ratings, study time and optional feedback. Audio and full chats are excluded from the pilot export.</p>
+          <p className="pilot-notice">Homework practises phrases you have prepared in Active Recall.</p>
         </>}
   </div>;
   return { toolbar, panel, open, sessions, sessionsError, refreshSessions, beforeSend, refresh, active: enabled && Boolean(active || open), homework };

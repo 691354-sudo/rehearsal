@@ -3,9 +3,9 @@ import type { Homework, ListenAppearance, PilotSettings, PriorityRequest } from 
 import { PilotOutbox, type PendingPilotEvent } from "./outbox";
 import { browserTimezone, pilotErrorMessage, pilotRequest } from "./pilotApi";
 
-type CardProgress = { listenCount: number; liked: boolean; recallEligibleAt: string | null };
+type CardProgress = { learningStage: "listen" | "recall" | "tutor"; listenTarget:number; listenCount: number; liked: boolean; recallEligibleAt: string | null };
 type PilotContextValue = {
-  profileId: string; settings: PilotSettings | null; pendingCount: number; syncError: string;
+  profileId: string; language: import("../../../contracts/api").LanguageCode; readyCount:number; revision:number; recallPendingIds:string[]; toRecall:(cardId:string)=>void; settings: PilotSettings | null; pendingCount: number; syncError: string;
   progress: Record<string, Partial<CardProgress>>;
   pendingRequests: PriorityRequest[];
   complete: (event: ListenAppearance) => void;
@@ -22,9 +22,12 @@ export const usePilot = () => {
 };
 
 export function PilotProvider({ profileId, language, children, onChange }: {
-  profileId: string; language: string; children: ReactNode;
+  profileId: string; language: import("../../../contracts/api").LanguageCode; children: ReactNode;
   onChange: (cardId: string, patch: Partial<CardProgress>) => void;
 }) {
+  const [recallPendingIds, setRecallPendingIds] = useState<string[]>([]);
+  const [revision,setRevision]=useState(0);
+  const [readyCount,setReadyCount]=useState(0);
   const [settings, setSettings] = useState<PilotSettings | null>(null);
   const [pendingRequests, setPendingRequests] = useState<PriorityRequest[]>([]);
   const [progress, setProgress] = useState<Record<string, Partial<CardProgress>>>({});
@@ -32,13 +35,13 @@ export function PilotProvider({ profileId, language, children, onChange }: {
   const [syncError, setSyncError] = useState("");
   const outbox = useRef<PilotOutbox | null>(null);
   const changeRef = useRef(onChange); changeRef.current = onChange;
-  const identityRef = useRef(profileId); identityRef.current = profileId;
+  const identity = `${profileId}:${language}`;
+  const identityRef = useRef(identity); identityRef.current = identity;
   const refresh = async () => {
-    if (language !== "en") return;
-    const response = await pilotRequest<{ settings: PilotSettings; pending: PriorityRequest[]; homework: Homework | null }>(
-      profileId, `?language=en&timezone=${encodeURIComponent(browserTimezone())}`);
-    if (identityRef.current !== profileId) return;
-    setSettings(response.settings); setPendingRequests(response.pending);
+    const response = await pilotRequest<{ settings: PilotSettings; pending: PriorityRequest[]; homework: Homework | null; readyCount:number }>(
+      profileId, `?language=${language}&timezone=${encodeURIComponent(browserTimezone())}`);
+    if (identityRef.current !== identity) return;
+    setReadyCount(response.readyCount);setSettings(response.settings); setPendingRequests(response.pending);
   };
   const merge = (cardId: string, patch: Partial<CardProgress>) => {
     setProgress((previous) => ({ ...previous, [cardId]: { ...previous[cardId], ...patch } }));
@@ -46,17 +49,19 @@ export function PilotProvider({ profileId, language, children, onChange }: {
   };
   const applyPending = (events: PendingPilotEvent[]) => {
     setPendingCount(events.length);
+    setRecallPendingIds(events.filter((event) => event.path === "/to-recall").map((event) => event.body.cardId));
     for (const event of events) if (event.path === "/likes") merge(event.body.cardId, { liked: event.body.liked });
   };
   useEffect(() => {
-    setProgress({}); setSyncError(""); setPendingCount(0); setSettings(null); setPendingRequests([]);
-    if (language !== "en") return;
-    const queue = new PilotOutbox(localStorage, `rehearsal:${profileId}:en:pilot-outbox`,
+    setRecallPendingIds([]); setReadyCount(0); setProgress({}); setSyncError(""); setPendingCount(0); setSettings(null); setPendingRequests([]);
+    const queue = new PilotOutbox(localStorage, `rehearsal:${profileId}:${language}:pilot-outbox`,
       (event) => pilotRequest(profileId, event.path, event.body),
       () => { const events = queue.pending(); if (!events.length) setSyncError(""); applyPending(events); },
       (error) => setSyncError(pilotErrorMessage(error)),
       (event, response) => {
-        if (event.path === "/listens") merge(event.body.cardId, response as CardProgress);
+        if (identityRef.current !== identity) return;
+        setRevision((value)=>value+1);
+        if (event.path === "/listens" || event.path === "/to-recall") merge(event.body.cardId, response as CardProgress);
         else {
           const result = response as { liked: boolean; pending: PriorityRequest[] };
           merge(event.body.cardId, { liked: result.liked }); setPendingRequests(result.pending);
@@ -72,16 +77,20 @@ export function PilotProvider({ profileId, language, children, onChange }: {
   }, [profileId, language]);
   const complete = (event: ListenAppearance) => outbox.current?.enqueue({ path: "/listens", body: event });
   const like = (cardId: string, liked: boolean) => {
-    outbox.current?.enqueue({ path: "/likes", body: { eventId: crypto.randomUUID(), language: "en", cardId, liked, occurredAt: new Date().toISOString() } });
+    outbox.current?.enqueue({ path: "/likes", body: { eventId: crypto.randomUUID(), language, cardId, liked, occurredAt: new Date().toISOString() } });
     merge(cardId, { liked });
   };
+  const toRecall = (cardId: string) => {
+    if (outbox.current?.pending().some((event) => event.path === "/to-recall" && event.body.cardId === cardId)) return;
+    outbox.current?.enqueue({ path: "/to-recall", body: { eventId: crypto.randomUUID(), cardId, language } });
+  };
   const refreshCard = (cardId: string) => {
-    void pilotRequest<CardProgress>(profileId, `/cards/${encodeURIComponent(cardId)}?language=en`).then((value) => {
-      if (identityRef.current !== profileId) return;
+    void pilotRequest<CardProgress>(profileId, `/cards/${encodeURIComponent(cardId)}?language=${language}`).then((value) => {
+      if (identityRef.current !== identity) return;
       merge(cardId, value);
       if (outbox.current) applyPending(outbox.current.pending());
     }).catch(() => undefined);
   };
-  return <PilotContext.Provider value={{ profileId, settings, pendingRequests, pendingCount, progress, syncError,
+  return <PilotContext.Provider value={{ profileId, language, readyCount,revision,recallPendingIds,toRecall, settings, pendingRequests, pendingCount, progress, syncError,
     complete, like, refreshCard, refresh, retry: () => { void outbox.current?.flush(); } }}>{children}</PilotContext.Provider>;
 }

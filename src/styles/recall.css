@@ -236,127 +236,6 @@
   font-weight: 500;
 }
 
-.practice-inline-recall {
-  max-width: var(--col);
-  margin-top: 12px;
-}
-
-.practice-inline-answer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px;
-  gap: 7px;
-}
-
-.practice-inline-answer input {
-  box-sizing: border-box;
-  min-width: 0;
-  min-height: var(--h-control);
-  padding: 0 11px;
-  color: var(--script-ink);
-  font-size: 15px;
-  background: var(--script-inset);
-  border: 1px solid var(--script-rule-strong);
-  border-radius: 8px;
-}
-
-.practice-inline-answer input:read-only {
-  color: var(--script-support);
-}
-
-.practice-inline-answer button {
-  display: grid;
-  width: 40px;
-  height: var(--h-control);
-  padding: 0;
-  place-items: center;
-  color: var(--cue-on);
-  background: var(--cue-action);
-  border: 1px solid var(--cue-action);
-  border-radius: 8px;
-}
-
-.practice-inline-answer button:disabled {
-  opacity: 0.4;
-}
-
-.practice-inline-result {
-  margin-top: 8px;
-  padding: 12px;
-  background: var(--script-inset);
-  border: 1px solid var(--script-rule);
-  border-radius: 8px;
-}
-
-.practice-inline-result > span {
-  color: var(--learned);
-  font-size: 12px;
-  font-weight: 550;
-}
-
-.practice-inline-result.recall-result--retry > span {
-  color: var(--retry);
-}
-
-.practice-inline-result .recall-own-answer,
-.practice-inline-result .recall-natural-answer {
-  font-size: 14px;
-}
-
-.practice-inline-grades {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(72px, 1fr));
-  gap: 5px;
-  margin-top: 12px;
-}
-
-.practice-inline-grades button {
-  display: grid;
-  min-height: var(--h-control);
-  padding: 4px 8px;
-  place-content: center;
-  color: var(--script-support);
-  background: var(--script-surface);
-  border: 1px solid var(--script-rule);
-  border-radius: 7px;
-}
-
-.practice-inline-grades button[aria-pressed="true"] {
-  color: var(--accent-hover);
-  background: var(--cue-wash);
-  border-color: var(--accent-hover);
-}
-
-.practice-inline-grades span {
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.practice-inline-grades small,
-.practice-inline-hint {
-  color: var(--script-tertiary);
-  font-size: 12px;
-}
-
-.practice-inline-hint {
-  display: block;
-  margin-top: 6px;
-  text-align: right;
-}
-
-.inline-recall-complete {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  min-height: var(--h-tap);
-  margin-top: 10px;
-  padding: 0 10px;
-  color: var(--learned);
-  font-size: 12px;
-  font-weight: 620;
-  background: var(--learned-wash);
-  border-radius: 7px;
-}
-
 .recall-session > header {
   display: flex;
   align-items: center;
@@ -644,8 +523,6 @@
 
   .recall-start-desktop { display: none; }
   .recall-start-mobile { display: inline; }
-
-  .practice-inline-recall { display: none; }
 
   .practice-ready-layout {
     gap: 12px;
