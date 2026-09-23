@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { HttpDependencies } from "./dependencies.js";
 import { PilotError } from "../db/pilot/store.js";
+import { prepareRecallTutor } from "../services/tutor-recall.js";
 
 const id = z.string().uuid();
 const timestamp = z.string().datetime();
@@ -38,6 +39,11 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const { repository } = dependencies.forRequest(request);
     const query = z.object({ language }).parse(request.query);
     return { island: repository.pilot.queue.liked(undefined,query.language) };
+  });
+  app.post("/api/pilot/tutor-chat", async (request) => {
+    const { repository } = dependencies.forRequest(request);
+    const input = z.object({ language, clientMessageId: id }).parse(request.body);
+    return prepareRecallTutor(repository, input);
   });
   app.get("/api/pilot/queue", async (request) => {
     const { repository } = dependencies.forRequest(request);

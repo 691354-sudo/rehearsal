@@ -626,9 +626,13 @@
 }
 
 .simple-phrase-copy-shell {
+  display: grid;
+  gap: 8px;
   width: 100%;
   min-width: 0;
 }
+
+.simple-phrase-copy-shell > .practice-source-tags { max-width: none; }
 
 .simple-phrase-copy {
   min-height: 0;
@@ -703,25 +707,20 @@
   }
 
   .simple-phrase-copy-shell {
-    grid-column: 1 / -1;
+    display: contents;
   }
 
   .simple-phrase-copy {
+    grid-column: 1 / -1;
     max-height: 104px;
   }
 
   .simple-row-actions {
-    grid-column: 1 / -1;
-    width: 100%;
+    grid-column: 2;
     justify-content: flex-end;
   }
 
-  .simple-row-actions > .practice-source-tags {
-    position: static;
-    margin-right: auto;
-    min-width: 0;
-    flex-shrink: 1;
-  }
+  .simple-phrase-copy-shell > .practice-source-tags { grid-column: 1; }
 
   .simple-row-actions > button,
   .simple-row-more > button {

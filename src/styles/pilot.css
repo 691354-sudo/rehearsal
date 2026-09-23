@@ -76,10 +76,15 @@
 .pilot-actions > button:not(.simple-primary):hover { background: var(--rh-wash); }
 .pilot-minutes input, .pilot-feedback select, .pilot-feedback textarea { padding: 9px 12px; color: var(--script-ink); background: var(--script-inset); border: 1px solid var(--script-rule-strong); border-radius: 8px; }
 .pilot-liked-actions > button, .pilot-listen-progress > button { color: var(--script-ink); background: transparent; border: 0; border-radius: 8px; }
-.pilot-liked-actions > button:hover, .pilot-listen-progress > button:hover { background: var(--rh-wash); }
+.pilot-liked-actions > button:hover { background: var(--rh-wash); }
 .pilot-liked-actions > button[aria-pressed="true"], .pilot-listen-progress > button[aria-pressed="true"] { color: var(--rh-accent); }
 .pilot-listen-progress > .pilot-to-recall[aria-pressed="true"] { color: var(--script-ink); }
 .pilot-to-recall[aria-pressed="true"] > svg { color: var(--rh-accent); }
+.pilot-to-recall[aria-disabled="true"] { cursor: default; }
+
+@media (hover: hover) {
+  .pilot-listen-progress > .pilot-like:not([aria-disabled="true"]):hover { color: var(--rh-on-accent); background: var(--rh-accent); }
+}
 
 @media (max-width: 380px) {
   .pilot-listen-progress > span { flex-basis: 100%; }

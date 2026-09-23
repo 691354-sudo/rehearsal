@@ -35,6 +35,7 @@ import { beginTutorSend, completeTutorSend, failTutorSend } from "./tutorOptimis
 import { tutorComposerMinimumHeight, useTutorComposerHeight } from "./useTutorComposerHeight";
 import { formatDuration, shouldPrepareVocabList, shouldSendTutorOnEnter, voiceErrorMessage } from "./tutorInput";
 import { useTutorThreadMessages } from "./useTutorThreadMessages";
+import { useRecallTutorStart } from "./useRecallTutorStart";
 import { useTutorHomework } from "../pilot/useTutorHomework";
 import { pilotErrorMessage } from "../pilot/pilotApi";
 import type { Homework } from "../../../contracts/learning-pilot";
@@ -253,6 +254,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     finally { setSending(false); }
   };
   const send = () => sendContent(draft);
+  useRecallTutorStart(messages, mode === "chat" && threadReady && !route.homework, sending, sendContent);
 
   const editFailedMessage = (message: ChatMessage) => {
     setMessages((current) => current.filter((currentMessage) => currentMessage.id !== message.id));
