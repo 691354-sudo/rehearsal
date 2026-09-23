@@ -202,7 +202,7 @@ export class TutorRepository {
     })();
   }
 
-  private getClientMessage(clientMessageId: string) {
+  getClientMessage(clientMessageId: string) {
     return this.db.prepare(
       `SELECT m.id AS message_id, t.id AS thread_id, t.public_id AS thread_public_id,
               t.language_code, m.content, json_extract(m.metadata, '$.homeworkId') AS homework_id

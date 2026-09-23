@@ -3,7 +3,6 @@ import { ChevronRight, Settings2, Volume2, X } from "lucide-react";
 import type { Homework, PilotAttemptGrade, PilotCard, RecommendationAvailability, RecommendedQueue } from "../../../contracts/learning-pilot";
 import type { ReviewRating } from "../../../contracts/api";
 import type { PracticePage } from "../practice/PracticePage";
-import { AppLink } from "../../app/AppLink";
 import { defaultTutorRoute, navigate } from "../../lib/appRoute";
 import { CardActions } from "../library/CardActions";
 import { practiceSetValue } from "../practice/practiceSet";
@@ -22,7 +21,7 @@ import { PilotRecallAnswer } from "./PilotRecallAnswer";
 import { RecommendationStatus } from "../practice/RecommendationStatus";
 import { useRecommendationRefresh } from "../practice/useRecommendationRefresh";
 
-type RecallRun = { sessionId?:string; scopeKey?: string; selectedIds: string[]; completed: number; current: PilotCard | null;
+type RecallRun = { sessionId?:string; tutorStartId?: string; scopeKey?: string; selectedIds: string[]; completed: number; current: PilotCard | null;
   attemptId: string; shownAt: string; revealedAt: string | null; answer: string; begun: boolean;
   submission?: PilotAttemptGrade; check?: RecallCheck };
 const ratings: ReviewRating[] = ["again", "hard", "good", "easy"];
@@ -185,10 +184,21 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
       event.preventDefault(); if (run?.revealedAt) void grade(rating); else reveal();
     }
   };
+  const openTutor = async () => {
+    if (!run || busy) return;
+    const clientMessageId = run.tutorStartId ?? crypto.randomUUID();
+    persist({ ...run, tutorStartId: clientMessageId }); setBusy(true); setError("");
+    try {
+      const result = await pilotRequest<{ threadId: string }>(pilot.profileId, "/tutor-chat", { language: props.language, clientMessageId });
+      if (navigate({ ...defaultTutorRoute(props.language), thread: result.threadId })) persist(null);
+    } catch (caught) { setError(pilotErrorMessage(caught)); }
+    finally { setBusy(false); }
+  };
   const retry = async () => {
     if (stale) { persist(null); setStale(false); setError(""); await loadQueue(); }
     else if (run?.submission) await grade(run.submission.rating);
     else if (run?.current && !run.begun) await begin(run);
+    else if (run?.tutorStartId && !run.current) await openTutor();
     else await load();
   };
   const failure = error ? <p className="recall-save-error" role="alert">{error} <button disabled={busy} onClick={() => void retry()} type="button">{stale ? "Refresh queue" : "Retry"}</button></p> : null;
@@ -202,7 +212,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
     <section className="recall-setup" aria-label="Recall setup"><div className="recall-setup-fields">
       {!homework ? <><div className="practice-topic-field"><TopicProgressPicker onChange={onTopic} progressPill topics={topics} value={practiceSetValue(props.route)} /></div>
         <select aria-label="Practice cards" className="practice-card-select" value={props.route.cards === "10" ? "10" : "20"} onChange={(event) => props.onRoute({ ...props.route, cards: event.target.value as "all" | "10" | "20" | "50" }, "replace")}>
-          <option value="10">Up to 10</option><option value="20">Up to 20</option></select></> : null}
+          <option value="10">Recommended · Up to 10</option><option value="20">Recommended · Up to 20</option></select></> : null}
       <button className="simple-primary recall-start" disabled={loading || Boolean(error) || busy || !queue.length} onClick={start} type="button">{loading ? "Loading cards…" : error ? "Start cards" : `Start ${queue.length} ${queue.length === 1 ? "card" : "cards"}`}<ChevronRight size={16} aria-hidden="true" /></button>
     </div></section>{failure}
     {!homework ? <RecommendationStatus count={queue.length} availability={availability} loading={loading} error={error} mode="recall" /> : null}
@@ -212,8 +222,8 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
   </div>;
   if (!run.current) return <section className="recall-complete"><h2>Recall finished</h2><p>{run.completed} {run.completed === 1 ? "answer" : "answers"} saved</p>{failure}
     <div>{homework ? <><button className="simple-primary" disabled={busy} onClick={() => void homeworkAction("return")} type="button">Return to Tutor</button><button disabled={busy} onClick={exit} type="button">End session</button></>
-      : <><button className="simple-primary" onClick={() => { persist(null); void load(); }} type="button">Start another session</button>
-        {pilot.readyCount > 0 ? <AppLink route={defaultTutorRoute(props.language)}>Open Tutor · {pilot.readyCount} ready</AppLink> : null}</>}</div>
+      : <><button className="simple-primary" disabled={busy} onClick={() => { persist(null); void load(); }} type="button">Start another session</button>
+        {pilot.readyCount > 0 ? <button disabled={busy} onClick={() => void openTutor()} type="button">{busy ? "Opening Tutor…" : `Open Tutor · ${pilot.readyCount} ready`}</button> : null}</>}</div>
   </section>;
   return <section className="recall-session pilot-recall" aria-label="Active Recall" onKeyDown={keyDown}>
     <header><span>{homework ? "Homework · " : ""}{run.completed + 1} / {homework?.plannedRecallCards ?? run.completed + run.selectedIds.length}</span>
