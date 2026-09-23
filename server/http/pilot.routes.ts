@@ -43,13 +43,13 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const { repository } = dependencies.forRequest(request);
     const query = z.object({ language, limit: z.coerce.number().int().min(1).max(100_000).optional(),
       cardId:z.string().min(1).max(100).optional(),sessionId:id.optional(),categoryId: z.string().uuid().optional(), timezone: timezone.optional(), topicId: z.string().min(1).max(100).optional(), homeworkId: id.optional() }).parse(request.query);
-    return { items: repository.pilot.queue.list(query) };
+    return repository.pilot.queue.recallRecommendations(query);
   });
   app.get("/api/pilot/listen-queue", async (request) => {
     const {repository}=dependencies.forRequest(request);
     const query=z.object({language,limit:z.coerce.number().pipe(z.union([z.literal(10),z.literal(20),z.literal(50)])).default(20),
       topicId:z.string().optional(),categoryId:id.optional()}).parse(request.query);
-    return {items:repository.pilot.queue.listen(query)};
+    return repository.pilot.queue.listenRecommendations(query);
   });
   app.post("/api/pilot/sessions", async (request) => {
     const {repository}=dependencies.forRequest(request);

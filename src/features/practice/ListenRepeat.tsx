@@ -60,7 +60,7 @@ export function ListenRepeat(props: {
   const originalQueueIds = useRef<string[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<"setup" | "player" | "complete">("setup");
-  const recommendations = useListenRecommendations(props.language, props.topicId, props.count, props.scope === "due" && phase === "setup", pilot.revision);
+  const recommendations = useListenRecommendations(props.language, props.topicId, props.count, props.scope === "due" && phase === "setup", pilot.revision, pilot.profileId);
   const [status, setStatus] = useState<"playing" | "paused" | "error">("playing");
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [showRussian, setShowRussian] = useState(false);
@@ -286,6 +286,7 @@ export function ListenRepeat(props: {
   };
 
   const start = async () => {
+    if (props.scope === "due" && (recommendations.loading || recommendations.error)) return;
     const nextQueue = visibleCandidates;
     if (!nextQueue.length) return;
     originalQueueIds.current = (props.scope === "due" ? recommendations.items : candidates).map((item) => item.publicId);
@@ -418,7 +419,7 @@ export function ListenRepeat(props: {
     props.onStop();
     cancelPreparation(true);
   }, [props.onStop]);
-  if (phase === "setup") return <>{recommendations.error ? <p role="alert">{recommendations.error} <button onClick={recommendations.retry} type="button">Retry</button></p> : recommendations.loading && props.scope === "due" ? <p role="status">Loading cards…</p> : null}<ListenSetup props={props} visibleCandidates={visibleCandidates} visibleComposition={visibleComposition}
+  if (phase === "setup") return <>{recommendations.error ? <p role="alert">{recommendations.error} <button onClick={recommendations.retry} type="button">Retry</button></p> : null}<ListenSetup props={props} recommendations={recommendations} visibleCandidates={visibleCandidates} visibleComposition={visibleComposition}
     playbackSettings={playbackSettings} showPlaybackSettings={showPlaybackSettings} setShowPlaybackSettings={setShowPlaybackSettings}
     repeatMode={repeatMode} cycleRepeat={cycleRepeat} shuffleEnabled={shuffleEnabled} shuffle={shuffle} start={start} /></>;
 

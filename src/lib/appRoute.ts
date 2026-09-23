@@ -173,8 +173,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
 
   if (route.section === "practice") {
     path = `practice/${route.mode}`;
-    const defaultScope = route.mode === "listen" ? "library" : "due";
-    if (route.scope !== defaultScope) params.set("scope", route.scope);
+    if (route.scope !== "due") params.set("scope", route.scope);
     if (route.category) params.set("category", route.category);
     else if (route.topic) params.set("topic", route.topic);
     if (route.cards !== "20") params.set("cards", route.cards);

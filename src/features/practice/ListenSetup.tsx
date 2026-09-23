@@ -10,10 +10,13 @@ import type { RepeatMode } from "../audio/listenAudio";
 import { TopicProgressPicker } from "./TopicProgressPicker";
 import { RepeatModeButton } from "./RepeatModeButton";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
+import { RecommendationStatus } from "./RecommendationStatus";
+import type { useListenRecommendations } from "./useListenRecommendations";
 
-export function ListenSetup({ props, visibleCandidates, visibleComposition, playbackSettings,
+export function ListenSetup({ props, recommendations, visibleCandidates, visibleComposition, playbackSettings,
   showPlaybackSettings, setShowPlaybackSettings, repeatMode, cycleRepeat, shuffleEnabled, shuffle, start }: {
   props: ComponentProps<typeof ListenRepeat>;
+  recommendations: ReturnType<typeof useListenRecommendations>;
   visibleCandidates: LearningItem[];
   visibleComposition: { due: number; new: number };
   playbackSettings: ReactNode;
@@ -28,6 +31,7 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
   const pilot=usePilot();
   const [requested, setRequested] = useState<string | null>(null);
   const requestedStage = requested ? pilot.progress[requested]?.learningStage : null;
+  const unavailable = props.scope === "due" && (recommendations.loading || Boolean(recommendations.error));
   return <div className="practice-ready-layout">
     <section className="listen-setup" aria-label="Listen and Repeat setup">
       <div className={`listen-selection-grid${props.scope === "custom" ? " has-order" : ""}`}>
@@ -36,7 +40,7 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
           const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
           props.onSelection(scope, count);
         }} value={`${props.scope}:${props.scope === "due" && props.count === "all" ? "20" : props.count}`}>
-          <option value="due:10">10 recommended</option><option value="due:20">20 recommended</option><option value="due:50">50 recommended</option>
+          <optgroup label="Recommended"><option value="due:10">Up to 10</option><option value="due:20">Up to 20</option><option value="due:50">Up to 50</option></optgroup>
           <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
         </select></label>
         {props.scope === "custom" ? <label><span className="simple-visually-hidden">Order</span><select aria-label="Card order" className="practice-order-select" name="listen-order"
@@ -49,15 +53,17 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
         <ShuffleButton enabled={shuffleEnabled} onClick={shuffle} size={17} />
         <button aria-expanded={showPlaybackSettings} aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
           onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Playback settings" type="button"><Settings2 size={17} /></button>
-        <span>{visibleComposition.due} started · {visibleComposition.new} new</span>
+        {!unavailable ? <span>{visibleComposition.due} started · {visibleComposition.new} new</span> : null}
       </div>
     </section>
-    <button className="simple-primary listen-start" disabled={!visibleCandidates.length} onClick={() => void start()} type="button">
-      <Play fill="currentColor" size={15} />Play {visibleCandidates.length || "recommended"} cards
+    {props.scope === "due" ? <RecommendationStatus count={visibleCandidates.length} availability={recommendations.recommendation}
+      loading={recommendations.loading} error={recommendations.error} mode="listen" /> : null}
+    <button className="simple-primary listen-start" disabled={unavailable || !visibleCandidates.length} onClick={() => void start()} type="button">
+      <Play fill="currentColor" size={15} />{unavailable ? "Play cards" : `Play ${visibleCandidates.length} ${visibleCandidates.length === 1 ? "card" : "cards"}`}
     </button>
     {pilot.syncError ? <p role="alert">{pilot.syncError} <button onClick={pilot.retry} type="button">Retry</button></p> : null}
     {requested && requestedStage && requestedStage !== "listen" ? <p role="status">{requestedStage === "tutor" ? "This card is ready for Tutor." : "Added to Active Recall."}</p> : null}
-    <PracticeQueuePreview sets={props.topics} onToRecall={(item) => { setRequested(item.publicId); pilot.toRecall(item.publicId); }} emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit} onDelete={props.onDelete}
+    {!unavailable ? <PracticeQueuePreview sets={props.topics} onToRecall={(item) => { setRequested(item.publicId); pilot.toRecall(item.publicId); }} emptyAction={props.emptyAction} items={visibleCandidates} language={props.language} mode="listen" onEdit={props.onEdit} onDelete={props.onDelete}
       onPlay={async (item) => {
         const prepared = await props.onPrepareAudio(item.target, props.playback, true);
         const url = URL.createObjectURL(prepared.blob);
@@ -66,6 +72,6 @@ export function ListenSetup({ props, visibleCandidates, visibleComposition, play
           pilot.complete({ eventId, appearanceId: eventId, listenSessionId: eventId, cardId: item.publicId,
             language: props.language, completedAt: new Date().toISOString(), audioRepeatsInAppearance: props.playback.repetitions });
         }); } finally { URL.revokeObjectURL(url); }
-      }} scope={props.scope} />
+      }} scope={props.scope} /> : null}
   </div>;
 }

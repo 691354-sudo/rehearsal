@@ -269,6 +269,15 @@
 
 .recall-setup { min-height: 0; }
 
+.practice-recommendation-status {
+  display: grid;
+  gap: 4px;
+  color: var(--rh-support);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.practice-recommendation-status strong { color: var(--rh-ink); font-weight: 500; }
+
 .recall-setup-fields {
   display: grid;
   grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto;

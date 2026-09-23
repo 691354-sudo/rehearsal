@@ -87,6 +87,7 @@ describe("app routes", () => {
     const routes: AppRoute[] = [
       { section: "practice", mode: "listen", scope: "due", topic: "topic", cards: "50", order: "original", review: null, language: "en", settings: true },
       { section: "practice", mode: "listen", scope: "due", topic: "", cards: "all", order: "newest", review: null, language: "en", settings: false },
+      { section: "practice", mode: "listen", scope: "library", topic: "topic", cards: "all", order: "newest", review: null, language: "en", settings: false },
       { section: "tutor", mode: "notebook", thread: null, review: null, language: "lv", settings: false },
       { ...defaultLibraryRoute("en"), view: "topics", topic: "topic", page: 2, panel: "create", edit: null },
     ];

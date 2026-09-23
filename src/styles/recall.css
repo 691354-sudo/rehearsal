@@ -203,12 +203,16 @@
 }
 
 .practice-queue-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
   margin: 0;
   padding: 28px 18px;
   color: var(--script-tertiary);
   font-size: 13px;
   text-align: center;
 }
+.practice-queue-empty a { color: var(--rh-ink); text-underline-offset: 3px; }
 
 .practice-load-more {
   display: flex;

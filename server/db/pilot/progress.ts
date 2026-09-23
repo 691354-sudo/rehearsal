@@ -2,6 +2,7 @@ import type { ReviewRating } from "../../../contracts/api.js";
 import type { PilotStore } from "./store.js";
 
 export type PipelineStage = "listen" | "recall" | "tutor";
+export const listenCreditIntervalMs = 30 * 60_000;
 export type ProgressRow = {
   listen_count: number; recall_eligible_at: string | null; last_listen_at: string | null;
   stage: PipelineStage; listen_target: number; last_credited_at: string | null; entered_at: string | null;
