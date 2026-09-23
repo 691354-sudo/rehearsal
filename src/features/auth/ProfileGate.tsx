@@ -42,6 +42,7 @@ export function ProfileGate() {
   const [selected, setSelected] = useState<ProfileId>("roman");
   const [pin, setPin] = useState(import.meta.env.DEV ? import.meta.env.VITE_CODEX_PROFILE_PIN || "" : "");
   const [loading, setLoading] = useState(true);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const telegram = isTelegramMiniApp();
@@ -97,6 +98,7 @@ export function ProfileGate() {
     const response = await apiFetch("/api/auth/profiles");
     if (!response.ok) throw new Error("Profiles are unavailable");
     const data = await response.json() as { profiles: ProfileSummary[] };
+    if (!Array.isArray(data.profiles) || !data.profiles.length) throw new Error("Profiles are unavailable");
     setProfiles(data.profiles);
     if (data.profiles[0]) setSelected(data.profiles[0].id);
   };
@@ -182,12 +184,12 @@ export function ProfileGate() {
         }
         await loadProfiles();
       } catch {
-        setError("Echo is unavailable right now.");
+        setError("Could not connect to Echo. Check your connection and try again.");
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [bootstrapAttempt]);
 
   useEffect(() => {
     if (joinExperience !== "onboarding_v1_pilot" || replayInvite) return;
@@ -251,6 +253,7 @@ export function ProfileGate() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (submitting) return;
+    if (!replayInvite && !profiles.some((candidate) => candidate.id === selected)) return;
     if (!/^\d{4,12}$/.test(pin)) {
       setError(replayInvite ? "Введите PIN из 4–12 цифр." : "Enter a PIN with 4–12 digits.");
       pinRef.current?.focus();
@@ -289,6 +292,7 @@ export function ProfileGate() {
   };
 
   const switchProfile = async () => {
+    setLoading(true);
     try {
       await apiFetch("/api/auth/logout", { method: "POST" });
     } finally {
@@ -301,6 +305,7 @@ export function ProfileGate() {
       setPin("");
       setError("");
       if (!profiles.length) await loadProfiles().catch(() => setError("Profiles are unavailable."));
+      setLoading(false);
     }
   };
 
@@ -391,6 +396,12 @@ export function ProfileGate() {
         <p>{telegram ? "Choose your Echo profile and enter its PIN once. This Telegram account will reconnect automatically."
           : replayInvite ? "Введите PIN, который вы задали при создании тестового профиля Echo. Карточки и данные не будут созданы повторно."
           : "Your practice, Tutor history, and settings stay separate."}</p></header>
+      {!replayInvite && !profiles.length ? <>
+        <p className="profile-error" role="alert">{error || "Profiles are unavailable. Check your connection and try again."}</p>
+        <button className="profile-submit" onClick={() => {
+          setLoading(true); setError(""); setBootstrapAttempt((attempt) => attempt + 1);
+        }} type="button">Retry</button>
+      </> : <>
       {replayInvite ? <div className="profile-replay-identity">
         <UserRoundCheck aria-hidden="true" size={22} />
         <div><strong>Echo Test</strong><span>Тестовый профиль онбординга</span></div>
@@ -412,6 +423,7 @@ export function ProfileGate() {
             : replayInvite ? "Открыть онбординг" : `Continue as ${profiles.find((candidate) => candidate.id === selected)?.name || "profile"}`}
         </button>
       </form>
+      </>}
     </section>
   </main>;
 }
