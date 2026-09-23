@@ -26,7 +26,7 @@ import { languageHasAudio } from "../../shared/config";
 import { filterLibraryItems, type LibrarySort, type LibraryStatus } from "../../lib/libraryView";
 import type { AppRoute, HistoryMode, LibraryRoute } from "../../lib/appRoute";
 import { FocusedText } from "../progress/FocusedText";
-import { LearningStageBadge } from "../progress/LearningProgress";
+import { CardSources } from "../progress/CardSources";
 
 export function LibraryPage({ items, language, route, onRoute, onItemDeleted, onItemUpdated, onItemsReload, onListen, onListened, onPlay, onPracticeEnabled, onReview }: {
   items: LearningItem[];
@@ -44,6 +44,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
 }) {
   const [searchInput, setSearchInput] = useState(route.query);
   const [topics, setTopics] = useState<IslandSummary[]>([]);
+  const [categories, setCategories] = useState<IslandSummary[]>([]);
   const [collectionItems, setCollectionItems] = useState<LearningItem[]>([]);
   const [topicItemIds, setTopicItemIds] = useState<string[]>([]);
   const [topicsError, setTopicsError] = useState(false);
@@ -105,11 +106,13 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   };
   const refreshTopics = async () => {
     try {
-      const [loadedTopics, loadedItemIds] = await Promise.all([
+      const [loadedTopics, loadedItemIds, catalog] = await Promise.all([
         loadTopics(),
         topic === "all" ? Promise.resolve([]) : loadTopicItemIds(topic),
+        getCategories(language),
       ]);
       setTopics(loadedTopics);
+      setCategories(catalog.categories.map((category) => ({ ...category, publicId: `category:${category.publicId}` })));
       if (topic !== "all") setTopicItemIds(loadedItemIds);
       setTopicsError(false);
     } catch {
@@ -120,9 +123,11 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
   useEffect(() => {
     let active = true;
     setCollectionItems([]); setTopicItemIds([]); setBatch(null); setAdded(false); setSelectedItemIds(new Set());
-    setTopics([]); setTopicsError(false);
-    void loadTopics(language).then((loadedTopics) => {
-      if (active) setTopics(loadedTopics);
+    setTopics([]); setCategories([]); setTopicsError(false);
+    void Promise.all([loadTopics(language), getCategories(language)]).then(([loadedTopics, catalog]) => {
+      if (!active) return;
+      setTopics(loadedTopics);
+      setCategories(catalog.categories.map((category) => ({ ...category, publicId: `category:${category.publicId}` })));
     }).catch(() => {
       if (active) setTopicsError(true);
     });
@@ -312,7 +317,7 @@ export function LibraryPage({ items, language, route, onRoute, onItemDeleted, on
           {selectionMode ? <label className="simple-card-select"><input aria-label={`Select ${item.target}`} checked={selectedItemIds.has(item.publicId)} name={`select-card-${item.publicId}`}
             disabled={deletingSelected} onChange={() => toggleItem(item.publicId)} type="checkbox" /></label> : null}
           <div className="simple-phrase-copy-shell"><div className="simple-phrase-copy"><strong lang={language}><FocusedText focusTerms={item.focusTerms} text={item.target} /></strong><small lang="ru">{item.cue}</small></div></div>
-          <div className="simple-row-actions"><LearningStageBadge stage={item.progress.stage} />
+          <div className="simple-row-actions"><CardSources item={item} sets={[...categories, ...topics]} />
               {languageHasAudio(language) ? <button aria-label="Play" onClick={() => {
                 void onPlay(item.target).then(() => onListened(item.publicId));
               }} title="Play" type="button"><Volume2 size={15} /></button> : null}

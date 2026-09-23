@@ -77,17 +77,17 @@ describe("unified learning",()=>{
  it("fills LR from available cards: 8 started and 12 new, and never leaves the chosen Topic",()=>{
    const started=Array.from({length:8},()=>card());started.forEach((a,n)=>listen(a.publicId,n));
    Array.from({length:22},()=>card());
-   const queue=p().queue.listen({limit:20},at(10));
+   const queue=p().queue.listen({limit:20},at(40));
    expect(queue).toHaveLength(20);expect(queue.filter((a)=>a.listenCount>0)).toHaveLength(8);
    expect(p().queue.listen({limit:50,topicId:started[0].topicId!},at(10))).toHaveLength(1);
    expect(new Set(queue.map((a)=>a.publicId)).size).toBe(20);
  });
- it("enforces the initial 4/5 borrow quota using a fixed session",()=>{
-   const ids=Array.from({length:8},()=>card().publicId);
+ it("fills spare places with initial 4/5 cards while keeping session membership fixed",()=>{
+   const ids=Array.from({length:12},()=>card().publicId);
    ids.forEach((id)=>[0,30,60,90].forEach((minute)=>listen(id,minute)));
    const sessionId=randomUUID();
    const items=p().queue.start(sessionId,{limit:10,language:"en"},at(91));
-   expect(items).toHaveLength(2);
+   expect(items).toHaveLength(10);
    expect(()=>review(ids.find((id)=>!items.some((a)=>a.publicId===id))!,"good",92,sessionId)).toThrow("CARD_NOT_AVAILABLE_FOR_RECALL");
    review(items[0].publicId,"again",92,sessionId);
    review(items[0].publicId,"again",94,sessionId);

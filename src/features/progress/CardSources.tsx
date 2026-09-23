@@ -1,6 +1,6 @@
 import type { IslandSummary, LearningItem } from "../../shared/contracts";
 
-export function PracticeCardSources({ item, sets }: {
+export function CardSources({ item, sets }: {
   item: LearningItem;
   sets: Pick<IslandSummary, "publicId" | "title">[];
 }) {
