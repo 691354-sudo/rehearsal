@@ -1,10 +1,10 @@
 import { cardScopeSql } from "../card-scope.js";
 import type { Island, LanguageCode } from "../../../contracts/api.js";
-import { likedTopicId, type PilotCard, type PilotSettings } from "../../../contracts/learning-pilot.js";
+import { likedTopicId, type PilotCard, type PilotSettings, type RecommendedQueue } from "../../../contracts/learning-pilot.js";
 import { cardFromStoredState, normalizeSchedulerSettings, previewReview } from "../../services/scheduler.js";
 import { mapItem, mapItemWithProgress, mapJoinedReviewState, type DueItemRow } from "../repositories/shared.js";
 import { localDay, PilotError, PilotStore } from "./store.js";
-import type { ProgressRow } from "./progress.js";
+import { listenCreditIntervalMs, type ProgressRow } from "./progress.js";
 
 type QueueRow = DueItemRow & ProgressRow & { success_count: number };
 export type PilotQueueInput = { language?: LanguageCode; limit?: number; timezone?: string; topicId?: string; categoryId?: string;
@@ -15,13 +15,17 @@ const selection = `SELECT i.*,
   r.learning_steps AS review_learning_steps, r.repetitions AS review_repetitions,
   r.lapses AS review_lapses, r.state AS review_state, r.last_review AS review_last_review,
   COALESCE(a.recall_count,0) AS recall_count,COALESCE(a.success_count,0) AS success_count,
-  p.listen_count,p.recall_eligible_at,p.last_listen_at,p.stage,p.listen_target,p.entered_at,p.entry_pending
+  p.listen_count,p.recall_eligible_at,p.last_listen_at,p.last_credited_at,p.stage,p.listen_target,p.entered_at,p.entry_pending
   FROM learning_items i JOIN pilot_card_progress p ON p.card_id=i.public_id
   LEFT JOIN review_state r ON r.item_id=i.id
   LEFT JOIN (SELECT item_id,COUNT(*) AS recall_count,SUM(verdict IN ('hard','good','easy')) AS success_count
     FROM attempts WHERE mode='recall' GROUP BY item_id) a ON a.item_id=i.id`;
 const timestamp = (value: string | null | undefined) => value ? Date.parse(utc(value)) : 0;
 const tie = (a: QueueRow, b: QueueRow) => a.public_id.localeCompare(b.public_id);
+const recommendedQueue = (items: PilotCard[], availableCount: number, waiting: number[], now: string): RecommendedQueue => ({
+  items, recommendation: { availableCount, waitingCount: waiting.length,
+    nextAvailableAt: waiting.length ? new Date(waiting.reduce((first,at) => Math.min(first,at))).toISOString() : null, serverTime: now },
+});
 
 export class PilotQueue {
   constructor(private readonly store: PilotStore) {}
@@ -40,8 +44,14 @@ export class PilotQueue {
       schedule:previewReview(cardFromStoredState(mapJoinedReviewState(row),new Date(now)),new Date(now),"neutral",normalizeSchedulerSettings(settings.scheduler)) };
   }
   listen(input: PilotQueueInput, now = new Date().toISOString()): PilotCard[] {
-    const rows = this.rows(input).filter((row) => row.stage === "listen");
-    const recent = (row: QueueRow) => Boolean(row.last_listen_at) && Date.parse(now)-timestamp(row.last_listen_at) < 30*60_000;
+    return this.listenRecommendations(input,now).items;
+  }
+  listenRecommendations(input: PilotQueueInput, now = new Date().toISOString()): RecommendedQueue {
+    const scoped = this.rows(input).filter((row) => row.stage === "listen");
+    const readyAt = (row: QueueRow) => row.last_credited_at ? timestamp(row.last_credited_at)+listenCreditIntervalMs : 0;
+    const waiting = scoped.map(readyAt).filter((at) => at > Date.parse(now));
+    const rows = scoped.filter((row) => readyAt(row) <= Date.parse(now));
+    const recent = (row: QueueRow) => Boolean(row.last_listen_at) && Date.parse(now)-timestamp(row.last_listen_at) < listenCreditIntervalMs;
     const oldestListen = (a: QueueRow,b: QueueRow) => timestamp(a.last_listen_at)-timestamp(b.last_listen_at)||tie(a,b);
     const started = rows.filter((row) => row.listen_count > 0 && !recent(row)).sort(oldestListen);
     const cooling = rows.filter(recent).sort(oldestListen);
@@ -59,11 +69,14 @@ export class PilotQueue {
     const startedCount = Math.min(started.length, Math.max(Math.ceil(size*.8),size-fresh.length));
     const chosen = [...started.slice(0,startedCount),...fresh.slice(0,size-startedCount)];
     chosen.push(...cooling.slice(0,size-chosen.length));
-    return chosen.map((row) => this.card(row,now));
+    return recommendedQueue(chosen.map((row) => this.card(row,now)),rows.length,waiting,now);
   }
   list(input: PilotQueueInput = {}, now = new Date().toISOString(), settings?: PilotSettings): PilotCard[] {
+    return this.recallRecommendations(input,now,settings).items;
+  }
+  recallRecommendations(input: PilotQueueInput = {}, now = new Date().toISOString(), settings?: PilotSettings): RecommendedQueue {
     const homework = input.homeworkId ? this.store.homework(input.homeworkId) : null;
-    if (homework && homework.status !== "recall_in_progress") return [];
+    if (homework && homework.status !== "recall_in_progress") return recommendedQueue([],0,[],now);
     const frozen = homework?.settingsSnapshot ?? settings ?? this.store.settings();
     const size = Math.min(20,input.limit ?? 20);
     let rows = this.rows({ ...input,language:homework?.language ?? input.language });
@@ -78,13 +91,15 @@ export class PilotQueue {
     const dueIds = new Set(due.map((row) => row.public_id));
     const arrivals = rows.filter((row) => row.stage === "recall" && !dueIds.has(row.public_id) && (row.entry_pending || !row.recall_count))
       .sort((a,b) => timestamp(a.entered_at)-timestamp(b.entered_at)||tie(a,b));
-    const chosen = [...due,...arrivals].slice(0,size);
+    const candidates = [...due,...arrivals];
     if (!homework && (!input.cardId || input.allowEarly)) {
       const early = rows.filter((row) => row.stage === "listen" && row.listen_count === 4 && row.listen_target === 5 && !row.recall_count)
         .sort((a,b) => timestamp(a.last_listen_at)-timestamp(b.last_listen_at)||tie(a,b));
-      chosen.push(...early.slice(0,size-chosen.length));
+      candidates.push(...early);
     }
-    return chosen.map((row) => this.card(row,now,frozen));
+    const waiting = rows.filter((row) => row.stage === "recall" && row.recall_count && !row.entry_pending
+      && timestamp(row.review_due_at) > Date.parse(now)).map((row) => timestamp(row.review_due_at));
+    return recommendedQueue(candidates.slice(0,size).map((row) => this.card(row,now,frozen)),candidates.length,waiting,now);
   }
   session(sessionId: string) {
     const row = this.store.db.prepare("SELECT * FROM practice_sessions WHERE session_id=?").get(sessionId) as

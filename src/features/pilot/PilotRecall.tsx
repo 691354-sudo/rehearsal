@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { ChevronRight, Settings2, Volume2, X } from "lucide-react";
-import type { Homework, PilotAttemptGrade, PilotCard } from "../../../contracts/learning-pilot";
+import type { Homework, PilotAttemptGrade, PilotCard, RecommendationAvailability, RecommendedQueue } from "../../../contracts/learning-pilot";
 import type { ReviewRating } from "../../../contracts/api";
 import type { PracticePage } from "../practice/PracticePage";
 import { AppLink } from "../../app/AppLink";
@@ -19,6 +19,8 @@ import { useActiveTime, useHomeworkTime } from "./useActiveTime";
 import { HomeworkFeedback } from "./HomeworkFeedback";
 import type { RecallCheck } from "../../../contracts/recall-check";
 import { PilotRecallAnswer } from "./PilotRecallAnswer";
+import { RecommendationStatus } from "../practice/RecommendationStatus";
+import { useRecommendationRefresh } from "../practice/useRecommendationRefresh";
 
 type RecallRun = { sessionId?:string; scopeKey?: string; selectedIds: string[]; completed: number; current: PilotCard | null;
   attemptId: string; shownAt: string; revealedAt: string | null; answer: string; begun: boolean;
@@ -37,6 +39,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
     return saved && (saved.scopeKey ?? "") === scopeKey ? saved : null;
   });
   const [queue, setQueue] = useState<PilotCard[]>([]);
+  const [availability, setAvailability] = useState<RecommendationAvailability | null>(null);
   const [homework, setHomework] = useState<Homework | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(true);
   const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false);
@@ -45,6 +48,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
   const [showSettings, setShowSettings] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null); const good = useRef<HTMLButtonElement>(null);
   const saving = useRef(false);
+  const queueRequest = useRef(0); const loadRequest = useRef(0);
   const active = Boolean(run?.current && (!homework || homework.status === "recall_in_progress"));
   const attemptClock = useActiveTime(`${key}:attempt:${run?.attemptId || "none"}`, active,
     homework?.settingsSnapshot.idleTimeoutSeconds ?? pilot.settings?.idleTimeoutSeconds ?? 120);
@@ -54,24 +58,31 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
     setRunState(next);
   };
   const loadQueue = async (sessionId: string | null = null) => {
+    const request = ++queueRequest.current;
     const params = new URLSearchParams({ language: props.language, timezone: browserTimezone() });
     if (homeworkId) params.set("homeworkId", homeworkId);
     else { if (props.route.category) params.set("categoryId", props.route.category); else if (props.route.topic) params.set("topicId", props.route.topic); params.set("limit", props.route.cards === "10" ? "10" : "20"); }
     if (sessionId) params.set("sessionId", sessionId);
     if (props.route.review) params.set("cardId", props.route.review);
-    const result = await pilotRequest<{ items: PilotCard[] }>(pilot.profileId, `/queue?${params}`);
+    const result = await pilotRequest<RecommendedQueue>(pilot.profileId, `/queue?${params}`);
     const items = result.items;
-    setQueue(items); return items;
+    if (request === queueRequest.current) { setQueue(items); setAvailability(result.recommendation); }
+    return items;
   };
-  const load = async () => {
-    setLoading(true); setError("");
+  const load = async (sessionId: string | null = run?.current ? run.sessionId ?? null : null) => {
+    const request = ++loadRequest.current;
+    setLoading(true); setError(""); setAvailability(null);
     try {
       if (homeworkId) setHomework((await pilotRequest<{ homework: Homework }>(pilot.profileId, `/homework/${homeworkId}?language=${props.language}`)).homework);
-      await loadQueue(run?.current ? run.sessionId : null);
-    } catch (caught) { setError(pilotErrorMessage(caught)); }
-    finally { setLoading(false); }
+      await loadQueue(sessionId);
+    } catch (caught) { if (request === loadRequest.current) setError(pilotErrorMessage(caught)); }
+    finally { if (request === loadRequest.current) setLoading(false); }
   };
-  useEffect(() => { void load(); }, [homeworkId, props.route.topic, props.route.category, props.route.cards, props.route.review, revision]);
+  useEffect(() => {
+    void load();
+    return () => { queueRequest.current++; loadRequest.current++; };
+  }, [pilot.profileId, props.language, homeworkId, props.route.topic, props.route.category, props.route.cards, props.route.review, revision, pilot.revision]);
+  useRecommendationRefresh(availability, !run && !homeworkId, () => { if (!loading && !busy) void load(); });
   useEffect(() => {
     const latest = props.items.find((item) => item.publicId === run?.current?.publicId);
     if (latest && run?.current && (latest.target !== run.current.target || latest.cue !== run.current.cue)) {
@@ -106,7 +117,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
     else persist({ ...nextCard(null, selectedIds, run.completed) });
   }, [deletedIds]);
   const start=async()=>{
-    if(!queue.length || busy) return;
+    if(!queue.length || loading || error || busy) return;
     if(homeworkId) {void begin(nextCard(queue[0],queue.map((card)=>card.publicId),0));return;}
     setBusy(true);setError("");
     try {
@@ -115,7 +126,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
         ...(props.route.review ? {cardId:props.route.review} : {}),
         ...(props.route.category?{categoryId:props.route.category}:props.route.topic?{topicId:props.route.topic}:{})});
       if(result.items.length) await begin({...nextCard(result.items[0],result.items.map((card)=>card.publicId),0),sessionId});
-      else {setQueue([]);}
+      else {setQueue([]);await load();}
     }catch(caught){setError(pilotErrorMessage(caught));}finally{setBusy(false);}
   };
   useEffect(() => {
@@ -162,7 +173,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
     } catch (caught) { setError(pilotErrorMessage(caught)); }
     finally { setBusy(false); }
   };
-  const exit = () => { if (!run?.submission) homework ? void homeworkAction("finish") : persist(null); };
+  const exit = () => { if (!run?.submission) { if (homework) void homeworkAction("finish"); else { persist(null); void load(null); } } };
   const keyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     if (event.nativeEvent.isComposing || event.keyCode === 229 || event.altKey || event.metaKey || event.ctrlKey) return;
     const typing = event.target instanceof HTMLTextAreaElement && !event.target.readOnly;
@@ -191,11 +202,12 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
     <section className="recall-setup" aria-label="Recall setup"><div className="recall-setup-fields">
       {!homework ? <><div className="practice-topic-field"><TopicProgressPicker onChange={onTopic} progressPill topics={topics} value={practiceSetValue(props.route)} /></div>
         <select aria-label="Practice cards" className="practice-card-select" value={props.route.cards === "10" ? "10" : "20"} onChange={(event) => props.onRoute({ ...props.route, cards: event.target.value as "all" | "10" | "20" | "50" }, "replace")}>
-          <option value="10">10 recommended</option><option value="20">20 recommended</option></select></> : null}
-      <button className="simple-primary recall-start" disabled={loading || busy || !queue.length} onClick={start} type="button">{loading ? "Loading cards…" : `Start ${queue.length} ${queue.length === 1 ? "card" : "cards"}`}<ChevronRight size={16} aria-hidden="true" /></button>
+          <option value="10">Up to 10</option><option value="20">Up to 20</option></select></> : null}
+      <button className="simple-primary recall-start" disabled={loading || Boolean(error) || busy || !queue.length} onClick={start} type="button">{loading ? "Loading cards…" : error ? "Start cards" : `Start ${queue.length} ${queue.length === 1 ? "card" : "cards"}`}<ChevronRight size={16} aria-hidden="true" /></button>
     </div></section>{failure}
-    {!loading ? <PracticeQueuePreview sets={topics} items={queue} language={props.language} mode="recall" scope="due" onEdit={onEdit} onDelete={onDelete}
-      onPlay={(item) => props.onPlay(item.target, props.playback)} emptyAction={languageHasAudio(props.language) ? <span>New cards are ready after five listens. Use To Recall when you are ready sooner.</span> : undefined} /> : null}
+    {!homework ? <RecommendationStatus count={queue.length} availability={availability} loading={loading} error={error} mode="recall" /> : null}
+    {!loading && !error ? <PracticeQueuePreview sets={topics} items={queue} language={props.language} mode="recall" scope="due" onEdit={onEdit} onDelete={onDelete}
+      onPlay={(item) => props.onPlay(item.target, props.playback)} emptyAction={languageHasAudio(props.language) && !availability?.waitingCount ? <span>New cards are ready after five listens; cards at 4/5 may fill spare places. Use To Recall when you are ready sooner.</span> : undefined} /> : null}
     {homework && !loading && !queue.length ? <button className="simple-primary" onClick={() => void homeworkAction("return")} type="button">Return to Tutor</button> : null}
   </div>;
   if (!run.current) return <section className="recall-complete"><h2>Recall finished</h2><p>{run.completed} {run.completed === 1 ? "answer" : "answers"} saved</p>{failure}

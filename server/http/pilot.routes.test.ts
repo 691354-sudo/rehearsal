@@ -9,6 +9,27 @@ describe("Pilot answer and Homework API", () => {
   let context: ApiTestContext;
   beforeEach(() => { context = createApiTestContext(); readyTutorCard(context); });
   afterEach(() => { vi.restoreAllMocks(); context.close(); });
+  it("returns scoped availability alongside the existing items field for both queues", async () => {
+    const repo = context.repository;
+    const topic = repo.library.createIsland({ language: "en", title: "Availability" });
+    const waiting = repo.items.create({ language: "en", cue: "Пример", target: "Waiting." }, topic.publicId);
+    const recall = repo.items.create({ language: "en", cue: "Пример", target: "Ready." }, topic.publicId);
+    const completedAt = new Date(Date.now() - 5 * 60_000).toISOString();
+    repo.pilot.listening.complete({ eventId: randomUUID(), appearanceId: randomUUID(), listenSessionId: randomUUID(),
+      language: "en", cardId: waiting.publicId, completedAt, audioRepeatsInAppearance: 1 });
+    repo.pilot.listening.toRecall({ eventId: randomUUID(), language: "en", cardId: recall.publicId });
+    const app = await buildApp(repo);
+    try {
+      const listen = await app.inject({ method: "GET", url: `/api/pilot/listen-queue?language=en&limit=20&topicId=${topic.publicId}` });
+      expect(listen.statusCode).toBe(200);
+      expect(listen.json()).toEqual({ items: [], recommendation: { availableCount: 0, waitingCount: 1,
+        nextAvailableAt: new Date(Date.parse(completedAt) + 30 * 60_000).toISOString(), serverTime: expect.any(String) } });
+      const activeRecall = await app.inject({ method: "GET", url: `/api/pilot/queue?language=en&limit=10&topicId=${topic.publicId}` });
+      expect(activeRecall.statusCode).toBe(200);
+      expect(activeRecall.json().items.map((item: {publicId: string}) => item.publicId)).toEqual([recall.publicId]);
+      expect(activeRecall.json().recommendation).toEqual({ availableCount: 1, waitingCount: 0, nextAvailableAt: null, serverTime: expect.any(String) });
+    } finally { await app.close(); }
+  });
   it("checks an existing English attempt against its own card without grading or touching FSRS", async () => {
     const repo = context.repository, now = new Date().toISOString();
     const topic = repo.library.createIsland({ language: "en", title: "API check" });

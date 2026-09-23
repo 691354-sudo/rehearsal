@@ -47,17 +47,15 @@ describe("small Library recommendations", () => {
     expect(queue.filter((item) => item.listenCount === 0)).toHaveLength(4);
   });
 
-  it("puts unheard cards ahead of recently played cards even when a small Library needs both", () => {
+  it("returns only unheard cards while the rest of a small Library waits for another credit", () => {
     const group = topic();
     cards(group.publicId, 8).forEach((item) => listen(item.publicId, 5));
     const unheard = cards(group.publicId, 2);
     const queue = context.repository.pilot.queue.listen({ limit: 20 }, now);
-    expect(queue).toHaveLength(10);
-    expect(new Set(queue.slice(0, 2).map((item) => item.publicId))).toEqual(new Set(unheard.map((item) => item.publicId)));
-    expect(queue.slice(2).every((item) => item.listenCount > 0)).toBe(true);
+    expect(new Set(queue.map((item) => item.publicId))).toEqual(new Set(unheard.map((item) => item.publicId)));
   });
 
-  it("fills from nonrecent started and unheard cards before using the cooldown fallback", () => {
+  it("fills from eligible started and unheard cards without using waiting cards", () => {
     const group = topic();
     const [started] = cards(group.publicId, 1);
     listen(started.publicId, 30);
@@ -69,7 +67,7 @@ describe("small Library recommendations", () => {
     expect(queue.slice(1).every((item) => item.listenCount === 0)).toBe(true);
   });
 
-  it("uses other cards on consecutive LR sessions and fills a larger request after partial playback", () => {
+  it("keeps unplayed cards eligible after a partially completed session", () => {
     cards(topic().publicId, 50);
     const first = context.repository.pilot.queue.listen({ limit: 20 }, now);
     first.forEach((item) => listen(item.publicId, 0));
@@ -77,9 +75,9 @@ describe("small Library recommendations", () => {
     expect(second.some((item) => first.some((previous) => previous.publicId === item.publicId))).toBe(false);
     second.slice(0, 4).forEach((item) => listen(item.publicId, 0));
     const larger = context.repository.pilot.queue.listen({ limit: 50 }, now);
-    expect(larger).toHaveLength(50);
-    expect(larger.slice(0, 26).every((item) => item.listenCount === 0)).toBe(true);
-    expect(new Set(larger.map((item) => item.publicId)).size).toBe(50);
+    expect(larger).toHaveLength(26);
+    expect(larger.every((item) => item.listenCount === 0)).toBe(true);
+    expect(new Set(larger.map((item) => item.publicId)).size).toBe(26);
   });
 
   it("fills 10 Recall places when 7 cards are ready and 4 initial cards are at 4/5", () => {

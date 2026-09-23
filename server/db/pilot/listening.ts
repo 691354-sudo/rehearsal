@@ -1,5 +1,5 @@
 import { utc } from "./queue.js";
-import { enterRecall, progressRow } from "./progress.js";
+import { enterRecall, listenCreditIntervalMs, progressRow } from "./progress.js";
 import type { ListenAppearance, ListenLike, PriorityRequest } from "../../../contracts/learning-pilot.js";
 import { logChange } from "../repositories/shared.js";
 import { PilotError, PilotStore } from "./store.js";
@@ -32,7 +32,7 @@ export class PilotListening {
       this.store.item(input.cardId, input.language);
       const previous = this.store.progress(input.cardId);
       const row = progressRow(this.store, input.cardId);
-      const credited = (!row.last_credited_at || Date.parse(input.completedAt) - Date.parse(utc(row.last_credited_at)) >= 30 * 60_000)
+      const credited = (!row.last_credited_at || Date.parse(input.completedAt) - Date.parse(utc(row.last_credited_at)) >= listenCreditIntervalMs)
         && (!previous.hasRecallHistory || !row.entered_at || row.stage !== "listen" || Date.parse(input.completedAt) >= Date.parse(utc(row.entered_at)));
       const listenCount = previous.listenCount + Number(credited);
       const becameEligible = row.stage === "listen" && credited && listenCount >= row.listen_target;

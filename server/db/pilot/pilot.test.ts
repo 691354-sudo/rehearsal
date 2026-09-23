@@ -79,7 +79,8 @@ describe("unified learning",()=>{
    Array.from({length:22},()=>card());
    const queue=p().queue.listen({limit:20},at(40));
    expect(queue).toHaveLength(20);expect(queue.filter((a)=>a.listenCount>0)).toHaveLength(8);
-   expect(p().queue.listen({limit:50,topicId:started[0].topicId!},at(10))).toHaveLength(1);
+    expect(p().queue.listen({limit:50,topicId:started[0].topicId!},at(10))).toHaveLength(0);
+    expect(p().queue.listen({limit:50,topicId:started[0].topicId!},at(40))).toHaveLength(1);
    expect(new Set(queue.map((a)=>a.publicId)).size).toBe(20);
  });
  it("fills spare places with initial 4/5 cards while keeping session membership fixed",()=>{

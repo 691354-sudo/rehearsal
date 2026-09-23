@@ -26,6 +26,13 @@ export type PilotCard = LearningItem & {
   learningStage: "listen" | "recall" | "tutor";
   listenTarget: number;
 };
+export type RecommendationAvailability = {
+  availableCount: number;
+  waitingCount: number;
+  nextAvailableAt: string | null;
+  serverTime: string;
+};
+export type RecommendedQueue = { items: PilotCard[]; recommendation: RecommendationAvailability };
 export type ListenAppearance = {
   eventId: string;
   language: LanguageCode;
