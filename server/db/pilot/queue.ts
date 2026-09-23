@@ -41,7 +41,10 @@ export class PilotQueue {
   }
   listen(input: PilotQueueInput, now = new Date().toISOString()): PilotCard[] {
     const rows = this.rows(input).filter((row) => row.stage === "listen");
-    const started = rows.filter((row) => row.listen_count > 0).sort((a,b) => timestamp(a.last_listen_at)-timestamp(b.last_listen_at)||tie(a,b));
+    const recent = (row: QueueRow) => Boolean(row.last_listen_at) && Date.parse(now)-timestamp(row.last_listen_at) < 30*60_000;
+    const oldestListen = (a: QueueRow,b: QueueRow) => timestamp(a.last_listen_at)-timestamp(b.last_listen_at)||tie(a,b);
+    const started = rows.filter((row) => row.listen_count > 0 && !recent(row)).sort(oldestListen);
+    const cooling = rows.filter(recent).sort(oldestListen);
     const mapped = started.map(mapItem);
     const categories = new Set(mapped.flatMap((card) => (card.learningCategoryIds ?? [])));
     const topics = new Set(mapped.map((card) => card.topicId));
@@ -51,10 +54,12 @@ export class PilotQueue {
       return (item.learningCategoryIds ?? []).some((id) => categories.has(id)) ? 0 : topics.has(item.topicId) ? 1 : 2;
     };
     const ranks = new Map(rows.filter((row) => !row.listen_count).map((row) => [row.public_id, rank(row)]));
-    const fresh = rows.filter((row) => !row.listen_count).sort((a,b) => ranks.get(a.public_id)!-ranks.get(b.public_id)!||timestamp(a.created_at)-timestamp(b.created_at)||tie(a,b));
+    const fresh = rows.filter((row) => !row.listen_count && !recent(row)).sort((a,b) => ranks.get(a.public_id)!-ranks.get(b.public_id)!||timestamp(a.created_at)-timestamp(b.created_at)||tie(a,b));
     const size = Math.min(input.limit ?? 20, rows.length);
     const startedCount = Math.min(started.length, Math.max(Math.ceil(size*.8),size-fresh.length));
-    return [...started.slice(0,startedCount),...fresh.slice(0,size-startedCount)].map((row) => this.card(row,now));
+    const chosen = [...started.slice(0,startedCount),...fresh.slice(0,size-startedCount)];
+    chosen.push(...cooling.slice(0,size-chosen.length));
+    return chosen.map((row) => this.card(row,now));
   }
   list(input: PilotQueueInput = {}, now = new Date().toISOString(), settings?: PilotSettings): PilotCard[] {
     const homework = input.homeworkId ? this.store.homework(input.homeworkId) : null;
@@ -77,7 +82,7 @@ export class PilotQueue {
     if (!homework && (!input.cardId || input.allowEarly)) {
       const early = rows.filter((row) => row.stage === "listen" && row.listen_count === 4 && row.listen_target === 5 && !row.recall_count)
         .sort((a,b) => timestamp(a.last_listen_at)-timestamp(b.last_listen_at)||tie(a,b));
-      chosen.push(...early.slice(0,Math.min(Math.floor(size*.2),size-chosen.length)));
+      chosen.push(...early.slice(0,size-chosen.length));
     }
     return chosen.map((row) => this.card(row,now,frozen));
   }

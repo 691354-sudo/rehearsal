@@ -7,7 +7,7 @@ import { languageHasAudio } from "../../shared/config";
 import type { PracticeScope } from "./practiceSelection";
 import { FocusedText } from "../progress/FocusedText";
 import { LearningProgressCounts } from "../progress/LearningProgress";
-import { PracticeCardSources } from "./PracticeCardSources";
+import { CardSources } from "../progress/CardSources";
 
 export function PracticeQueuePreview(props: {
   items: LearningItem[];
@@ -46,7 +46,7 @@ export function PracticeQueuePreview(props: {
         <div className="practice-queue-side"><div className="practice-queue-actions">
             {languageHasAudio(props.language) ? <button aria-label={`Play ${item.target}`} onClick={() => void playManually(item)} title="Play" type="button"><Volume2 size={15} /></button> : null}
             <CardActions extraActions={props.mode === "listen" && props.onToRecall ? [{label:"To Recall",onClick:()=>props.onToRecall?.(item)}] : []} target={item.target} onEdit={() => props.onEdit(item)} onDelete={props.onDelete ? () => props.onDelete?.(item) : undefined} />
-          </div><span className="learning-progress"><PracticeCardSources item={item} sets={props.sets} /><LearningProgressCounts progress={item.progress} /></span></div>
+          </div><span className="learning-progress"><CardSources item={item} sets={props.sets} /><LearningProgressCounts progress={item.progress} /></span></div>
       </li>)}
     </ol> : <div className="practice-queue-empty"><span>{props.scope === "due" ? "Nothing recommended right now." : "No matching cards."}</span>{props.emptyAction}</div>}
     {visibleCount < props.items.length ? <button className="practice-load-more" onClick={() => setVisibleCount((count) => count + 10)} type="button">

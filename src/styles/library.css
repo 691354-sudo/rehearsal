@@ -716,9 +716,11 @@
     justify-content: flex-end;
   }
 
-  .simple-row-actions > .learning-stage {
+  .simple-row-actions > .practice-source-tags {
     position: static;
     margin-right: auto;
+    min-width: 0;
+    flex-shrink: 1;
   }
 
   .simple-row-actions > button,
