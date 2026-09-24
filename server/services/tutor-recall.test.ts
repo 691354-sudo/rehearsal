@@ -9,7 +9,7 @@ import type { OpenAIService } from "./openai.js";
 import { TutorService } from "./tutor.js";
 import { prepareRecallTutor } from "./tutor-recall.js";
 import { aiLimits } from "./ai-limits.js";
-import { isGuidedPracticeStartMessage } from "../../contracts/tutor-guided-practice.js";
+import { isGuidedPracticeStartMessage, legacyRecallPracticeStartMessage, recallPracticeStartMessage } from "../../contracts/tutor-guided-practice.js";
 
 describe("Recall to a fresh Tutor chat", () => {
   let context: ApiTestContext;
@@ -40,10 +40,12 @@ describe("Recall to a fresh Tutor chat", () => {
     expect(messages).toHaveLength(1);
     expect(messages[0].clientMessageId).toBe(clientMessageId);
     expect(isGuidedPracticeStartMessage(messages[0].content)).toBe(true);
-    expect(messages[0].content).toContain(second.target);
-    expect(messages[0].content.match(/work through/g)).toHaveLength(1);
-    expect(messages[0].content).not.toContain("Sveiki");
-    expect(messages[0].content).not.toContain(notReady.target);
+    const pool = context.repository.tutor.contextPractice.get(thread.id)!.snapshot.pool;
+    expect(messages[0].content).toBe(recallPracticeStartMessage);
+    expect(pool).toHaveLength(2);
+    expect(pool.map((entry) => entry.target)).toContain(second.target);
+    expect(pool.map((entry) => entry.core).sort()).toEqual(["catch up", "work through"]);
+    expect(pool.every((entry) => entry.topic.startsWith("Recall handoff"))).toBe(true);
     expect(context.repository.tutor.getMode(thread.id)?.mode).toBe("guided");
     expect(context.repository.pilot.homework.forChat(thread.public_id)).toBeNull();
     expect(context.db.prepare("SELECT * FROM pilot_card_progress ORDER BY card_id").all()).toEqual(progress);
@@ -56,11 +58,13 @@ describe("Recall to a fresh Tutor chat", () => {
     const input = { language: "en" as const, clientMessageId: randomUUID() };
     const first = prepareRecallTutor(context.repository, input);
     const content = context.repository.tutor.getClientMessage(input.clientMessageId)!.content;
+    const state = context.repository.tutor.contextPractice.get(context.repository.tutor.getThread(first.threadId)!.id);
     context.db.prepare("UPDATE pilot_card_progress SET stage='listen' WHERE card_id=?").run(item.publicId);
     context.reopen();
     expect(prepareRecallTutor(context.repository, input)).toEqual(first);
     expect(context.repository.tutor.getClientMessage(input.clientMessageId)!.content).toBe(content);
     expect(context.repository.tutor.listThreads("en")).toHaveLength(1);
+    expect(context.repository.tutor.contextPractice.get(context.repository.tutor.getThread(first.threadId)!.id)).toEqual(state);
     expect(() => prepareRecallTutor(context.repository, { ...input, language: "lv" })).toThrow("CLIENT_MESSAGE_ID_CONFLICT");
   });
 
@@ -75,12 +79,39 @@ describe("Recall to a fresh Tutor chat", () => {
   it("bounds a large ready pool by 20 COREs and the message budget", () => {
     for (let n = 0; n < 30; n++) card(`Phrase number ${n}.`, `number ${n}`);
     const first = { language: "en" as const, clientMessageId: randomUUID() };
-    prepareRecallTutor(context.repository, first);
-    expect(context.repository.tutor.getClientMessage(first.clientMessageId)!.content.match(/\n\n\d+\./g)).toHaveLength(20);
+    const started = prepareRecallTutor(context.repository, first);
+    expect(context.repository.tutor.contextPractice.get(context.repository.tutor.getThread(started.threadId)!.id)!.snapshot.pool).toHaveLength(20);
     context.db.prepare("UPDATE items SET target=target || ?").run(" long phrase".repeat(100));
     const next = { ...first, clientMessageId: randomUUID() };
-    prepareRecallTutor(context.repository, next);
-    expect(context.repository.tutor.getClientMessage(next.clientMessageId)!.content.length).toBeLessThanOrEqual(aiLimits.tutorMessageCharacters);
+    const bounded = prepareRecallTutor(context.repository, next);
+    const pool = context.repository.tutor.contextPractice.get(context.repository.tutor.getThread(bounded.threadId)!.id)!.snapshot.pool;
+    expect(pool.length).toBeLessThan(20);
+    expect(JSON.stringify(pool).length + recallPracticeStartMessage.length).toBeLessThanOrEqual(aiLimits.tutorMessageCharacters);
+  });
+
+  it("uses only explicit COREs, preserves categories and does not merge inferred or similar phrases", () => {
+    const first = card("His name would not stick in my head.", "");
+    const second = card("The address would not stick in my head.", "");
+    context.repository.pilot.cores.resolve(first.publicId, "stick in my head");
+    context.repository.pilot.cores.resolve(second.publicId, "stick in my head");
+    const category = context.repository.categories.create({ language: "en", title: "Memory" });
+    context.repository.items.update(first.publicId, { learningCategoryIds: [category.publicId] });
+    const { threadId } = prepareRecallTutor(context.repository, { language: "en", clientMessageId: randomUUID() });
+    const pool = context.repository.tutor.contextPractice.get(context.repository.tutor.getThread(threadId)!.id)!.snapshot.pool;
+    expect(pool).toHaveLength(2);
+    expect(pool.map((entry) => entry.core)).toEqual(["", ""]);
+    expect(pool.find((entry) => entry.id === first.publicId)?.categories).toEqual(["Memory"]);
+  });
+
+  it("replays a legacy pending handoff without rewriting it or inventing a snapshot", () => {
+    const clientMessageId = randomUUID();
+    const content = `${legacyRecallPracticeStartMessage}\n\n1. Hello.\nПривет.`;
+    const existing = context.repository.tutor.getOrCreateClientMessage({ language: "en", clientMessageId, content });
+    context.repository.tutor.setMode(existing.thread_id, existing.message_id, "guided");
+    expect(prepareRecallTutor(context.repository, { language: "en", clientMessageId }).threadId).toBe(existing.thread_public_id);
+    expect(context.repository.tutor.getClientMessage(clientMessageId)?.content).toBe(content);
+    expect(context.repository.tutor.contextPractice.get(existing.thread_id)).toBeNull();
+    expect(isGuidedPracticeStartMessage(content)).toBe(true);
   });
 
   it("starts on the frozen phrases and retries a failed first reply without duplicating messages", async () => {
@@ -88,7 +119,8 @@ describe("Recall to a fresh Tutor chat", () => {
     const input = { language: "en" as const, clientMessageId: randomUUID() };
     const { threadId } = prepareRecallTutor(context.repository, input);
     const create = vi.fn().mockRejectedValueOnce(new Error("Provider unavailable"))
-      .mockResolvedValue({ id: "answer", output_text: "Use catch up to arrange a meeting.", output: [] });
+      .mockResolvedValue({ id: "answer", output_text: JSON.stringify({ content: "", nextAction: "Предложи другу встретиться после долгого перерыва.",
+        selectedTargetIds: [item.publicId], status: "active", task: { targetIds: [item.publicId], contextId: "friends", support: "none" }, observations: [] }), output: [] });
     const service = new TutorService(context.repository, { configured: true, learner: genericLearnerPersona } as OpenAIService,
       false, { responses: { create } } as unknown as OpenAI);
     const request = { ...input, threadPublicId: threadId, message: context.repository.tutor.getClientMessage(input.clientMessageId)!.content };
@@ -98,7 +130,14 @@ describe("Recall to a fresh Tutor chat", () => {
     expect(reply.threadId).toBe(threadId);
     expect(create).toHaveBeenCalledTimes(2);
     expect(create.mock.lastCall![0].instructions).toContain("Current mode: learner-requested guided practice");
-    expect(create.mock.lastCall![0].input[0].content).toContain(item.target);
+    const providerRequest = create.mock.lastCall![0];
+    expect(providerRequest.input[0].content).not.toContain(item.target);
+    expect(providerRequest.instructions).toContain(item.target);
+    expect(providerRequest.instructions).toContain('"core":"catch up"');
+    expect(providerRequest.instructions).not.toContain("no more than three training rounds");
+    expect(providerRequest.instructions).not.toContain("call list_due_items with a limit of 5");
+    expect(providerRequest.text.format.name).toBe("tutor_context_practice_reply");
+    expect(providerRequest.tools.map((tool: { name: string }) => tool.name)).not.toContain("list_due_items");
     expect(context.repository.tutor.getMessages(context.repository.tutor.getThread(threadId)!.id)).toHaveLength(2);
   });
 });

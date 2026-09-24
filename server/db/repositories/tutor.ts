@@ -5,6 +5,7 @@ import type { RehearsalDatabase } from "../database.js";
 import type { LanguageCode } from "../../types.js";
 import { makeThreadTitle } from "./shared.js";
 import { TutorLearningFocusRepository } from "./tutor-learning-focus.js";
+import { TutorContextPracticeRepository } from "./tutor-context-practice.js";
 
 export type TutorThreadRow = {
   id: number;
@@ -27,10 +28,12 @@ type ClientMessageRow = {
 export class TutorRepository {
   readonly feedback: TutorFeedbackRepository;
   readonly learningFocus: TutorLearningFocusRepository;
+  readonly contextPractice: TutorContextPracticeRepository;
 
   constructor(private readonly db: RehearsalDatabase) {
     this.feedback = new TutorFeedbackRepository(db);
     this.learningFocus = new TutorLearningFocusRepository(db);
+    this.contextPractice = new TutorContextPracticeRepository(db, this);
   }
 
   setMode(threadId: number, messageId: number, mode: "chat" | "guided", restart = false) {

@@ -2,8 +2,11 @@ export const guidedPracticeStartMessage =
   "Start a guided practice session for me. Choose the most useful exercise based on my Library and what is due.";
 
 export const recallPracticeStartMessage =
+  "Practise my ready phrases from Active Recall in situations and dialogue. Choose a small group and start now.";
+export const legacyRecallPracticeStartMessage =
   "Practise these phrases from Active Recall with me. Start with one short exercise using them in context, then continue through this list:";
-export const isRecallPracticeStartMessage = (content: string) => content.startsWith(`${recallPracticeStartMessage}\n\n`);
+export const isRecallPracticeStartMessage = (content: string) => content === recallPracticeStartMessage
+  || content.startsWith(`${legacyRecallPracticeStartMessage}\n\n`);
 
 export const guidedPracticeMenuMessage =
   "Give me three guided practice exercises to choose from: Tell it better, Recall & reuse, and Role-play twice.";

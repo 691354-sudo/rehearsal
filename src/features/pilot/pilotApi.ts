@@ -25,6 +25,7 @@ export const pilotErrorMessage = (error: unknown) => {
     HOMEWORK_ALREADY_ACTIVE: "This chat already has Homework. Continue the saved session.",
     HOMEWORK_TIME_FINISHED: "The planned time is up. Finish this session or choose Continue.",
     TUTOR_REPLY_INCOMPLETE: "Tutor could not finish the reply. Your message is saved; retry it.",
+    TUTOR_CONTEXT_STALE: "This lesson changed in another tab. Reload the chat and send your answer again.",
     PROFILE_CHANGED: "Your profile changed. Reopen this profile to sync its progress.",
     PILOT_CARD_NOT_FOUND: "This card was removed. Its pending change could not be saved.",
   };

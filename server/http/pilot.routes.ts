@@ -32,7 +32,7 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const query = z.object({ language, tutorChatId: id.optional(), timezone: timezone.optional() }).parse(request.query);
     const homework = repository.pilot.homework.active(query.tutorChatId,query.language);
     return { settings: repository.pilot.store.settings(), timezone: repository.pilot.store.timezone(query.timezone),
-      pending: [], readyCount: repository.pilot.cores.list(query.language).length, homework,
+      pending: [], readyCount: repository.pilot.cores.list(query.language, undefined, true).length, homework,
       tutorStarted: Boolean(homework && repository.tutor.getCompletedClientExchange(homework.homeworkId)) };
   });
   app.get("/api/pilot/liked", async (request) => {
