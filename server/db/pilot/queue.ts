@@ -78,7 +78,7 @@ export class PilotQueue {
     const homework = input.homeworkId ? this.store.homework(input.homeworkId) : null;
     if (homework && homework.status !== "recall_in_progress") return recommendedQueue([],0,[],now);
     const frozen = homework?.settingsSnapshot ?? settings ?? this.store.settings();
-    const size = input.limit === "all" ? undefined : Math.min(20,input.limit ?? 20);
+    const size = input.sessionId || input.limit === "all" ? undefined : Math.min(20,input.limit ?? 20);
     let rows = this.rows({ ...input,language:homework?.language ?? input.language });
     if (input.sessionId) { const session=this.session(input.sessionId);if(session.language !== (input.language ?? "en"))throw new PilotError("PRACTICE_SESSION_CONFLICT"); rows=rows.filter((row)=>session.ids.includes(row.public_id)); }
     if (homework) rows = rows.filter((row) => homework.plannedCardIds.includes(row.public_id));

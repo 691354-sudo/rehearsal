@@ -33,6 +33,7 @@ describe("adaptive recommendation availability", () => {
     const extra = context.repository.items.create({ language: "en", cue: "Позже", target: "Added later" }, topicId);
     context.repository.pilot.listening.toRecall({ eventId: randomUUID(), language: "en", cardId: extra.publicId }, at(1));
     expect(context.repository.pilot.queue.list({ ...input, sessionId }, at(2))).toHaveLength(65);
+    expect(context.repository.pilot.queue.list({ ...input, limit: 10, sessionId }, at(2))).toHaveLength(65);
     expect(context.repository.pilot.queue.start(sessionId, input, at(2))).toHaveLength(65);
     expect(context.db.prepare("SELECT * FROM review_state WHERE item_id<>? ORDER BY item_id").all(extra.id)).toEqual(before);
   });
