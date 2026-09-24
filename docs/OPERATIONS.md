@@ -297,3 +297,10 @@ Migration `015-unified-learning` applies to every registered profile at startup.
 The migration preserves FSRS and raw listening history. It credits historical listen/shadow attempts, deduplicates pilot mirrors by event ID, preserves a larger existing pilot count, and initializes new transition streaks empty. Existing Recall history and credited counts at least five enter Recall; written-only Latvian starts there. Learned flags remain unchanged. The 30-minute credit rule applies to new completions. Old unassigned Like requests are cancelled; assigned historical Homework remains available. New Homework begins directly in Tutor.
 
 The previous release can read the extended schema, but running old scheduling code would stop maintaining the new stage/revision fields. If rollback is necessary, preserve all post-release data, stop new practice writes and forward-fix through CI. A database restore is a separate explicit decision; do not erase new reviews as part of automatic code rollback. Deployment's backup, integrity checks and health gate remain mandatory.
+
+
+## Contextual Tutor practice migration
+
+Migration `017-tutor-context-practice` is additive: it creates an attempt table and indexes without rewriting Library, FSRS, stages or historical Homework. Before production startup, use the normal verified per-profile backups. The migration regression runs against a populated database backup, verifies preserved card/review/attempt/progress/history rows, `quick_check`, `foreign_key_check`, a second open and transactional failure recovery. Rollback may run the preceding application release while retaining the new table and message metadata; do not delete practice evidence or restore older data merely to roll back code.
+
+The paid synthetic Tutor runner has `contextual-group`, `contextual-hints`, `contextual-whole-phrase` and `contextual-stop` scenarios. Run these only with explicit approval under the existing `CONFIRM_PROMPT_EVAL=1` gate. Reports include the synthetic selected group and attempt evidence for manual review. Offline tests establish persistence, validation and mode boundaries; they do not establish live model teaching quality.

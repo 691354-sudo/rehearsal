@@ -7,6 +7,8 @@ import { TutorService } from "../server/services/tutor.js";
 import { createApiTestContext } from "../server/testing/api-test-context.js";
 import { guidedPracticeReviewMessages, isGuidedPracticeStartMessage } from "../contracts/tutor-guided-practice.js";
 import { tutorBehaviorScenarios } from "./tutor-behavior-scenarios.js";
+import { prepareRecallTutor } from "../server/services/tutor-recall.js";
+import { readyTutorCard } from "../server/testing/pilot-requests.js";
 
 if (process.env.CONFIRM_PROMPT_EVAL !== "1") throw new Error("Set CONFIRM_PROMPT_EVAL=1 to authorize paid synthetic Tutor evaluations.");
 if (!openAIConfigured) throw new Error("OPENAI_API_KEY is required.");
@@ -37,6 +39,29 @@ for (const scenario of scenarios) {
   const replies: Array<{ content: string; toolCalls: unknown[] }> = [];
   const issues: string[] = [];
   try {
+    let recallStart: ReturnType<typeof context.repository.tutor.getClientMessage>;
+    if (scenario.contextual) {
+      const topic = context.repository.library.createIsland({ language, title: "Synthetic context practice" });
+      const phrases = scenario.contextual === "whole-phrase"
+        ? [["I wrote down the address because it just wouldn't stick in my head.", "Я записал адрес, потому что никак не мог его запомнить.", ""]]
+        : [["Don't dwell on it.", "Не зацикливайся на этом.", "dwell on"],
+          ["I'll bounce back quickly.", "Я быстро восстановлюсь.", "bounce back"],
+          ["What's holding you back?", "Что тебе мешает?", "hold back"],
+          ["Ultimately, it's your choice.", "В конечном счёте решать тебе.", "ultimately"],
+          ["Everything is falling into place.", "Всё встаёт на свои места.", "fall into place"],
+          ["Something sparked my curiosity.", "Что-то пробудило моё любопытство.", "spark curiosity"],
+          ["It works the other way around.", "Это работает наоборот.", "the other way around"],
+          ["Hello, Vietnamese people.", "Здравствуйте, вьетнамцы.", ""]];
+      phrases.forEach(([target, cue, core], index) => {
+        const card = context.repository.items.create({ language, target, cue, focusTerms: core ? [core] : [] }, topic.publicId);
+        readyTutorCard(context, card.publicId);
+        context.db.prepare("UPDATE pilot_card_progress SET entered_at=? WHERE card_id=?")
+          .run(`2026-09-01T00:00:0${index}.000Z`, card.publicId);
+      });
+      const clientMessageId = randomUUID();
+      prepareRecallTutor(context.repository, { language, clientMessageId });
+      recallStart = context.repository.tutor.getClientMessage(clientMessageId);
+    }
     const before = JSON.stringify(context.repository.system.stats());
     if (scenario.seedFocus) {
       const source = context.repository.tutor.getOrCreateThread(undefined, language);
@@ -51,7 +76,7 @@ for (const scenario of scenarios) {
       context.repository.pilot.listening.like({ eventId: randomUUID(), language: "en", cardId: card.publicId, liked: true, occurredAt: new Date().toISOString() });
       return context.repository.pilot.homework.create({ homeworkId: randomUUID(), requestedMinutes: 5, timezone: "Europe/Riga" });
     })() : undefined;
-    const thread = context.repository.tutor.getOrCreateThread(hw?.tutorChatId, language);
+    const thread = context.repository.tutor.getOrCreateThread(recallStart?.thread_public_id ?? hw?.tutorChatId, language);
     for (const entry of scenario.history || []) {
       const id = context.repository.tutor.addMessage(thread.id, entry.role, entry.content);
       if (entry.role === "user" && isGuidedPracticeStartMessage(entry.content)) context.repository.tutor.setMode(thread.id, id, "guided", true);
@@ -59,6 +84,11 @@ for (const scenario of scenarios) {
     const openai = new OpenAIService(context.repository);
     openai.embed = async () => null;
     const tutor = new TutorService(context.repository, openai, false, client);
+    if (recallStart) {
+      const reply = await tutor.chat({ language, threadPublicId: thread.publicId, message: recallStart.content,
+        clientMessageId: context.repository.tutor.getMessages(thread.id, 1, true)[0].clientMessageId! });
+      replies.push({ content: reply.content, toolCalls: reply.toolCalls });
+    }
     for (const message of scenario.turns) {
       const reply = await tutor.chat({ language, message, threadPublicId: thread.publicId, clientMessageId: randomUUID(),
         ...(hw ? { homeworkId: hw.homeworkId, homeworkPlanning: replies.length === 0 } : {}) });
@@ -74,7 +104,9 @@ for (const scenario of scenarios) {
     if (scenario.id === "recurring-focus" && !focus.some((entry) => entry.occurrences >= 2)) issues.push("Recurring gap was not saved from distinct learner messages.");
     if (scenario.id === "focus-list-delete" && focus.length) issues.push("Requested learning topic was not deleted.");
     if (["quoted-instructions", "valid-variation"].includes(scenario.id) && context.repository.tutor.learningFocus.list(language, true).length) issues.push("Invalid learner-error evidence was recorded.");
-    results.push({ id: scenario.id, issues, manualCriterion: scenario.check, history: scenario.history, turns: scenario.turns, replies, focus });
+    const contextual = scenario.contextual ? { state: context.repository.tutor.contextPractice.get(thread.id),
+      attempts: context.db.prepare("SELECT * FROM tutor_context_attempts ORDER BY user_message_id").all() } : undefined;
+    results.push({ id: scenario.id, issues, manualCriterion: scenario.check, history: scenario.history, turns: scenario.turns, replies, focus, contextual });
   } catch (error) {
     issues.push(error instanceof Error ? error.message : String(error));
     results.push({ id: scenario.id, issues, replies });

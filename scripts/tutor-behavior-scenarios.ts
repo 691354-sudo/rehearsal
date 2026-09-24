@@ -8,6 +8,7 @@ export type TutorBehaviorScenario = {
   turns: string[];
   mode: "chat" | "guided" | "homework";
   homework?: boolean;
+  contextual?: "group" | "whole-phrase";
   seedFocus?: boolean;
   expectedTool?: string;
   check: string;
@@ -24,6 +25,21 @@ const chatHistory = [
 ];
 
 export const tutorBehaviorScenarios: TutorBehaviorScenario[] = [
+  { id: "contextual-group", contextual: "group", mode: "guided",
+    turns: ["I think you're overthinking it. Everyone makes mistakes.", "Можешь объяснить, почему мой ответ подходит?",
+      "Дай другую ситуацию для этой же цели, без подсказки.", "Don't dwell on it. You'll feel better tomorrow."],
+    check: "Choose 5–8 goals including the priority goal; start with a situation, not a translation. Accept the alternative without a fake correction. Explain the side question without recording an attempt; transfer the same goal to a genuinely different context. Keep the group fixed and do not finish after three turns." },
+  { id: "contextual-hints", contextual: "group", mode: "guided",
+    turns: ["Не могу придумать ответ. Дай сначала подсказку по смыслу.", "Всё ещё не вспоминаю, дай маленькую языковую подсказку.",
+      "Покажи пример ответа.", "Don't dwell on it."],
+    check: "Escalate meaning → partial → model without early answer leakage. Help requests never count as attempts. Repeating the shown answer is assisted; revisit the goal later in a new context." },
+  { id: "contextual-whole-phrase", contextual: "whole-phrase", mode: "guided",
+    turns: ["I wrote down the number because I couldn't remember it.", "Дай другую жизненную ситуацию для этого выражения.",
+      "She wrote down the address because she couldn't remember it."],
+    check: "With no explicit CORE, elicit the whole utterance's meaning, accept changes of person/context and natural wording, never invent a CORE. Use the small available pool and recap only after attempts in two different contexts." },
+  { id: "contextual-stop", contextual: "group", mode: "chat", expectedTool: "set_tutor_mode",
+    turns: ["Остановим упражнение. Просто поговорим о моём дне."],
+    check: "Stop immediately without demanding completion or Create cards. Ordinary chat has no exercise headings or forced task." },
   { id: "free-chat-duration", turns: ["Let's just have a chat about life. I need to brush up my speaking before calls with my brother. I will do 20 min speaking practice with you daily. Let's get it rolling now."], mode: "chat",
     check: "Respond to the story in English and ask a natural relevant question; no drill, Russian recall cue, mandatory task, or timer." },
   { id: "light-correction", turns: ["Let's just chat and correct me lightly. Yesterday I go to a cafe and meet my friend. We talked about his new job. It was a nice evening."], mode: "chat",
