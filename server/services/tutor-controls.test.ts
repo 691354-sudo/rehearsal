@@ -26,6 +26,8 @@ describe("Tutor mode transitions and learning focus tools", () => {
     expect(create.mock.lastCall![0].instructions).toContain("Current mode: learner-requested guided practice");
     expect(context.repository.tutor.getMode(context.repository.tutor.getThread(reply.threadId)!.id)?.mode).toBe("guided");
     expect(create.mock.lastCall![0].text).toBeUndefined();
+    expect(reply.content).toContain("### Next Task");
+    expect(context.repository.tutor.getMessages(context.repository.tutor.getThread(reply.threadId)!.id).at(-1)?.content).toBe(reply.content);
   });
 
   it("switches a guided conversation to free chat in the same response and restores ordinary review limits", async () => {
@@ -34,7 +36,8 @@ describe("Tutor mode transitions and learning focus tools", () => {
     const reviewConversation = vi.fn().mockResolvedValue({ batch: { candidates: [] } });
     const tutor = service(create, reviewConversation);
     const first = await tutor.chat({ language: "en", message: guidedPracticeExercises[0].message, clientMessageId: randomUUID() });
-    await tutor.chat({ language: "en", message: "Stop the exercise, let's just talk about life.", threadPublicId: first.threadId, clientMessageId: randomUUID() });
+    const chat = await tutor.chat({ language: "en", message: "Stop the exercise, let's just talk about life.", threadPublicId: first.threadId, clientMessageId: randomUUID() });
+    expect(chat.content).not.toContain("### Next Task");
     expect(create.mock.lastCall![0].instructions).toContain("Current mode: ordinary Tutor chat");
     await tutor.review(first.threadId);
     expect(reviewConversation.mock.lastCall![0]).toMatchObject({ guidedPractice: false });

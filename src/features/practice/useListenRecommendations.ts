@@ -18,7 +18,7 @@ export function useListenRecommendations(language:Language,setValue:string,count
   useEffect(()=>{
     if(!enabled) {setState(null);return;}
     const controller=new AbortController();
-    const params=new URLSearchParams({language,limit:count==="all"?"20":count});
+    const params=new URLSearchParams({language,limit:count});
     const scope=practiceSet(setValue);
     if(scope.kind!=="all") params.set(scope.kind==="category"?"categoryId":"topicId",scope.kind==="liked"?"liked":scope.id);
     void apiFetch(`/api/pilot/listen-queue?${params}`,{signal:controller.signal,headers:{"X-Rehearsal-Profile":profileId}}).then(async(response)=>{

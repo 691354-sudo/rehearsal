@@ -1,6 +1,7 @@
 /* English pilot additions use the existing Echo typography and surface tokens. */
 .pilot-recall > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 8px; }
 .pilot-recall > header::after { display: none; }
+.pilot-recall-settings { margin: 8px 0 20px; padding: 16px; background: var(--script-inset); border: 1px solid var(--script-rule); border-radius: 12px; }
 .pilot-recall-utilities { display: flex; flex: 0 0 auto; gap: 4px; }
 .pilot-recall-utilities > button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }
 .pilot-recall-prompt { display: block; margin-bottom: 18px; color: var(--script-tertiary); font-size: 13px; }

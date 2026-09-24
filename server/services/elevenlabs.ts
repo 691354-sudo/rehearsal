@@ -63,6 +63,7 @@ const normalizeVoiceLanguage = (value: string): LanguageCode | null => {
 };
 
 const strictLanguageCopy: Record<StrictElevenLabsLanguageCode, { name: string; error: string }> = {
+  de: { name: "German", error: "GERMAN_MODEL_UNSUPPORTED" },
   vi: { name: "Vietnamese", error: "VIETNAMESE_MODEL_UNSUPPORTED" },
   no: { name: "Norwegian", error: "NORWEGIAN_MODEL_UNSUPPORTED" },
   id: { name: "Bahasa Indonesia", error: "INDONESIAN_MODEL_UNSUPPORTED" },
@@ -147,7 +148,7 @@ export class ElevenLabsService {
   }
 
   async compatibleVoiceId(language: LanguageCode, requestedVoiceId?: string) {
-    const defaultVoiceId = defaultVoiceIdForLanguage(language);
+    const defaultVoiceId = language === "de" ? config.elevenLabsDeVoiceId : defaultVoiceIdForLanguage(language);
     const voiceId = requestedVoiceId || defaultVoiceId;
     if (!voiceId) throw new ElevenLabsError(
       `No compatible ElevenLabs voice is configured for ${language}.`, 400, "VOICE_LANGUAGE_MISMATCH",

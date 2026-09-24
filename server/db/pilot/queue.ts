@@ -7,7 +7,7 @@ import { localDay, PilotError, PilotStore } from "./store.js";
 import { listenCreditIntervalMs, type ProgressRow } from "./progress.js";
 
 type QueueRow = DueItemRow & ProgressRow & { success_count: number };
-export type PilotQueueInput = { language?: LanguageCode; limit?: number; timezone?: string; topicId?: string; categoryId?: string;
+export type PilotQueueInput = { language?: LanguageCode; limit?: number | "all"; timezone?: string; topicId?: string; categoryId?: string;
   homeworkId?: string; excludeIds?: string[]; cardId?: string; sessionId?: string; allowEarly?: boolean };
 const selection = `SELECT i.*,
   r.due_at AS review_due_at, r.stability AS review_stability, r.difficulty AS review_difficulty,
@@ -65,7 +65,7 @@ export class PilotQueue {
     };
     const ranks = new Map(rows.filter((row) => !row.listen_count).map((row) => [row.public_id, rank(row)]));
     const fresh = rows.filter((row) => !row.listen_count && !recent(row)).sort((a,b) => ranks.get(a.public_id)!-ranks.get(b.public_id)!||timestamp(a.created_at)-timestamp(b.created_at)||tie(a,b));
-    const size = Math.min(input.limit ?? 20, rows.length);
+    const size = input.limit === "all" ? rows.length : Math.min(input.limit ?? 20, rows.length);
     const startedCount = Math.min(started.length, Math.max(Math.ceil(size*.8),size-fresh.length));
     const chosen = [...started.slice(0,startedCount),...fresh.slice(0,size-startedCount)];
     chosen.push(...cooling.slice(0,size-chosen.length));
@@ -78,7 +78,7 @@ export class PilotQueue {
     const homework = input.homeworkId ? this.store.homework(input.homeworkId) : null;
     if (homework && homework.status !== "recall_in_progress") return recommendedQueue([],0,[],now);
     const frozen = homework?.settingsSnapshot ?? settings ?? this.store.settings();
-    const size = Math.min(20,input.limit ?? 20);
+    const size = input.limit === "all" ? undefined : Math.min(20,input.limit ?? 20);
     let rows = this.rows({ ...input,language:homework?.language ?? input.language });
     if (input.sessionId) { const session=this.session(input.sessionId);if(session.language !== (input.language ?? "en"))throw new PilotError("PRACTICE_SESSION_CONFLICT"); rows=rows.filter((row)=>session.ids.includes(row.public_id)); }
     if (homework) rows = rows.filter((row) => homework.plannedCardIds.includes(row.public_id));

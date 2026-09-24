@@ -69,13 +69,13 @@ describe("database migrations", () => {
     expect(item.preference).toBe("neutral");
     expect(item.frequency_band).toBe("common");
     expect(item.practice_enabled).toBe(1);
-    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(15);
+    expect(migrated.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(16);
     expect((migrated.prepare("PRAGMA table_info(review_batches)").all() as Array<{ name: string }>)
       .map((column) => column.name)).toContain("destination_topic_title");
 
     migrated.close();
     const reopened = openDatabase(databasePath);
-    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(15);
+    expect(reopened.prepare("SELECT id FROM schema_migrations ORDER BY id").all()).toHaveLength(16);
     expect(reopened.pragma("foreign_keys", { simple: true })).toBe(1);
 
     reopened.close();
@@ -225,7 +225,7 @@ describe("database migrations", () => {
         DROP TABLE languages;
         ALTER TABLE languages_legacy RENAME TO languages;
         DELETE FROM schema_migrations
-        WHERE id IN ('005-vietnamese-language', '006-norwegian-language', '009-indonesian-language');
+        WHERE id IN ('005-vietnamese-language', '006-norwegian-language', '009-indonesian-language', '016-german-language');
       `);
     })();
     prepared.pragma("foreign_keys = ON");
@@ -238,6 +238,7 @@ describe("database migrations", () => {
     expect(after).toEqual(before);
     expect(migrated.prepare("SELECT code, name, locale, enabled FROM languages ORDER BY code").all())
       .toEqual([
+        { code: "de", name: "Deutsch", locale: "de-DE", enabled: 0 },
         { code: "en", name: "English", locale: "en-US", enabled: 1 },
         { code: "id", name: "Bahasa Indonesia", locale: "id-ID", enabled: 0 },
         { code: "lv", name: "Latviešu", locale: "lv-LV", enabled: 1 },

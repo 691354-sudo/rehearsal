@@ -54,6 +54,7 @@ export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDep
               speed: config.elevenLabsSpeed,
             },
             languageDefaults: {
+              de: { voiceId: config.elevenLabsDeVoiceId, voiceName: "Justin Time", modelId: "eleven_flash_v2_5" as const },
               vi: {
                 voiceId: config.elevenLabsViVoiceId,
                 voiceName: config.elevenLabsViVoiceName,

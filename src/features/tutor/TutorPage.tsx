@@ -175,7 +175,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     const messageList = messagesRef.current;
     const intent = scrollIntentRef.current;
     if (!messageList || !intent) return;
-    messageList.scrollTo({ top: messageList.scrollHeight, behavior: intent === "smooth" ? "smooth" : "auto" });
+    messageList.scrollTo({ top: messageList.scrollHeight, behavior: intent === "smooth" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "smooth" : "auto" });
     scrollIntentRef.current = null;
   }, [messages, reviewBatch]);
 
@@ -241,6 +241,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
         if (contextRef.current !== context) return false;
         onRoute({ ...route, thread: data.threadId, review: null, ...(homeworkStart ? { homework: homeworkStart.homeworkId } : {}) }, "replace");
         window.localStorage.setItem(storageKey, data.threadId);
+        scrollIntentRef.current = "smooth";
         setMessages((current) => completeTutorSend(current, clientMessageId, data.content, data.messageId, data.feedback));
       }
       void refreshThreads().catch(() => undefined);

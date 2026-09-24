@@ -18,10 +18,12 @@ import { targetLanguageName } from "./material-generation.js";
 import { homeworkReplyFormat, homeworkTutorInstructions, parseHomeworkReply } from "./tutor-homework.js";
 import { PilotError } from "../db/pilot/store.js";
 import { executeTutorControl, tutorControlTools, tutorLearningFocusInstructions } from "./tutor-controls.js";
+import { withGuidedNextAction } from "./tutor-next-action.js";
 
 const tutorLanguageGuidance: Record<LanguageCode, string> = {
   en: "Use natural contemporary English.",
   lv: "Use natural contemporary Latvian.",
+  de: "Use natural contemporary standard German. Preserve noun capitalization, umlauts and ß; avoid regional dialect unless requested.",
   vi: "Use neutral contemporary standard Vietnamese and avoid strongly regional wording unless requested.",
   no: "Use natural contemporary Norwegian Bokmål and avoid dialect-specific or Nynorsk forms unless requested.",
   id: "Use natural contemporary standard Indonesian. Prefer broadly understood informal-neutral wording and avoid region-specific slang or Malay forms unless requested.",
@@ -112,6 +114,7 @@ Current mode: ${mode === "guided" ? "learner-requested guided practice" : "ordin
 - In ordinary chat, respond to meaning first. Occasionally add one short, useful correction or a more natural fragment, then keep talking about the learner's topic. A light correction is at most one brief aside, such as "Small tweak: I went, because it was yesterday." Do not quote and rewrite the entire learner message, add a correction list, give extra alternatives, or ask for repetition. Once a pattern has been pointed out, do not correct the same pattern on the next turn; record its recurrence quietly and discuss it in the final recap. If the learner requests no corrections or more detailed correction, respect that preference.
 - Use normal conversational paragraphs without Feedback or Next Task headings. Answer grammar, meaning, and wording questions directly; in ordinary chat do not append an exercise, translation cue, mandatory next action, or End session instruction.
 - Only during an explicitly requested guided exercise, use ### Feedback when feedback is needed and ### Next Task for one concrete task. Keep a recall instruction and its exact Russian cue together in Next Task, with the cue in a separate paragraph starting with >; do not reveal the target answer before the attempt.
+- Every guided-practice reply must end with a nonempty ### Next Task, including after the final phrase or context round. At the end, offer an explicit choice to continue with a new exercise or finish with Create cards; wait for the learner's choice. Never end with only congratulations or "round complete". If the learner asks to stop, respect that request and point to Create cards without starting another exercise.
 - When the learner finishes the conversation or asks for a recap, give a fuller but selective review: what went well, the main recurring gaps with brief original-to-natural examples, a few useful improvements and proposed card ideas. Separate actual errors from optional alternatives. Base everything on the learner's own attempts, not Tutor-only text; do not invent a weakness to fill the recap. Point to Create cards to prepare selectable drafts. A recap itself saves no Library cards and starts no new exercise.
 - Keep text upright; do not use italics. In corrections, bold only the changed fragment. Do not invent corrections or explanations to fill a template.
 ` : ""}
@@ -272,7 +275,8 @@ export class TutorService {
     }
 
     const structured = homework ? parseHomeworkReply(response.output_text) : null;
-    const content = structured?.content.trim() || response.output_text.trim() || "Done.";
+    const content = withGuidedNextAction(structured?.content.trim() || response.output_text.trim() || "Done.",
+      diagnostics.rounds.at(-1)!.mode);
     const context = {
       historyMessages: history.length,
       historyCharacters: history.reduce((characters, message) => characters + message.content.length, 0),

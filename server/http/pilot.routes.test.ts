@@ -73,24 +73,26 @@ describe("Pilot answer and Homework API", () => {
       expect((await app.inject({ method: "GET", url: "/api/pilot/homework?language=en" })).json().sessions).toEqual([]);
     } finally { await app.close(); }
   });
-  it("runs written Recall and Tutor in Latvian even when English is disabled", async () => {
+  it.each(["lv", "de"] as const)("runs Recall and Tutor in %s even when English is disabled", async (language) => {
     const repo = context.repository;
-    const topic = repo.library.createIsland({ language: "lv", title: "Latvian flow" });
-    const card = repo.items.create({ language: "lv", cue: "Спасибо", target: "Paldies." }, topic.publicId);
+    const topic = repo.library.createIsland({ language, title: `${language} flow` });
+    const card = repo.items.create({ language, cue: "Спасибо", target: language === "de" ? "Danke schön." : "Paldies." }, topic.publicId);
     context.db.prepare("UPDATE languages SET enabled=0 WHERE code='en'").run();
+    repo.system.setLanguageEnabled(language, true);
+    if (language === "de") repo.pilot.listening.toRecall({ eventId: randomUUID(), language, cardId: card.publicId });
     const app = await buildApp(repo);
     try {
       const sessionId = randomUUID();
-      const selected = await app.inject({ method: "POST", url: "/api/pilot/sessions", payload: { sessionId, language: "lv", limit: 10, topicId: topic.publicId } });
+      const selected = await app.inject({ method: "POST", url: "/api/pilot/sessions", payload: { sessionId, language, limit: 10, topicId: topic.publicId } });
       expect(selected.json().items.map((item: {publicId:string}) => item.publicId)).toEqual([card.publicId]);
       const attemptId = randomUUID(), now = new Date().toISOString();
-      expect((await app.inject({ method: "POST", url: "/api/pilot/attempts/start", payload: { sessionId, attemptId, language: "lv", cardId: card.publicId, shownAt: now, timezone: "UTC" } })).statusCode).toBe(200);
-      expect((await app.inject({ method: "POST", url: "/api/pilot/attempts/grade", payload: { attemptId, language: "lv", rating: "easy", revealedAt: now, ratedAt: now, responseTimeMs: 0, inputMode: "oral_self_check", answer: "" } })).statusCode).toBe(200);
-      const created = await app.inject({ method: "POST", url: "/api/pilot/homework", payload: { homeworkId: randomUUID(), language: "lv", requestedMinutes: 2, timezone: "UTC" } });
+      expect((await app.inject({ method: "POST", url: "/api/pilot/attempts/start", payload: { sessionId, attemptId, language, cardId: card.publicId, shownAt: now, timezone: "UTC" } })).statusCode).toBe(200);
+      expect((await app.inject({ method: "POST", url: "/api/pilot/attempts/grade", payload: { attemptId, language, rating: "easy", revealedAt: now, ratedAt: now, responseTimeMs: 0, inputMode: "oral_self_check", answer: "" } })).statusCode).toBe(200);
+      const created = await app.inject({ method: "POST", url: "/api/pilot/homework", payload: { homeworkId: randomUUID(), language, requestedMinutes: 2, timezone: "UTC" } });
       expect(created.statusCode).toBe(200);
-      expect(created.json().homework).toMatchObject({ language: "lv", status: "tutor_in_progress", plannedTutorCardIds: [card.publicId] });
-      expect((await app.inject({ method: "GET", url: "/api/pilot/homework?language=lv" })).json().sessions).toHaveLength(1);
-      expect((await app.inject({ method: "GET", url: "/api/pilot/liked?language=lv" })).statusCode).toBe(200);
+      expect(created.json().homework).toMatchObject({ language, status: "tutor_in_progress", plannedTutorCardIds: [card.publicId] });
+      expect((await app.inject({ method: "GET", url: `/api/pilot/homework?language=${language}` })).json().sessions).toHaveLength(1);
+      expect((await app.inject({ method: "GET", url: `/api/pilot/liked?language=${language}` })).statusCode).toBe(200);
       expect((await app.inject({ method: "GET", url: "/api/pilot/queue?language=en" })).statusCode).toBe(403);
     } finally { await app.close(); }
   });

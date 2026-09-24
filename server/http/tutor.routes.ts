@@ -94,6 +94,7 @@ export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDepe
         vi: ["vi", "ru", "en"],
         no: ["no", "ru", "en"],
         id: ["id", "ru", "en"],
+        de: ["de", "ru", "en"],
       }[query.language];
       const transcript = await openai.transcribe({
         audio,
