@@ -12,6 +12,10 @@ import {
 } from "./pilot.js";
 
 const expectedTargets: Record<LanguageCode, string[]> = {
+  de: [
+    "Ich hätte gern einen Latte macchiato.", "Könnte ich den mit Hafermilch bekommen?", "Zum Mitnehmen, bitte.",
+    "Ich muss die Paketzustellung verschieben.", "Könnten Sie das Paket am Freitag liefern?", "Ich bin nach sechs zu Hause.",
+  ],
   en: [
     "Could I have a latte, please?", "Could I have it with oat milk?", "I’ll have it to go.",
     "I need to reschedule the parcel delivery.", "Could you deliver it on Friday?", "I’ll be home after six.",

@@ -9,6 +9,7 @@ import { elevenLabsModelOptions, languageSchema, voiceOptions } from "./schemas.
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
 
 const strictAudioCopy: Record<StrictElevenLabsLanguageCode, { name: string; errorPrefix: string }> = {
+  de: { name: "German", errorPrefix: "GERMAN" },
   vi: { name: "Vietnamese", errorPrefix: "VIETNAMESE" },
   no: { name: "Norwegian", errorPrefix: "NORWEGIAN" },
   id: { name: "Bahasa Indonesia", errorPrefix: "INDONESIAN" },

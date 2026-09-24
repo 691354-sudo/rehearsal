@@ -190,6 +190,12 @@ describe("ElevenLabsService", () => {
     });
   });
 
+  it("defaults German to its verified voice and rejects an English-only selection", async () => {
+    const service = new ElevenLabsService(repository, "");
+    await expect(service.compatibleVoiceId("de")).resolves.toBe("uFIXVu9mmnDZ7dTKCBTX");
+    await expect(service.compatibleVoiceId("de", "1YGgSmpRGVzkcaI7zhbX")).rejects.toMatchObject({ code: "VOICE_LANGUAGE_MISMATCH" });
+  });
+
   it("sends the required language code for Norwegian Flash playback", async () => {
     const request = vi.fn().mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
     vi.stubGlobal("fetch", request);
@@ -244,17 +250,20 @@ describe("ElevenLabsService", () => {
     })).rejects.toMatchObject({ code: "VIETNAMESE_MODEL_UNSUPPORTED", statusCode: 400 });
   });
 
-  it("uses Flash v2.5 with Indonesian language metadata", async () => {
+  it.each([
+    ["id", "Selamat pagi", "INDONESIAN_MODEL_UNSUPPORTED"],
+    ["de", "Guten Morgen", "GERMAN_MODEL_UNSUPPORTED"],
+  ] as const)("uses Flash v2.5 with %s language metadata", async (language, text, error) => {
     const request = vi.fn().mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
     vi.stubGlobal("fetch", request);
     const service = new ElevenLabsService(repository, "test-key");
 
-    await service.speech({ text: "Selamat pagi", language: "id", voiceId: "id-voice" });
+    await service.speech({ text, language, voiceId: `${language}-voice` });
 
     const body = JSON.parse(String((request.mock.calls[0][1] as RequestInit).body));
-    expect(body).toMatchObject({ model_id: "eleven_flash_v2_5", language_code: "id" });
+    expect(body).toMatchObject({ model_id: "eleven_flash_v2_5", language_code: language });
     await expect(service.speech({
-      text: "Selamat pagi", language: "id", modelId: "eleven_multilingual_v2",
-    })).rejects.toMatchObject({ code: "INDONESIAN_MODEL_UNSUPPORTED", statusCode: 400 });
+      text, language, modelId: "eleven_multilingual_v2",
+    })).rejects.toMatchObject({ code: error, statusCode: 400 });
   });
 });

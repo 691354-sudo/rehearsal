@@ -18,6 +18,25 @@ describe("adaptive recommendation availability", () => {
     language: "en", completedAt: at(minute), audioRepeatsInAppearance: 1,
   }, at(minute));
 
+  it("selects every eligible card for All, scopes the count, and freezes the Recall session", () => {
+    const items = cards(65), topicId = items[0].topicId!;
+    cards(3);
+    play(items[0].publicId, -5);
+    const listen = context.repository.pilot.queue.listenRecommendations({ limit: "all", topicId }, now);
+    expect(listen.items).toHaveLength(64);
+    expect(listen.recommendation).toMatchObject({ availableCount: 64, waitingCount: 1 });
+    items.forEach((item) => context.repository.pilot.listening.toRecall({ eventId: randomUUID(), language: "en", cardId: item.publicId }, now));
+    const before = context.db.prepare("SELECT * FROM review_state ORDER BY item_id").all();
+    const input = { limit: "all" as const, topicId, language: "en" as const }, sessionId = randomUUID();
+    expect(context.repository.pilot.queue.recallRecommendations(input, now).recommendation.availableCount).toBe(65);
+    expect(context.repository.pilot.queue.start(sessionId, input, now)).toHaveLength(65);
+    const extra = context.repository.items.create({ language: "en", cue: "Позже", target: "Added later" }, topicId);
+    context.repository.pilot.listening.toRecall({ eventId: randomUUID(), language: "en", cardId: extra.publicId }, at(1));
+    expect(context.repository.pilot.queue.list({ ...input, sessionId }, at(2))).toHaveLength(65);
+    expect(context.repository.pilot.queue.start(sessionId, input, at(2))).toHaveLength(65);
+    expect(context.db.prepare("SELECT * FROM review_state WHERE item_id<>? ORDER BY item_id").all(extra.id)).toEqual(before);
+  });
+
   it.each([0, 1, 2, 5, 9, 10, 11, 20, 30, 40, 50, 60, 100, 500, 1000])("adapts all limits to %i new cards without mutating progress", (count) => {
     cards(count);
     const before = context.db.prepare("SELECT * FROM pilot_card_progress ORDER BY card_id").all();

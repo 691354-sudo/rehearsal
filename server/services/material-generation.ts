@@ -9,6 +9,7 @@ import { categoryTitleKey } from "../../contracts/learning-categories.js";
 const targetLanguages: Record<LanguageCode, { name: string; guidance: string }> = {
   en: { name: "English", guidance: "Use natural contemporary English." },
   lv: { name: "Latvian", guidance: "Use natural contemporary Latvian." },
+  de: { name: "German", guidance: "Use natural contemporary standard German. Preserve noun capitalization, umlauts and ß; avoid regional dialect unless requested." },
   vi: {
     name: "Vietnamese",
     guidance: "Use neutral contemporary standard Vietnamese. Avoid strongly regional wording unless the source requires it.",

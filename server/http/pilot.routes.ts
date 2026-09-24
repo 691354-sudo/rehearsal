@@ -6,7 +6,7 @@ import { prepareRecallTutor } from "../services/tutor-recall.js";
 
 const id = z.string().uuid();
 const timestamp = z.string().datetime();
-const language = z.enum(["en","lv","vi","no","id"]).default("en");
+const language = z.enum(["en","lv","vi","no","id","de"]).default("en");
 const timezone = z.string().min(1).max(100).refine((value) => {
   try { new Intl.DateTimeFormat("en", { timeZone: value }).format(); return true; } catch { return false; }
 }, "Invalid timezone");
@@ -47,19 +47,19 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
   });
   app.get("/api/pilot/queue", async (request) => {
     const { repository } = dependencies.forRequest(request);
-    const query = z.object({ language, limit: z.coerce.number().int().min(1).max(100_000).optional(),
+    const query = z.object({ language, limit: z.union([z.literal("all"), z.coerce.number().int().min(1).max(100_000)]).optional(),
       cardId:z.string().min(1).max(100).optional(),sessionId:id.optional(),categoryId: z.string().uuid().optional(), timezone: timezone.optional(), topicId: z.string().min(1).max(100).optional(), homeworkId: id.optional() }).parse(request.query);
     return repository.pilot.queue.recallRecommendations(query);
   });
   app.get("/api/pilot/listen-queue", async (request) => {
     const {repository}=dependencies.forRequest(request);
-    const query=z.object({language,limit:z.coerce.number().pipe(z.union([z.literal(10),z.literal(20),z.literal(50)])).default(20),
+    const query=z.object({language,limit:z.union([z.literal("all"),z.coerce.number().pipe(z.union([z.literal(10),z.literal(20),z.literal(50)]))]).default(20),
       topicId:z.string().optional(),categoryId:id.optional()}).parse(request.query);
     return repository.pilot.queue.listenRecommendations(query);
   });
   app.post("/api/pilot/sessions", async (request) => {
     const {repository}=dependencies.forRequest(request);
-    const {sessionId,...input}=z.object({sessionId:id,language,limit:z.union([z.literal(10),z.literal(20)]),
+    const {sessionId,...input}=z.object({sessionId:id,language,limit:z.union([z.literal("all"),z.literal(10),z.literal(20)]),
       cardId:z.string().min(1).max(100).optional(),topicId:z.string().optional(),categoryId:id.optional()}).parse(request.body);
     return {items:repository.pilot.queue.start(sessionId,input)};
   });

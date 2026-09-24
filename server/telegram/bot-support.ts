@@ -88,7 +88,7 @@ export class TelegramBotSupport {
   transcriptionLanguages(language: LanguageCode) {
     return {
       en: ["en", "ru"], lv: ["lv", "ru", "en"], vi: ["vi", "ru", "en"],
-      no: ["no", "ru", "en"], id: ["id", "ru", "en"],
+      no: ["no", "ru", "en"], id: ["id", "ru", "en"], de: ["de", "ru", "en"],
     }[language];
   }
 

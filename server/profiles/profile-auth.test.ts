@@ -320,7 +320,7 @@ describe("profile authentication and database isolation", () => {
     expect(available.json().available).toBe(true);
     expect(available.json().experience).toBe("standard");
     expect(available.json().replayAvailable).toBe(false);
-    expect(available.json().languages.map((language: { code: string }) => language.code)).toEqual(["en", "lv", "vi", "no", "id"]);
+    expect(available.json().languages.map((language: { code: string }) => language.code)).toEqual(["en", "lv", "vi", "no", "id", "de"]);
 
     const shortPin = await app.inject({
       method: "POST", url: "/api/auth/join", headers: { "x-rehearsal-client": "web" },

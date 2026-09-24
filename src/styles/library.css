@@ -639,7 +639,7 @@
   max-height: 92px;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
 }
 
 .simple-phrase-copy > strong { font-weight: 550; }

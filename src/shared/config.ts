@@ -41,6 +41,7 @@ export const defaultElevenLabsConfig: ElevenLabsConfig = {
   configured: false,
   voice: { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
   voicesByLanguage: {
+    de: [{ id: "uFIXVu9mmnDZ7dTKCBTX", name: "Justin Time" }],
     en: [
       { id: "1YGgSmpRGVzkcaI7zhbX", name: "Christopher" },
       { id: "kdnRe2koJdOK4Ovxn2DI", name: "Eryn" },
@@ -56,6 +57,7 @@ export const defaultElevenLabsConfig: ElevenLabsConfig = {
   speedRange: defaultElevenLabsSpeedRange,
   defaults: { ...defaultPlayback.elevenlabs, speed: 1.05 },
   languageDefaults: {
+    de: { voiceId: "uFIXVu9mmnDZ7dTKCBTX", voiceName: "Justin Time", modelId: "eleven_flash_v2_5" },
     id: { voiceId: "3mAVBNEqop5UbHtD8oxQ", voiceName: "Zephlyn", modelId: "eleven_flash_v2_5" },
     vi: { voiceId: "ueSxRO0nLF1bj93J2hVt", voiceName: "Trung Caha", modelId: "eleven_flash_v2_5" },
   },

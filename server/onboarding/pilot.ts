@@ -40,6 +40,14 @@ type StoredOnboarding = {
 };
 
 const targets: Record<LanguageCode, string[]> = {
+  de: [
+    "Ich hätte gern einen Latte macchiato.",
+    "Könnte ich den mit Hafermilch bekommen?",
+    "Zum Mitnehmen, bitte.",
+    "Ich muss die Paketzustellung verschieben.",
+    "Könnten Sie das Paket am Freitag liefern?",
+    "Ich bin nach sechs zu Hause.",
+  ],
   en: [
     "Could I have a latte, please?",
     "Could I have it with oat milk?",
@@ -92,6 +100,7 @@ const cues = [
 ] as const;
 
 const tutorPrompts: Record<LanguageCode, string[]> = {
+  de: ["Natürlich. Was möchten Sie bestellen?", "Normale Milch oder Pflanzenmilch?", "Hier trinken oder zum Mitnehmen?"],
   en: ["Of course. What would you like to order?", "Regular milk or plant-based?", "For here or to go?"],
   lv: ["Protams. Ko jūs vēlētos pasūtīt?", "Parasto vai augu pienu?", "Uz vietas vai līdzi?"],
   vi: ["Được thôi. Bạn muốn gọi món gì?", "Sữa thường hay sữa thực vật?", "Dùng tại chỗ hay mang đi?"],

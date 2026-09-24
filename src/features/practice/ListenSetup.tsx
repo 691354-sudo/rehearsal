@@ -39,8 +39,10 @@ export function ListenSetup({ props, recommendations, visibleCandidates, visible
         <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" className="practice-card-select" name="listen-count" onChange={(event) => {
           const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
           props.onSelection(scope, count);
-        }} value={`${props.scope}:${props.scope === "due" && props.count === "all" ? "20" : props.count}`}>
-          <option value="due:10">Recommended · Up to 10</option><option value="due:20">Recommended · Up to 20</option><option value="due:50">Recommended · Up to 50</option>
+        }} value={`${props.scope}:${props.count}`}>
+          <option value="due:10">Recommended · Up to 10</option><option value="due:20">Recommended · Up to 20</option>
+          {props.scope === "due" && props.count === "50" ? <option value="due:50">Recommended · Up to 50</option> : null}
+          <option value="due:all">Recommended · All{recommendations.recommendation ? ` · ${recommendations.recommendation.availableCount}` : ""}</option>
           <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
         </select></label>
         {props.scope === "custom" ? <label><span className="simple-visually-hidden">Order</span><select aria-label="Card order" className="practice-order-select" name="listen-order"
