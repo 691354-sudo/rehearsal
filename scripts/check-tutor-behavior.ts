@@ -74,6 +74,7 @@ for (const scenario of scenarios) {
     const hw = scenario.homework ? (() => {
       const topic = context.repository.library.createIsland({ language: "en", title: "Synthetic Homework" });
       const card = context.repository.items.create({ language: "en", cue: "Я справлюсь.", target: "I can pull through." }, topic.publicId);
+      readyTutorCard(context, card.publicId);
       context.repository.pilot.listening.like({ eventId: randomUUID(), language: "en", cardId: card.publicId, liked: true, occurredAt: new Date().toISOString() });
       return context.repository.pilot.homework.create({ homeworkId: randomUUID(), requestedMinutes: 5, timezone: "Europe/Riga" });
     })() : undefined;
