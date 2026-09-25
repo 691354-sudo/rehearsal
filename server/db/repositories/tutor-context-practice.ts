@@ -18,12 +18,44 @@ export class TutorContextPracticeRepository {
         return { threadId: existing.thread_public_id };
       }
       const message = this.tutor.getOrCreateClientMessage({ ...input, content: recallPracticeStartMessage });
-      const snapshot: ContextPracticeSnapshot = { version: 1, pool, selectedTargetIds: [] };
-      this.db.prepare("UPDATE chat_messages SET metadata = json_set(metadata, '$.contextPractice', json(?)) WHERE id = ?")
-        .run(JSON.stringify(snapshot), message.message_id);
-      this.tutor.setMode(message.thread_id, message.message_id, "guided", true);
+      this.attach(message.thread_id, message.message_id, pool);
       return { threadId: message.thread_public_id };
     }).immediate();
+  }
+
+  attach(threadId: number, userMessageId: number, pool: ContextPracticeTarget[]) {
+    return this.db.transaction(() => {
+      const snapshot: ContextPracticeSnapshot = { version: 1, pool, selectedTargetIds: [] };
+      this.db.prepare(`UPDATE chat_messages SET metadata = json_set(metadata, '$.contextPractice', json(?))
+        WHERE id = ? AND thread_id = ? AND role = 'user' AND json_type(metadata, '$.contextPractice') IS NULL`)
+        .run(JSON.stringify(snapshot), userMessageId, threadId);
+      this.tutor.setMode(threadId, userMessageId, "guided", true);
+    }).immediate();
+  }
+
+  recentSituations(language: LanguageCode, currentThreadId: number) {
+    const rows = this.db.prepare(`SELECT m.thread_id AS threadId, m.content,
+      json_extract(m.metadata, '$.contextPractice.task.contextId') AS contextId,
+      json_extract(m.metadata, '$.contextPractice.startMessageId') AS startMessageId,
+      json_extract(m.metadata, '$.contextPractice.nextAction') AS nextAction
+      FROM chat_messages m JOIN chat_threads t ON t.id = m.thread_id
+      WHERE t.language_code = ? AND t.id != ? AND m.role = 'assistant'
+      AND json_extract(m.metadata, '$.homeworkId') IS NULL
+      AND (json_type(m.metadata, '$.contextPractice.task') = 'object' OR m.content LIKE '%### Next Task%')
+      ORDER BY m.id DESC LIMIT 40`).all(language, currentThreadId) as Array<{
+        threadId: number; content: string; contextId: string | null; startMessageId: number | null; nextAction: string | null;
+      }>;
+    const seen = new Set<string>();
+    const situations: string[] = [];
+    for (const row of rows) {
+      const text = (row.nextAction || row.content.split(/(?:^|\n)\s*#{1,3}\s+Next task\s*\n/i)[1] || "").trim().slice(0, 500);
+      const key = row.contextId ? `${row.threadId}:${row.startMessageId}:${row.contextId}` : text;
+      if (!text || seen.has(key)) continue;
+      seen.add(key);
+      situations.push(text);
+      if (situations.length === 6) break;
+    }
+    return situations;
   }
 
   get(threadId: number): ContextPracticeState | null {

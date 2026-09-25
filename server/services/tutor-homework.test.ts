@@ -39,7 +39,9 @@ describe("Homework Tutor provider contract", () => {
     expect(call.text.format).toMatchObject({ type: "json_schema", name: "homework_tutor_reply", strict: true });
     expect(call.instructions).toContain('"latestRating":null');
     expect(call.instructions).toContain('"source":"tutor_ready"');
-    expect(call.instructions).toContain("in Russian");
+    expect(call.instructions).toContain("Use English by default for conversation");
+    expect(call.instructions).not.toContain("nextAction, in Russian");
+    expect(call.instructions).not.toContain("are in Russian unless");
     expect(call.instructions).toContain("After a grammar or wording question");
     expect(call.instructions).toContain("End every reply with a concrete next action");
     expect(call.instructions).not.toContain("Current mode: ordinary Tutor chat");

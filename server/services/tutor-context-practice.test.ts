@@ -67,8 +67,8 @@ describe("saved contextual Tutor lessons", () => {
     expect(request.instructions).toContain("Example 0.");
     expect(context.repository.pilot.cores.list("en", undefined, true).map((entry) => entry.cardId))
       .toEqual([...ids.slice(1), ids[0]]);
-    // Homework keeps its existing ordering and context contract.
-    expect(context.repository.pilot.cores.list("en").map((entry) => entry.cardId)).toEqual(ids);
+    // Every new ready-phrase selection shares attempt history; existing groups stay frozen.
+    expect(context.repository.pilot.cores.list("en").map((entry) => entry.cardId)).toEqual([...ids.slice(1), ids[0]]);
   });
 
   it.each(["missing anchor", "too small", "duplicates", "outside pool", "leaked first hint"])("rejects an invalid first selection: %s", async (kind) => {
