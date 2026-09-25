@@ -136,7 +136,7 @@ describe("Tutor OpenAI requests", () => {
   it("defines the complete guided practice protocol without changing free chat", () => {
     const prompt = tutorInstructions(genericLearnerPersona, "en");
 
-    expect(prompt).toContain("call list_due_items with a limit of 5 before choosing");
+    expect(prompt).toContain("call start_ready_practice");
     expect(prompt).toContain("Tell it better");
     expect(prompt).toContain("Recall & reuse");
     expect(prompt).toContain("Role-play twice");
@@ -150,7 +150,7 @@ describe("Tutor OpenAI requests", () => {
   });
 
   it("keeps ordinary chat conversational and exercises opt-in in every learning language", () => {
-    for (const language of ["en", "lv", "vi", "no", "id"] as const) {
+    for (const language of ["en", "lv", "de", "vi", "no", "id"] as const) {
       const prompt = tutorInstructions(genericLearnerPersona, language);
       expect(prompt).toContain("Current mode: ordinary Tutor chat, not Homework");
       expect(prompt).toContain("even if the learner mentions a daily duration");
@@ -158,6 +158,12 @@ describe("Tutor OpenAI requests", () => {
       expect(prompt).toContain("An exercise introduced by an earlier assistant reply is not learner consent");
       expect(prompt).toContain("Use normal conversational paragraphs without Feedback or Next Task headings");
       expect(prompt).toContain("Answer grammar, meaning, and wording questions directly");
+      expect(prompt).toContain("by default for conversation, explanations, corrections, situations, instructions and next actions");
+      expect(prompt).toContain("Honor an explicit request for another response language");
+      expect(prompt).not.toContain("Explain briefly in Russian");
+      expect(prompt).toContain("Accept natural alternatives as correct");
+      expect(prompt).toContain("avoid diagnosing a knowledge gap from the typo alone");
+      expect(prompt).toContain("80/20 review, choose at most two");
       expect(prompt).not.toContain("End every reply with a concrete next action");
       expect(prompt).not.toContain("After a side question, answer it first and return to the current exercise");
     }

@@ -9,6 +9,7 @@ export type TutorBehaviorScenario = {
   mode: "chat" | "guided" | "homework";
   homework?: boolean;
   contextual?: "group" | "whole-phrase";
+  contextualStarter?: boolean;
   seedFocus?: boolean;
   expectedTool?: string;
   check: string;
@@ -25,6 +26,21 @@ const chatHistory = [
 ];
 
 export const tutorBehaviorScenarios: TutorBehaviorScenario[] = [
+  { id: "feedback-auto-starter", contextual: "group", contextualStarter: true, mode: "guided",
+    turns: ["Please clarify the situation without giving me the expression.", "I can't remember it yet. Give me a small hint."],
+    check: "Start for me uses the same fixed contextual group as Recall. Use English instructions with a concrete interlocutor and communicative goal, no translation or answer list. Clarification then partial hint; help requests are not attempts. Every reply has one visible next action." },
+  { id: "feedback-80-20-typos", mode: "chat",
+    turns: ["Review my story using the 80/20 rule: focus on the biggest language gaps. It took us an hour to get to the lake. I took us ten minutes to set up our tent. We spent couple of days there. I enjoyed to swim every morning. I also took a week long break from youtube."],
+    check: "Explain in English. Select at most two useful grammar/collocation gaps. Recognize the likely I/It typing slip in context rather than diagnosing missing knowledge; do not drill capitalization, brand spelling or the hyphen. No full rewritten story or list of minor refinements." },
+  { id: "feedback-valid-guided-alternative", history: [
+    { role: "user", content: guidedPracticeExercises[0].message },
+    { role: "assistant", content: "### Next Task\nA teammate is discouraged by slow results. Explain why regular practice is more important than immediate success." },
+  ], turns: ["The simple act of practice is the most important thing."], mode: "guided",
+    check: "Accept the natural sentence without inventing an error, demanding matters most, or recording a learning weakness. Keep an actionable, varied next step without revealing a target answer." },
+  { id: "feedback-russian-question", turns: ["Что значит put off a meeting? Дай пример."], mode: "chat",
+    check: "Use English for the explanation and example. A short requested Russian gloss is fine; the Russian question alone must not switch the entire reply to Russian. No forced exercise." },
+  { id: "feedback-explicit-russian", turns: ["Объясни по-русски разницу между borrow и lend, пожалуйста."], mode: "chat",
+    check: "Honor the explicit Russian explanation request and keep examples in English. Do not turn the language default into a ban on requested Russian support." },
   { id: "contextual-group", contextual: "group", mode: "guided",
     turns: ["I think you're overthinking it. Everyone makes mistakes.", "Можешь объяснить, почему мой ответ подходит?",
       "Дай другую ситуацию для этой же цели, без подсказки.", "Don't dwell on it. You'll feel better tomorrow."],
@@ -70,11 +86,11 @@ export const tutorBehaviorScenarios: TutorBehaviorScenario[] = [
   { id: "exercise-menu", turns: [guidedPracticeMenuMessage], mode: "guided",
     check: "Offer exactly the three requested choices and wait; do not start Homework." },
   ...guidedPracticeExercises.map((exercise): TutorBehaviorScenario => ({ id: `start-${exercise.id}`, turns: [exercise.message], mode: "guided",
-    check: exercise.id === "read-and-retell" ? "Ask for learner-supplied text, do not invent a passage." : `Start ${exercise.title} with one action; due lookup for Recall & reuse, no FSRS writes.` })),
+    check: exercise.id === "read-and-retell" ? "Ask for learner-supplied text, do not invent a passage." : `Start ${exercise.title} with one action; contextual ready practice for Recall & reuse, or Tell it better when no phrases are ready; no FSRS writes.` })),
   { id: "cards-after-guide", history: exerciseHistory, turns: ["Now make exactly two cards: Monday — понедельник; Tuesday — вторник. No exercises."], mode: "chat", expectedTool: "set_tutor_mode",
     check: "Honor exactly two atomic cards; no guided three-card review restriction, no automatic Library save." },
   { id: "homework-question", homework: true, turns: ["Начнём homework.", "Что означает pull through?"], mode: "homework",
-    check: "Use only planned card, explain Russian meaning, preserve structured envelope and one next task; no invented Recall scores." },
+    check: "Use only planned card, explain meaning in English with a brief Russian gloss if helpful, preserve structured envelope and one next task; no invented Recall scores." },
   { id: "focus-does-not-drive-chat", seedFocus: true, turns: ["Let's just chat about hiking. I spent the weekend in the mountains and loved it."], mode: "chat",
     check: "Stored grammar focus must not hijack the hiking conversation or become a drill." },
   { id: "recurring-focus", turns: ["Let's chat with light corrections. Yesterday I go to a cafe with my brother.", "We talked about his new job. Last weekend I go to his place too.", "What recurring language topics have you saved for me?"], mode: "chat", expectedTool: "record_learning_focus",

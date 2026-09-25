@@ -8,9 +8,16 @@ describe("guided Tutor next actions", () => {
     "### Feedback\nDone.\n\n### Next Task\n ",
   ])("keeps a completed round actionable: %s", (content) => {
     const result = withGuidedNextAction(content, "guided");
-    expect(result).toContain("напишите «Дальше»");
-    expect(result).toContain("нажмите Create cards");
+    expect(result).toContain('write "Continue"');
+    expect(result).toContain('write "Finish"');
+    expect(result).toContain("Create cards");
     expect(withGuidedNextAction(result, "guided")).toBe(result);
+  });
+  it.each(["en", "lv", "de", "vi", "no", "id"] as const)("keeps the fallback in the learning language: %s", (language) => {
+    const result = withGuidedNextAction("Done.", "guided", language);
+    expect(result).not.toMatch(/[А-Яа-яЁё]/u);
+    expect(result).toContain("### Next Task\n\n");
+    expect(withGuidedNextAction(result, "guided", language)).toBe(result);
   });
   it("preserves an existing exercise and leaves conversation and Homework untouched", () => {
     const task = "### Feedback\nGood.\n\n### Next Task\nПереведи:\n\n> Я буду дома после шести.";

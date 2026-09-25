@@ -13,11 +13,10 @@ export class TutorCores {
       const core=coreKey(item.focusTerms[0] || (!contextual && derived?.core) || "");
       const key=core || `card:${item.publicId}`;
       const used=this.store.db.prepare(`SELECT MAX(user_response_at) AS at FROM pilot_tutor_activities WHERE card_id=?`).get(item.publicId) as {at:string|null};
-      if (contextual) {
-        const practiced = this.store.db.prepare(`SELECT MAX(created_at) AS at FROM tutor_context_attempts
-          WHERE language_code = ? AND target_key = ?`).get(language, core ? `core:${core}` : `card:${item.publicId}`) as {at:string|null};
-        used.at = [used.at || "", practiced.at || ""].sort().at(-1)!;
-      }
+      const explicitCore=coreKey(item.focusTerms[0] || "");
+      const practiced = this.store.db.prepare(`SELECT MAX(created_at) AS at FROM tutor_context_attempts
+        WHERE language_code = ? AND target_key = ?`).get(language, explicitCore ? `core:${explicitCore}` : `card:${item.publicId}`) as {at:string|null};
+      used.at = [used.at || "", practiced.at || ""].sort().at(-1)!;
       const previous=grouped.get(key);
       if(previous) { previous.cardIds.push(item.publicId);previous.readyAt=[previous.readyAt,row.entered_at || ""].sort()[0];previous.lastUsed=[previous.lastUsed,used.at || ""].sort().at(-1)!; }
       else grouped.set(key,{cardId:item.publicId,core,cardIds:[item.publicId],readyAt:row.entered_at || "",lastUsed:used.at || ""});

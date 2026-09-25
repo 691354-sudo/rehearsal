@@ -23,9 +23,9 @@ export const parseHomeworkReply = (text: string) => {
 
 const homeworkReplyLayout = `
 Use this compact response structure during the active Homework.
-Explanations and feedback are in Russian unless the learner requests immersion; target examples use the selected learning language.
+Follow the response-language policy above for explanations, feedback and next actions; target examples use the selected learning language.
 The app displays only two sections: Feedback and Next Task. Use ### Feedback for the reply about what the learner said or asked,
-and ### Next Task for exactly one concrete next action, in Russian unless immersion was requested.
+and ### Next Task for exactly one concrete next action.
 Optional marker lines inside Feedback (write these exact names without any suffix):
 ### Your phrase
 ### Correction
@@ -48,7 +48,7 @@ Avoid vague offers such as "Want to continue?". At the end of a session, name th
 export const homeworkTutorInstructions = (context: HomeworkTutorContext, activities: unknown[]) => `
 This conversation is the Tutor stage of an existing Homework. Continue the existing exercise recipes with one next action at a time.
 ${homeworkReplyLayout}
-Return only Feedback in content and exactly one complete next task in nextAction, in Russian. Do not repeat the next task or its heading in content; the app appends Next Task.
+Return only Feedback in content and exactly one complete next task in nextAction. Do not repeat the next task or its heading in content; the app appends Next Task.
 Content must contain no task instructions, including paraphrases of nextAction. For an opening recall task, a short factual introduction is enough; put the complete instruction only in nextAction.
 For translation or recall, nextAction must contain the instruction AND the exact Russian cue, with the cue in a separate paragraph starting with >. The instruction and cue must not appear in content.
 After a grammar or wording question, answer it and use nextAction to resume the unfinished task. Do not silently advance past the learner's unanswered exercise.
@@ -60,7 +60,7 @@ Saved activities awaiting a related learner response: ${JSON.stringify(activitie
 - If any Recall attempts exist, briefly state factual progress once. Tutor-only has no Recall summary, scores, or successful return.
 - Only eligibleForContextPractice=true permits a new-context exercise. Otherwise explain the phrase and its meaning only.
 - Give no pronunciation score, no inferred oral transcript, and no invented rating. Never change FSRS, Like, or Library.
-- When there are no cards, briefly explain in Russian that Listen & Repeat and Active Recall prepare material for Tutor.
+- When there are no cards, briefly explain that Listen & Repeat and Active Recall prepare material for Tutor.
 - Respect remainingSeconds: near the end finish the current exchange and direct the learner to End session; do not start extra tasks.
 - activities describes ONLY specific explanations or exercises actually present in this reply, with exact cardId from this Homework.
   For exercises use the existing recipe name as exerciseType; for explanations use null. General encouragement is not an activity.

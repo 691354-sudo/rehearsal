@@ -5,7 +5,7 @@ import { config, openAIConfigured } from "../server/config.js";
 import { OpenAIService } from "../server/services/openai.js";
 import { TutorService } from "../server/services/tutor.js";
 import { createApiTestContext } from "../server/testing/api-test-context.js";
-import { guidedPracticeReviewMessages, isGuidedPracticeStartMessage } from "../contracts/tutor-guided-practice.js";
+import { guidedPracticeReviewMessages, guidedPracticeStartMessage, isGuidedPracticeStartMessage } from "../contracts/tutor-guided-practice.js";
 import { tutorBehaviorScenarios } from "./tutor-behavior-scenarios.js";
 import { prepareRecallTutor } from "../server/services/tutor-recall.js";
 import { readyTutorCard } from "../server/testing/pilot-requests.js";
@@ -59,7 +59,8 @@ for (const scenario of scenarios) {
           .run(`2026-09-01T00:00:0${index}.000Z`, card.publicId);
       });
       const clientMessageId = randomUUID();
-      prepareRecallTutor(context.repository, { language, clientMessageId });
+      if (scenario.contextualStarter) context.repository.tutor.getOrCreateClientMessage({ language, clientMessageId, content: guidedPracticeStartMessage });
+      else prepareRecallTutor(context.repository, { language, clientMessageId });
       recallStart = context.repository.tutor.getClientMessage(clientMessageId);
     }
     const before = JSON.stringify(context.repository.system.stats());
