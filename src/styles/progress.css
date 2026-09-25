@@ -342,6 +342,10 @@
 .practice-queue-side .learning-progress { min-width: 0; max-width: 100%; gap: 8px; }
 .practice-queue-side .learning-counts { flex-shrink: 0; }
 
+@media (min-width: 721px) {
+  .practice-queue-side .practice-source-tags { display: grid; justify-items: start; }
+}
+
 .practice-queue-side {
   display: flex;
   flex-direction: row-reverse;
