@@ -24,6 +24,8 @@ import { withGuidedNextAction } from "./tutor-next-action.js";
 import { contextPracticeInstructions, contextPracticeReplyFormat, parseContextPracticeReply } from "./tutor-context-practice.js";
 import type { ContextPracticeState } from "../../contracts/tutor-context-practice.js";
 import { startReadyTutor } from "./tutor-recall.js";
+import { tutorAdaptationInstructions } from "./tutor-mode-config.js";
+import { firstTutorExerciseMessage } from "../../contracts/tutor-adaptation.js";
 
 const tutorLanguageGuidance: Record<LanguageCode, string> = {
   en: "Use natural contemporary English.",
@@ -186,7 +188,7 @@ export class TutorService {
     if (message.homework_id && message.homework_id !== homeworkId) throw new Error("CLIENT_MESSAGE_ID_CONFLICT");
     const completed = this.repository.tutor.getCompletedClientExchange(input.clientMessageId);
     if (completed) { const { metadata: _, ...reply } = completed; return reply; }
-    if (!homework && isGuidedPracticeStartMessage(input.message)) this.repository.tutor.setMode(message.thread_id, message.message_id, "guided", true);
+    if (!homework && (isGuidedPracticeStartMessage(input.message) || (this.repository.tutor.adaptation.enabled() && input.message === firstTutorExerciseMessage))) this.repository.tutor.setMode(message.thread_id, message.message_id, "guided", true);
     const running = this.inFlight.get(input.clientMessageId);
     if (running) return running;
     if (!homework && [guidedPracticeStartMessage, guidedPracticeExercises[1].message].includes(input.message.trim())) {
@@ -196,7 +198,11 @@ export class TutorService {
     const request = this.createReply({ ...input, homeworkId, activeHomeworkId, userMessageId: message.message_id },
       { id: message.thread_id, publicId: message.thread_public_id });
     this.inFlight.set(input.clientMessageId, request);
-    try { return await request; }
+    try {
+      const result = await request;
+      if (result.mode === "openai" && this.repository.tutor.adaptation.enabled()) this.repository.tutor.adaptation.markFirstExercise(input.language, input.clientMessageId);
+      return result;
+    }
     finally { this.inFlight.delete(input.clientMessageId); }
   }
 
@@ -252,7 +258,9 @@ export class TutorService {
           + JSON.stringify(this.repository.tutor.contextPractice.recentSituations(input.language, thread.id))
           + "\nAvoid repeating these scenes unless the learner requests one. Vary the setting, interlocutor and communicative goal; do not assume these hypothetical scenes are personal facts." : "")
         + (homework ? homeworkTutorInstructions(homework, this.repository.pilot.tutor.previousActivities(homework.homeworkId)) : "")
-        + `\nSaved learning focus (occurrences=1 means candidate only): ${JSON.stringify(this.repository.tutor.learningFocus.list(input.language, true).slice(0, 30))}`;
+        + `\nSaved learning focus (occurrences=1 means candidate only): ${JSON.stringify(this.repository.tutor.learningFocus.list(input.language, true).slice(0, 30))}`
+        + (this.repository.tutor.adaptation.enabled() ? tutorAdaptationInstructions(this.repository.tutor.adaptation.get(input.language),
+          this.repository.tutor.adaptation.sessionSettings(input.language, thread.publicId)) : "");
       const next = await trackAiRequest({
         repository: this.repository.aiUsage, provider: "openai", workload: "tutor_chat", model,
         language: input.language,
@@ -264,7 +272,7 @@ export class TutorService {
         reasoning: { effort: "low" },
         instructions,
         input: modelInput,
-        tools: [...(contextual ? [] : tools.filter((tool) => !homework || tool.type !== "function" || tool.name !== "start_ready_practice")), ...tutorControlTools.filter((tool) => !homework || tool.name !== "set_tutor_mode")],
+        tools: [...(contextual ? [] : tools.filter((tool) => !homework || tool.type !== "function" || tool.name !== "start_ready_practice")), ...tutorControlTools.filter((tool) => (!homework || tool.name !== "set_tutor_mode") && (tool.name !== "set_tutor_support" || this.repository.tutor.adaptation.enabled()))],
         parallel_tool_calls: false,
         ...(homework || contextual ? { text: { format: homework ? homeworkReplyFormat : contextPracticeReplyFormat } } : {}),
         max_output_tokens: aiLimits.tutorOutputTokens,

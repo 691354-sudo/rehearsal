@@ -17,6 +17,7 @@ import type {
   PlaybackResult,
 } from "../../shared/contracts";
 import { adaptivePauseMs, type PreparedAudio } from "./listenAudio";
+import { useAccountPlayback } from "./useAccountPlayback";
 
 type AudioConfig = {
   openai?: { defaultVoice?: string; voices?: string[] };
@@ -25,6 +26,8 @@ type AudioConfig = {
 
 export const usePlaybackController = (profileId: ProfileId, language: Language) => {
   const storageKey = playbackStorageKey(profileId, language);
+  const legacyValues = useRef<Partial<Record<Language, string | null>>>({});
+  if (!(language in legacyValues.current)) legacyValues.current[language] = storedPlaybackValue(window.localStorage, profileId, language);
   const hadSavedPlaybackAtMountRef = useRef(Boolean(
     storedPlaybackValue(window.localStorage, profileId, language),
   ));
@@ -67,6 +70,8 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     });
   }, [elevenLabsConfig, language, profileId]);
   const [playbackError, setPlaybackError] = useState("");
+  const persistPlayback = useAccountPlayback(language, legacyValues.current[language] || null, playback,
+    (saved) => { hadSavedPlaybackAtMountRef.current = true; setPlayback(saved); }, setPlaybackError);
   const lastPlaybackRef = useRef<{
     text: string;
     overrides: Partial<PlaybackPreferences>;
@@ -89,7 +94,7 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
   }, [elevenLabsConfig.speedRange, playback.provider, playback.speed]);
 
   const updatePlayback = useCallback((next: PlaybackPreferences) => {
-    setPlayback({
+    const normalized: PlaybackPreferences = {
       ...next,
       provider: requiresStrictElevenLabs(language) ? "elevenlabs" : next.provider,
       elevenlabs: {
@@ -97,8 +102,10 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
         modelId: requiresStrictElevenLabs(language) ? "eleven_flash_v2_5" : next.elevenlabs.modelId,
       },
       speed: clampPlaybackSpeed(requiresStrictElevenLabs(language) ? "elevenlabs" : next.provider, next.speed, elevenLabsConfig.speedRange),
-    });
-  }, [elevenLabsConfig.speedRange, language, setPlayback]);
+    };
+    setPlayback(normalized);
+    persistPlayback(normalized);
+  }, [elevenLabsConfig.speedRange, language, setPlayback, persistPlayback]);
 
   const applyAudioConfig = useCallback((configured: boolean, audio?: AudioConfig) => {
     setOpenaiConfigured(configured);

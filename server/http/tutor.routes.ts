@@ -1,4 +1,5 @@
 import { registerTutorFeedbackRoutes } from "./tutor-feedback.routes.js";
+import { registerTutorAdaptationRoutes } from "./tutor-adaptation.routes.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { HttpDependencies } from "./dependencies.js";
@@ -19,6 +20,7 @@ const optionalThreadIdSchema = z.string().uuid().nullish().transform((value) => 
 
 export const registerTutorRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
   registerTutorFeedbackRoutes(app, dependencies);
+  registerTutorAdaptationRoutes(app, dependencies);
   app.get("/api/chat/threads", async (request) => {
     const { repository } = dependencies.forRequest(request);
     const query = z.object({

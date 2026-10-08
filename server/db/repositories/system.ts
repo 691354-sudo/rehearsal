@@ -1,5 +1,6 @@
 import type { RehearsalDatabase } from "../database.js";
 import { languageCatalog, type LanguageCode, type LanguageOption } from "../../../contracts/api.js";
+import { mergePlayback, playbackPreferencesSchema, type AccountPlaybackPreferences, type PlaybackPatch } from "../../../contracts/playback-preferences.js";
 
 type LanguageRow = { code: LanguageCode; name: string; locale: string; enabled: number };
 type LanguageResource = "learningCategory" | "item" | "island" | "thread" | "reviewBatch" | "capture";
@@ -15,6 +16,22 @@ const resourceTables: Record<LanguageResource, string> = {
 
 export class SystemRepository {
   constructor(private readonly db: RehearsalDatabase) {}
+
+  playback(language: LanguageCode) {
+    const row = this.db.prepare("SELECT value FROM app_settings WHERE key = ?").get(`playback:${language}`) as { value: string } | undefined;
+    return row ? playbackPreferencesSchema.parse(JSON.parse(row.value)) : null;
+  }
+
+  savePlayback(language: LanguageCode, patch: PlaybackPatch, defaults: AccountPlaybackPreferences, importOnly = false) {
+    return this.db.transaction(() => {
+      const current = this.playback(language);
+      if (importOnly && current) return current;
+      const next = playbackPreferencesSchema.parse(mergePlayback(current || defaults, patch));
+      this.db.prepare("INSERT INTO app_settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .run(`playback:${language}`, JSON.stringify(next));
+      return next;
+    }).immediate();
+  }
 
   stats() {
     const items = this.db.prepare(

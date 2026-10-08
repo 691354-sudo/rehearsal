@@ -3,8 +3,21 @@ import { config, elevenLabsConfigured, openAIConfigured } from "../config.js";
 import type { HttpDependencies } from "./dependencies.js";
 import { elevenLabsModelOptions, schedulerSettingsSchema, voiceOptions } from "./schemas.js";
 import { elevenLabsSpeedRange } from "../services/elevenlabs.js";
+import { z } from "zod";
+import { languageSchema } from "./schemas.js";
+import { playbackPatchSchema, playbackPreferencesSchema } from "../../contracts/playback-preferences.js";
 
 export const registerSystemRoutes = (app: FastifyInstance, dependencies: HttpDependencies) => {
+  app.get("/api/settings/playback", async (request) => {
+    const { language } = z.object({ language: languageSchema }).parse(request.query);
+    return { playback: dependencies.forRequest(request).repository.system.playback(language) };
+  });
+  for (const method of ["PATCH", "POST"] as const) app.route({ method, url: "/api/settings/playback", handler: async (request) => {
+    const body = z.object({ language: languageSchema, playback: method === "POST" ? playbackPreferencesSchema : playbackPatchSchema }).strict().parse(request.body);
+    const defaults = { provider: "openai" as const, repetitions: 2 as const, speed: 1, playAfterRecall: true,
+      voice: "onyx" as const, elevenlabs: { voiceId: "", modelId: "eleven_multilingual_v2" as const } };
+    return { playback: dependencies.forRequest(request).repository.system.savePlayback(body.language, body.playback, defaults, method === "POST") };
+  } });
   app.get("/health", async () => {
     return {
       ok: true,

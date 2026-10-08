@@ -4,6 +4,11 @@ This file contains only current state and follow-up work. Start with [AGENTS.md]
 
 ## Current state
 
+- October 8 delivery: WebKit touch Edit in Practice no longer loses the click when focus moves to nowhere. Listen/Recall touch, editor Save/reopen and desktop keyboard menu paths were checked with synthetic local data.
+- Account playback preferences now hydrate across devices and merge partial updates. Independent WebKit/Chromium clients verified speed 0.85, 3 repetitions, Echo voice and disabled Recall playback in the same account; authenticated API tests verify separation from another profile.
+- Tutor onboarding and three support styles are implemented for every existing/new profile and enabled target language, with Russian native language matching the current product. Four questions, a starting task, persisted progress, Skip, direct settings/requests, private End summaries and 3/13/23 reassessments preserve the existing learning pipeline. Canonical behavior is in [METHOD.md](METHOD.md#tutor-introduction-and-support); config, CLI, analytics and the retained rollback branch are documented in [OPERATIONS.md](OPERATIONS.md#tutor-adaptation-controls-and-rollback).
+- Browser checks covered 320/393/1440 px, both themes, reload/resume, a second language, permanent Skip, settings/reset, summary failure and full disable/re-enable. The SQL report was executed on the synthetic profile and labeled both selected-period and all-time metrics. Tests cover schema/transaction rollback, all existing table preservation, session idempotency, 3/13/23 counters, partial overrides, profile isolation and prompt/summary contracts. Provider behavior is mocked; real-model teaching quality and physical iPhone Safari/Home Screen/Telegram acceptance remain unverified.
+
 - Roman and Oliver authenticate through fixed PIN profiles with independent SQLite databases, Library data, Tutor history, scheduling, settings, audio cache, and backups.
 - An initialized registry fails closed if either profile database disappears. Ordered schema migrations run once through `schema_migrations`.
 - LLM roles are pinned to Sol, Terra, and Luna. Roman retains the established personal context; Oliver receives a neutral persona. Prompt and output budgets are enforced, and model checks are manual.

@@ -17,7 +17,7 @@ import {
   parseOnboardingStep,
   type OnboardingMode,
 } from "../features/onboarding/onboardingRoute";
-import { TutorPage } from "../features/tutor/TutorPage";
+import { TutorLearningExperience as TutorPage } from "../features/tutor/TutorLearningExperience";
 import { useMobileKeyboard } from "../hooks/useMobileKeyboard";
 import { useAppRoute } from "../hooks/useAppRoute";
 import { EchoMark } from "./EchoBrand";
@@ -254,7 +254,7 @@ export function RehearsalApp({
         onClick={() => setMobileMenuOpen((open) => !open)} ref={mobileMenuButtonRef} type="button"><Settings2 size={19} /></button>
       {mobileMenuOpen ? <><button aria-label="Close app menu" className="simple-mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} type="button" />
         <div className="simple-mobile-menu" ref={mobileMenuRef}>
-          {route.section === "tutor" ? <button onClick={() => { setMobileMenuOpen(false); goTo({ ...route, mode: "chat" }); setSessionsOpen(true); }} type="button"><PanelLeft size={17} />Sessions</button> : null}
+          {route.section === "tutor" ? <button className="simple-mobile-sessions" onClick={() => { setMobileMenuOpen(false); goTo({ ...route, mode: "chat" }); setSessionsOpen(true); }} type="button"><PanelLeft size={17} />Sessions</button> : null}
           <label><span>Language</span><select name="mobile-language" onChange={(event) => { changeLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
             {availableLanguages.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
           <button onClick={() => { setMobileMenuOpen(false); onSwitchProfile(); }} type="button"><UserRound size={17} />{profile.name}</button>
@@ -304,7 +304,7 @@ export function RehearsalApp({
       onPlayPrepared={audio.playPreparedAudio} onPrepareAudio={audio.fetchTargetAudio}
       onResumePlayback={audio.resumePlayback} onStopPlayback={audio.stopPlayback}
       playback={audio.playback} voices={audio.voices} />}
-    {route.section === "tutor" && <TutorPage onCardsAdded={() => { void learning.loadItems(language); }} sessionsOpen={sessionsOpen} onSessionsOpen={setSessionsOpen} sessionsButtonRef={sessionsButtonRef} language={language} profileId={profile.id} route={route}
+    {route.section === "tutor" && <TutorPage key={`${profile.id}:${language}`} onCardsAdded={() => { void learning.loadItems(language); }} sessionsOpen={sessionsOpen} onSessionsOpen={setSessionsOpen} sessionsButtonRef={sessionsButtonRef} language={language} profileId={profile.id} route={route}
       onRoute={(next, historyMode) => goTo(next, historyMode)}
       onLibrary={() => goTo(defaultLibraryRoute(language))}
       onListen={() => { goTo(practiceRoute("listen")); void learning.loadItems(language); }} />}
