@@ -2,6 +2,27 @@
 
 This document is the canonical source for production deployment, data paths, backups, restore, and recovery.
 
+## Tutor adaptation controls and rollback
+
+Tutor support is enabled for every existing and new account by default, with onboarding per language pair. The administrator command resolves registered profile IDs server-side, validates modes/overrides, and previews mutations unless `--apply` is present. It does not run migrations. Use the deployed container for exact persistent paths:
+
+```bash
+docker compose --project-name rehearsal -f /opt/apps/rehearsal/current/compose.production.yml exec -T app npm run tutor:adaptation -- --profile roman --language en
+docker compose --project-name rehearsal -f /opt/apps/rehearsal/current/compose.production.yml exec -T app npm run tutor:adaptation -- --profile roman --language en --mode beginner --overrides '{"nativeLanguageUsage":"allowed"}'
+# Append --apply to the reviewed command to save it.
+docker compose --project-name rehearsal -f /opt/apps/rehearsal/current/compose.production.yml exec -T app npm run tutor:adaptation -- --profile roman --language en --reset-overrides --apply
+# Fully disable the new Tutor behavior for every currently registered account:
+docker compose --project-name rehearsal -f /opt/apps/rehearsal/current/compose.production.yml exec -T app npm run tutor:adaptation -- --profile all --enabled false --apply
+# Restore it, preserving onboarding, preferences and summaries:
+docker compose --project-name rehearsal -f /opt/apps/rehearsal/current/compose.production.yml exec -T app npm run tutor:adaptation -- --profile all --enabled true --apply
+```
+
+The saved disablement takes effect on subsequent server requests. Reload clients to remove onboarding and controls; ordinary Tutor uses the previous prompt/tool set and End session creates no summary/count. Stale onboarding/settings writes are rejected while disabled. Audio account sync and the Practice Edit fix remain active. For a process-wide override covering future registrations too, set `TUTOR_ADAPTATION_ENABLED=false` in the existing runtime environment and restart the service; unset it or restore true to allow profile settings again. Changing global support defaults means editing `TUTOR_MODE_CONFIG`, incrementing its version and shipping through CI; unoverridden fields follow the new defaults.
+
+The retained Git branch `codex/rollback-before-adaptive-20261008` points to the original `eeafcf3` code. To roll back every change in this delivery, revert its squash commit through a new CI-checked PR and normal release workflow. Do not reset main or delete data. Migration `018-tutor-adaptation` is additive and the old release can read the database with these extra tables/settings. Before deployment, use the normal verified per-profile backups; migration tests compare every pre-existing table in a populated copy, check integrity/foreign keys, reopen and verify transactional failure recovery. Database restoration remains a separate explicit operation.
+
+`scripts/sql/tutor-adaptation-report.sql` is a read-only report after its connection-local temporary parameters. Edit its UTC start/end (exclusive end; NULL removes a bound). Each result labels Selected period or All time, the metric and unit. Run against each registered profile database for installation-wide coverage; add user/event counts across profiles, and combine latency using the underlying first-exercise event counts rather than averaging profile averages. D1/D7 rows represent returns on those UTC-length days, not proven learning retention. The query reads analytics only and never message text. A synthetic example: one skipped English onboarding, a direct style change and one summary failure produce All time values 1 started user, 1 skipped user, 1 direct mode change and 1 summary error; no first exercise is credited without a successful provider response.
+
 ## Production
 
 - Public URL: `https://7662n.cc/rehearsal/`

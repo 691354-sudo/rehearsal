@@ -6,6 +6,7 @@ import type { LanguageCode } from "../../types.js";
 import { makeThreadTitle } from "./shared.js";
 import { TutorLearningFocusRepository } from "./tutor-learning-focus.js";
 import { TutorContextPracticeRepository } from "./tutor-context-practice.js";
+import { TutorAdaptationRepository } from "./tutor-adaptation.js";
 
 export type TutorThreadRow = {
   id: number;
@@ -29,11 +30,13 @@ export class TutorRepository {
   readonly feedback: TutorFeedbackRepository;
   readonly learningFocus: TutorLearningFocusRepository;
   readonly contextPractice: TutorContextPracticeRepository;
+  readonly adaptation: TutorAdaptationRepository;
 
   constructor(private readonly db: RehearsalDatabase) {
     this.feedback = new TutorFeedbackRepository(db);
     this.learningFocus = new TutorLearningFocusRepository(db);
     this.contextPractice = new TutorContextPracticeRepository(db, this);
+    this.adaptation = new TutorAdaptationRepository(db, this);
   }
 
   setMode(threadId: number, messageId: number, mode: "chat" | "guided", restart = false) {
@@ -73,6 +76,10 @@ export class TutorRepository {
     return this.db.prepare(
       "SELECT id, public_id, language_code, title, created_at, updated_at FROM chat_threads WHERE public_id = ?",
     ).get(publicId) as TutorThreadRow | undefined;
+  }
+
+  threadPublicId(id: number) {
+    return (this.db.prepare("SELECT public_id FROM chat_threads WHERE id = ?").get(id) as { public_id: string } | undefined)?.public_id;
   }
 
   ensureThreadTitle(threadId: number, message: string) {

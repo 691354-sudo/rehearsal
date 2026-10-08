@@ -33,7 +33,7 @@ export function CardActions({ target, onEdit, onDelete, disabled, extraActions =
     type="button" className={className} disabled={disabled} ref={trigger} onClick={() => setOpen(!open)}><MoreHorizontal size={18} aria-hidden="true" /></button>
     {open ? createPortal(<div className="card-actions-menu" id={id} ref={menu} role="menu" aria-label="Card actions"
       style={position ? { left: position.left, top: position.top } : { visibility: "hidden" }}
-      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current) setOpen(false); }}
+      onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current) setOpen(false); }}
       onKeyDown={(event) => {
         event.stopPropagation();
         if (event.key === "Escape") { event.preventDefault(); close(); }

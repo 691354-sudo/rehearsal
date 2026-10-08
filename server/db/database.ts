@@ -10,6 +10,7 @@ import { migrateTutorFeedback } from "./tutor-feedback-schema.js";
 import { migrateLearningCategories } from "./learning-categories-schema.js";
 import { migrateGermanLanguage } from "./german-language-schema.js";
 import { migrateTutorContextPractice } from "./tutor-context-practice-schema.js";
+import { migrateTutorAdaptation } from "./tutor-adaptation-schema.js";
 
 const migrateReviewBatches = (db: Database.Database) => {
   const row = db.prepare(
@@ -284,6 +285,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "015-unified-learning", run: migrateUnifiedLearning, requiresForeignKeysOff: true },
   { id: "016-german-language", run: migrateGermanLanguage, requiresForeignKeysOff: true },
   { id: "017-tutor-context-practice", run: migrateTutorContextPractice },
+  { id: "018-tutor-adaptation", run: migrateTutorAdaptation },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {

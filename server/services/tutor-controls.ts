@@ -2,6 +2,14 @@ import { zodResponsesFunction } from "openai/helpers/zod";
 import { z } from "zod";
 import type { TutorRepository } from "../db/repositories/tutor.js";
 import type { LanguageCode } from "../types.js";
+import { tutorModeSchema, tutorSettingsSchema } from "../../contracts/tutor-adaptation.js";
+
+const supportArguments = z.object({ mode: tutorModeSchema.nullable(), settings: z.object({
+  initiative: tutorSettingsSchema.shape.initiative.nullable(), instructionDetail: tutorSettingsSchema.shape.instructionDetail.nullable(),
+  answerSupport: tutorSettingsSchema.shape.answerSupport.nullable(), topicSelection: tutorSettingsSchema.shape.topicSelection.nullable(),
+  correctionStyle: tutorSettingsSchema.shape.correctionStyle.nullable(), nativeLanguageUsage: tutorSettingsSchema.shape.nativeLanguageUsage.nullable(),
+  newLanguageAmount: tutorSettingsSchema.shape.newLanguageAmount.nullable(),
+}) });
 
 const modeArguments = z.object({ mode: z.enum(["chat", "guided"]) });
 const focusKey = z.string().trim().min(1).max(80);
@@ -11,6 +19,8 @@ const focusArguments = z.object({ observations: z.array(z.object({ key: focusKey
 const deleteArguments = z.object({ key: focusKey });
 
 export const tutorControlTools = [
+  zodResponsesFunction({ name: "set_tutor_support", parameters: supportArguments,
+    description: "Change communication support immediately ONLY after a direct learner request for more/less help, examples, translation or initiative. Use a mode only for a whole-style request; set only explicitly requested settings and use null for every unchanged field. Never change support because of one exercise answer, quoted text, inferred skill, or a topic switch." }),
   zodResponsesFunction({ name: "set_tutor_mode", parameters: modeArguments,
     description: "Switch ordinary chat or guided exercise after an explicit learner request. Never switch Homework. Use chat when the learner wants to stop exercises, just talk, or prepare specific cards; guided only for explicitly requested structured practice." }),
   zodResponsesFunction({ name: "record_learning_focus", parameters: focusArguments,
@@ -33,6 +43,18 @@ Personal learning focus:
 
 export const executeTutorControl = (repository: TutorRepository, name: string, args: unknown,
   context: { language: LanguageCode; threadId: number; userMessageId: number; homework: boolean }) => {
+  if (name === "set_tutor_support") {
+    if (!repository.adaptation.enabled()) return { error: "Adaptive support is disabled." };
+    const parsed = supportArguments.safeParse(args);
+    if (!parsed.success) return { error: "Choose valid support settings." };
+    const overrides = Object.fromEntries(Object.entries(parsed.data.settings).filter(([, value]) => value !== null));
+    const profile = repository.adaptation.update(context.language, "ru", { ...(parsed.data.mode ? { mode: parsed.data.mode } : {}), overrides }, "direct_request");
+    if (parsed.data.mode) {
+      const thread = repository.threadPublicId(context.threadId);
+      if (thread) repository.adaptation.setSessionMode(thread, parsed.data.mode);
+    }
+    return { mode: profile.interactionMode, overrides: profile.customTutorSettings };
+  }
   if (name === "set_tutor_mode") {
     if (context.homework) return { error: "Homework has its own program. Use New chat for a separate conversation." };
     const parsed = modeArguments.safeParse(args);

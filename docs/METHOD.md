@@ -36,6 +36,16 @@ One closed `onboarding_v1_pilot` invitation may be created by Roman for product 
 
 ## Daily loop
 
+### Tutor introduction and support
+
+The first Tutor Chat opening for each Russian → target-language pair shows the learning journey, four short questions (comfort, goals, interests, preferred guidance) and a two-to-three-sentence starting task. Steps and answers persist in the account; Back is available and Skip for now permanently completes the introduction with the shared support style. Completing or skipping opens one first exercise without duplicating a chat on retry. Existing cards, conversations, learning focus and schedules remain intact.
+
+Tutor uses three communication styles: More help, Together and Independently. These describe guidance rather than CEFR. The initial choice combines self-reported comfort, preferred guidance and whether the starting task needed a model or a native-language-only answer; contradictory signals choose more support. Tutor settings can change the style, native-language help, goals and interests. A direct chat request changes the whole style or only the requested setting immediately. Reset custom support settings removes individual overrides while keeping the selected style.
+
+End session summarizes a substantive exercise or learning exchange privately; greetings, planning alone, empty chats and copied Tutor examples do not count. After 3 completed sessions, then 13, 23 and so on, only new summaries are reassessed. Consistent evidence can change support by one step for the next session; conflicting or insufficient evidence keeps it. This does not grade cards or change FSRS, contextual practice, Homework or Learned. Failed summaries leave the chat usable and the count unchanged. [Operations](OPERATIONS.md#tutor-adaptation-controls-and-rollback) documents full emergency disablement and restoration.
+
+Audio provider, voice, model, speed, repetitions and playback after Recall are saved in the authenticated account separately for each learning language. A second device loads the account values; legacy device settings are imported only while no account value exists.
+
 The learning pipeline is `Listen & Repeat → Active Recall → Tutor`, following Capture, Review and Library. It applies to all profiles and enabled languages. A written-only language starts in Active Recall. Pipeline stages are separate from FSRS state; switching stages never resets a schedule or history. Learned remains the existing explicit reversible user decision; automatic Tutor graduation is a later change.
 
 ### Capture Reality

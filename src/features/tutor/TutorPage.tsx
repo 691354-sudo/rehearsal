@@ -1,7 +1,7 @@
 import { TutorMessageFeedback } from "./TutorMessageFeedback";
 import { useSessionDraft } from "../../hooks/useSessionDraft";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode, RefObject } from "react";
 import {
   ArrowUp,
   Ellipsis,
@@ -41,7 +41,8 @@ import { pilotErrorMessage } from "../pilot/pilotApi";
 import type { Homework } from "../../../contracts/learning-pilot";
 type PendingTutorRecording = { blob: Blob; filename: string };
 
-export function TutorPage({ language, route, onLibrary, onListen, onRoute, profileId, onCardsAdded, sessionsOpen, onSessionsOpen: setSessionsOpen, sessionsButtonRef }: {
+export function TutorPage({ language, route, onLibrary, onListen, onRoute, profileId, onCardsAdded, sessionsOpen, onSessionsOpen: setSessionsOpen, sessionsButtonRef, learningControls }: {
+  learningControls?: (busy: boolean) => ReactNode;
   onCardsAdded: () => void;
   sessionsOpen: boolean;
   onSessionsOpen: (open: boolean) => void;
@@ -383,7 +384,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
           onDismiss={() => { setReviewBatch(null); onRoute({ ...route, review: null }, "replace"); }}
           onCommitted={() => { onCardsAdded(); setReviewBatch(null); setAdded(true); onRoute({ ...route, review: null }, "replace"); }} /></div> : <>
         <div className="simple-chat-toolbar"><div className="simple-chat-context">
-          <strong>{homeworkTitle || currentThread?.title || "New chat"}</strong></div>
+          <strong>{homeworkTitle || currentThread?.title || "New chat"}</strong></div>{!homework.active ? learningControls?.(sending || reviewing || loadingThread) : null}
           {threadId ? <details className="simple-chat-actions"><summary aria-label="More chat actions" role="button"><Ellipsis aria-hidden="true" size={18} /></summary><div>
             <button className="simple-delete-chat" disabled={deletingThread || sending || reviewing} onClick={() => void deleteChat()} type="button">
               {deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}Delete chat</button></div></details> : null}</div>
