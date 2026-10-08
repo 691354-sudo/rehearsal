@@ -25,6 +25,7 @@ import { contextPracticeInstructions, contextPracticeReplyFormat, parseContextPr
 import type { ContextPracticeState } from "../../contracts/tutor-context-practice.js";
 import { startReadyTutor } from "./tutor-recall.js";
 import { tutorAdaptationInstructions } from "./tutor-mode-config.js";
+import { firstTutorExerciseMessage } from "../../contracts/tutor-adaptation.js";
 
 const tutorLanguageGuidance: Record<LanguageCode, string> = {
   en: "Use natural contemporary English.",
@@ -187,7 +188,7 @@ export class TutorService {
     if (message.homework_id && message.homework_id !== homeworkId) throw new Error("CLIENT_MESSAGE_ID_CONFLICT");
     const completed = this.repository.tutor.getCompletedClientExchange(input.clientMessageId);
     if (completed) { const { metadata: _, ...reply } = completed; return reply; }
-    if (!homework && isGuidedPracticeStartMessage(input.message)) this.repository.tutor.setMode(message.thread_id, message.message_id, "guided", true);
+    if (!homework && (isGuidedPracticeStartMessage(input.message) || (this.repository.tutor.adaptation.enabled() && input.message === firstTutorExerciseMessage))) this.repository.tutor.setMode(message.thread_id, message.message_id, "guided", true);
     const running = this.inFlight.get(input.clientMessageId);
     if (running) return running;
     if (!homework && [guidedPracticeStartMessage, guidedPracticeExercises[1].message].includes(input.message.trim())) {
