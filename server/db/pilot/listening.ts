@@ -51,6 +51,7 @@ export class PilotListening {
       // payload and appearance identity live only in the pilot log above.
       this.store.practice.recordAttempt({ itemPublicId: input.cardId, publicId: input.eventId,
         mode: "listen", answer: "", score: 1, verdict: "good", feedback: {}, reviewedAt: new Date(now) });
+      this.store.goals.record("listen", input.appearanceId, input.language, input.completedAt);
       return this.store.progress(input.cardId);
     }).immediate();
   }

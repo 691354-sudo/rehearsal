@@ -18,5 +18,12 @@ export const apiFetch = (path: string, init: RequestInit = {}) => {
     ...init,
     credentials: "same-origin",
     headers,
+  }).then((response) => {
+    if (response.ok && stateChangingMethods.has(method) && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("rehearsal:activity-saved", {
+        detail: { path, profileId: headers.get("X-Rehearsal-Profile") },
+      }));
+    }
+    return response;
   });
 };

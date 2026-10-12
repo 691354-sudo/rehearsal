@@ -43,6 +43,10 @@ import type {
 import { AppLink } from "./AppLink";
 import { configureTelegramBackButton } from "../lib/telegramMiniApp";
 import { PilotProvider } from "../features/pilot/PilotProvider";
+import { GoalsProvider } from "../features/goals/GoalsProvider";
+import { StreakButton } from "../features/goals/TodayGoals";
+import { DailyGoalsPanel } from "../features/goals/DailyGoalsPanel";
+import type { DailyGoalKind } from "../../contracts/daily-goals";
 
 export function RehearsalApp({
   availableLanguages,
@@ -187,7 +191,19 @@ export function RehearsalApp({
       : { ...route, language: nextLanguage };
     goTo(next);
   };
-  const openSettings = useCallback(() => goTo({ ...route, settings: true }), [goTo, route]);
+  const openSettings = useCallback(() => goTo({ ...route, settings: true, goals: undefined }), [goTo, route]);
+  const openGoals = () => goTo({ ...route, settings: false, goals: true });
+  const closeGoals = () => {
+    if (window.history.state?.surface === "goals") window.history.back();
+    else goTo({ ...route, goals: undefined }, "replace");
+  };
+  const goalRoute = (kind: DailyGoalKind): AppRoute | null => {
+    if (kind === "tutor") return defaultTutorRoute(language);
+    const nextLanguage = kind === "listen" && !languageHasAudio(language)
+      ? availableCodes.find(languageHasAudio) : language;
+    if (!nextLanguage) return null;
+    return { ...defaultPracticeRoute(nextLanguage), mode: kind, scope: kind === "listen" ? "library" : "due" };
+  };
   const closeSettings = useCallback(() => {
     if (window.history.state?.surface === "settings") {
       window.history.back();
@@ -202,7 +218,7 @@ export function RehearsalApp({
     const item = learning.items.find((entry) => entry.publicId === cardId);
     if (item) learning.updateItem({ ...item, preference: patch.liked === undefined ? item.preference : patch.liked ? "like" : "neutral",
       progress: { ...item.progress, listens: patch.listenCount ?? item.progress.listens } });
-  }}><div className={`simple-app simple-app--${theme}${keyboardOpen && route.section === "tutor" ? " has-keyboard" : ""}${topNavigation ? " has-top-navigation" : ""}${sectionsOpen ? " has-sections-open" : ""}${onboardingMode ? " has-onboarding-tour" : ""}`} data-theme={theme}>
+  }}><GoalsProvider key={profile.id} profileId={profile.id} open={openGoals} goalRoute={goalRoute}><div className={`simple-app simple-app--${theme}${keyboardOpen && route.section === "tutor" ? " has-keyboard" : ""}${topNavigation ? " has-top-navigation" : ""}${sectionsOpen ? " has-sections-open" : ""}${onboardingMode ? " has-onboarding-tour" : ""}`} data-theme={theme}>
     <a className="simple-skip-link" href="#main-content">Skip to Main Content</a>
     <header className="simple-header">
       <div className="simple-header-rail">
@@ -232,6 +248,7 @@ export function RehearsalApp({
           <BookOpen aria-hidden="true" className="simple-nav-icon" size={19} /><span>Library</span></AppLink>
       </nav>
       <div className="simple-header-actions">
+        <StreakButton className="goals-desktop-streak" />
         <label className="simple-language"><span>{languageCopy[language].short}</span>
           <strong>{languageCopy[language].label}</strong><ChevronDown size={15} />
           <select aria-label="Language" name="language" onChange={(event) => changeLanguage(event.target.value as Language)} value={language}>
@@ -254,6 +271,7 @@ export function RehearsalApp({
         onClick={() => setMobileMenuOpen((open) => !open)} ref={mobileMenuButtonRef} type="button"><Settings2 size={19} /></button>
       {mobileMenuOpen ? <><button aria-label="Close app menu" className="simple-mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} type="button" />
         <div className="simple-mobile-menu" ref={mobileMenuRef}>
+          <button onClick={() => { setMobileMenuOpen(false); openGoals(); }} type="button">Daily goals</button>
           {route.section === "tutor" ? <button className="simple-mobile-sessions" onClick={() => { setMobileMenuOpen(false); goTo({ ...route, mode: "chat" }); setSessionsOpen(true); }} type="button"><PanelLeft size={17} />Sessions</button> : null}
           <label><span>Language</span><select name="mobile-language" onChange={(event) => { changeLanguage(event.target.value as Language); setMobileMenuOpen(false); }} value={language}>
             {availableLanguages.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
@@ -274,6 +292,7 @@ export function RehearsalApp({
         <div><button onClick={() => void audio.retryPlayback().catch(() => undefined)} type="button">Retry</button>
           <button onClick={audio.dismissPlaybackError} type="button">Dismiss</button></div>
       </div> : null}
+    {route.goals ? <DailyGoalsPanel onClose={closeGoals} /> : null}
     {route.settings ? <GlobalSettings
       language={language}
       onboarding={onboarding}
@@ -321,5 +340,5 @@ export function RehearsalApp({
       onStep={(step) => goTo(onboardingRoute(
         step, language, onboardingMode, onboarding.starterTutorThreadId,
       ))} step={onboardingStep} /> : null}
-  </div></PilotProvider>;
+  </div></GoalsProvider></PilotProvider>;
 }

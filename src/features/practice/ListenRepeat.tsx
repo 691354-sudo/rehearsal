@@ -24,6 +24,7 @@ import { ListenPlayerSurface } from "./ListenPlayerSurface";
 import { useTelegramPlaybackPause } from "./useTelegramPlaybackPause";
 export function ListenRepeat(props: {
   count: PracticeCardCount;
+  onActiveChange?: (active: boolean) => void;
   emptyAction: ReactNode;
   elevenLabs: ElevenLabsConfig;
   editActive: boolean;
@@ -60,6 +61,10 @@ export function ListenRepeat(props: {
   const originalQueueIds = useRef<string[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<"setup" | "player" | "complete">("setup");
+  useEffect(() => {
+    props.onActiveChange?.(phase === "player");
+    return () => props.onActiveChange?.(false);
+  }, [phase, props.onActiveChange]);
   const recommendations = useListenRecommendations(props.language, props.topicId, props.count, props.scope === "due" && phase === "setup", pilot.revision, pilot.profileId);
   const [status, setStatus] = useState<"playing" | "paused" | "error">("playing");
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");

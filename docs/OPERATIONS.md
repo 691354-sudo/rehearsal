@@ -2,6 +2,10 @@
 
 This document is the canonical source for production deployment, data paths, backups, restore, and recovery.
 
+## Daily goals migration and rollback
+
+Migration `019-daily-goals` creates only the two goals tables and their index; tracking stays inactive until the learner starts it. Normal deployment must back up and verify every profile before startup. Regression tests migrate a populated v18 backup, compare every existing table, check integrity/foreign keys, reopen once and verify transactional failure recovery. The previous release remains compatible with the added tables and setting. Roll back code through a CI-checked revert/release while retaining these records; activity during an older release is not reconstructed. Restoring profile data is a separate explicit operation.
+
 ## Tutor adaptation controls and rollback
 
 Tutor support is enabled for every existing and new account by default, with onboarding per language pair. The administrator command resolves registered profile IDs server-side, validates modes/overrides, and previews mutations unless `--apply` is present. It does not run migrations. Use the deployed container for exact persistent paths:

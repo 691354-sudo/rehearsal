@@ -9,6 +9,7 @@ import { config } from "./config.js";
 import { RehearsalRepository } from "./db/repository.js";
 import { registerAudioRoutes } from "./http/audio.routes.js";
 import { registerCaptureRoutes } from "./http/capture.routes.js";
+import { registerDailyGoalsRoutes } from "./http/daily-goals.routes.js";
 import { createHttpDependencies, type ServiceOverrides } from "./http/dependencies.js";
 import { toErrorResponse } from "./http/errors.js";
 import { registerItemRoutes } from "./http/items.routes.js";
@@ -104,6 +105,7 @@ export const buildApp = async (
   });
   registerLanguageAccess(app, dependencies);
   registerSystemRoutes(app, dependencies);
+  registerDailyGoalsRoutes(app, dependencies);
   registerOnboardingRoutes(app, dependencies);
   registerItemRoutes(app, dependencies);
   registerLearningCategoryRoutes(app, dependencies);

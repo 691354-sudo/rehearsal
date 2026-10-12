@@ -1,4 +1,5 @@
 import { progressRow } from "./progress.js";
+import type { DailyGoalsRepository } from "../repositories/daily-goals.js";
 import type { LanguageCode } from "../../../contracts/api.js";
 import { randomUUID } from "node:crypto";
 import { pilotDefaults, type Homework, type PilotSettings } from "../../../contracts/learning-pilot.js";
@@ -22,7 +23,7 @@ export type HomeworkRow = {
 };
 
 export class PilotStore {
-  constructor(readonly db: RehearsalDatabase, readonly practice: PracticeRepository) {}
+  constructor(readonly db: RehearsalDatabase, readonly practice: PracticeRepository, readonly goals: DailyGoalsRepository) {}
 
   settings(): PilotSettings {
     const row = this.db.prepare("SELECT value FROM app_settings WHERE key = 'learning_pilot'")

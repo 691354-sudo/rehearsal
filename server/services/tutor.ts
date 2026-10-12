@@ -184,6 +184,8 @@ export class TutorService {
       language: input.language,
       threadPublicId: input.threadPublicId,
       homeworkId: activeHomeworkId ? undefined : homeworkId,
+      automaticStart: Boolean(input.homeworkPlanning) || isGuidedPracticeStartMessage(input.message)
+        || input.message === firstTutorExerciseMessage,
     });
     if (message.homework_id && message.homework_id !== homeworkId) throw new Error("CLIENT_MESSAGE_ID_CONFLICT");
     const completed = this.repository.tutor.getCompletedClientExchange(input.clientMessageId);

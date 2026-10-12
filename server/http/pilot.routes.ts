@@ -110,8 +110,11 @@ export const registerPilotRoutes = (app: FastifyInstance, dependencies: HttpDepe
     const attempt = repository.pilot.recall.get(body.attemptId);
     if (!attempt) throw new PilotError("ATTEMPT_NOT_FOUND", 404);
     const item = repository.pilot.store.item(attempt.card_id,body.language);
-    try { return { check: await openai.checkRecall(item, body.answer, body.attemptId) }; }
+    let check;
+    try { check = await openai.checkRecall(item, body.answer, body.attemptId); }
     catch { throw new PilotError("RECALL_CHECK_UNAVAILABLE", 503); }
+    if (check.verdict === "correct") repository.goals.record("recall", body.attemptId, item.language);
+    return { check };
   });
   app.post("/api/pilot/homework", async (request) => {
     const { repository } = dependencies.forRequest(request);

@@ -25,9 +25,10 @@ type RecallRun = { sessionId?:string; tutorStartId?: string; scopeKey?: string; 
   attemptId: string; shownAt: string; revealedAt: string | null; answer: string; begun: boolean;
   submission?: PilotAttemptGrade; check?: RecallCheck };
 const ratings: ReviewRating[] = ["again", "hard", "good", "easy"];
-export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedIds, revision }: {
+export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedIds, revision, onActiveChange }: {
   props: ComponentProps<typeof PracticePage>; topics: IslandSummary[];
   onTopic: (id: string) => void; onEdit: (item: LearningItem) => void; onDelete: (item: LearningItem) => void; deletedIds: string[]; revision: number;
+  onActiveChange?: (active: boolean) => void;
 }) {
   const pilot = usePilot();
   const homeworkId = props.route.homework;
@@ -49,6 +50,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
   const saving = useRef(false);
   const queueRequest = useRef(0); const loadRequest = useRef(0);
   const active = Boolean(run?.current && (!homework || homework.status === "recall_in_progress"));
+  useEffect(() => { onActiveChange?.(active); return () => onActiveChange?.(false); }, [active, onActiveChange]);
   const attemptClock = useActiveTime(`${key}:attempt:${run?.attemptId || "none"}`, active,
     homework?.settingsSnapshot.idleTimeoutSeconds ?? pilot.settings?.idleTimeoutSeconds ?? 120);
   const time = useHomeworkTime(homework, "recall", active);

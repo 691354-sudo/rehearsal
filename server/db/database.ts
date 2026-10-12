@@ -11,6 +11,7 @@ import { migrateLearningCategories } from "./learning-categories-schema.js";
 import { migrateGermanLanguage } from "./german-language-schema.js";
 import { migrateTutorContextPractice } from "./tutor-context-practice-schema.js";
 import { migrateTutorAdaptation } from "./tutor-adaptation-schema.js";
+import { migrateDailyGoals } from "./daily-goals-schema.js";
 
 const migrateReviewBatches = (db: Database.Database) => {
   const row = db.prepare(
@@ -286,6 +287,7 @@ const schemaMigrations: SchemaMigration[] = [
   { id: "016-german-language", run: migrateGermanLanguage, requiresForeignKeysOff: true },
   { id: "017-tutor-context-practice", run: migrateTutorContextPractice },
   { id: "018-tutor-adaptation", run: migrateTutorAdaptation },
+  { id: "019-daily-goals", run: migrateDailyGoals },
 ];
 
 const assertForeignKeys = (db: Database.Database) => {

@@ -11,6 +11,7 @@ import { PilotTiming } from "./timing.js";
 import { PilotTutor } from "./tutor.js";
 import { PilotParticipants } from "./participants.js";
 import { PilotExport } from "./export.js";
+import type { DailyGoalsRepository } from "../repositories/daily-goals.js";
 
 export class PilotRepository {
   readonly cores: TutorCores;
@@ -24,8 +25,8 @@ export class PilotRepository {
   readonly participants: PilotParticipants;
   readonly export: PilotExport;
 
-  constructor(db: RehearsalDatabase, practice: PracticeRepository, tutor: TutorRepository) {
-    this.store = new PilotStore(db, practice);
+  constructor(db: RehearsalDatabase, practice: PracticeRepository, tutor: TutorRepository, goals: DailyGoalsRepository) {
+    this.store = new PilotStore(db, practice, goals);
     this.listening = new PilotListening(this.store);
     this.queue = new PilotQueue(this.store);
     this.cores = new TutorCores(this.store,this.queue);

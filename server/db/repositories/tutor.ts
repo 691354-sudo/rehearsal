@@ -7,6 +7,7 @@ import { makeThreadTitle } from "./shared.js";
 import { TutorLearningFocusRepository } from "./tutor-learning-focus.js";
 import { TutorContextPracticeRepository } from "./tutor-context-practice.js";
 import { TutorAdaptationRepository } from "./tutor-adaptation.js";
+import { DailyGoalsRepository } from "./daily-goals.js";
 
 export type TutorThreadRow = {
   id: number;
@@ -32,7 +33,7 @@ export class TutorRepository {
   readonly contextPractice: TutorContextPracticeRepository;
   readonly adaptation: TutorAdaptationRepository;
 
-  constructor(private readonly db: RehearsalDatabase) {
+  constructor(private readonly db: RehearsalDatabase, private readonly goals = new DailyGoalsRepository(db)) {
     this.feedback = new TutorFeedbackRepository(db);
     this.learningFocus = new TutorLearningFocusRepository(db);
     this.contextPractice = new TutorContextPracticeRepository(db, this);
@@ -128,13 +129,15 @@ export class TutorRepository {
   }
 
   addMessage(threadId: number, role: "user" | "assistant" | "tool", content: string, metadata = {}, clientMessageId?: string) {
-    const result = this.db.prepare(
-      "INSERT INTO chat_messages(thread_id, role, content, client_message_id, metadata) VALUES (?, ?, ?, ?, ?)",
-    ).run(threadId, role, content, clientMessageId || null, JSON.stringify(metadata));
-    this.db.prepare(
-      "UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-    ).run(threadId);
-    return Number(result.lastInsertRowid);
+    return this.db.transaction(() => {
+      const result = this.db.prepare(
+        "INSERT INTO chat_messages(thread_id, role, content, client_message_id, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      ).run(threadId, role, content, clientMessageId || null, JSON.stringify(metadata), new Date().toISOString());
+      this.db.prepare("UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(threadId);
+      const exchange = metadata as { mode?: string; clientMessageId?: string };
+      if (role === "assistant" && exchange.mode === "openai" && exchange.clientMessageId) this.goals.recordTutor(exchange.clientMessageId);
+      return Number(result.lastInsertRowid);
+    })();
   }
 
   getOrCreateClientMessage(input: {
@@ -143,6 +146,7 @@ export class TutorRepository {
     language: LanguageCode;
     threadPublicId?: string;
     homeworkId?: string;
+    automaticStart?: boolean;
   }) {
     return this.db.transaction(() => {
       const existing = this.getClientMessage(input.clientMessageId);
@@ -151,11 +155,12 @@ export class TutorRepository {
           || (input.threadPublicId && existing.thread_public_id !== input.threadPublicId)) {
           throw new Error("CLIENT_MESSAGE_ID_CONFLICT");
         }
+        if (input.automaticStart) this.db.prepare("UPDATE chat_messages SET metadata = json_set(metadata, '$.automaticStart', json('true')) WHERE id = ?").run(existing.message_id);
         return existing;
       }
       const thread = this.getOrCreateThread(input.threadPublicId, input.language);
       const messageId = this.addMessage(thread.id, "user", input.content,
-        input.homeworkId ? { homeworkId: input.homeworkId } : {}, input.clientMessageId);
+        { ...(input.homeworkId ? { homeworkId: input.homeworkId } : {}), ...(input.automaticStart ? { automaticStart: true } : {}) }, input.clientMessageId);
       this.ensureThreadTitle(thread.id, input.content);
       return {
         message_id: messageId,
