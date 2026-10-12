@@ -2,8 +2,10 @@ import { z } from "zod";
 import { ElevenLabsError } from "../services/elevenlabs.js";
 import { AudioPreparationError } from "../services/audio-preparation.js";
 import { PilotError } from "../db/pilot/store.js";
+import { DailyGoalsError } from "../db/repositories/daily-goals.js";
 
 export const toErrorResponse = (error: unknown) => {
+  if (error instanceof DailyGoalsError) return { statusCode: 409, body: { error: error.message } };
   if (error instanceof Error && ["CATEGORY_TITLE_EXISTS", "CATEGORY_ID_CONFLICT", "ITEM_ID_CONFLICT", "CATEGORY_LANGUAGE_MISMATCH"].includes(error.message)) {
     return { statusCode: 409, body: { error: error.message } };
   }

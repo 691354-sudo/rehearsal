@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultLibraryRoute, defaultPracticeRoute, parseAppRoute, serializeAppRoute, type AppRoute } from "./appRoute";
+import { defaultLibraryRoute, defaultPracticeRoute, parseAppRoute, routeHistoryState, serializeAppRoute, type AppRoute } from "./appRoute";
 
 const location = (pathname: string, search = "") => ({ pathname, search }) as Location;
 
@@ -130,5 +130,16 @@ describe("learning category routes", () => {
     const route = parseAppRoute({ pathname: "/library/categories", search: `?lang=en&category=${category}&edit=card-1` }, "/");
     expect(route).toMatchObject({ section: "library", view: "categories", category, edit: "card-1" });
     expect(serializeAppRoute(route, "/")).toBe(`/library/categories?lang=en&category=${category}&edit=card-1`);
+  });
+});
+
+describe("daily goals routes", () => {
+  it.each(["/practice/listen", "/tutor", "/library"])("retains the underlying %s route when opening goals", (pathname) => {
+    const route = parseAppRoute(location(pathname, "?lang=en&goals=1"), "/");
+    expect(route.goals).toBe(true);
+    expect(routeHistoryState(route).surface).toBe("goals");
+    const href = new URL(serializeAppRoute(route, "/rehearsal/"), "https://example.test");
+    expect(parseAppRoute(location(href.pathname, href.search), "/rehearsal/")).toEqual(route);
+    expect(serializeAppRoute({ ...route, goals: undefined }, "/")).not.toContain("goals=");
   });
 });

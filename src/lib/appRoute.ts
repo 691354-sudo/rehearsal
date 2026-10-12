@@ -10,6 +10,7 @@ export type PracticeScopeRoute = "due" | "library";
 type RouteBase = {
   language: Language;
   settings: boolean;
+  goals?: true;
   tour?: "first_run" | "replay";
 };
 
@@ -51,11 +52,11 @@ export type HistoryMode = "push" | "replace";
 
 export type RouteHistoryState = {
   rehearsal: true;
-  surface: "settings" | "import" | "create" | "editor" | null;
+  surface: "goals" | "settings" | "import" | "create" | "editor" | null;
 };
 
 export function routeHistoryState(route: AppRoute): RouteHistoryState {
-  const surface: RouteHistoryState["surface"] = route.settings ? "settings"
+  const surface: RouteHistoryState["surface"] = route.goals ? "goals" : route.settings ? "settings"
     : route.section === "library" && route.edit ? "editor"
       : route.section === "library" && route.panel === "import" ? "import"
         : route.section === "library" && route.panel === "create" ? "create"
@@ -100,7 +101,10 @@ export function parseAppRoute(
     && availableLanguages.includes(requestedLanguage) ? requestedLanguage : fallbackLanguage;
   const settings = params.get("settings") === "1";
   const tour = params.get("tour");
-  const tourState: Pick<RouteBase, "tour"> = tour === "first_run" || tour === "replay" ? { tour } : {};
+  const tourState: Pick<RouteBase, "tour" | "goals"> = {
+    ...(tour === "first_run" || tour === "replay" ? { tour } : {}),
+    ...(params.get("goals") === "1" ? { goals: true as const } : {}),
+  };
   const path = routePath(location, baseUrl);
 
   if (path === "tutor" || path === "tutor/chat" || path === "tutor/notebook") {
@@ -167,6 +171,7 @@ export function serializeAppRoute(route: AppRoute, baseUrl: string) {
   const base = normalizeBaseUrl(baseUrl);
   const params = new URLSearchParams({ lang: route.language });
   if (route.settings) params.set("settings", "1");
+  if (route.goals) params.set("goals", "1");
   if (route.tour) params.set("tour", route.tour);
   if ((route.section === "practice" && route.mode === "recall" || route.section === "tutor" && route.mode === "chat") && route.homework && route.language === "en") params.set("homework", route.homework);
   let path: string;

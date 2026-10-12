@@ -155,6 +155,14 @@ The server stores only individual provider MP3 responses; it does not assemble c
 
 The installed PWA precaches only the versioned application shell and static build assets. `/api`, `/health`, loaded learning data, and generated audio are network-only; the only durable private offline payload is an unsent Capture recording in IndexedDB. Loading the cached shell without the API keeps already loaded in-memory cards visible and shows an explicit unavailable state rather than synthetic learning data.
 
+## Daily goals
+
+`contracts/daily-goals.ts` defines validated settings and the shared daily projection. Each profile's `DailyGoalsRepository` owns activation/timezone in `app_settings.daily_goals`, target changes by local date in `daily_goal_settings`, and immutable counted identities in `daily_goal_events`. Migration `019-daily-goals` is additive. Events have no source foreign keys or learning content, so deletion cannot remove credit. The `(kind, source_id)` key deduplicates listening appearances, Recall attempts and Tutor client message IDs. Listen events are inserted inside the existing completion transaction, successful Recall checks record their attempt, and successful saved Tutor replies record the matching human exchange in the message transaction.
+
+`GET /api/goals` returns activation, timezone/server time, today's targets/counts/statuses, current/best streak, the last 28 days and ended full-day achievements. `POST /api/goals/start` accepts optional `{ settings }` and is idempotent. `PATCH /api/goals/settings` validates `{ settings }` and atomically replaces today's targets only. Authentication resolves the profile; web writes retain CSRF and the expected-profile header prevents stale-device writes. Missing historical dates inherit the latest targets applicable to that date. Late listening retains its original completion date in the frozen tracking timezone. No historical reconstruction or scheduler mutation occurs.
+
+`src/features/goals` owns the Today block, routed dialog (`goals=1`), settings drafts and confirmed snapshots. Successful activity requests signal a refresh; foreground, reconnect, cross-tab changes and a visible one-minute tick refresh other-device changes and midnight. Offline outbox progress is shown separately. The edit draft survives refresh and failed saves; Back/Escape/navigation retain the existing unsaved-change guard and focus restoration.
+
 ## Backup and rollback
 
 `npm run db:backup` uses SQLite's online backup API and writes a separate backup for every registered profile. Restore requires an explicit `--profile`, requires `CONFIRM_RESTORE=1`, validates the candidate, and preserves only the selected profile database as `pre-restore-<profile>-*.sqlite` first.

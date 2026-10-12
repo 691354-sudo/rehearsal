@@ -36,6 +36,16 @@ One closed `onboarding_v1_pilot` invitation may be created by Roman for product 
 
 ## Daily loop
 
+### Daily goals and consistency
+
+Daily goals start explicitly in Practice with editable defaults: 150 Listen & Repeat passes, 20 correct Recall checks and 10 Tutor messages. Goals cover all learning languages in the profile. Each target is a positive whole number; individual goals may be disabled while at least one stays enabled. Changes apply immediately to today's progress; past days retain their own targets. No previous activity is backfilled. Days end at 00:00 in the profile timezone, default Europe/Riga.
+
+A completed listening pass adds one, including another pass through the same card; built-in audio repetitions add no extra passes. Recall counts server-checked Correct and Valid alternative answers, including repeated successful attempts; oral self-ratings do not count. Tutor counts the learner's typed or transcribed messages only after a successful Tutor response, across chats; automatic exercise starters and setup/error replies do not count. Deleting source cards or chats preserves earned progress. These counters do not change FSRS, learning credit or card availability.
+
+Reaching at least one enabled goal secures the activity streak; reaching every enabled goal completes the daily plan. An unfinished today preserves yesterday's streak until midnight. History distinguishes no activity, progress below every target, partial completion and full completion. Current and best streaks count consecutive days with a reached goal. Achievements reward 7, 30 and 100 completed full calendar days, not necessarily consecutive; today's completion joins that permanent count after midnight.
+
+Practice shows a compact Today block before session settings, with one next action in Listen → Recall → Tutor order and individual links. Active practice collapses it to the current metric. The streak opens Daily goals with the last 28 days, records, achievements and Edit goals. Desktop exposes the streak in the shared header; mobile uses the Practice heading and the existing app menu. Pending offline listening is marked separately until confirmed by the server. XP, rankings, freezes and notifications are outside this version.
+
 ### Tutor introduction and support
 
 The first Tutor Chat opening for each Russian → target-language pair shows the learning journey, four short questions (comfort, goals, interests, preferred guidance) and a two-to-three-sentence starting task. Steps and answers persist in the account; Back is available and Skip for now permanently completes the introduction with the shared support style. Completing or skipping opens one first exercise without duplicating a chat on retry. Existing cards, conversations, learning focus and schedules remain intact.

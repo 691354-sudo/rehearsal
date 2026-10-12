@@ -19,6 +19,7 @@ import type {
 import { languageHasAudio } from "../../shared/config";
 import type { PreparedAudio } from "../audio/listenAudio";
 import { PilotRecall } from "../pilot/PilotRecall";
+import { StreakButton, TodayGoals } from "../goals/TodayGoals";
 
 export function PracticePage(props: {
   recommended: { due: number; new: number };
@@ -46,6 +47,7 @@ export function PracticePage(props: {
   voices: string[];
 }) {
   const [editingItem, setEditingItem] = useState<LearningItem | null>(null);
+  const [active, setActive] = useState(false);
   const [revision, setRevision] = useState(0);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [deleteError, setDeleteError] = useState("");
@@ -65,7 +67,8 @@ export function PracticePage(props: {
   const listeningAvailable = languageHasAudio(props.language);
 
   return <main className="simple-main simple-main--practice" data-onboarding-target="practice" id="main-content">
-    <header className="practice-header"><h1>Practice</h1></header>
+    <header className="practice-header"><h1>Practice</h1><StreakButton className="goals-mobile-streak" /></header>
+    <TodayGoals active={active} kind={props.route.mode} />
     <section className="practice-control-header" aria-label="Practice controls">
       {listeningAvailable ? <div className="practice-modes" aria-label="Practice mode">
         <AppLink aria-current={props.route.mode === "listen" ? "page" : undefined} className={props.route.mode === "listen" ? "is-active" : ""}
@@ -73,14 +76,14 @@ export function PracticePage(props: {
         <AppLink aria-current={props.route.mode === "recall" ? "page" : undefined} className={props.route.mode === "recall" ? "is-active" : ""}
           route={{ ...props.route, mode: "recall", review: null }}>Recall</AppLink>
       </div> : <strong>Recall</strong>}
-      <p>{props.recommended.due} due · {props.recommended.new} not recalled yet · {props.dailyProgress.recall} recalled today{listeningAvailable ? ` · ${props.dailyProgress.shadow} listened today` : ""}</p>
+      <p>{props.recommended.due} due · {props.recommended.new} not recalled yet</p>
     </section>
 
     {deleteError ? <p className="category-error" role="alert">{deleteError}</p> : null}
     {organizationError ? <section><TopicProgressPicker topics={topics} value={value} onChange={onTopic} />
       <p className="category-error" role="alert">{organizationError} <button type="button" onClick={retry}>Retry</button></p></section> : null}
-    {organizationError ? null : props.route.mode === "recall" || !listeningAvailable ? <PilotRecall key={props.route.homework ?? `standalone:${props.route.review || value}`} props={props} topics={topics} onTopic={onTopic} onEdit={setEditingItem} onDelete={(item) => void remove(item)} deletedIds={deletedIds} revision={revision} />
- : <ListenRepeat key={value} count={props.route.cards} editActive={Boolean(editingItem)} emptyAction={<AppLink route={defaultLibraryRoute(props.language)}>Browse Library</AppLink>}
+    {organizationError ? null : props.route.mode === "recall" || !listeningAvailable ? <PilotRecall key={props.route.homework ?? `standalone:${props.route.review || value}`} props={props} topics={topics} onTopic={onTopic} onEdit={setEditingItem} onDelete={(item) => void remove(item)} deletedIds={deletedIds} revision={revision} onActiveChange={setActive} />
+ : <ListenRepeat key={value} count={props.route.cards} editActive={Boolean(editingItem)} emptyAction={<AppLink route={defaultLibraryRoute(props.language)}>Browse Library</AppLink>} onActiveChange={setActive}
       elevenLabs={props.elevenLabs} items={value ? collectionItems : props.items} language={props.language}
       onEdit={setEditingItem} onDelete={(item) => void remove(item)} deletedIds={deletedIds} onPause={props.onPausePlayback}
       onPlayPrepared={props.onPlayPrepared} onPrepareAudio={props.onPrepareAudio}
