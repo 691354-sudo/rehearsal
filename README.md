@@ -29,6 +29,7 @@ Server-side defaults are deliberately pinned by workload:
 - `gpt-5.6-sol` — Tutor conversation;
 - `gpt-5.6-terra` — material generation and review;
 - `gpt-5.6-luna` — small utility tasks;
+- `gpt-6-luna` with no reasoning — typed Active Recall checking (`OPENAI_RECALL_MODEL`);
 - `text-embedding-3-small` — semantic search;
 - `gpt-transcribe` — Russian voice-note transcription;
 - `tts-1-hd` with `onyx` — OpenAI speech fallback;

@@ -3,6 +3,7 @@ export type RecallCheck = {
   explanationRu: string;
   correctedAnswer: string;
   mistakes: Array<{ original: string; correction: string }>;
+  typos?: Array<{ original: string; correction: string }>;
 };
 
 const normalize = (text: string) => text.normalize("NFC").toLowerCase()

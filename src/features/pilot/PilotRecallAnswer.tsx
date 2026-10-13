@@ -34,7 +34,8 @@ export function PilotRecallAnswer({ profileId, attemptId, answer, reference, sav
     return () => { cancelled = true; };
   }, [profileId, attemptId, answer, retry, saved]);
   const oral = !answer.trim();
-  const verdict = oral ? "oral" : check?.verdict === "correct" && !matchesRecallAnswer(answer, [reference])
+  const comparisonAnswer = check?.typos?.length ? check.correctedAnswer : answer;
+  const verdict = oral ? "oral" : check?.verdict === "correct" && !matchesRecallAnswer(comparisonAnswer, [reference])
     ? "alternative" : check?.verdict ?? (failed ? "unavailable" : "checking");
   const Icon = oral ? Ear : verdict === "correct" ? CheckCircle2 : verdict === "alternative" ? CircleAlert : verdict === "incorrect" ? CircleX : failed ? WifiOff : Clock3;
   const title = oral ? "Compare your answer" : verdict === "correct" ? "Correct"
@@ -42,6 +43,7 @@ export function PilotRecallAnswer({ profileId, attemptId, answer, reference, sav
   return <div className={`pilot-answer-check pilot-answer-check--${verdict}`} role="status">
     <strong><Icon aria-hidden="true" size={18} />{title}</strong>
     {!oral ? <p lang={language}><RecallCheckedText answer={answer} mistakes={check?.mistakes ?? []} /></p> : null}
+    {check?.typos?.length ? <p className="pilot-check-explanation">Spelling: <span lang={language}>{check.typos.map((typo) => typo.correction).join(", ")}</span></p> : null}
     {verdict === "alternative" ? <p className="pilot-check-explanation">This works too. The card uses different wording.</p>
       : check ? check.verdict === "incorrect" ? <p className="pilot-check-explanation" lang="ru">{check.explanationRu}</p> : null
       : oral ? <p className="pilot-check-explanation">Compare your spoken answer with the card, then rate your memory.</p>

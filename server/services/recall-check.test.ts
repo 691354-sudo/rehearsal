@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiTestContext, type ApiTestContext } from "../testing/api-test-context.js";
 import { createRecallChecker } from "./recall-check.js";
 import { matchesRecallAnswer } from "../../contracts/recall-check.js";
+import { config } from "../config.js";
 
 describe("English semantic Recall checking", () => {
   let context: ApiTestContext;
@@ -26,7 +27,7 @@ describe("English semantic Recall checking", () => {
   it("accepts equivalent wording, deduplicates concurrent checks and rechecks an edited reference", async () => {
     const card = item(), attempt = randomUUID();
     const answer = "I love knowing how people see my work.";
-    const parse = vi.fn().mockResolvedValue({ status: "completed", output_parsed: { verdict: "correct", explanationRu: "Верно: смысл сохранён.", correctedAnswer: answer, mistakes: [] } });
+    const parse = vi.fn().mockResolvedValue({ status: "completed", output_parsed: { verdict: "correct", explanationRu: "Верно: смысл сохранён.", correctedAnswer: answer, mistakes: [], typos: [] } });
     const check = createRecallChecker({ responses: { parse } } as unknown as OpenAI, context.repository.aiUsage);
     const [one, two] = await Promise.all([check(card, answer, attempt), check(card, answer, attempt)]);
     expect(one).toEqual(two); expect(one).toMatchObject({ verdict: "correct", explanationRu: "", correctedAnswer: answer });
@@ -38,6 +39,8 @@ describe("English semantic Recall checking", () => {
     expect(request.instructions).toContain("Accept natural equivalent wording");
     expect(request.instructions).toContain("untrusted exercise data");
     expect(request.store).toBe(false);
+    expect(request.model).toBe(config.recallModel);
+    expect(request.reasoning).toEqual({ effort: "none" });
     expect(request.max_output_tokens).toBe(2000);
     expect(parse.mock.calls[0][1]).toEqual({ timeout: 20_000, maxRetries: 0 });
     await check({ ...card, target: "I dislike hearing about my work." }, answer, attempt);
@@ -50,19 +53,19 @@ describe("English semantic Recall checking", () => {
   it("accepts compact correct replies but requires an explanation and correction for errors", async () => {
     const card = item(), answer = "I love knowing how people see my work.";
     const parse = vi.fn().mockResolvedValue({ status: "completed", output_parsed: {
-      verdict: "correct", explanationRu: "", correctedAnswer: "", mistakes: [],
+      verdict: "correct", explanationRu: "", correctedAnswer: "", mistakes: [], typos: [],
     } });
     const check = createRecallChecker({ responses: { parse } } as unknown as OpenAI, context.repository.aiUsage);
     expect(await check(card, answer, randomUUID())).toEqual({ verdict: "correct", explanationRu: "", correctedAnswer: answer, mistakes: [] });
     parse.mockResolvedValue({ status: "completed", output_parsed: {
-      verdict: "incorrect", explanationRu: "", correctedAnswer: answer, mistakes: [],
+      verdict: "incorrect", explanationRu: "", correctedAnswer: answer, mistakes: [], typos: [],
     } });
     await expect(check(card, "I loves knowing how people see my work.", randomUUID())).rejects.toThrow("RECALL_CHECK_INVALID");
   });
   it("keeps cached checks private and invalidates changes to the answer, cue or accepted wording", async () => {
     const card = item(), answer = "I love knowing how people see my work.";
     const parse = vi.fn().mockResolvedValue({ status: "completed", output_parsed: {
-      verdict: "correct", explanationRu: "", correctedAnswer: "", mistakes: [],
+      verdict: "correct", explanationRu: "", correctedAnswer: "", mistakes: [], typos: [],
     } });
     const client = { responses: { parse } } as unknown as OpenAI;
     const check = createRecallChecker(client, context.repository.aiUsage);
@@ -81,17 +84,32 @@ describe("English semantic Recall checking", () => {
     const parse = vi.fn().mockRejectedValueOnce(new Error("timeout"))
       .mockResolvedValueOnce({ status: "incomplete", output_parsed: result })
       .mockResolvedValueOnce({ status: "completed", output_parsed: null })
-      .mockResolvedValueOnce({ status: "completed", output_parsed: { ...result, mistakes: [{ original: "invented", correction: "love" }] } })
-      .mockResolvedValue({ status: "completed", output_parsed: result });
+      .mockResolvedValueOnce({ status: "completed", output_parsed: { ...result, typos: [], mistakes: [{ original: "invented", correction: "love" }] } })
+      .mockResolvedValue({ status: "completed", output_parsed: { ...result, typos: [] } });
     const check = createRecallChecker({ responses: { parse } } as unknown as OpenAI, context.repository.aiUsage);
     for (let n = 0; n < 4; n++) await expect(check(card, answer, attempt)).rejects.toThrow();
     expect(await check(card, answer, attempt)).toEqual(result);
     expect(parse).toHaveBeenCalledTimes(5);
   });
+  it("accepts literal typing slips with a spelling note and rejects fabricated or missing corrections", async () => {
+    const card = item(), answer = "I love hearring how other people interpret my work.";
+    const typos = [{ original: "hearring", correction: "hearing" }];
+    const result = { verdict: "correct", explanationRu: "", correctedAnswer: card.target, mistakes: [], typos };
+    const parse = vi.fn().mockResolvedValue({ status: "completed", output_parsed: result });
+    const check = createRecallChecker({ responses: { parse } } as unknown as OpenAI, context.repository.aiUsage);
+    expect(await check(card, answer, randomUUID())).toEqual(result);
+    expect(parse.mock.calls[0][0].instructions).toContain("never in mistakes");
+    expect(parse.mock.calls[0][0].instructions).toContain("meaningful tones/diacritics");
+    parse.mockResolvedValueOnce({ status: "completed", output_parsed: { ...result, typos: [{ original: "invented", correction: "hearing" }] } });
+    await expect(check(card, answer + " ", randomUUID())).rejects.toThrow("RECALL_CHECK_INVALID");
+    parse.mockResolvedValueOnce({ status: "completed", output_parsed: { ...result, correctedAnswer: "" } });
+    await expect(check(card, answer + "  ", randomUUID())).rejects.toThrow("RECALL_CHECK_INVALID");
+    expect(context.repository.pilot.store.review(card.publicId)).toBeNull();
+  });
   it("bounds cached results while retaining recent reuse and keeping local matches out of the cache", async () => {
     const card = item();
     const parse = vi.fn().mockResolvedValue({ status: "completed", output_parsed: {
-      verdict: "correct", explanationRu: "", correctedAnswer: "", mistakes: [],
+      verdict: "correct", explanationRu: "", correctedAnswer: "", mistakes: [], typos: [],
     } });
     const check = createRecallChecker({ responses: { parse } } as unknown as OpenAI, context.repository.aiUsage);
     for (let n = 0; n < 512; n++) await check(card, `Alternative ${n}`, randomUUID());

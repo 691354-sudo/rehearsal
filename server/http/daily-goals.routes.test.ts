@@ -70,6 +70,9 @@ it("credits only successful server checks, once per attempt, never oral self rat
     expect(repo.goals.snapshot().today.counts.recall).toBe(1);
     check.mockResolvedValueOnce({ verdict: "correct", explanationRu: "Другой правильный вариант", correctedAnswer: "A valid alternative.", mistakes: [] });
     expect((await app.inject({ ...request, payload: { attemptId: attempt(), answer: "A valid alternative." } })).statusCode).toBe(200);
+    check.mockResolvedValueOnce({ verdict: "correct", explanationRu: "", correctedAnswer: card.target, mistakes: [],
+      typos: [{ original: "typpo", correction: "typo" }] });
+    expect((await app.inject({ ...request, payload: { attemptId: attempt(), answer: "A typpo." } })).statusCode).toBe(200);
     check.mockResolvedValueOnce({ verdict: "incorrect", explanationRu: "Ошибка", correctedAnswer: card.target, mistakes: [] });
     expect((await app.inject({ ...request, payload: { attemptId: attempt(), answer: "wrong" } })).statusCode).toBe(200);
     check.mockRejectedValueOnce(new Error("provider unavailable"));
@@ -77,6 +80,6 @@ it("credits only successful server checks, once per attempt, never oral self rat
     const now = new Date().toISOString();
     expect((await app.inject({ method: "POST", url: "/api/pilot/attempts/grade", payload: { attemptId: attempt(),
       rating: "easy", revealedAt: now, ratedAt: now, responseTimeMs: 0, inputMode: "oral_self_check", answer: "" } })).statusCode).toBe(200);
-    expect(repo.goals.snapshot().today.counts.recall).toBe(2);
+    expect(repo.goals.snapshot().today.counts.recall).toBe(3);
   } finally { await app.close(); vi.restoreAllMocks(); context.close(); }
 });
