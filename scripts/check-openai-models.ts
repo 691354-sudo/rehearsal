@@ -10,6 +10,7 @@ const routing = {
   tutor: config.tutorModel,
   balanced: config.balancedModel,
   utility: config.utilityModel,
+  recall: config.recallModel,
 };
 const candidates = [...new Set(Object.values(routing))];
 for (const model of candidates) {

@@ -60,6 +60,7 @@ export const config = {
   openaiApiKey: process.env.OPENAI_API_KEY?.trim() || "",
   tutorModel: process.env.OPENAI_TUTOR_MODEL || process.env.OPENAI_CHAT_MODEL || "gpt-5.6-sol",
   utilityModel: process.env.OPENAI_UTILITY_MODEL || "gpt-5.6-luna",
+  recallModel: process.env.OPENAI_RECALL_MODEL || "gpt-6-luna",
   balancedModel: process.env.OPENAI_BALANCED_MODEL || "gpt-5.6-terra",
   embeddingModel: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
   embeddingDimensions: numberFromEnv(process.env.OPENAI_EMBEDDING_DIMENSIONS, 512),

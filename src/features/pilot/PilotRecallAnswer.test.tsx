@@ -35,6 +35,24 @@ describe("Recall answer feedback", () => {
     expect(markup).toContain("<mark>");
     expect(markup).toContain("pilot-check-correction");
   });
+  it("accepts a typo in green with a quiet spelling note and no error highlights", () => {
+    const markup = render(reference.replace("follow", "folow"), { ...correct,
+      typos: [{ original: "folow", correction: "follow" }] });
+    expect(markup).toContain("pilot-answer-check--correct");
+    expect(markup).toContain("Spelling:");
+    expect(markup).toContain('lang="en">follow');
+    expect(markup).not.toContain("Needs a correction");
+    expect(markup).not.toContain("<mark>");
+    expect(markup).not.toContain("pilot-check-correction");
+  });
+  it("keeps alternative wording amber after correcting a typo", () => {
+    const markup = render("I don't understand - can you reprhase it?", { ...correct,
+      correctedAnswer: "I don't understand - can you rephrase it?",
+      typos: [{ original: "reprhase", correction: "rephrase" }] });
+    expect(markup).toContain("pilot-answer-check--alternative");
+    expect(markup).toContain("Spelling:");
+    expect(markup).not.toContain("<mark>");
+  });
   it("keeps oral and pending checks neutral", () => {
     expect(render("")).toContain("pilot-answer-check--oral");
     expect(render("Another wording.")).toContain("pilot-answer-check--checking");
