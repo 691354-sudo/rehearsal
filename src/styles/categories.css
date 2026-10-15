@@ -4,7 +4,7 @@
 .category-chips, .category-picker-actions, .card-topic-field > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .category-chips button, .category-picker-actions button, .card-topic-field button {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  min-height: 44px; padding: 8px 10px; color: var(--script-ink); font: inherit;
+  min-height: 44px; padding: 8px 10px; color: var(--script-ink); font: inherit; font-size: var(--fs-control);
   background: transparent; border: 1px solid var(--script-rule); border-radius: 7px;
 }
 .category-chips .category-chip { max-width: 100%; background: var(--control-fill); overflow-wrap: anywhere; text-align: left; }
@@ -52,9 +52,5 @@
 .card-actions-menu button:hover { background: var(--control-fill); }
 .card-actions-menu .topic-danger { color: var(--retry); }
 @media (max-width: 480px) {
-  .simple-card-dialog-fields input, .simple-card-dialog-fields select { font-size: 16px; }
-  .simple-card-dialog footer { flex-wrap: wrap; gap: 6px; }
-  .simple-card-dialog footer > div { margin-left: auto; }
-  .simple-card-dialog footer button { min-height: 44px; }
   .category-picker { padding: 10px; }
 }

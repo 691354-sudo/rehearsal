@@ -34,9 +34,9 @@ describe("Listen player surface", () => {
     const noop = () => undefined;
     const markup = renderToStaticMarkup(<PilotProvider profileId="test" language="en" onChange={() => undefined}><ListenPlayerSurface current={item} editActive={false} error="" index={0} language="en" note=""
       onEdit={noop} onExit={noop} onNext={noop} onPause={noop} onPrevious={noop} onReplay={noop} onResume={noop}
-      onRetryPreparation={noop} onShuffle={noop} onToggleRepeat={noop} onToggleRussian={noop} onToggleSettings={noop}
+      onRetryPreparation={noop} onShuffle={noop} onToggleRepeat={noop} onToggleRussian={noop} onToggleSettings={noop} onPlayback={noop}
       playback={defaultPlayback} playbackSettings={null} preparationError="" preparationTotal={1} previousDisabled
-      queueLength={1} readyCount={1} repeatMode="off" shuffleEnabled selectedTopicName="Personal stories" selectedVoiceName="Justin Time"
+      queueLength={1} readyCount={1} repeatMode="off" shuffleEnabled selectedTopicName="Personal stories"
       showPlaybackSettings={false} showRussian={false} status="playing" /></PilotProvider>);
 
     const promptRowStart = markup.indexOf("listen-prompt-row");

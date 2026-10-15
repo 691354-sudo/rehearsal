@@ -246,14 +246,20 @@
 }
 
 .practice-modes a {
-  min-height: var(--h-chip);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--h-control);
   padding: 0 12px;
+  color: var(--script-support);
+  font-size: 13px;
+  font-weight: 500;
   border-radius: 7px;
 }
 
 .practice-modes a.is-active {
-  color: var(--rh-ink);
-  background: var(--rh-raised);
+  color: var(--rh-note);
+  background: var(--rh-wash);
   border-color: transparent;
 }
 

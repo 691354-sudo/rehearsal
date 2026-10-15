@@ -25,8 +25,7 @@
   font-size: 12px;
 }
 
-.simple-filter-popover select,
-.simple-library-tools select {
+.simple-filter-popover select {
   min-height: var(--h-control);
   padding: 0 9px;
   color: var(--script-ink);

@@ -2,6 +2,8 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { ArrowLeft, Pause, Play, Settings2, SkipBack, SkipForward } from "lucide-react";
 import { CardActions } from "../library/CardActions";
 import { ShuffleButton } from "./ShuffleButton";
+import { RepetitionsButton } from "./RepetitionsButton";
+import { usePlaybackSettingsReveal } from "./usePlaybackSettingsReveal";
 import type { Language, LearningItem, PlaybackPreferences } from "../../shared/contracts";
 import { FocusedText } from "../progress/FocusedText";
 import { RepeatModeButton } from "./RepeatModeButton";
@@ -28,6 +30,7 @@ export function ListenPlayerSurface(props: {
   onToggleRepeat: () => void;
   onToggleRussian: () => void;
   onToggleSettings: () => void;
+  onPlayback: (playback: PlaybackPreferences) => void;
   playback: PlaybackPreferences;
   playbackSettings: ReactNode;
   preparationError: string;
@@ -38,14 +41,14 @@ export function ListenPlayerSurface(props: {
   repeatMode: RepeatMode;
   shuffleEnabled: boolean;
   selectedTopicName: string;
-  selectedVoiceName: string;
   showPlaybackSettings: boolean;
   showRussian: boolean;
   status: "playing" | "paused" | "error";
 }) {
   const surfaceRef = useRef<HTMLElement>(null);
+  const settingsRef = usePlaybackSettingsReveal(props.showPlaybackSettings);
   useEffect(() => {
-    if (props.editActive) return;
+    if (props.editActive || props.showPlaybackSettings) return;
     const frame = window.requestAnimationFrame(() => {
       const active = document.activeElement;
       if (active instanceof HTMLElement && active !== surfaceRef.current) active.blur();
@@ -53,7 +56,7 @@ export function ListenPlayerSurface(props: {
       surfaceRef.current?.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [props.editActive]);
+  }, [props.editActive, props.showPlaybackSettings]);
   return <section className={`listen-player${props.showPlaybackSettings ? " is-settings-open" : ""}`} aria-label="Listen and Repeat player"
     ref={surfaceRef} tabIndex={-1}>
     <header><button aria-label="Back to selection" className="listen-exit" onClick={props.onExit} type="button"><ArrowLeft aria-hidden="true" size={18} /></button>
@@ -67,19 +70,20 @@ export function ListenPlayerSurface(props: {
       <button className="listen-russian" onClick={props.onToggleRussian} type="button">{props.showRussian ? "Hide Russian" : "Show Russian"}</button>
       <ListenLike item={props.current} /></article>
     <div className="listen-player-dock"><div className="listen-controls">
-      <ShuffleButton enabled={props.shuffleEnabled} onClick={props.onShuffle} size={18} />
+      <div className="listen-transport-controls">
       <button aria-label="Previous" disabled={props.previousDisabled} onClick={props.onPrevious} type="button"><SkipBack aria-hidden="true" fill="currentColor" size={17} /></button>
       <button aria-label={props.status === "paused" ? "Play" : "Pause"} className="listen-main-control" onClick={props.status === "paused" ? props.onResume : props.onPause} type="button">
         {props.status === "paused" ? <Play aria-hidden="true" fill="currentColor" size={19} /> : <Pause aria-hidden="true" fill="currentColor" size={19} />}</button>
       <button aria-label="Next" onClick={props.onNext} type="button"><SkipForward aria-hidden="true" fill="currentColor" size={17} /></button>
+      </div><div className="listen-options-controls">
+      <ShuffleButton enabled={props.shuffleEnabled} onClick={props.onShuffle} size={18} />
+      <RepetitionsButton playback={props.playback} onPlayback={props.onPlayback} />
       <RepeatModeButton mode={props.repeatMode} onClick={props.onToggleRepeat} size={18} />
-      <button aria-expanded={props.showPlaybackSettings} aria-label="Voice settings" className={props.showPlaybackSettings ? "is-active" : ""}
+      <button aria-expanded={props.showPlaybackSettings} aria-controls="listen-player-settings" aria-label="Voice settings" className={`listen-settings-toggle${props.showPlaybackSettings ? " is-active" : ""}`}
         onClick={props.onToggleSettings} title="Voice settings" type="button"><Settings2 aria-hidden="true" size={18} /></button>
-    </div><div className="listen-player-chips" aria-label="Current playback settings">
-      <span>{props.playback.speed.toFixed(2)}×</span><span>Adaptive pause</span><span>{props.selectedVoiceName}</span>
-    </div></div>
-    {props.showPlaybackSettings ? <div className="listen-player-settings" aria-label="Voice settings">
-      {props.playbackSettings}<small>Changes apply to the next card and prepare a new stack variant.</small>
+      </div></div></div>
+    {props.showPlaybackSettings ? <div className="listen-player-settings" id="listen-player-settings" aria-label="Voice settings" role="group" ref={settingsRef} tabIndex={-1}>
+      {props.playbackSettings}<small>Changes apply to the next card.</small>
     </div> : null}
     {props.preparationError ? <p className="listen-preparation-error" role="status">Pocket preparation paused. {props.preparationError} <button onClick={props.onRetryPreparation} type="button">Retry preparation</button></p> : null}
     {props.error ? <p className="listen-error" role="alert">{props.error} <button onClick={props.onReplay} type="button">Retry</button></p> : null}

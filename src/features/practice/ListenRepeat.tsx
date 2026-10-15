@@ -18,7 +18,7 @@ import {
   playbackIdentity, preparationBody, reorderRemainingQueue, shuffleQueue,
   type AudioPreparationJob, type PreparedAudio, type RepeatMode,
 } from "../audio/listenAudio";
-import { PlaybackSettings, voiceDisplayName } from "./PlaybackSettings";
+import { PlaybackSettings } from "./PlaybackSettings";
 import { buildLibrarySelection, type PracticeScope } from "./practiceSelection";
 import { ListenPlayerSurface } from "./ListenPlayerSurface";
 import { useTelegramPlaybackPause } from "./useTelegramPlaybackPause";
@@ -112,12 +112,6 @@ export function ListenRepeat(props: {
     ? { ...composition, new: composition.new + 1 }
     : { ...composition, due: composition.due + 1 }, { due: 0, new: 0 });
   const current = queue[index];
-  const compatibleElevenLabsVoices = props.elevenLabs.voicesByLanguage[props.language] || [];
-  const selectedElevenLabsVoice = compatibleElevenLabsVoices.find(
-    (voice) => voice.id === props.playback.elevenlabs.voiceId,
-  ) || compatibleElevenLabsVoices[0] || { id: "", name: "No compatible voice" };
-  const selectedVoiceName = voiceDisplayName(props.playback.provider === "elevenlabs"
-    ? selectedElevenLabsVoice.name : props.playback.voice);
   const selectedTopicName = props.topics.find((topic) => topic.publicId === props.topicId)?.title || (props.topicId ? "Selected set" : "All cards");
   const playbackSettings = <PlaybackSettings elevenLabs={props.elevenLabs} language={props.language}
     onPlayback={props.onPlayback} playback={props.playback} voices={props.voices} />;
@@ -437,8 +431,8 @@ export function ListenRepeat(props: {
     onEdit={editCurrent} onDelete={props.onDelete ? () => props.onDelete?.(current) : undefined} onExit={stop} onNext={next} onPause={pause} onPrevious={previous} onReplay={replay} onResume={resume}
     onRetryPreparation={() => { void beginPreparation(queue, playbackRef.current, current).catch(() => undefined); }}
     onShuffle={shuffle} onToggleRepeat={cycleRepeat} onToggleRussian={() => setShowRussian((shown) => !shown)}
-    onToggleSettings={() => setShowPlaybackSettings((shown) => !shown)} playback={props.playback} playbackSettings={playbackSettings}
+    onToggleSettings={() => setShowPlaybackSettings((shown) => !shown)} onPlayback={props.onPlayback} playback={props.playback} playbackSettings={playbackSettings}
     preparationError={preparationError} preparationTotal={preparationTotal} previousDisabled={index === 0 && repeatMode !== "all"}
     queueLength={queue.length} readyCount={readyCount} repeatMode={repeatMode} shuffleEnabled={shuffleEnabled} selectedTopicName={selectedTopicName}
-    selectedVoiceName={selectedVoiceName} showPlaybackSettings={showPlaybackSettings} showRussian={showRussian} status={status} />;
+    showPlaybackSettings={showPlaybackSettings} showRussian={showRussian} status={status} />;
 }
