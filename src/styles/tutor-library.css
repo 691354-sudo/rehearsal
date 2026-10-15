@@ -513,7 +513,6 @@
 .simple-file-button,
 .simple-voice-page { min-height: var(--h-control); }
 
-.practice-modes a,
 .simple-tutor-mode a {
   display: inline-flex;
   align-items: center;
@@ -525,9 +524,8 @@
   border-radius: 7px;
 }
 
-.practice-modes a.is-active,
 .simple-tutor-mode a.is-active {
-  color: var(--accent-hover);
+  color: var(--rh-note);
   background: var(--cue-wash);
 }
 

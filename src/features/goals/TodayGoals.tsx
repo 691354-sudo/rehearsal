@@ -4,7 +4,7 @@ import { useGoals } from "./GoalsProvider";
 import { AppLink } from "../../app/AppLink";
 
 export const goalLabels: Record<DailyGoalKind, string> = {
-  listen: "Listen & Repeat", recall: "Correct recall", tutor: "Tutor practice",
+  listen: "Listen", recall: "Recall", tutor: "Tutor",
 };
 export const dayStatus = (day: DailyGoalDay) => day.allReached ? "Daily goals complete"
   : day.anyReached ? "Streak secured" : "Reach one goal to keep your streak";
@@ -37,15 +37,13 @@ export function GoalsSync() {
 }
 
 export function TodayGoals({ active, kind }: { active: boolean; kind: "listen" | "recall" }) {
-  const { data, error, open, goalRoute, celebrating } = useGoals();
+  const { data, error, open, celebrating } = useGoals();
   if (!data) return <section className="goals-today goals-intro" aria-label="Today’s goals"><span>{error ? "Daily goals unavailable" : "Loading daily goals…"}</span><GoalsSync /></section>;
   if (!data.startedAt) return <section className="goals-today goals-intro" aria-label="Today’s goals">
     <div><strong>Make practice a daily habit</strong><p>Set your goals. Reach one to build your streak.</p></div>
     <button className="goals-link" onClick={open} type="button">Set daily goals <ArrowRight size={15} aria-hidden="true" /></button>
   </section>;
   const day = data.today;
-  const next = dailyGoalKinds.find((goal) => day.settings[goal].enabled && day.counts[goal] < day.settings[goal].target);
-  const nextRoute = next ? goalRoute(next) : null;
   if (active) return <section className={`goals-today goals-compact${celebrating ? " is-celebrating" : ""}`} aria-label="Today’s goals">
     <button onClick={open} type="button"><span role="status">{celebrating ? "Daily goals complete" : `Today · ${goalLabels[kind]}`}</span>
       <strong>{day.counts[kind]}{day.settings[kind].enabled ? ` / ${day.settings[kind].target}` : " · goal off"}</strong>
@@ -54,9 +52,7 @@ export function TodayGoals({ active, kind }: { active: boolean; kind: "listen" |
   return <section className={`goals-today${celebrating ? " is-celebrating" : ""}`} aria-labelledby="today-goals-title">
     <div className="goals-today-heading"><h2 id="today-goals-title">Today</h2><button className="goals-link" onClick={open} type="button">View goals</button></div>
     <GoalRows day={day} />
-    <div className="goals-today-footer"><p role="status">{dayStatus(day)}{!day.allReached ? ` · ${day.completedGoals} of ${day.enabledGoals} goals complete` : " ✓"}</p>
-      {next && nextRoute ? <AppLink className="goals-link" route={nextRoute}>
-        Continue {next === "listen" ? "Listening" : next === "recall" ? "Recall" : "Tutor"} <ArrowRight size={15} aria-hidden="true" /></AppLink> : null}</div>
+    <div className="goals-today-footer"><p role="status">{dayStatus(day)}</p></div>
     <GoalsSync />
   </section>;
 }

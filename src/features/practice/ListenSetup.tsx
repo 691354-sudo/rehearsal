@@ -2,6 +2,8 @@ import {usePilot} from "../pilot/PilotProvider";
 import { useState, type ComponentProps, type ReactNode } from "react";
 import { Play, Settings2 } from "lucide-react";
 import { ShuffleButton } from "./ShuffleButton";
+import { RepetitionsButton } from "./RepetitionsButton";
+import { usePlaybackSettingsReveal } from "./usePlaybackSettingsReveal";
 import type { ListenRepeat } from "./ListenRepeat";
 import type { LearningItem } from "../../shared/contracts";
 import type { PracticeCardCount, PracticeOrder } from "../../lib/appRoute";
@@ -29,6 +31,7 @@ export function ListenSetup({ props, recommendations, visibleCandidates, visible
   start: () => Promise<void>;
 }) {
   const pilot=usePilot();
+  const settingsRef = usePlaybackSettingsReveal(showPlaybackSettings);
   const [requested, setRequested] = useState<string | null>(null);
   const requestedStage = requested ? pilot.progress[requested]?.learningStage : null;
   const unavailable = props.scope === "due" && (recommendations.loading || Boolean(recommendations.error));
@@ -49,11 +52,12 @@ export function ListenSetup({ props, recommendations, visibleCandidates, visible
           onChange={(event) => props.onOrder(event.target.value as PracticeOrder)} value={props.order}>
           <option value="original">{props.topicId ? "Original order" : "Oldest first"}</option><option value="newest">Newest first</option></select></label> : null}
       </div>
-      {showPlaybackSettings ? <div className="listen-setup-playback">{playbackSettings}</div> : null}
+      {showPlaybackSettings ? <div className="listen-setup-playback" id="listen-setup-settings" aria-label="Playback settings" role="group" ref={settingsRef} tabIndex={-1}>{playbackSettings}</div> : null}
       <div className="listen-start-options">
         <RepeatModeButton mode={repeatMode} onClick={cycleRepeat} size={17} />
         <ShuffleButton enabled={shuffleEnabled} onClick={shuffle} size={17} />
-        <button aria-expanded={showPlaybackSettings} aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
+        <RepetitionsButton playback={props.playback} onPlayback={props.onPlayback} />
+        <button aria-expanded={showPlaybackSettings} aria-controls="listen-setup-settings" aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
           onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Playback settings" type="button"><Settings2 size={17} /></button>
         {!unavailable ? <span>{visibleComposition.due} started · {visibleComposition.new} new</span> : null}
       </div>

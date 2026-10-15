@@ -294,9 +294,9 @@
   width: fit-content;
   max-width: 100%;
   padding: 0;
-  color: var(--cue-light);
-  font-size: 12px;
-  font-weight: 600;
+  color: var(--rh-note);
+  font-size: var(--fs-control);
+  font-weight: 450;
   background: transparent;
   border: 0;
   text-align: left;

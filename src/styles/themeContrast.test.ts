@@ -53,6 +53,7 @@ describe.each([
     ["on-accent", "accent", 4.5],
     ["learned", "surface", 4.5],
     ["note", "surface", 4.5],
+    ["note", "accent-wash", 4.5],
   ])("keeps %s on %s at or above %s:1", (foreground, background, minimum) => {
     expect(contrast(tokens[foreground], tokens[background])).toBeGreaterThanOrEqual(minimum);
   });

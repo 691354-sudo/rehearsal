@@ -270,7 +270,7 @@ export function GlobalSettings(props: {
           <div className="simple-settings-section-title"><h3>Voice</h3></div>
           <div className="simple-provider-switch" role="group" aria-label="Voice provider">
             {availableProviders.map((provider) => <button
-              className={props.playback.provider === provider ? "is-active" : ""}
+              aria-pressed={props.playback.provider === provider} className={props.playback.provider === provider ? "is-active" : ""}
               key={provider}
               onClick={() => applyPlayback({ ...props.playback, provider })}
               type="button"
@@ -310,10 +310,10 @@ export function GlobalSettings(props: {
                   </button> : null}
                 </div>
                 <div className="simple-model-choice">
-                  <span>Model</span><div>
-                    {!requiresStrictElevenLabs(props.language) ? <button className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
+                  <span>Model</span><div role="group" aria-label="Voice model">
+                    {!requiresStrictElevenLabs(props.language) ? <button aria-pressed={props.playback.elevenlabs.modelId === "eleven_multilingual_v2"} className={props.playback.elevenlabs.modelId === "eleven_multilingual_v2" ? "is-active" : ""}
                       onClick={() => updateElevenLabs("modelId", "eleven_multilingual_v2")} type="button">Quality</button> : null}
-                    <button className={props.playback.elevenlabs.modelId === "eleven_flash_v2_5" ? "is-active" : ""}
+                    <button aria-pressed={props.playback.elevenlabs.modelId === "eleven_flash_v2_5"} className={props.playback.elevenlabs.modelId === "eleven_flash_v2_5" ? "is-active" : ""}
                       onClick={() => updateElevenLabs("modelId", "eleven_flash_v2_5")} type="button">Fast</button>
                   </div>
                 </div>
@@ -337,8 +337,8 @@ export function GlobalSettings(props: {
             onChange={(event) => applyPlayback({ ...props.playback, playAfterRecall: event.target.checked })} type="checkbox" />
             <span><strong>Play answer after checking</strong><small>Recall only</small></span></label>
           <div className="simple-global-playback">
-            <div className="simple-global-setting"><label>Repeats</label><div>
-              {[1, 2, 3, 5].map((value) => <button className={props.playback.repetitions === value ? "is-active" : ""}
+            <div className="simple-global-setting"><label>Repeats</label><div role="group" aria-label="Repeats">
+              {[1, 2, 3, 5].map((value) => <button aria-pressed={props.playback.repetitions === value} className={props.playback.repetitions === value ? "is-active" : ""}
                 key={value} onClick={() => applyPlayback({ ...props.playback, repetitions: value })} type="button">{value}×</button>)}
             </div></div>
             <label className="simple-global-setting simple-global-speed"><span>Speed <strong>{props.playback.speed.toFixed(2)}×</strong></span>

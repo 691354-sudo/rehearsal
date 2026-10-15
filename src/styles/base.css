@@ -185,11 +185,13 @@ html[data-theme="dark"]:has(.profile-gate--pilot-theme) { color-scheme: dark; }
 .simple-app input,
 .simple-app textarea { caret-color: var(--cue-action); }
 
-.simple-app button,
-.simple-app input,
-.simple-app select,
-.simple-app textarea {
+.simple-app :where(button, input, select, textarea) {
   font: inherit;
+}
+
+.simple-app :where(button, select) {
+  font-size: var(--fs-control);
+  font-weight: 400;
 }
 
 .simple-app button {
@@ -327,7 +329,7 @@ html[data-theme="dark"]:has(.profile-gate--pilot-theme) { color-scheme: dark; }
 }
 
 .simple-nav a.is-active {
-  color: var(--accent-hover);
+  color: var(--rh-note);
   font-weight: 600;
   background: var(--cue-wash);
 }
@@ -468,8 +470,8 @@ html[data-theme="dark"]:has(.profile-gate--pilot-theme) { color-scheme: dark; }
   min-height: var(--h-control);
   padding: 0 13px;
   color: var(--cue-on);
-  font-size: 13px;
-  font-weight: 550;
+  font-size: var(--fs-control);
+  font-weight: 500;
   background: var(--cue-action);
   border: 1px solid var(--cue-action);
 }
@@ -560,6 +562,7 @@ html[data-theme="dark"]:has(.profile-gate--pilot-theme) { color-scheme: dark; }
   --pad-x: 20px;
   --gap: 12px;
   --fs-body: 15px;
+  --fs-control: 14px;
   --col: 720px;
 }
 
