@@ -61,7 +61,7 @@ export function DailyGoalsPanel({ onClose }: { onClose: () => void }) {
           }}>Cancel editing</button> : null}
         </> : day ? <>
           <div className="goals-panel-progress"><h3>{day.date === data.today.date ? "Today" : dateLabel(day.date)}</h3>
-            <p role="status">{dayStatus(day)}</p><GoalRows day={day} interactive={day.date === data.today.date} /></div>
+            {day.anyReached ? <p role="status">{dayStatus(day)}</p> : null}<GoalRows day={day} interactive={day.date === data.today.date} /></div>
           <GoalsSync />
           <div className="goals-records"><div><strong>{data.streak}</strong><span>Current streak</span></div>
             <div><strong>{data.bestStreak}</strong><span>Best streak</span></div><div><strong>{data.fullDays}</strong><span>Full days</span></div></div>

@@ -29,7 +29,7 @@ The profile gate shows the PIN form only after profile choices are loaded, excep
 
 IndexedDB stores at most one unsent Capture recording per profile and language. The Blob is written before upload and removed only after the server confirms success or the user explicitly deletes it. Generated audio and credentials are not placed in offline storage. The learning pipeline additionally persists only its active Recall draft, paused Listen queue, idempotent pending events, timing intervals and feedback draft under profile/language-scoped keys; the API remains authoritative.
 
-Styles follow the same ownership boundaries under `src/styles`. `base.css` owns tokens and global controls, domain files own their screens and local responsive states, and `responsive.css` contains cross-domain viewport adjustments. Global font resets use low specificity so component typography wins; category styles must not override card-dialog fields. The removed prototype is not a runtime route or architectural fallback.
+Styles follow the same ownership boundaries under `src/styles`. `base.css` owns tokens and global controls, domain files own their screens and local responsive states, and `responsive.css` contains cross-domain viewport adjustments. Global font resets use low specificity so component typography wins; category styles must not override card-dialog fields. Practice Topic, card-count and order controls share `PracticePicker` listbox behavior and menu styling. The removed prototype is not a runtime route or architectural fallback.
 
 ## Server modules
 

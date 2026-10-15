@@ -7,7 +7,7 @@ export const goalLabels: Record<DailyGoalKind, string> = {
   listen: "Listen", recall: "Recall", tutor: "Tutor",
 };
 export const dayStatus = (day: DailyGoalDay) => day.allReached ? "Daily goals complete"
-  : day.anyReached ? "Streak secured" : "Reach one goal to keep your streak";
+  : day.anyReached ? "Streak secured" : "";
 
 export function StreakButton({ className = "" }: { className?: string }) {
   const { data, open } = useGoals();
@@ -52,7 +52,7 @@ export function TodayGoals({ active, kind }: { active: boolean; kind: "listen" |
   return <section className={`goals-today${celebrating ? " is-celebrating" : ""}`} aria-labelledby="today-goals-title">
     <div className="goals-today-heading"><h2 id="today-goals-title">Today</h2><button className="goals-link" onClick={open} type="button">View goals</button></div>
     <GoalRows day={day} />
-    <div className="goals-today-footer"><p role="status">{dayStatus(day)}</p></div>
+    {day.anyReached ? <div className="goals-today-footer"><p role="status">{dayStatus(day)}</p></div> : null}
     <GoalsSync />
   </section>;
 }
