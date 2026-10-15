@@ -42,7 +42,6 @@
 .category-browser span { color: var(--script-support); font-size: 14px; }
 .categories-manager .topics-flow-header h2 { overflow-wrap: anywhere; }
 .category-name-form .simple-primary { justify-self: start; }
-.practice-set-group { padding: 18px 12px 5px; color: var(--script-support); font-size: 12px; font-weight: 500; }
 .topic-progress-options strong { overflow-wrap: anywhere; }
 .card-actions-menu { position: fixed; z-index: 1500; display: grid; min-width: 170px; max-width: calc(100vw - 16px); padding: 5px;
   background: var(--script-surface); border: 1px solid var(--script-rule-strong); border-radius: 8px; box-shadow: 0 8px 30px color-mix(in srgb, var(--rh-ink) 18%, transparent); }

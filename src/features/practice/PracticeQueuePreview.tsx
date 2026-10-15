@@ -21,6 +21,7 @@ export function PracticeQueuePreview(props: {
   onListened?: (itemId: string) => Promise<void>;
   onPlay: (item: LearningItem) => Promise<unknown>;
   scope: PracticeScope;
+  composition?: { due: number; new: number };
 }) {
   const [playError, setPlayError] = useState("");
   const [visibleCount, setVisibleCount] = useState(10);
@@ -33,7 +34,8 @@ export function PracticeQueuePreview(props: {
   return <section className={`practice-queue-preview practice-queue-preview--${props.mode}`} aria-label="Selected cards">
     <header>
       <strong>{props.mode === "listen" ? "In this session" : props.scope === "due" ? "Recommended now" : "Library selection"}</strong>
-      <span>{props.items.length} {props.items.length === 1 ? "card" : "cards"}</span>
+      <span>{props.composition ? [props.composition.due ? `${props.composition.due} started` : "", props.composition.new ? `${props.composition.new} new` : ""].filter(Boolean).join(" · ") || "0 cards"
+        : `${props.items.length} ${props.items.length === 1 ? "card" : "cards"}`}</span>
     </header>
     {playError ? <p role="alert">{playError}</p> : null}
     {props.items.length ? <ol>

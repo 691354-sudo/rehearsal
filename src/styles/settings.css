@@ -53,11 +53,11 @@
   min-height: var(--h-control);
   padding: 0 13px;
   color: var(--script-ink);
-  font-size: 12px;
-  font-weight: 620;
+  font-size: var(--fs-control);
+  font-weight: 500;
   background: var(--script-inset);
   border: 1px solid var(--script-rule);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 .simple-invite-create {
@@ -257,11 +257,11 @@
 .simple-provider-switch button {
   min-height: var(--h-control);
   color: var(--script-support);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-control);
+  font-weight: 500;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .simple-provider-switch button.is-active {
@@ -516,10 +516,10 @@
   height: var(--h-control);
   padding: 0 5px;
   color: var(--script-support);
-  font-size: 12px;
+  font-size: var(--fs-control);
   background: var(--script-inset);
   border: 1px solid var(--script-rule);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .simple-global-setting button.is-active {
@@ -680,11 +680,11 @@
   min-height: var(--h-control);
   padding: 0 14px;
   color: var(--cue-on);
-  font-size: 12px;
-  font-weight: 620;
+  font-size: var(--fs-control);
+  font-weight: 500;
   background: var(--cue-action);
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
 }
 
 .simple-settings-save:disabled {

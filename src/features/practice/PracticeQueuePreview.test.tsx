@@ -28,6 +28,13 @@ const item = {
 } satisfies LearningItem;
 
 describe("Practice queue preview", () => {
+  it.each([
+    [0, 1, "1 new"], [1, 2, "1 started · 2 new"], [0, 0, "0 cards"],
+  ])("keeps the Listen composition visible for %s started and %s new", (due, fresh, expected) => {
+    const markup = renderToStaticMarkup(<PracticeQueuePreview sets={[]} items={Array.from({ length: Number(due) + Number(fresh) }, (_, index) => ({ ...item, publicId: `card-${index}` }))}
+      language="en" mode="listen" scope="due" composition={{ due: Number(due), new: Number(fresh) }} onEdit={() => undefined} onPlay={async () => undefined} />);
+    expect(markup.slice(0, markup.indexOf("</header>"))).toContain(`<span>${expected}</span>`);
+  });
   it("uses the same compact progress and action row for Listen cards", () => {
     const markup = renderToStaticMarkup(<PracticeQueuePreview sets={[]} items={[item]} language="en" mode="listen"
       onEdit={() => undefined} onPlay={async () => undefined} scope="custom" />);

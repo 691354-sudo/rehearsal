@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
-export type PracticeOption = { value: string; label: string; detail?: ReactNode; group?: string };
+export type PracticeOption = { value: string; label: string; menuLabel?: string; detail?: ReactNode; group?: string };
 
 export function pickerTarget(labels: string[], current: number, key: string) {
   if (!labels.length) return null;
@@ -78,7 +78,8 @@ export function PracticePicker({ children, className = "", label, onChange, opti
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     const buttons = [...(menu.current?.querySelectorAll<HTMLButtonElement>("[role=option]") || [])];
     const current = Math.max(0, buttons.indexOf(document.activeElement as HTMLButtonElement));
-    const next = pickerTarget(options.map((option) => option.label), current, event.key);
+    const next = pickerTarget(options.map((option) => option.menuLabel || option.label), current, event.key)
+      ?? pickerTarget(options.map((option) => option.label), current, event.key);
     if (next === null) return;
     event.preventDefault(); buttons[next]?.focus();
   };
@@ -92,8 +93,8 @@ export function PracticePicker({ children, className = "", label, onChange, opti
     {open ? <div aria-label={label} className="topic-progress-options" id={id} ref={menu} role="listbox">
       {options.map((option) => <Fragment key={option.value}>
         {option.group ? <div className="practice-set-group" role="presentation">{option.group}</div> : null}
-        <button aria-selected={option.value === value} onClick={() => { onChange(option.value); close(); }} role="option" tabIndex={-1} type="button">
-          <span><strong>{option.label}</strong>{option.detail}</span>{option.value === value ? <Check aria-hidden="true" size={15} /> : null}
+        <button aria-label={option.menuLabel ? option.label : undefined} aria-selected={option.value === value} onClick={() => { onChange(option.value); close(); }} role="option" tabIndex={-1} type="button">
+          <span><strong>{option.menuLabel || option.label}</strong>{option.detail}</span>{option.value === value ? <Check aria-hidden="true" size={15} /> : null}
         </button>
       </Fragment>)}
     </div> : null}

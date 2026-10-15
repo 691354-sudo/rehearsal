@@ -38,6 +38,7 @@ body,
   --rh-learned: #3f7b60;
   --rh-note: #8b5a1c;
   --rh-retry: #a64f49;
+  --rh-focus: #845a30;
   --canvas: var(--rh-canvas);
   --surface: var(--rh-surface);
   --inset: var(--rh-inset);
@@ -77,6 +78,7 @@ body,
   --rh-learned: #7fb294;
   --rh-note: #d3a469;
   --rh-retry: #d08078;
+  --rh-focus: var(--rh-accent);
   --rh-text: var(--ink);
 }
 
@@ -563,6 +565,7 @@ html[data-theme="dark"]:has(.profile-gate--pilot-theme) { color-scheme: dark; }
   --gap: 12px;
   --fs-body: 15px;
   --fs-control: 14px;
+  --radius-control: 8px;
   --col: 720px;
 }
 
@@ -604,7 +607,7 @@ html[data-theme="dark"]:has(.profile-gate--pilot-theme) { color-scheme: dark; }
 .simple-app label:has(input[type="file"]:focus-visible) {
   border-color: var(--script-rule-strong);
   box-shadow: none !important;
-  outline: 2px solid var(--cue-light) !important;
+  outline: 2px solid var(--rh-focus) !important;
   outline-offset: 2px;
 }
 

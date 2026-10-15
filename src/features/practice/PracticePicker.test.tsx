@@ -18,4 +18,10 @@ describe("Practice picker keyboard navigation", () => {
     expect(markup).toContain('aria-haspopup="listbox"');
     expect(markup).toContain('aria-expanded="false"');
   });
+  it("keeps the source in the closed control when menu labels are shortened", () => {
+    const markup = renderToStaticMarkup(<PracticePicker label="Practice cards" value="due:20" onChange={() => undefined}
+      options={[{ value: "due:20", label: "Recommended · Up to 20", menuLabel: "Up to 20", group: "Recommended" }]} />);
+    expect(markup).toContain('aria-label="Practice cards: Recommended · Up to 20"');
+    expect(markup).toContain('<strong>Recommended · Up to 20</strong>');
+  });
 });

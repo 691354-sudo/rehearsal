@@ -82,6 +82,7 @@ export function RehearsalApp({
   const sectionButtonRef = useRef<HTMLButtonElement>(null);
   const navigationRef = useRef<HTMLElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [schedulerSettings, setSchedulerSettings] = useState(defaultSchedulerSettings);
   const savedTheme = window.localStorage.getItem(storageKey("theme"));
@@ -192,6 +193,10 @@ export function RehearsalApp({
     goTo(next);
   };
   const openSettings = useCallback(() => goTo({ ...route, settings: true, goals: undefined }), [goTo, route]);
+  const restoreSettingsFocus = useCallback(() => {
+    const trigger = window.matchMedia("(max-width: 720px)").matches ? mobileMenuButtonRef.current : settingsButtonRef.current;
+    trigger?.focus({ preventScroll: true });
+  }, []);
   const openGoals = () => goTo({ ...route, settings: false, goals: true });
   const closeGoals = () => {
     if (window.history.state?.surface === "goals") window.history.back();
@@ -264,7 +269,7 @@ export function RehearsalApp({
           title={theme === "dark" ? "Light theme" : "Dark theme"} type="button">
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <button aria-label="Settings" className="simple-icon-button simple-global-settings-button" onClick={openSettings} title="Settings" type="button"><Settings2 size={18} /></button>
+        <button aria-label="Settings" className="simple-icon-button simple-global-settings-button" onClick={openSettings} ref={settingsButtonRef} title="Settings" type="button"><Settings2 size={18} /></button>
       </div>
       {route.section !== "tutor" ? <AppLink aria-label="Search Library" className="simple-mobile-search" route={defaultLibraryRoute(language)}><Search size={20} /></AppLink> : null}
       <button aria-expanded={mobileMenuOpen} aria-label="App menu" className="simple-mobile-menu-button"
@@ -297,6 +302,7 @@ export function RehearsalApp({
       language={language}
       onboarding={onboarding}
       onClose={closeSettings}
+      onReturnFocus={restoreSettingsFocus}
       onReplayOnboarding={onReplayOnboarding}
       onPlayback={audio.updatePlayback}
       onPreview={() => audio.playTarget(language === "vi"

@@ -558,6 +558,9 @@
 .tutor-onboarding > footer { margin-top: 28px; }
 .tutor-onboarding-progress { font-size: 14px; }
 .tutor-learning-controls { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tutor-learning-controls button { min-height: var(--h-control); padding: 0 12px; color: var(--rh-support); background: var(--rh-surface); border: 1px solid var(--rh-rule); border-radius: var(--radius-control); font-size: var(--fs-control); font-weight: 400; }
+.tutor-learning-controls button:hover:not(:disabled) { background: var(--rh-inset); }
+.tutor-learning-controls button:disabled { opacity: .55; cursor: default; }
 .tutor-learning-controls summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .tutor-learning-controls summary::after { content: ""; border: solid currentColor; border-width: 0 1px 1px 0; padding: 3px; transform: rotate(45deg); }
 .tutor-learning-settings { position: absolute; top: 100%; right: 0; z-index: 4; width: min(320px, calc(100vw - 48px)); box-sizing: border-box; max-height: calc(var(--echo-visual-height) - 180px); overflow-y: auto; overscroll-behavior: contain; padding: 16px; background: var(--rh-surface); border: 1px solid var(--rule); border-radius: 12px; }

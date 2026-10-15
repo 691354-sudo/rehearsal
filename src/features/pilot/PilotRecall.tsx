@@ -223,8 +223,10 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
       {!homework ? <><div className="practice-topic-field"><TopicProgressPicker onChange={onTopic} progressPill topics={topics} value={practiceSetValue(props.route)} /></div>
         <PracticePicker label="Practice cards" className="practice-card-select" value={props.route.cards === "all" ? "all" : props.route.cards === "10" ? "10" : "20"}
           onChange={(value) => props.onRoute({ ...props.route, cards: value as "all" | "10" | "20" }, "replace")} options={[
-            { value: "10", label: "Recommended · Up to 10" }, { value: "20", label: "Recommended · Up to 20" },
-            { value: "all", label: `Recommended · All${!loading && !error && availability ? ` · ${availability.availableCount}` : ""}` },
+            { value: "10", label: "Recommended · Up to 10", menuLabel: "Up to 10", group: "Recommended" },
+            { value: "20", label: "Recommended · Up to 20", menuLabel: "Up to 20" },
+            { value: "all", label: `Recommended · All${!loading && !error && availability ? ` · ${availability.availableCount}` : ""}`,
+              menuLabel: `All${!loading && !error && availability ? ` · ${availability.availableCount}` : ""}` },
           ]} /></> : null}
       <button className="simple-primary recall-start" disabled={loading || Boolean(error) || busy || !queue.length} onClick={start} type="button">{loading ? "Loading cards…" : error ? "Start cards" : `Start ${queue.length} ${queue.length === 1 ? "card" : "cards"}`}<ChevronRight size={16} aria-hidden="true" /></button>
     </div></section>{failure}

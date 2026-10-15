@@ -23,6 +23,7 @@ export function GlobalSettings(props: {
   language: Language;
   onboarding: OnboardingState;
   onClose: () => void;
+  onReturnFocus: () => void;
   onPlayback: (playback: PlaybackPreferences) => void;
   onPreview: () => Promise<PlaybackResult>;
   onReplayOnboarding: () => void;
@@ -113,8 +114,9 @@ export function GlobalSettings(props: {
       dialog.removeEventListener("cancel", cancel);
       if (dialog.open) dialog.close();
       document.body.style.overflow = previousOverflow;
+      props.onReturnFocus();
     };
-  }, [requestClose]);
+  }, [requestClose, props.onReturnFocus]);
   useEffect(() => {
     if (!schedulerDirty) return;
     const warn = (event: Event) => {
@@ -254,7 +256,7 @@ export function GlobalSettings(props: {
   const availableProviders: TtsProvider[] = requiresStrictElevenLabs(props.language)
     ? ["elevenlabs"] : ["openai", "elevenlabs"];
 
-  return <dialog className="simple-settings-overlay" onMouseDown={(event) => {
+  return <dialog aria-labelledby="global-settings-title" className="simple-settings-overlay" onMouseDown={(event) => {
     if (event.target === event.currentTarget) requestClose();
   }} ref={dialogRef}>
     <section aria-labelledby="global-settings-title" className="simple-settings-panel">
