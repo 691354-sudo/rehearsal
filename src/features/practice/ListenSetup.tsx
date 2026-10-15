@@ -10,6 +10,7 @@ import type { PracticeCardCount, PracticeOrder } from "../../lib/appRoute";
 import type { PracticeScope } from "./practiceSelection";
 import type { RepeatMode } from "../audio/listenAudio";
 import { TopicProgressPicker } from "./TopicProgressPicker";
+import { PracticePicker } from "./PracticePicker";
 import { RepeatModeButton } from "./RepeatModeButton";
 import { PracticeQueuePreview } from "./PracticeQueuePreview";
 import { RecommendationStatus } from "./RecommendationStatus";
@@ -39,18 +40,20 @@ export function ListenSetup({ props, recommendations, visibleCandidates, visible
     <section className="listen-setup" aria-label="Listen and Repeat setup">
       <div className={`listen-selection-grid${props.scope === "custom" ? " has-order" : ""}`}>
         <div className="practice-topic-field"><TopicProgressPicker onChange={props.onTopic} progressPill topics={props.topics} value={props.topicId} /></div>
-        <label><span className="simple-visually-hidden">Cards</span><select aria-label="Practice cards" className="practice-card-select" name="listen-count" onChange={(event) => {
-          const [scope, count] = event.target.value.split(":") as [PracticeScope, PracticeCardCount];
+        <PracticePicker label="Practice cards" className="practice-card-select" onChange={(value) => {
+          const [scope, count] = value.split(":") as [PracticeScope, PracticeCardCount];
           props.onSelection(scope, count);
-        }} value={`${props.scope}:${props.count}`}>
-          <option value="due:10">Recommended · Up to 10</option><option value="due:20">Recommended · Up to 20</option>
-          {props.scope === "due" && props.count === "50" ? <option value="due:50">Recommended · Up to 50</option> : null}
-          <option value="due:all">Recommended · All{recommendations.recommendation ? ` · ${recommendations.recommendation.availableCount}` : ""}</option>
-          <option value="custom:all">All Library</option><option value="custom:10">10 from Library</option><option value="custom:20">20 from Library</option><option value="custom:50">50 from Library</option>
-        </select></label>
-        {props.scope === "custom" ? <label><span className="simple-visually-hidden">Order</span><select aria-label="Card order" className="practice-order-select" name="listen-order"
-          onChange={(event) => props.onOrder(event.target.value as PracticeOrder)} value={props.order}>
-          <option value="original">{props.topicId ? "Original order" : "Oldest first"}</option><option value="newest">Newest first</option></select></label> : null}
+        }} value={`${props.scope}:${props.count}`} options={[
+          { value: "due:10", label: "Recommended · Up to 10" }, { value: "due:20", label: "Recommended · Up to 20" },
+          ...(props.scope === "due" && props.count === "50" ? [{ value: "due:50", label: "Recommended · Up to 50" }] : []),
+          { value: "due:all", label: `Recommended · All${recommendations.recommendation ? ` · ${recommendations.recommendation.availableCount}` : ""}` },
+          { value: "custom:all", label: "All Library" }, { value: "custom:10", label: "10 from Library" },
+          { value: "custom:20", label: "20 from Library" }, { value: "custom:50", label: "50 from Library" },
+        ]} />
+        {props.scope === "custom" ? <PracticePicker label="Card order" className="practice-order-select"
+          onChange={(value) => props.onOrder(value as PracticeOrder)} value={props.order} options={[
+            { value: "original", label: props.topicId ? "Original order" : "Oldest first" }, { value: "newest", label: "Newest first" },
+          ]} /> : null}
       </div>
       {showPlaybackSettings ? <div className="listen-setup-playback" id="listen-setup-settings" aria-label="Playback settings" role="group" ref={settingsRef} tabIndex={-1}>{playbackSettings}</div> : null}
       <div className="listen-start-options">

@@ -96,6 +96,7 @@
   max-height: min(460px, 60vh);
   padding: 6px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--script-rule-strong);
   border-radius: 12px;
   background: var(--script-surface);
@@ -111,8 +112,13 @@
   align-items: center;
   border: 0;
   background: transparent;
+  color: var(--script-ink);
+  font-size: var(--fs-control);
   text-align: start;
 }
+
+.topic-progress-options > button strong { font-weight: 500; }
+.topic-progress-options > button:hover { background: var(--rh-inset); }
 
 .topic-progress-options > button > span { display: grid; gap: 5px; min-width: 0; }
 
