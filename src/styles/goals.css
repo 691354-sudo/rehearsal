@@ -106,7 +106,9 @@ a.goals-row:hover .goals-row-title { text-decoration: underline; text-underline-
   .simple-main--practice > .practice-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .simple-main--practice:has(.listen-player, .recall-session, .recall-complete) > .practice-header { display: none; }
   .goals-desktop-streak { display: none; }
-  .goals-today { margin-bottom: 12px; padding: 8px 14px; }
+  .goals-today { margin-bottom: 8px; padding: 8px 14px; }
+  .goals-today:not(.goals-compact) .goals-row { min-height: 44px; }
+  .simple-main--practice:has(.practice-ready-layout) { padding-top: 12px; }
   .goals-compact { margin-inline: 12px; padding-block: 0; }
   .simple-main--practice:has(.listen-player) { flex-direction: column; }
   .goals-today-heading { margin-bottom: 0; }

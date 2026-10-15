@@ -44,11 +44,14 @@ export function ListenSetup({ props, recommendations, visibleCandidates, visible
           const [scope, count] = value.split(":") as [PracticeScope, PracticeCardCount];
           props.onSelection(scope, count);
         }} value={`${props.scope}:${props.count}`} options={[
-          { value: "due:10", label: "Recommended · Up to 10" }, { value: "due:20", label: "Recommended · Up to 20" },
-          ...(props.scope === "due" && props.count === "50" ? [{ value: "due:50", label: "Recommended · Up to 50" }] : []),
-          { value: "due:all", label: `Recommended · All${recommendations.recommendation ? ` · ${recommendations.recommendation.availableCount}` : ""}` },
-          { value: "custom:all", label: "All Library" }, { value: "custom:10", label: "10 from Library" },
-          { value: "custom:20", label: "20 from Library" }, { value: "custom:50", label: "50 from Library" },
+          { value: "due:10", label: "Recommended · Up to 10", menuLabel: "Up to 10", group: "Recommended" },
+          { value: "due:20", label: "Recommended · Up to 20", menuLabel: "Up to 20" },
+          ...(props.scope === "due" && props.count === "50" ? [{ value: "due:50", label: "Recommended · Up to 50", menuLabel: "Up to 50" }] : []),
+          { value: "due:all", label: `Recommended · All${recommendations.recommendation ? ` · ${recommendations.recommendation.availableCount}` : ""}`,
+            menuLabel: `All${recommendations.recommendation ? ` · ${recommendations.recommendation.availableCount}` : ""}` },
+          { value: "custom:all", label: "All Library", menuLabel: "All", group: "Library" },
+          { value: "custom:10", label: "10 from Library", menuLabel: "10" },
+          { value: "custom:20", label: "20 from Library", menuLabel: "20" }, { value: "custom:50", label: "50 from Library", menuLabel: "50" },
         ]} />
         {props.scope === "custom" ? <PracticePicker label="Card order" className="practice-order-select"
           onChange={(value) => props.onOrder(value as PracticeOrder)} value={props.order} options={[
@@ -62,10 +65,9 @@ export function ListenSetup({ props, recommendations, visibleCandidates, visible
         <RepetitionsButton playback={props.playback} onPlayback={props.onPlayback} />
         <button aria-expanded={showPlaybackSettings} aria-controls="listen-setup-settings" aria-label="Playback settings" className={showPlaybackSettings ? "is-active" : ""}
           onClick={() => setShowPlaybackSettings((shown) => !shown)} title="Playback settings" type="button"><Settings2 size={17} /></button>
-        {!unavailable ? <span>{visibleComposition.due} started · {visibleComposition.new} new</span> : null}
       </div>
     </section>
-    {props.scope === "due" ? <RecommendationStatus count={visibleCandidates.length} availability={recommendations.recommendation}
+    {props.scope === "due" && (unavailable || !visibleCandidates.length || Boolean(recommendations.recommendation?.waitingCount)) ? <RecommendationStatus count={visibleCandidates.length} availability={recommendations.recommendation}
       loading={recommendations.loading} error={recommendations.error} mode="listen" /> : null}
     <button className="simple-primary listen-start" disabled={unavailable || !visibleCandidates.length} onClick={() => void start()} type="button">
       <Play fill="currentColor" size={15} />{unavailable ? "Play cards" : `Play ${visibleCandidates.length} ${visibleCandidates.length === 1 ? "card" : "cards"}`}
@@ -81,6 +83,6 @@ export function ListenSetup({ props, recommendations, visibleCandidates, visible
           pilot.complete({ eventId, appearanceId: eventId, listenSessionId: eventId, cardId: item.publicId,
             language: props.language, completedAt: new Date().toISOString(), audioRepeatsInAppearance: props.playback.repetitions });
         }); } finally { URL.revokeObjectURL(url); }
-      }} scope={props.scope} /> : null}
+      }} scope={props.scope} composition={visibleComposition} /> : null}
   </div>;
 }

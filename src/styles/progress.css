@@ -74,7 +74,7 @@
   color: var(--script-ink);
   background: var(--script-inset);
   border: 1px solid var(--script-rule);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   text-align: start;
 }
 
@@ -118,6 +118,8 @@
 }
 
 .topic-progress-options > button strong { font-weight: 500; }
+.practice-set-group { padding: 8px 10px 4px; color: var(--script-support); font-size: 12px; font-weight: 550; line-height: 18px; }
+.practice-set-group:not(:first-child) { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--rh-rule); }
 .topic-progress-options > button:hover { background: var(--rh-inset); }
 
 .topic-progress-options > button > span { display: grid; gap: 5px; min-width: 0; }
@@ -205,7 +207,7 @@
 }
 
 .simple-primary {
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 .practice-header {
@@ -271,7 +273,7 @@
 
 .practice-ready-layout {
   width: 100%;
-  gap: 20px;
+  gap: 8px;
 }
 
 .practice-control-header + .practice-ready-layout > :first-child {
@@ -316,13 +318,13 @@
 }
 
 .practice-queue-preview > header {
-  min-height: 54px;
-  padding: 12px 20px;
+  min-height: 36px;
+  padding: 8px 20px;
 }
 
 .practice-queue-preview > header strong {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: var(--fs-control);
+  font-weight: 550;
 }
 
 .practice-queue-preview > header span {
@@ -465,7 +467,7 @@
 
   .practice-control-header {
     display: block;
-    padding: 12px 16px;
+    padding: 8px 12px;
   }
 
   .practice-header,
