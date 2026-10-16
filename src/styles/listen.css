@@ -283,7 +283,7 @@
 
 .listen-controls {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   align-items: center;
   justify-content: center;
@@ -295,9 +295,6 @@
   border: 1px solid var(--rh-rule);
   border-radius: 999px;
 }
-
-.listen-transport-controls,
-.listen-options-controls { display: flex; align-items: center; justify-content: center; gap: 6px; }
 
 .listen-controls button {
   display: grid;
@@ -348,7 +345,6 @@
 
 .listen-controls .listen-settings-toggle {
   position: relative;
-  margin-left: 6px;
 }
 
 .listen-controls .listen-settings-toggle::before {
@@ -433,9 +429,6 @@
     gap: 2px;
     padding-inline: 6px;
   }
-
-  .listen-transport-controls,
-  .listen-options-controls { gap: 2px; }
 
   .listen-player-settings,
   .listen-setup-playback { scroll-margin-bottom: calc(var(--h-tabbar) + var(--echo-safe-bottom) + 16px); }
@@ -676,9 +669,10 @@
 .listen-setup-playback:focus-visible { outline: 2px solid var(--cue-light); outline-offset: 2px; }
 
 @media (max-width: 360px) {
-  .listen-controls { width: 100%; border-radius: 16px; }
-  .listen-transport-controls,
-  .listen-options-controls { width: 100%; }
+  .simple-main--practice:has(.listen-player) { width: 100%; margin-inline: 0; }
+  .listen-player > article { margin-inline: 12px; }
+  .listen-player-dock { padding-inline: 0; }
+  .listen-controls { gap: 0; padding-inline: 0; }
 }
 
 .listen-player > header .listen-exit { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; background: transparent; border: 0; }

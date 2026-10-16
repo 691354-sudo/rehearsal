@@ -70,18 +70,16 @@ export function ListenPlayerSurface(props: {
       <button className="listen-russian" onClick={props.onToggleRussian} type="button">{props.showRussian ? "Hide Russian" : "Show Russian"}</button>
       <ListenLike item={props.current} /></article>
     <div className="listen-player-dock"><div className="listen-controls">
-      <div className="listen-transport-controls">
+      <ShuffleButton enabled={props.shuffleEnabled} onClick={props.onShuffle} size={18} />
+      <RepetitionsButton playback={props.playback} onPlayback={props.onPlayback} />
       <button aria-label="Previous" disabled={props.previousDisabled} onClick={props.onPrevious} type="button"><SkipBack aria-hidden="true" fill="currentColor" size={17} /></button>
       <button aria-label={props.status === "paused" ? "Play" : "Pause"} className="listen-main-control" onClick={props.status === "paused" ? props.onResume : props.onPause} type="button">
         {props.status === "paused" ? <Play aria-hidden="true" fill="currentColor" size={19} /> : <Pause aria-hidden="true" fill="currentColor" size={19} />}</button>
       <button aria-label="Next" onClick={props.onNext} type="button"><SkipForward aria-hidden="true" fill="currentColor" size={17} /></button>
-      </div><div className="listen-options-controls">
-      <ShuffleButton enabled={props.shuffleEnabled} onClick={props.onShuffle} size={18} />
-      <RepetitionsButton playback={props.playback} onPlayback={props.onPlayback} />
       <RepeatModeButton mode={props.repeatMode} onClick={props.onToggleRepeat} size={18} />
       <button aria-expanded={props.showPlaybackSettings} aria-controls="listen-player-settings" aria-label="Voice settings" className={`listen-settings-toggle${props.showPlaybackSettings ? " is-active" : ""}`}
         onClick={props.onToggleSettings} title="Voice settings" type="button"><Settings2 aria-hidden="true" size={18} /></button>
-      </div></div></div>
+      </div></div>
     {props.showPlaybackSettings ? <div className="listen-player-settings" id="listen-player-settings" aria-label="Voice settings" role="group" ref={settingsRef} tabIndex={-1}>
       {props.playbackSettings}<small>Changes apply to the next card.</small>
     </div> : null}

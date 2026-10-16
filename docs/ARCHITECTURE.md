@@ -161,7 +161,7 @@ The installed PWA precaches only the versioned application shell and static buil
 
 `GET /api/goals` returns activation, timezone/server time, today's targets/counts/statuses, current/best streak, the last 28 days and ended full-day achievements. `POST /api/goals/start` accepts optional `{ settings }` and is idempotent. `PATCH /api/goals/settings` validates `{ settings }` and atomically replaces today's targets only. Authentication resolves the profile; web writes retain CSRF and the expected-profile header prevents stale-device writes. Missing historical dates inherit the latest targets applicable to that date. Late listening retains its original completion date in the frozen tracking timezone. No historical reconstruction or scheduler mutation occurs.
 
-`src/features/goals` owns the Today block, routed dialog (`goals=1`), settings drafts and confirmed snapshots. Successful activity requests signal a refresh; foreground, reconnect, cross-tab changes and a visible one-minute tick refresh other-device changes and midnight. Offline outbox progress is shown separately. The edit draft survives refresh and failed saves; Back/Escape/navigation retain the existing unsaved-change guard and focus restoration.
+`src/features/goals` owns the Today block, routed dialog (`goals=1`), settings drafts and confirmed snapshots. Successful activity requests signal a refresh; foreground, reconnect, cross-tab changes and a visible one-minute tick refresh other-device changes and midnight. Outbox synchronization errors expose its retry action; pending events do not produce routine notices. The edit draft survives refresh and failed saves; Back/Escape/navigation retain the existing unsaved-change guard and focus restoration.
 
 ## Backup and rollback
 
