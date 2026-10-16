@@ -44,7 +44,7 @@ A completed listening pass adds one, including another pass through the same car
 
 Reaching at least one enabled goal secures the activity streak; reaching every enabled goal completes the daily plan. An unfinished today preserves yesterday's streak until midnight. History distinguishes no activity, progress below every target, partial completion and full completion. Current and best streaks count consecutive days with a reached goal. Achievements reward 7, 30 and 100 completed full calendar days, not necessarily consecutive; today's completion joins that permanent count after midnight.
 
-Practice shows a compact Today block before session settings, with one next action in Listen → Recall → Tutor order and individual links. Active practice collapses it to the current metric. The streak opens Daily goals with the last 28 days, records, achievements and Edit goals. Desktop exposes the streak in the shared header; mobile uses the Practice heading and the existing app menu. Pending offline listening is marked separately until confirmed by the server. XP, rankings, freezes and notifications are outside this version.
+Practice shows a compact Today block before session settings, with one next action in Listen → Recall → Tutor order and individual links. Active practice collapses it to the current metric. The streak opens Daily goals with the last 28 days, records, achievements and Edit goals. Desktop exposes the streak in the shared header; mobile uses the Practice heading and the existing app menu. Progress updates after server confirmation without routine sync notices; synchronization errors remain visible with Retry. XP, rankings, freezes and notifications are outside this version.
 
 ### Tutor introduction and support
 

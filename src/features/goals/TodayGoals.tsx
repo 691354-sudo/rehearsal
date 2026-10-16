@@ -31,9 +31,9 @@ export function GoalRows({ day, interactive = true }: { day: DailyGoalDay; inter
 }
 
 export function GoalsSync() {
-  const { error, pending, syncError, refresh } = useGoals();
-  return <>{pending || syncError ? <p className="goals-sync" role="status">{pending ? `${pending} listening ${pending === 1 ? "pass" : "passes"} awaiting sync` : "Practice changes awaiting sync"} · progress updates after confirmation.</p> : null}
-    {error ? <p className="goals-sync" role="status">{error} <button onClick={() => void refresh()} type="button">Retry</button></p> : null}</>;
+  const { error, syncError, refresh, retrySync } = useGoals();
+  return <>{syncError ? <p className="goals-sync" role="alert">{syncError} <button onClick={retrySync} type="button">Retry</button></p> : null}
+    {error ? <p className="goals-sync" role="alert">{error} <button onClick={() => void refresh()} type="button">Retry</button></p> : null}</>;
 }
 
 export function TodayGoals({ active, kind }: { active: boolean; kind: "listen" | "recall" }) {

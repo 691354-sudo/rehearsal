@@ -5,9 +5,9 @@ import { usePilot } from "../pilot/PilotProvider";
 import type { AppRoute } from "../../lib/appRoute";
 
 type GoalsContextValue = {
-  data: DailyGoalsSnapshot | null; error: string; pending: number; syncError: string; celebrating: boolean;
+  data: DailyGoalsSnapshot | null; error: string; syncError: string; celebrating: boolean;
   open: () => void; goalRoute: (kind: DailyGoalKind) => AppRoute | null;
-  refresh: () => Promise<void>; save: (settings: DailyGoalsSettings, start: boolean) => Promise<void>;
+  refresh: () => Promise<void>; retrySync: () => void; save: (settings: DailyGoalsSettings, start: boolean) => Promise<void>;
 };
 const GoalsContext = createContext<GoalsContextValue | null>(null);
 export const useGoals = () => {
@@ -16,24 +16,12 @@ export const useGoals = () => {
   return context;
 };
 
-function pendingListens(profileId: string) {
-  let count = 0;
-  for (let index = 0; index < localStorage.length; index++) {
-    const key = localStorage.key(index);
-    if (!key?.startsWith(`rehearsal:${profileId}:`) || !key.includes(":pilot-outbox:")) continue;
-    try { if (JSON.parse(localStorage.getItem(key) || "null")?.event?.path === "/listens") count++; }
-    catch { /* The outbox owns recovery of unreadable events. */ }
-  }
-  return count;
-}
-
 export function GoalsProvider({ profileId, open, goalRoute, children }: {
   profileId: string; open: () => void; goalRoute: (kind: DailyGoalKind) => AppRoute | null; children: ReactNode;
 }) {
   const pilot = usePilot();
   const [data, setData] = useState<DailyGoalsSnapshot | null>(null);
   const [error, setError] = useState("");
-  const [pending, setPending] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
   const latest = useRef(data); latest.current = data;
   const sequence = useRef(0);
@@ -72,7 +60,6 @@ export function GoalsProvider({ profileId, open, goalRoute, children }: {
     mounted.current = true;
     let timer: ReturnType<typeof setTimeout>;
     const update = () => {
-      setPending(pendingListens(profileId));
       clearTimeout(timer); timer = setTimeout(() => void refresh(), 100);
     };
     const activity = (event: Event) => {
@@ -97,12 +84,11 @@ export function GoalsProvider({ profileId, open, goalRoute, children }: {
       window.removeEventListener("storage", update); document.removeEventListener("visibilitychange", visible);
     };
   }, [profileId, refresh]);
-  useEffect(() => { setPending(pendingListens(profileId)); }, [profileId, pilot.pendingCount]);
   useEffect(() => {
     if (!celebrating) return;
     const timer = setTimeout(() => setCelebrating(false), 2400);
     return () => clearTimeout(timer);
   }, [celebrating]);
-  return <GoalsContext.Provider value={{ data, error, pending, syncError: pilot.syncError, celebrating,
-    open, goalRoute, refresh, save }}>{children}</GoalsContext.Provider>;
+  return <GoalsContext.Provider value={{ data, error, syncError: pilot.syncError, celebrating,
+    open, goalRoute, refresh, retrySync: pilot.retry, save }}>{children}</GoalsContext.Provider>;
 }
