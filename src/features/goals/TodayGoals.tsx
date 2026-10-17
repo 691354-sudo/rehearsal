@@ -36,19 +36,25 @@ export function GoalsSync() {
     {error ? <p className="goals-sync" role="alert">{error} <button onClick={() => void refresh()} type="button">Retry</button></p> : null}</>;
 }
 
+export function RecallGoalProgress() {
+  const { data } = useGoals();
+  if (!data?.startedAt || !data.today.settings.recall.enabled) return null;
+  const count = data.today.counts.recall; const target = data.today.settings.recall.target;
+  return <span className="goals-recall-progress" role="status" aria-label={`Daily Recall goal: ${count} of ${target} correct answers`}
+    title="Correct Recall answers today">{count}/{target}</span>;
+}
+
 export function TodayGoals({ active, kind }: { active: boolean; kind: "listen" | "recall" }) {
   const { data, error, open, celebrating } = useGoals();
+  if (active && kind === "recall") return <GoalsSync />;
   if (!data) return <section className="goals-today goals-intro" aria-label="Today’s goals"><span>{error ? "Daily goals unavailable" : "Loading daily goals…"}</span><GoalsSync /></section>;
   if (!data.startedAt) return <section className="goals-today goals-intro" aria-label="Today’s goals">
     <div><strong>Make practice a daily habit</strong><p>Set your goals. Reach one to build your streak.</p></div>
     <button className="goals-link" onClick={open} type="button">Set daily goals <ArrowRight size={15} aria-hidden="true" /></button>
   </section>;
   const day = data.today;
-  const recallRemaining = Math.max(0, day.settings.recall.target - day.counts.recall);
   if (active) return <section className={`goals-today goals-compact${celebrating ? " is-celebrating" : ""}`} aria-label="Today’s goals">
-    <button onClick={open} type="button"><span role="status">{celebrating ? "Daily goals complete" : `Today · ${goalLabels[kind]}`}
-      {kind === "recall" && day.settings.recall.enabled ? <span className="goals-remaining">{recallRemaining
-        ? `${recallRemaining} correct ${recallRemaining === 1 ? "answer" : "answers"} left` : "Recall goal complete"}</span> : null}</span>
+    <button onClick={open} type="button"><span role="status">{celebrating ? "Daily goals complete" : `Today · ${goalLabels[kind]}`}</span>
       <strong>{day.counts[kind]}{day.settings[kind].enabled ? ` / ${day.settings[kind].target}` : " · goal off"}</strong>
       {day.anyReached ? <Check size={15} aria-label={dayStatus(day)} /> : null}</button><GoalsSync />
   </section>;

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GoalsSync, TodayGoals } from "./TodayGoals";
+import { GoalsSync, RecallGoalProgress, TodayGoals } from "./TodayGoals";
 import { dailyGoalDay, defaultDailyGoals, type DailyGoalsSnapshot } from "../../../contracts/daily-goals";
 
 const goals = vi.hoisted(() => ({ data: null as DailyGoalsSnapshot | null, error: "", syncError: "", celebrating: false,
@@ -33,21 +33,20 @@ describe("Daily goals synchronization notices", () => {
 });
 
 describe("active Recall daily goal", () => {
-  it.each([[13, "7 correct answers left"], [19, "1 correct answer left"], [20, "Recall goal complete"], [23, "Recall goal complete"]])(
-    "shows remaining checked answers for a count of %s", (count, expected) => {
+  beforeEach(() => { goals.error = ""; goals.syncError = ""; });
+  it.each([0, 11, 20, 23])("shows the checked-answer count %s beside the Recall controls", (count) => {
       goals.data = { startedAt: "2026-10-17T00:00:00Z", today: dailyGoalDay("2026-10-17", defaultDailyGoals,
         { listen: 0, recall: count, tutor: 0 }) } as DailyGoalsSnapshot;
-      const markup = renderToStaticMarkup(<TodayGoals active kind="recall" />);
-      expect(markup).toContain(expected);
-      expect(markup).toContain(`${count} / 20`);
-      expect(markup).not.toContain("-3");
+      const markup = renderToStaticMarkup(<RecallGoalProgress />);
+      expect(markup).toContain(`${count}/20`);
+      expect(markup).toContain(`Daily Recall goal: ${count} of 20 correct answers`);
+      expect(renderToStaticMarkup(<TodayGoals active kind="recall" />)).toBe("");
     });
 
-  it("does not show a remaining target for a disabled Recall goal or while listening", () => {
+  it("hides the indicator for a disabled Recall goal and preserves the compact Listen goal", () => {
     goals.data = { startedAt: "2026-10-17T00:00:00Z", today: dailyGoalDay("2026-10-17",
       { ...defaultDailyGoals, recall: { enabled: false, target: 20 } }, { listen: 0, recall: 0, tutor: 0 }) } as DailyGoalsSnapshot;
-    expect(renderToStaticMarkup(<TodayGoals active kind="recall" />)).toContain("goal off");
-    expect(renderToStaticMarkup(<TodayGoals active kind="recall" />)).not.toContain("goals-remaining");
-    expect(renderToStaticMarkup(<TodayGoals active kind="listen" />)).not.toContain("goals-remaining");
+    expect(renderToStaticMarkup(<RecallGoalProgress />)).toBe("");
+    expect(renderToStaticMarkup(<TodayGoals active kind="listen" />)).toContain("Today · Listen");
   });
 });
