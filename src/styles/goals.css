@@ -35,6 +35,7 @@ a.goals-row:hover .goals-row-title { text-decoration: underline; text-underline-
 .goals-compact { margin-bottom: 10px; padding: 0 14px; border-radius: 8px; }
 .goals-compact > button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0; color: var(--ink-support); font: inherit; font-size: 12px; text-align: left; background: transparent; border: 0; }
 .goals-compact strong { margin-left: auto; color: var(--ink); font-weight: 560; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.goals-remaining { display: block; margin-top: 2px; color: var(--ink); }
 .goals-compact svg { color: var(--learned); flex-shrink: 0; }
 .goals-sync { margin: 6px 0; color: var(--ink-support); font-size: 12px; }
 .goals-sync button { min-height: 44px; padding: 0 5px; color: inherit; font: inherit; text-decoration: underline; background: transparent; border: 0; }

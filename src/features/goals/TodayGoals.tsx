@@ -44,8 +44,11 @@ export function TodayGoals({ active, kind }: { active: boolean; kind: "listen" |
     <button className="goals-link" onClick={open} type="button">Set daily goals <ArrowRight size={15} aria-hidden="true" /></button>
   </section>;
   const day = data.today;
+  const recallRemaining = Math.max(0, day.settings.recall.target - day.counts.recall);
   if (active) return <section className={`goals-today goals-compact${celebrating ? " is-celebrating" : ""}`} aria-label="Today’s goals">
-    <button onClick={open} type="button"><span role="status">{celebrating ? "Daily goals complete" : `Today · ${goalLabels[kind]}`}</span>
+    <button onClick={open} type="button"><span role="status">{celebrating ? "Daily goals complete" : `Today · ${goalLabels[kind]}`}
+      {kind === "recall" && day.settings.recall.enabled ? <span className="goals-remaining">{recallRemaining
+        ? `${recallRemaining} correct ${recallRemaining === 1 ? "answer" : "answers"} left` : "Recall goal complete"}</span> : null}</span>
       <strong>{day.counts[kind]}{day.settings[kind].enabled ? ` / ${day.settings[kind].target}` : " · goal off"}</strong>
       {day.anyReached ? <Check size={15} aria-label={dayStatus(day)} /> : null}</button><GoalsSync />
   </section>;
