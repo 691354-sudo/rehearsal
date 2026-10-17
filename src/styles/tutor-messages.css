@@ -35,7 +35,7 @@
   .simple-app .simple-composer textarea { min-height: 64px; font-size: 16px; }
 }
 
-.tutor-message-feedback { display: grid; justify-items: start; gap: 8px; margin-left: 4px; }
+.tutor-message-feedback { position: relative; display: grid; justify-items: start; gap: 8px; margin-left: 4px; }
 .simple-app .tutor-feedback-toggle { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--rh-support); cursor: pointer; }
 .simple-app .tutor-feedback-toggle:hover { background: var(--rh-inset); }
 .tutor-feedback-toggle[data-saved="true"]::after { position: absolute; content: ""; width: 4px; height: 4px; right: 8px; top: 10px; border-radius: 50%; background: var(--rh-learned); }
