@@ -246,8 +246,7 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     }
   };
 
-  const playPreparedAudio = async (url: string, repetitions = 1, onFirstCompleted?: () => void) => {
-    stopPlayback();
+  const playAudio = async (url: string, repetitions = 1, onFirstCompleted?: () => void) => {
     const sequence = audioSequenceRef.current;
     const audio = audioElementRef.current || new Audio();
     audio.preload = "auto";
@@ -300,6 +299,11 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     return durationMs;
   };
 
+  const playPreparedAudio = (url: string, repetitions = 1, onFirstCompleted?: () => void) => {
+    stopPlayback();
+    return playAudio(url, repetitions, onFirstCompleted);
+  };
+
   const waitForAudioPause = (pauseMs: number, sequence: number) => new Promise<void>((resolve) => {
     let remaining = pauseMs;
     let startedAt = Date.now();
@@ -339,20 +343,24 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
     overrides: Partial<PlaybackPreferences> = {},
     strictProvider = false,
   ) => {
+    stopPlayback();
+    const sequence = audioSequenceRef.current;
     lastPlaybackRef.current = { text, overrides, strictProvider };
     setPlaybackError("");
     const nextPlayback = resolvePlayback(overrides);
     if (openaiConfigured || elevenLabsConfig.configured) {
       try {
         const prepared = await fetchTargetAudio(text, overrides, strictProvider);
+        if (sequence !== audioSequenceRef.current) return { provider: prepared.provider, cache: prepared.cache } satisfies PlaybackResult;
         const url = URL.createObjectURL(prepared.blob);
         try {
-          await playPreparedAudio(url, nextPlayback.repetitions);
+          await playAudio(url, nextPlayback.repetitions);
         } finally {
           URL.revokeObjectURL(url);
         }
         return { provider: prepared.provider, cache: prepared.cache } satisfies PlaybackResult;
       } catch (error) {
+        if (sequence !== audioSequenceRef.current) return { provider: nextPlayback.provider, cache: null } satisfies PlaybackResult;
         if (strictProvider || requiresStrictElevenLabs(language)) throw error;
         setPlaybackError("");
       }
@@ -370,8 +378,10 @@ export const usePlaybackController = (profileId: ProfileId, language: Language) 
       repetitions: nextPlayback.repetitions,
       pauseMs: adaptivePauseMs(Math.max(1_000, text.trim().split(/\s+/).length * 350 / nextPlayback.speed)),
     });
-    audioPauseRef.current = null;
-    audioResumeRef.current = null;
+    if (sequence === audioSequenceRef.current) {
+      audioPauseRef.current = null;
+      audioResumeRef.current = null;
+    }
     return { provider: "browser", cache: null } satisfies PlaybackResult;
   };
 

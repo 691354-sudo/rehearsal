@@ -21,6 +21,8 @@ import type { RecallCheck } from "../../../contracts/recall-check";
 import { PilotRecallAnswer } from "./PilotRecallAnswer";
 import { RecommendationStatus } from "../practice/RecommendationStatus";
 import { useRecommendationRefresh } from "../practice/useRecommendationRefresh";
+import { RepetitionsButton } from "../practice/RepetitionsButton";
+import { RecallGoalProgress } from "../goals/TodayGoals";
 
 type RecallRun = { sessionId?:string; tutorStartId?: string; scopeKey?: string; selectedIds: string[]; completed: number; current: PilotCard | null;
   attemptId: string; shownAt: string; revealedAt: string | null; answer: string; begun: boolean;
@@ -51,6 +53,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
   const saving = useRef(false);
   const queueRequest = useRef(0); const loadRequest = useRef(0);
   const active = Boolean(run?.current && (!homework || homework.status === "recall_in_progress"));
+  useEffect(() => props.onStopPlayback, [run?.attemptId, props.onStopPlayback]);
   useEffect(() => { onActiveChange?.(active); return () => onActiveChange?.(false); }, [active, onActiveChange]);
   const attemptClock = useActiveTime(`${key}:attempt:${run?.attemptId || "none"}`, active,
     homework?.settingsSnapshot.idleTimeoutSeconds ?? pilot.settings?.idleTimeoutSeconds ?? 120);
@@ -150,6 +153,7 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
   };
   const grade = async (selected: ReviewRating) => {
     if (!run?.current || !run.revealedAt || saving.current) return;
+    props.onStopPlayback();
     saving.current = true; setBusy(true); setError(""); setRating(run.submission?.rating ?? selected);
     const submission = run.submission ?? { attemptId: run.attemptId, rating: selected, revealedAt: run.revealedAt,
       ratedAt: new Date().toISOString(), responseTimeMs: attemptClock.seconds(Date.now()) === null ? null : attemptClock.seconds(Date.now())! * 1000,
@@ -242,7 +246,8 @@ export function PilotRecall({ props, topics, onTopic, onEdit, onDelete, deletedI
   </section>;
   return <section className="recall-session pilot-recall" aria-label="Active Recall" onKeyDown={keyDown}>
     <header><span>{homework ? "Homework · " : ""}{run.completed + 1} / {homework?.plannedRecallCards ?? run.completed + run.selectedIds.length}</span>
-      <div className="recall-session-utilities pilot-recall-utilities"><CardActions target={run.current.target} disabled={busy || Boolean(run.submission)} onEdit={() => onEdit(run.current!)} onDelete={() => onDelete(run.current!)} />
+      <div className="recall-session-utilities pilot-recall-utilities"><RecallGoalProgress /><CardActions target={run.current.target} disabled={busy || Boolean(run.submission)} onEdit={() => onEdit(run.current!)} onDelete={() => onDelete(run.current!)} />
+        {languageHasAudio(props.language) ? <RepetitionsButton playback={props.playback} onPlayback={props.onPlayback} /> : null}
         {languageHasAudio(props.language) ? <button aria-label="Voice settings" aria-expanded={showSettings} onClick={() => setShowSettings(!showSettings)} type="button"><Settings2 size={18} aria-hidden="true" /></button> : null}
         <button aria-label="End session" disabled={busy || Boolean(run.submission)} onClick={exit} type="button"><X size={18} aria-hidden="true" /></button></div></header>
     {showSettings ? <section className="pilot-recall-settings" aria-label="Voice settings"><PlaybackSettings elevenLabs={props.elevenLabs} language={props.language} onPlayback={props.onPlayback} playback={props.playback} voices={props.voices} /></section> : null}
