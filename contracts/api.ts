@@ -171,6 +171,8 @@ export type SearchResult = LearningItem & {
 };
 
 export type ChatThread = {
+  displayTitle?: string;
+  practicePhrases?: string[];
   publicId: string;
   title: string;
   createdAt: string;

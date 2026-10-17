@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Clock3 } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import type { Homework, HomeworkSummary } from "../../../contracts/learning-pilot";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
 import { defaultPracticeRoute, navigate } from "../../lib/appRoute";
@@ -122,13 +122,13 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
   const timeFinished = homework && !homework.continued && (homework.actualRecallSeconds === null || homework.actualTutorSeconds === null
     || homework.actualRecallSeconds + homework.actualTutorSeconds >= homework.requestedMinutes * 60);
   const active = homework && !["completed", "cancelled"].includes(homework.status);
-  const toolbar = enabled ? <div className="pilot-homework-bar">
-    <span>{active ? homework.status === "awaiting_feedback" ? "Feedback waiting" : "Homework in progress"
-      : `${pilot.readyCount} ${pilot.readyCount === 1 ? "phrase" : "phrases"} waiting for Tutor`}</span>
-    <button aria-expanded={open} disabled={busy} onClick={() => setOpen(!open)} type="button"><Clock3 size={16} aria-hidden="true" />Homework</button>
-    {active && !waiting && homework.status === "tutor_in_progress" ? <button disabled={busy || chatBusy} onClick={() => void action("finish")} type="button">End session</button> : null}
-  </div> : null;
+  const status = active ? <button className="tutor-homework-status" aria-expanded={open} disabled={busy} onClick={() => setOpen(!open)} type="button">
+    {homework.status === "awaiting_feedback" ? "Feedback waiting" : "Homework in progress"}</button>
+    : <small>{pilot.readyCount} {pilot.readyCount === 1 ? "phrase" : "phrases"} waiting for Tutor</small>;
+  const endAction = active && !waiting && homework.status === "tutor_in_progress"
+    ? <button disabled={busy || chatBusy} onClick={() => void action("finish")} type="button"><LogOut size={16} aria-hidden="true" />End session</button> : null;
   const panel = !enabled || !open ? null : <div className="pilot-homework-panel">
+    <button className="tutor-homework-close" aria-label="Close Homework" onClick={() => setOpen(false)} type="button"><X aria-hidden="true" size={18} /></button>
     {error ? <p role="alert">{error}</p> : null}
     {waiting ? <><p>Your saved Homework is in another chat.</p><button className="simple-primary" onClick={() => onRoute({ ...route, thread: homework.tutorChatId, homework: homework.homeworkId })} type="button">Continue Homework</button></>
       : homework?.status === "awaiting_feedback" ? <HomeworkFeedback key={homework.homeworkId} homework={homework} onSaved={(updated) => { setHomework(updated); void pilot.refresh(); void refreshSessions(); }} onClose={() => setOpen(false)} />
@@ -150,5 +150,5 @@ export function useTutorHomework({ route, onRoute, onStartTutor, ready, busy: ch
           <p className="pilot-notice">Homework practises phrases you have prepared in Active Recall.</p>
         </>}
   </div>;
-  return { toolbar, panel, open, sessions, sessionsError, refreshSessions, beforeSend, refresh, active: enabled && Boolean(active || open), homework };
+  return { status, endAction, openPanel: () => setOpen(true), panel, open, sessions, sessionsError, refreshSessions, beforeSend, refresh, active: enabled && Boolean(active || open), homework };
 }

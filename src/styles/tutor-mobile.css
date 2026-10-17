@@ -74,12 +74,12 @@
   top: calc(100% + 4px);
   right: 0;
   z-index: 8;
-  width: 150px;
+  width: 174px;
   padding: 6px;
   background: var(--rh-surface);
   border: 1px solid var(--rh-rule-strong);
   border-radius: 10px;
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--rh-ink) 18%, transparent);
+  box-shadow: none;
 }
 
 .simple-chat-actions .simple-delete-chat {
@@ -480,7 +480,7 @@
 @media (max-width: 720px) {
   .simple-header:has(.simple-mobile-tutor-mode) .simple-brand { display: none; }
   .simple-header-sessions { display: grid; width: 44px; height: 44px; padding: 0; place-items: center; background: transparent; border: 0; }
-  .simple-chat-toolbar { display: none; }
+  .simple-chat-toolbar { display: flex; }
   .simple-chat-messages { flex: 1; }
   .simple-chat-pane > :not(.simple-chat-messages):not(.simple-review-pane) { flex-shrink: 0; }
   .simple-review-pane { flex: 1; }
@@ -557,23 +557,92 @@
 .tutor-onboarding textarea, .tutor-onboarding > label input { width: 100%; box-sizing: border-box; font-size: 16px; }
 .tutor-onboarding > footer { margin-top: 28px; }
 .tutor-onboarding-progress { font-size: 14px; }
-.tutor-learning-controls { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.tutor-learning-controls button { min-height: var(--h-control); padding: 0 12px; color: var(--rh-support); background: var(--rh-surface); border: 1px solid var(--rh-rule); border-radius: var(--radius-control); font-size: var(--fs-control); font-weight: 400; }
-.tutor-learning-controls button:hover:not(:disabled) { background: var(--rh-inset); }
-.tutor-learning-controls button:disabled { opacity: .55; cursor: default; }
-.tutor-learning-controls summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 6px; font-size: 13px; }
-.tutor-learning-controls summary::after { content: ""; border: solid currentColor; border-width: 0 1px 1px 0; padding: 3px; transform: rotate(45deg); }
-.tutor-learning-settings { position: absolute; top: 100%; right: 0; z-index: 4; width: min(320px, calc(100vw - 48px)); box-sizing: border-box; max-height: calc(var(--echo-visual-height) - 180px); overflow-y: auto; overscroll-behavior: contain; padding: 16px; background: var(--rh-surface); border: 1px solid var(--rule); border-radius: 12px; }
-.tutor-learning-settings input, .tutor-learning-settings select { width: 100%; box-sizing: border-box; font-size: 16px; }
-.tutor-learning-controls > p { flex-basis: 100%; color: var(--retry); font-size: 13px; }
 @media (max-width: 720px) {
   .simple-app:has(.tutor-onboarding) .simple-header-sessions { visibility: hidden; }
   .simple-app:has(.tutor-onboarding) .simple-mobile-sessions { display: none; }
-  .simple-chat-toolbar:has(.tutor-learning-controls) { display: flex; justify-content: flex-end; padding: 0 12px; }
-  .simple-chat-toolbar:has(.tutor-learning-controls) > .simple-chat-context, .simple-chat-toolbar:has(.tutor-learning-controls) > .simple-chat-actions { display: none; }
   .tutor-onboarding > header { align-items: flex-start; }
   .tutor-onboarding h1 { font-size: 20px; }
   .tutor-learning-funnel { grid-template-columns: 1fr; gap: 12px; }
   .tutor-learning-funnel p { margin: 8px 0; }
   .tutor-learning-controls { justify-content: flex-end; }
 }
+
+/* Approved Tutor controls and history; conversation cards retain their original layout. */
+.simple-chat-pane > :not(.simple-chat-messages):not(.simple-review-pane) { flex-shrink: 0; }
+.simple-chat-pane--review > .simple-review-pane { flex: 1; }
+.simple-chat-toolbar > .simple-chat-context { flex: 1; flex-direction: column; align-items: flex-start; gap: 2px; }
+.simple-chat-context small { color: var(--rh-support); font-size: 11px; line-height: 16px; }
+.simple-chat-context > strong { max-width: 100%; }
+.simple-chat-actions { flex: none; }
+.simple-chat-actions > div > button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 9px; font-size: 13px; text-align: left; color: var(--rh-support); background: transparent; border: 0; border-radius: 7px; }
+.simple-chat-actions > div > button:hover { background: var(--rh-inset); }
+.simple-chat-actions > div > .simple-delete-chat { color: var(--rh-retry); }
+.simple-chat-context .tutor-homework-status { padding: 0; min-height: 44px; background: transparent; border: 0; font-size: 12px; color: var(--rh-support); text-decoration: underline; text-underline-offset: 3px; }
+.simple-session-rail {
+  --tutor-history-selected: var(--rh-rule-strong);
+  padding: 14px 12px;
+}
+.simple-app--light .simple-session-rail { --tutor-history-selected: #d9dcde; }
+.simple-session-rail-heading { border-bottom: 1px solid var(--rh-rule); margin-bottom: 8px; }
+.simple-app .simple-new-chat { justify-content: flex-start; min-height: 40px; font-size: 13px; font-weight: 400; background: transparent; border: 0; }
+.simple-session-search { margin: 6px 0 2px; }
+.simple-session-search input { min-height: 38px; font-size: 13px; background: var(--rh-inset); border-color: var(--rh-rule); }
+.simple-session-search input::placeholder { color: var(--rh-support); opacity: 1; }
+.simple-session-rail nav { margin-top: 12px; }
+.simple-session-group { gap: 3px; }
+.simple-session-group:not(.pilot-homework-folder) a, .pilot-homework-folder a { grid-template-columns: minmax(0, 1fr); gap: 5px; min-height: 66px; padding: 11px 10px; border-bottom: 1px solid var(--rh-rule); border-radius: 0; }
+.simple-session-group a.is-active { color: var(--rh-ink); border-radius: 7px; border-bottom-color: transparent; background: var(--tutor-history-selected); }
+.simple-session-group a strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; font-size: 13px; font-weight: 500; line-height: 19px; overflow-wrap: anywhere; }
+.simple-session-group a.is-active small { color: var(--rh-ink); }
+.simple-session-group a small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+.simple-session-rail .pilot-homework-folder { padding-bottom: 12px; border-bottom: 1px solid var(--rh-rule); margin-bottom: 14px; }
+.simple-session-rail .pilot-homework-folder > button { background: transparent; }
+.simple-session-rail .tutor-homework-open { min-height: 44px; font-size: 12px; text-align: left; background: transparent; border: 0; color: var(--rh-support); }
+.tutor-learning-controls { display: flex; align-items: center; gap: 4px; }
+.simple-app .tutor-settings-trigger { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; background: transparent; border: 0; border-radius: 8px; color: var(--rh-support); }
+.tutor-settings-trigger:hover { background: var(--rh-inset); color: var(--rh-ink); }
+.tutor-learning-settings { position: fixed; inset: auto; width: 392px; max-width: calc(100vw - 24px); max-height: calc(var(--echo-visual-height) - 200px); box-sizing: border-box; margin: 0; padding: 16px; overflow-y: auto; overscroll-behavior: contain; color: var(--rh-ink); background: var(--rh-surface); border: 1px solid var(--rh-rule-strong); border-radius: 10px; }
+.tutor-learning-settings::backdrop { background: transparent; }
+.tutor-learning-settings header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.tutor-learning-settings h2 { margin: 0; font-size: 14px; font-weight: 500; }
+.tutor-learning-settings header button { display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0; margin: -8px -8px -8px 0; color: var(--rh-support); background: transparent; border: 0; }
+.tutor-learning-settings fieldset { min-width: 0; padding: 0; margin: 0; border: 0; }
+.tutor-settings-field, .tutor-learning-settings label { display: grid; gap: 6px; margin: 14px 0; font-size: 13px; color: var(--rh-support); }
+.tutor-learning-settings .topic-progress-trigger { width: 100%; min-height: 40px; height: auto; padding: 9px 12px; color: var(--rh-ink); background: var(--control-fill); border: 1px solid var(--control-rule); border-radius: 8px; font-size: 14px; font-weight: 400; }
+.tutor-learning-settings .topic-progress-trigger strong { white-space: normal; }
+.tutor-learning-settings .topic-progress-options { width: 100%; min-width: 0; box-sizing: border-box; }
+.tutor-learning-settings .topic-progress-options button { font-size: 14px; min-height: 44px; }
+.tutor-learning-settings textarea { display: block; box-sizing: border-box; width: 100%; min-height: 0; padding: 10px 12px; resize: vertical; color: var(--rh-ink); background: var(--control-fill); border: 1px solid var(--control-rule); border-radius: 8px; font-size: 14px; line-height: 21px; }
+.tutor-learning-settings .tutor-settings-hint { margin: 4px 0 16px; font-size: 12px; line-height: 18px; color: var(--rh-support); }
+.tutor-settings-about { border-top: 1px solid var(--rh-rule); margin-top: 16px; }
+.tutor-settings-actions { display: grid; justify-items: start; gap: 6px; margin-top: 16px; }
+.tutor-settings-actions button { min-height: 40px; font-size: 13px; }
+.simple-app .tutor-settings-reset { padding: 0; background: transparent; border: 0; color: var(--rh-support); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.tutor-learning-settings [role="alert"], .tutor-controls-error { color: var(--rh-retry); font-size: 13px; }
+.tutor-controls-error { position: absolute; top: 100%; right: 12px; z-index: 10; max-width: 280px; padding: 12px; background: var(--rh-surface); border: 1px solid var(--rh-rule); border-radius: 8px; }
+.simple-chat-toolbar { position: relative; }
+@media (max-width: 720px) {
+  .simple-session-rail { right: auto; width: min(344px, calc(100vw - 32px)); box-sizing: border-box; background: var(--rh-surface); }
+  .simple-session-rail-heading { grid-template-columns: 44px minmax(0, 1fr); min-height: 44px; }
+  .simple-session-rail-heading strong { font-size: 14px; }
+  .simple-app .simple-new-chat, .simple-session-search input { min-height: 44px; }
+  .simple-session-search input { font-size: 14px; }
+  .simple-session-search input:focus { font-size: 16px; }
+  .simple-session-group:not(.pilot-homework-folder) a, .pilot-homework-folder a { min-height: 68px; }
+  .simple-chat-toolbar { min-height: 48px; padding: 0 8px 0 12px; gap: 0; border-bottom: 1px solid var(--rh-rule); }
+  .simple-chat-context > strong { display: none; }
+  .simple-chat-context small { font-size: 12px; line-height: 18px; }
+  .tutor-learning-settings { left: 12px; right: 12px !important; top: calc(var(--h-header) + var(--echo-safe-top) + 52px) !important; width: auto; max-height: calc(var(--echo-visual-height) - var(--h-header) - var(--echo-safe-top) - 72px); padding: 14px 14px 30px; }
+  .tutor-settings-field, .tutor-learning-settings label { margin: 10px 0; gap: 5px; font-size: 12px; line-height: 18px; }
+  .tutor-learning-settings .topic-progress-trigger { min-height: 44px; padding: 0 10px; line-height: 20px; }
+  .tutor-learning-settings textarea { padding: 8px 10px; font-size: 14px; line-height: 20px; }
+  .tutor-learning-settings textarea:focus { font-size: 16px; line-height: 22px; }
+  .tutor-learning-settings .tutor-settings-hint { font-size: 11px; line-height: 16px; margin: 6px 0 12px; }
+  .tutor-settings-about, .tutor-settings-actions { margin-top: 12px; }
+  .tutor-settings-actions { gap: 4px; }
+  .tutor-settings-actions button { min-height: 44px; font-size: 12px; }
+  .simple-app .tutor-settings-reset { font-size: 11px; line-height: 16px; }
+}
+
+.simple-chat .pilot-homework-panel { position: relative; padding-top: 44px; }
+.simple-chat .pilot-homework-panel .tutor-homework-close { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: var(--rh-support); }

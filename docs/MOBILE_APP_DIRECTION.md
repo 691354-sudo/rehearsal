@@ -87,6 +87,7 @@ not a general offline queue or offline learning store.
   top bar; closing the keyboard restores the bottom bar. Focus alone or pinch
   zoom must not hide navigation. Drafts survive section and chat changes.
 - Tutor has a compact Chat/Notebook switch, a Sessions entry, and an app menu.
+  Tutor settings open from a gear; End session, Rename chat and Delete chat live in the chat menu. Homework starts and history remain in Sessions, with active Homework status in the chat header. Settings reuse Practice pickers and retain unsaved Goals/Interests while closed.
   Create cards stays beside the input in Chat and Notebook. Mobile Return inserts
   a newline; sending uses the visible arrow. Desktop Enter sends, Shift+Enter
   inserts a newline, and IME composition never submits. The mobile composer grows

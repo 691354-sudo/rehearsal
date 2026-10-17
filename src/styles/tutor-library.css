@@ -1,6 +1,6 @@
 .simple-chat {
   display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-columns: 288px minmax(0, 1fr);
   overflow: hidden;
   background: var(--script-surface);
   border: 1px solid var(--script-rule);
@@ -8,23 +8,24 @@
 }
 
 .simple-workspace--chat .simple-chat {
-  border-top: 4px solid var(--mode-action);
+  border-top: 1px solid var(--script-rule);
 }
 
 .simple-chat-pane {
-  display: grid;
-  grid-template-rows: 48px minmax(0, 1fr) auto auto;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
 }
 
 .simple-chat-toolbar {
   display: flex;
-  gap: 16px;
+  gap: 4px;
   align-items: center;
   justify-content: space-between;
   min-width: 0;
-  padding: 0 16px 0 20px;
+  min-height: 56px;
+  padding: 0 12px 0 20px;
   border-bottom: 1px solid var(--script-rule);
 }
 
@@ -53,6 +54,7 @@
 }
 
 .simple-chat-messages {
+  flex: 1;
   min-height: 0;
   padding: 28px 32px;
   overflow-y: auto;
@@ -568,7 +570,7 @@
 .simple-session-group a:hover,
 .simple-session-group a.is-active {
   color: var(--script-ink);
-  background: var(--cue-wash);
+  background: var(--rh-wash);
 }
 
 .simple-session-group a strong,

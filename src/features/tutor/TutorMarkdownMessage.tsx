@@ -5,7 +5,27 @@ const renderInlineMarkdown = (text: string) => text.split(/(\*\*[^*]+\*\*|\*[^*]
   part.startsWith("**") && part.endsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong>
     : part.startsWith("*") && part.endsWith("*") ? <em key={index}>{part.slice(1, -1)}</em> : part);
 
-export const renderMarkdownBlocks = (content: string, keyPrefix: string, compact = false) => {
+const renderFeedbackInline = (text: string) => {
+  const cue = /\b(?:small correction|correction|better|more natural|you (?:can|could|should) say|try saying)\s*:\s*/i.exec(text);
+  if (!cue) return renderInlineMarkdown(text);
+  const start = cue.index + cue[0].length;
+  const result: ReactNode[] = [...renderInlineMarkdown(text.slice(0, start))];
+  const rest = text.slice(start);
+  let cursor = 0;
+  for (const match of rest.matchAll(/[“"]([^“”"\n]+)[”"]/g)) {
+    const index = match.index!;
+    // Only the suggested phrase(s) immediately following the correction cue.
+    if (!/^[\s,;]*(?:and\s*)?$/.test(rest.slice(cursor, index))) break;
+    result.push(...renderInlineMarkdown(rest.slice(cursor, index)), match[0][0],
+      <em className="tutor-inline-correction" key={`correction-${index}`}>{renderInlineMarkdown(match[1])}</em>, match[0].at(-1));
+    cursor = index + match[0].length;
+  }
+  result.push(...renderInlineMarkdown(rest.slice(cursor)));
+  return result;
+};
+
+export const renderMarkdownBlocks = (content: string, keyPrefix: string, compact = false, corrections = false) => {
+  const inline = corrections ? renderFeedbackInline : renderInlineMarkdown;
   const lines = content.split(/\r?\n/);
   const nodes: ReactNode[] = [];
   for (let index = 0; index < lines.length;) {
@@ -13,8 +33,8 @@ export const renderMarkdownBlocks = (content: string, keyPrefix: string, compact
     if (!line) { index += 1; continue; }
     const heading = line.match(/^#{1,3}\s+(.+)$/);
     if (heading) {
-      nodes.push(compact ? <p className="tutor-response-subheading" key={`${keyPrefix}-heading-${index}`}><strong>{renderInlineMarkdown(heading[1])}</strong></p>
-        : <h3 className="simple-message-heading" key={`${keyPrefix}-heading-${index}`}>{renderInlineMarkdown(heading[1])}</h3>);
+      nodes.push(compact ? <p className="tutor-response-subheading" key={`${keyPrefix}-heading-${index}`}><strong>{inline(heading[1])}</strong></p>
+        : <h3 className="simple-message-heading" key={`${keyPrefix}-heading-${index}`}>{inline(heading[1])}</h3>);
       index += 1; continue;
     }
     if (/^>\s?/.test(line)) {
@@ -22,7 +42,7 @@ export const renderMarkdownBlocks = (content: string, keyPrefix: string, compact
       while (index < lines.length && /^>\s?/.test(lines[index].trim())) {
         quote.push(lines[index].trim().replace(/^>\s?/, "")); index += 1;
       }
-      nodes.push(<blockquote key={`${keyPrefix}-quote-${index}`}>{renderInlineMarkdown(quote.join(" "))}</blockquote>);
+      nodes.push(<blockquote key={`${keyPrefix}-quote-${index}`}>{inline(quote.join(" "))}</blockquote>);
       continue;
     }
     if (/^[-*]\s+/.test(line)) {
@@ -30,14 +50,14 @@ export const renderMarkdownBlocks = (content: string, keyPrefix: string, compact
       while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
         items.push(lines[index].trim().replace(/^[-*]\s+/, "")); index += 1;
       }
-      nodes.push(<ul key={`${keyPrefix}-list-${index}`}>{items.map((item, itemIndex) => <li key={itemIndex}>{renderInlineMarkdown(item)}</li>)}</ul>);
+      nodes.push(<ul key={`${keyPrefix}-list-${index}`}>{items.map((item, itemIndex) => <li key={itemIndex}>{inline(item)}</li>)}</ul>);
       continue;
     }
     const paragraph: string[] = [];
     while (index < lines.length && lines[index].trim() && !/^#{1,3}\s+/.test(lines[index].trim()) && !/^[-*]\s+/.test(lines[index].trim()) && !/^>\s?/.test(lines[index].trim())) {
       paragraph.push(lines[index].trim()); index += 1;
     }
-    nodes.push(<p key={`${keyPrefix}-paragraph-${index}`}>{paragraph.map((part, partIndex) => <span key={partIndex}>{renderInlineMarkdown(part)}{partIndex < paragraph.length - 1 ? <br /> : null}</span>)}</p>);
+    nodes.push(<p key={`${keyPrefix}-paragraph-${index}`}>{paragraph.map((part, partIndex) => <span key={partIndex}>{inline(part)}{partIndex < paragraph.length - 1 ? <br /> : null}</span>)}</p>);
   }
   return nodes;
 };

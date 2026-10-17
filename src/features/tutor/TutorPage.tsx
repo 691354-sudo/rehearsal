@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode, RefObject } from "react";
 import {
   ArrowUp,
-  Ellipsis,
   LoaderCircle,
   Mic,
   MoveDiagonal2,
@@ -28,6 +27,7 @@ import {
 import type { ChatMessage, ChatThread, Language } from "../../shared/contracts";
 import { languageHasAudio } from "../../shared/config";
 import type { HistoryMode, TutorRoute } from "../../lib/appRoute";
+import { TutorChatActions, TutorThreadActions } from "./TutorChatActions";
 import { TutorChatMessage } from "./TutorChatMessage";
 import { TutorGuidedPracticeStart } from "./TutorGuidedPracticeStart";
 import { TutorSessionsRail } from "./TutorSessionsRail";
@@ -42,7 +42,7 @@ import type { Homework } from "../../../contracts/learning-pilot";
 type PendingTutorRecording = { blob: Blob; filename: string };
 
 export function TutorPage({ language, route, onLibrary, onListen, onRoute, profileId, onCardsAdded, sessionsOpen, onSessionsOpen: setSessionsOpen, sessionsButtonRef, learningControls }: {
-  learningControls?: (busy: boolean) => ReactNode;
+  learningControls?: (busy: boolean, actions: ReactNode) => ReactNode;
   onCardsAdded: () => void;
   sessionsOpen: boolean;
   onSessionsOpen: (open: boolean) => void;
@@ -158,7 +158,7 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeSessions();
       if (event.key !== "Tab") return;
-      const controls = [...(sessionsRailRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], input") || [])];
+      const controls = [...(sessionsRailRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], input") || [])].filter((element) => element.getClientRects().length);
       const first = controls[0], last = controls.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -369,6 +369,9 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
   const homeworkTitle = homework.sessions.find((session) => route.homework
     ? session.homeworkId === route.homework : session.tutorChatId === threadId)?.title;
 
+  const chatActions = threadId ? <TutorThreadActions threadId={threadId} title={currentThread?.displayTitle || currentThread?.title || ""}
+    busy={sending || reviewing || loadingThread} deleting={deletingThread} onRenamed={refreshThreads} onError={setSendError} onDelete={() => void deleteChat()} /> : null;
+
   return <main className={`simple-main ${mode === "chat" ? "simple-main--chat" : "simple-main--notebook"}`} id="main-content">
     <header className="simple-page-heading simple-tutor-heading"><h1>Tutor</h1>
       <div aria-label="Tutor mode" className="simple-tutor-mode" role="group">
@@ -378,17 +381,16 @@ export function TutorPage({ language, route, onLibrary, onListen, onRoute, profi
     {mode === "notebook" ? <CaptureNotebook onCardsAdded={onCardsAdded} language={language} profileId={profileId} onLibrary={onLibrary} onListen={onListen} /> : <section className="simple-chat">
       {sessionsOpen ? <button aria-label="Close sessions" className="simple-session-backdrop" onClick={closeSessions} type="button" /> : null}
       <TutorSessionsRail currentThreadId={threadId} onClose={closeSessions} onNewChat={newChat} modal={isNarrow} onDelete={() => void deleteChat()} deleting={deletingThread || sending || reviewing} open={!isNarrow || sessionsOpen}
-        railRef={sessionsRailRef} route={route} threads={threads} homeworks={homework.sessions} homeworkError={homework.sessionsError} onRetryHomework={() => void homework.refreshSessions()} />
+        railRef={sessionsRailRef} route={route} threads={threads} homeworks={homework.sessions} homeworkError={homework.sessionsError} onRetryHomework={() => void homework.refreshSessions()} onOpenHomework={homework.openPanel} />
       <div inert={isNarrow && sessionsOpen} className={`simple-chat-pane${reviewBatch ? " simple-chat-pane--review" : ""}`} data-onboarding-target="tutor">
         {reviewBatch ? <div className="simple-review-pane"><ReviewBatchPanel batch={reviewBatch} context="tutor" feed onBatch={setReviewBatch}
           onDismiss={() => { setReviewBatch(null); onRoute({ ...route, review: null }, "replace"); }}
           onCommitted={() => { onCardsAdded(); setReviewBatch(null); setAdded(true); onRoute({ ...route, review: null }, "replace"); }} /></div> : <>
         <div className="simple-chat-toolbar"><div className="simple-chat-context">
-          <strong>{homeworkTitle || currentThread?.title || "New chat"}</strong></div>{!homework.active ? learningControls?.(sending || reviewing || loadingThread) : null}
-          {threadId ? <details className="simple-chat-actions"><summary aria-label="More chat actions" role="button"><Ellipsis aria-hidden="true" size={18} /></summary><div>
-            <button className="simple-delete-chat" disabled={deletingThread || sending || reviewing} onClick={() => void deleteChat()} type="button">
-              {deletingThread ? <LoaderCircle className="simple-spin" size={15} /> : <Trash2 size={15} />}Delete chat</button></div></details> : null}</div>
-        {homework.toolbar}<div aria-busy={sending || loadingThread} aria-live="polite" className="simple-chat-messages" ref={messagesRef} role="log">
+          <strong>{homeworkTitle || currentThread?.displayTitle || currentThread?.title || "New chat"}</strong>{homework.status}</div>
+          {!homework.active && learningControls ? learningControls(sending || reviewing || loadingThread, chatActions)
+            : threadId ? <TutorChatActions>{homework.endAction}{chatActions}</TutorChatActions> : null}</div>
+        <div aria-busy={sending || loadingThread} aria-live="polite" className="simple-chat-messages" ref={messagesRef} role="log">
           {!homework.active && !messages.length && !loadingThread && !sending ? <TutorGuidedPracticeStart disabled={sending}
             onStart={(message) => { void sendContent(message); }} /> : null}
           {messages.map((message, messageIndex) => <TutorChatMessage key={message.id} learnerMessage={message.role === "assistant" ? messages.slice(0, messageIndex).reverse().find((candidate) => candidate.role === "user")?.content : undefined}

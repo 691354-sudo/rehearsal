@@ -159,6 +159,8 @@ The message field automatically grows and shrinks with the draft, up to 40% of t
 
 Pressing Enter clears the composer immediately, puts the learner's message into the conversation with a sending state, and shows a Tutor placeholder. If delivery fails, the message remains in the conversation with explicit Retry, Edit, and Delete actions; its text is never silently returned to the composer. Retry reuses the same delivery identity and cannot create a duplicate Tutor message or vocabulary review batch.
 
+Tutor history shows saved practice topics and selected expressions when available; generic lesson starts fall back to a dated Practice entry with a message count. Learners can rename a chat without changing its messages or activity date. Search matches names and saved practice expressions. Tutor replies retain the Feedback / Next Task grouping; explicit suggested corrections use light italics.
+
 Tutor and Notebook have the same card-preparation capabilities. Their difference is interaction context: Tutor can clarify and refine a request across a dialogue, while Notebook treats the ready notes as one direct request plus its source material.
 
 ### Telegram bot and Mini App

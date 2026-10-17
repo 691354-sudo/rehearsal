@@ -3,6 +3,7 @@ import { TutorFeedbackRepository } from "./tutor-feedback.js";
 import { randomUUID } from "node:crypto";
 import type { RehearsalDatabase } from "../database.js";
 import type { LanguageCode } from "../../types.js";
+import { tutorHistoryPresentation } from "./tutor-history.js";
 import { makeThreadTitle } from "./shared.js";
 import { TutorLearningFocusRepository } from "./tutor-learning-focus.js";
 import { TutorContextPracticeRepository } from "./tutor-context-practice.js";
@@ -93,6 +94,10 @@ export class TutorRepository {
     return title;
   }
 
+  renameThread(publicId: string, title: string) {
+    return this.db.prepare("UPDATE chat_threads SET title = ? WHERE public_id = ?").run(title, publicId).changes > 0;
+  }
+
   listThreads(language: LanguageCode, limit = 50) {
     const rows = this.db.prepare(
       `SELECT t.id, t.public_id, t.title, t.created_at, t.updated_at,
@@ -125,6 +130,9 @@ export class TutorRepository {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       messageCount: row.message_count,
+      ...tutorHistoryPresentation(row.title, row.first_message || "", this.db.prepare(`SELECT content, metadata FROM chat_messages
+        WHERE thread_id = ? AND role = 'user' AND json_type(metadata, '$.contextPractice.pool') = 'array'
+        ORDER BY id DESC LIMIT 1`).all(row.id) as Array<{ content: string; metadata: string }>),
     }));
   }
 
