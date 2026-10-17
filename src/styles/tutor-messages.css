@@ -12,11 +12,8 @@
 .tutor-response-part p + p { margin-top: 8px; }
 .tutor-response-part ul { padding-left: 20px; }
 .tutor-message-copy em { font-style: italic; }
-.tutor-inline-correction strong { font-weight: inherit; }
 .tutor-response-part[data-part="correction"],
 .tutor-response-part[data-part="another option"] { font-style: italic; }
-.tutor-response-part[data-part="correction"] strong,
-.tutor-response-part[data-part="another option"] strong { font-weight: inherit; text-decoration: none; }
 .tutor-response-part[data-part="why"],
 .tutor-response-part[data-part="meaning"],
 .tutor-response-part[data-part="your phrase"] { color: var(--rh-support); }

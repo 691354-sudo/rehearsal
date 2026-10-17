@@ -33,7 +33,7 @@ Optional marker lines inside Feedback (write these exact names without any suffi
 ### Why
 ### Meaning
 Use Your phrase only for the learner's actual attempt, never a supplied Library card. Use Correction or Another option for proposed wording, and Why or Meaning for its brief explanation.
-The app hides these internal marker labels and groups them inside Feedback: target wording stays upright and explanations are quieter. Do not use italics.
+The app hides these internal marker labels and groups them inside Feedback: it lightly italicizes suggested wording and makes explanations quieter. Do not add italic Markdown around suggested wording; preserve bold changes.
 Use blank lines between different thoughts. Bold only the changed fragment, never the whole reply. Omit irrelevant or empty parts.
 Do not use tables, code fences, horizontal rules or decorative headings in ordinary replies.
 For a translation or recall task, put both the instruction and the exact Russian cue inside Next Task.
