@@ -26,7 +26,7 @@ export function TutorLearningExperience(props: ComponentProps<typeof TutorPage>)
       onComplete={(next) => props.onRoute({ ...props.route, thread: next.firstExerciseThreadId, review: null, homework: undefined }, "replace")} />;
   }
   return <>{error ? <p role="status">{copy.loadingError} <button type="button" onClick={() => setRevision((value) => value + 1)}>{copy.retry}</button></p> : null}
-    <TutorPage {...props} learningControls={state?.enabled && profile ? (busy) => <TutorLearningControls profile={profile} threadId={props.route.thread} busy={busy}
+    <TutorPage {...props} learningControls={state?.enabled && profile ? (busy, actions) => <TutorLearningControls key={`${props.profileId}:${props.language}`} actions={actions} draftKey={`rehearsal:${props.profileId}:tutor-settings:${props.language}`} profile={profile} threadId={props.route.thread} busy={busy}
       onProfile={onProfile} onFinished={() => { window.localStorage.removeItem(`rehearsal:${props.profileId}:tutor-thread:${props.language}`);
         props.onRoute({ ...props.route, thread: null, review: null, homework: undefined }); setRevision((value) => value + 1); }} /> : undefined} /></>;
 }

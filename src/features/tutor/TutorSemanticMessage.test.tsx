@@ -7,6 +7,23 @@ const renderReply = (content: string, learnerMessage?: string) => renderToStatic
   <TutorMarkdownMessage semantic content={content} learnerMessage={learnerMessage} />);
 
 describe("Tutor response layout", () => {
+  it("lightly marks complete quoted corrections without changing feedback, task or user copy", () => {
+    const feedback = 'Your meaning is clear. Small correction: “I think we’d be better off travelling with different people,” and “you seem comfortable staying at the hotel.”';
+    const markup = renderReply(`### Feedback\n${feedback}\n\n### Next Task\nExplain “what connects them”.`);
+    expect(markup.match(/class="tutor-inline-correction"/g)).toHaveLength(2);
+    expect(markup).toContain('<em class="tutor-inline-correction">I think we’d be better off travelling with different people,</em>');
+    expect(markup).toContain('Your meaning is clear.');
+    expect(markup.slice(markup.indexOf('<h2>Next Task'))).not.toContain('<em');
+    expect(renderReply('You said “I go home.” That is correct.')).not.toContain('<em');
+    const user = renderToStaticMarkup(<TutorMarkdownMessage content={feedback} />);
+    expect(user).not.toContain('<em');
+  });
+  it("does not mark unrelated later quotes or inject HTML from a correction", () => {
+    const markup = renderReply('### Feedback\nCorrection: "<img src=x>". The word "work" is useful.');
+    expect(markup.match(/class="tutor-inline-correction"/g)).toHaveLength(1);
+    expect(markup).toContain('&lt;img src=x&gt;');
+    expect(markup).not.toContain('<img');
+  });
   it("renders ordinary conversation as plain paragraphs without exercise labels", () => {
     const markup = renderReply("Sure, let's talk.\n\nWhat's been going on in your life lately?");
     expect(markup).toContain("Sure, let&#x27;s talk.");
