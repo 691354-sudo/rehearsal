@@ -24,13 +24,36 @@ describe("Tutor response layout", () => {
     expect(markup).toContain('&lt;img src=x&gt;');
     expect(markup).not.toContain('<img');
   });
-  it("renders ordinary conversation as plain paragraphs without exercise labels", () => {
+  it("separates the existing follow-up question in saved ordinary conversation", () => {
     const markup = renderReply("Sure, let's talk.\n\nWhat's been going on in your life lately?");
     expect(markup).toContain("Sure, let&#x27;s talk.");
     expect(markup.match(/<p>/g)).toHaveLength(2);
-    expect(markup).not.toContain("Feedback");
-    expect(markup).not.toContain("Next Task");
-    expect(markup).not.toContain("<section");
+    expect(markup.match(/<h2>.*?<\/h2>/g)).toEqual(["<h2>Feedback</h2>", "<h2>Next Task</h2>"]);
+    expect(markup.indexOf("What&#x27;s been going on")).toBeGreaterThan(markup.indexOf("Next Task"));
+  });
+  it.each(["\n", " "])("restores the saved trading reply with its whole correction and original emphasis (%j)", (separator) => {
+    const feedback = "Exactly. The alluring image is freedom and effortless money, but the reality is constant uncertainty, self-control, and responsibility. A beach may be a nice place to check your positions occasionally, but probably not the best place to make difficult decisions with real money at stake.";
+    const reflection = "It sounds as if trading became less alluring once you understood what consistent profitability actually requires.";
+    const question = "Has the reality made trading less attractive to you, or has it just changed what you find attractive about it?";
+    const markup = renderReply(`${feedback}\n\nSmall tweak: “Whether they can sustain **that kind of lifestyle** is a big question.”\n\n${reflection}${separator}${question}`);
+    expect(markup).toContain(feedback);
+    expect(markup).toContain(reflection);
+    expect(markup).toContain('<em class="tutor-inline-correction">Whether they can sustain <strong>that kind of lifestyle</strong> is a big question.</em>');
+    expect(markup.match(/<p>/g)).toHaveLength(4);
+    expect(markup.match(/<h2>.*?<\/h2>/g)).toEqual(["<h2>Feedback</h2>", "<h2>Next Task</h2>"]);
+    expect(markup.slice(markup.indexOf('<h2>Next Task'))).toContain(question);
+  });
+  it.each([
+    'Small tweak: “How are **you** doing?”',
+    'You can ask:\nHow are you doing?',
+    'Two examples:\n- How are you doing?\n- Where do you live?',
+    'An example:\n\n> Where do you live?',
+    '### Feedback\nThe question is:\nHow are you doing?',
+    'The word **alluring** means attractive.\n\nIt describes something tempting.',
+  ])("does not invent a next task from explanations, examples or explicit feedback (%s)", (content) => {
+    const markup = renderReply(content);
+    expect(markup).toContain('<h2>Feedback</h2>');
+    expect(markup).not.toContain('<h2>Next Task</h2>');
   });
   it("groups feedback, alternatives and reasons under one heading with a separate next task", () => {
     const markup = renderReply('Понимаю тебя.\n\n### Your phrase\n\nI goes home.\n\n### Correction\n\nI **go** home.\n\n### Why\n\nПосле I — go.\n\n### Your turn\n\nНапиши фразу снова.');

@@ -17,7 +17,8 @@ describe("learner-specific AI context", () => {
 
     expect(romanTutor).toContain("Roman");
     expect(romanTutor).toContain("Current mode: ordinary Tutor chat, not Homework");
-    expect(romanTutor).toContain("Use normal conversational paragraphs without Feedback or Next Task headings");
+    expect(romanTutor).toContain("Put conversational paragraphs and any light correction under ### Feedback");
+    expect(romanTutor).toContain("Omit Next Task when there is no follow-up question");
     expect(romanTutor).toContain("follow the requested shape, quantity, and order");
     expect(romanTutor).toContain("including every member of stated ranges or enumerations");
     expect(romanTutor).toContain("Bare foundational units such as numbers or individual letters may stay atomic");

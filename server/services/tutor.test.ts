@@ -156,7 +156,10 @@ describe("Tutor OpenAI requests", () => {
       expect(prompt).toContain("even if the learner mentions a daily duration");
       expect(prompt).toContain("Guided practice starts only when the learner explicitly requests a structured exercise");
       expect(prompt).toContain("An exercise introduced by an earlier assistant reply is not learner consent");
-      expect(prompt).toContain("Use normal conversational paragraphs without Feedback or Next Task headings");
+      expect(prompt).toContain("Put conversational paragraphs and any light correction under ### Feedback");
+      expect(prompt).toContain("If you naturally ask a follow-up question, put only that question under ### Next Task");
+      expect(prompt).toContain("Omit Next Task when there is no follow-up question");
+      expect(prompt).toContain('Small tweak: “I **went**, because it was yesterday.”');
       expect(prompt).toContain("Answer grammar, meaning, and wording questions directly");
       expect(prompt).toContain("by default for conversation, explanations, corrections, situations, instructions and next actions");
       expect(prompt).toContain("Honor an explicit request for another response language");

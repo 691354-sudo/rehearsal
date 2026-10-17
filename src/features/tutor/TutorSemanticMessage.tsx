@@ -4,6 +4,18 @@ type TutorPart = { label: string; content: string };
 const headingPattern = /^\s*#{1,3}\s+(Feedback|Your phrase|Correction|Another option|Why|Meaning|Your turn|Next task)\s*$/gim;
 const isTask = (part: TutorPart) => /^(your turn|next task)$/i.test(part.label);
 
+// Older English conversations have no section markers. Only separate a clear final
+// question addressed to the learner; quoted examples and ambiguous prose stay intact.
+const splitSavedFollowUp = (content: string) => {
+  const question = /(?:^|\n|(?<=[.!])\s)((?:what|why|how|which|when|where|who|do|does|did|is|are|was|were|have|has|had|can|could|will|would|should)\b[^?\n]*\?)\s*$/i.exec(content);
+  if (!question || !/\b(?:you|your|yours)\b/i.test(question[1])) return null;
+  const reply = content.slice(0, question.index).trim();
+  const questionStart = question.index + question[0].indexOf(question[1]);
+  const line = content.slice(content.lastIndexOf("\n", questionStart - 1) + 1, questionStart);
+  if (reply.endsWith(":") || /^\s*(?:[-*>#]|\d+[.)])\s/.test(line)) return null;
+  return { reply, question: question[1] };
+};
+
 export function splitTutorSections(content: string, learnerMessage?: string) {
   const matches = [...content.matchAll(headingPattern)];
   let reply = matches.length ? content.slice(0, matches[0].index).trim() : content;
@@ -13,6 +25,10 @@ export function splitTutorSections(content: string, learnerMessage?: string) {
   if (!matches.length) {
     const legacy = splitTutorCorrection(content, learnerMessage);
     if (legacy) { reply = legacy.reply; sections = [{ label: "correction", content: legacy.correction }]; }
+    else {
+      const followUp = splitSavedFollowUp(content);
+      if (followUp) { reply = followUp.reply; sections = [{ label: "next task", content: followUp.question }]; }
+    }
   }
   sections = sections.flatMap((section) => {
     const blocks = section.content.split(/\n\s*\n/).filter(Boolean);
@@ -39,9 +55,6 @@ export function splitTutorSections(content: string, learnerMessage?: string) {
 
 export function TutorSemanticMessage({ content, learnerMessage }: { content: string; learnerMessage?: string }) {
   const { feedback, tasks } = splitTutorSections(content, learnerMessage);
-  if (!content.match(headingPattern) && !tasks.length && feedback.every((part) => part.label === "feedback")) {
-    return <div className="simple-message-copy tutor-message-copy">{renderMarkdownBlocks(content, "reply", true, true)}</div>;
-  }
   const renderParts = (parts: TutorPart[]) => parts.map((part, index) =>
     <div className="tutor-response-part" data-part={part.label} key={index}>{renderMarkdownBlocks(part.content, `part-${index}`, true, part.label === "feedback")}</div>);
   return <div className="simple-message-copy tutor-message-copy">

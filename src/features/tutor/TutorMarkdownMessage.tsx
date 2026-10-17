@@ -6,7 +6,7 @@ const renderInlineMarkdown = (text: string) => text.split(/(\*\*[^*]+\*\*|\*[^*]
     : part.startsWith("*") && part.endsWith("*") ? <em key={index}>{part.slice(1, -1)}</em> : part);
 
 const renderFeedbackInline = (text: string) => {
-  const cue = /\b(?:small correction|correction|better|more natural|you (?:can|could|should) say|try saying)\s*:\s*/i.exec(text);
+  const cue = /\b(?:small tweak|small correction|correction|better|more natural|you (?:can|could|should) say|try saying)\s*:\s*/i.exec(text);
   if (!cue) return renderInlineMarkdown(text);
   const start = cue.index + cue[0].length;
   const result: ReactNode[] = [...renderInlineMarkdown(text.slice(0, start))];
